@@ -178,6 +178,37 @@ const R = {
     for (let i = 0; i < 2; i++) k.torus(-.62, .02 + i * .06, .55, .16, .025, 'woodL', { rx: Math.PI / 2, ts: 10 });
     return 1.2;
   },
+  // --- Dry Creek Outpost ---
+  quarry(k, add) {
+    // a stone camp: a cut rock face with stepped ledges, a timber boom crane with a turning pulley, blocks of cut
+    // stone in rows, and a canvas tent for the crew
+    for (let i = 0; i < 3; i++) k.box(-.25, i * .28, -.5 + i * .02, 1.25 - i * .3, .3, .55 - i * .12, i % 2 ? 'stoneL' : 'stone', { jit: .08 });
+    rocks(k, -.25, -.25, 'stoneL', 'stoneD', 6, .55, 11);
+    k.box(-.5, 0, -.18, .3, .25, .2, 'stoneL', { jit: .06 }); k.box(-.1, 0, -.15, .26, .2, .2, 'stone', { jit: .06 });
+    // the boom crane: a mast, a slanted boom, a pulley that turns while it works, and a block on the rope
+    k.box(.35, 0, -.05, .08, 1.15, .08, 'woodD'); k.box(.35, 1.0, .1, .06, .06, .7, 'wood', { rx: .45 });
+    const wh = part(k2 => { k2.torus(0, 0, 0, .09, .02, 'iron', { mat: 'metal', ts: 10 }); k2.box(0, -.09, 0, .02, .18, .02, 'iron', { mat: 'metal' }); });
+    add('spin', wh, new THREE.Vector3(.35, .4, .05), 'x', 4);
+    k.box(.35, .55, .38, .015, .5, .015, 'ink'); k.box(.35, .38, .38, .16, .16, .16, 'stoneL');
+    // cut blocks waiting to go
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 3 - r; i++) k.box(-.6 + (i - (2 - r) / 2) * .19, r * .13, .55, .17, .12, .2, r % 2 ? 'stoneL' : 'stone');
+    // the crew's tent
+    k.gable(.62, 0, .55, .5, .55, .36, 'cream', { jit: .04 }); k.box(.62, 0, .83, .14, .24, .02, 'cloth');
+    return 1.2;
+  },
+  dmine(k, add) {
+    // a mining camp: a timbered adit in a rocky bank, a cart on short rails, an ore heap, a rocker box and a tent
+    rocks(k, -.1, -.45, 'rockR', 'rock', 8, .6, 7); k.dode(-.1, .25, -.55, .45, 'rockR', { sy: .8, ry: .6 }); k.dode(.4, .12, -.4, .3, 'rock', { ry: 1.4 });
+    k.box(-.1, 0, -.12, .36, .36, .2, 'black'); for (const sx of [-1, 1]) k.box(-.1 + sx * .19, 0, -.02, .06, .42, .06, 'wood'); k.box(-.1, .4, -.02, .48, .07, .08, 'wood');
+    rails(k, -.1, .35, .7);
+    const ct = part(k2 => cart(k2, 0, 'copper')); add('cart', ct, new THREE.Vector3(-.1, .02, .35));
+    k.cone(.45, 0, .3, .24, .22, 'copper', { seg: 6 }); k.cone(.6, 0, .5, .13, .12, 'rockR', { seg: 5 });
+    // the rocker box by a water barrel
+    k.box(.5, .05, -.05, .36, .1, .16, 'woodL', { rz: -.15 }); k.box(.5, 0, -.05, .05, .08, .2, 'woodD'); barrel(k, .78, -.2);
+    k.gable(-.62, 0, .55, .44, .5, .32, 'cream', { jit: .04 }); k.box(-.62, 0, .8, .12, .22, .02, 'cloth');
+    k.box(.2, 0, .7, .03, .32, .03, 'woodD', { rz: .5 }); k.box(.27, .26, .7, .14, .03, .03, 'steel', { mat: 'metal', rz: .5 });
+    return .95;
+  },
 };
 
 
@@ -206,6 +237,20 @@ export function makeVault(bands = 1) {
     for (let i = 0; i < Math.min(5, bands); i++) k.box(0, .22 + i * .11, 0, .76, .025, .72, 'goldD', { mat: 'metal' });
     for (const sy of [.2, .7]) for (const sz of [-.3, .3]) k.ball(-.372, sy, sz, .02, 'steel');
     k.box(0, .82, 0, .3, .05, .3, 'gold', { mat: 'metal' });
+  });
+}
+
+/* An outpost's stockpile (its vault): crates, barrels and sacks of goods under a tarp, inside a low rail fence, with a
+   lantern post and a flag. Raiders ride for it the way they ride for a town's vault. */
+export function makeStockpile() {
+  return part(k => {
+    k.box(0, 0, 0, .95, .06, .95, 'woodD');
+    for (const [x, z] of [[-.45, -.45], [.45, -.45], [-.45, .45], [.45, .45]]) k.box(x, 0, z, .05, .3, .05, 'wood');
+    for (const [x, z, w, d] of [[0, -.45, .9, .03], [0, .45, .9, .03], [.45, 0, .03, .9]]) k.box(x, .22, z, w, .03, d, 'woodL');
+    crate(k, -.2, -.18, .24); crate(k, .1, -.2, .2, 0, .4); crate(k, -.15, -.15, .18, .24, .2);
+    barrel(k, .25, .15); barrel(k, .1, .28); sacks(k, -.25, .2);
+    k.gable(-.05, .3, -.15, .55, .4, .14, '#8f8466', { jit: .05 });
+    k.box(-.47, 0, .3, .04, .7, .04, 'woodD'); k.box(-.4, .5, .3, .2, .12, .02, 'paintR');
   });
 }
 

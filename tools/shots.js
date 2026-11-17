@@ -38,6 +38,19 @@ const SCREENS = [
   ['perks', () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 2, offered: true, perks: { trade: 'a' } }); t.bestWave = Math.max(t.bestWave, 31); t.lifetime = Math.max(t.lifetime, 7e4); CG.play.openPerks(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
 ];
+// a new game, which starts in Dry Creek Outpost (cards on, so the win card can be shown)
+const OUTPOST = [
+  ['outpost', async () => {
+    const n = document.getElementById('newsOk'); if (n) n.click();
+    localStorage.clear(); document.getElementById('play').click();
+    for (let i = 0; i < 100 && !(window.CG && CG.coach && CG.town); i++) await new Promise(r => setTimeout(r, 100));
+    CG.coach.skipAll();
+  }],
+  ['outpost-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['outpost-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.stone = 500; t.buildings.quarry = 6; t.buildings.dmine = 3; for (const s of [0, 1, 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
+  ['won', () => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
+  ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
+];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 fs.mkdirSync(dir, { recursive: true });
@@ -45,13 +58,21 @@ const srv = await start(0), b = await chromium.launch(), wrote = [];
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
     const p = await b.newPage({ viewport: { width, height } });
-    await p.goto(srv.url + '?coach=off');
+    await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
       await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : 1200);
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();
+    const q = await b.newPage({ viewport: { width, height } });
+    await q.goto(srv.url);
+    for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
+    for (const [name, go] of OUTPOST) {
+      await q.evaluate(go); await sleep(name === 'outpost' ? 3000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'won' ? 2500 : 1500);
+      const f = path.join(dir, `${name}-${size}.png`); await q.screenshot({ path: f }); wrote.push(f);
+    }
+    await q.close();
   }
 } finally { await b.close(); srv.close(); }
 console.log(wrote.join('\n'));

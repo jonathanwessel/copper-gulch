@@ -44,7 +44,7 @@ async function run() {
       const page = await browser.newPage({ viewport: { width, height } }), errs = [];
       page.on('pageerror', e => errs.push(e.message));
       page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-      await page.goto(srv.url + '?coach=off');
+      await page.goto(srv.url + '?coach=off&start=gulch');
       await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
       await sleep(300);
       const bad = [...await check(page)];
@@ -272,12 +272,75 @@ async function run() {
     }
   } finally { await browser.close(); srv.close(); }
 
+  // the outpost: a new game starts in Dry Creek, its Stone Camp and a Crossbow are bought through their cards, the win
+  // card's button opens Copper Gulch, and the town chip switches both ways, at every size
+  const srv7 = await start(0), b7 = await chromium.launch();
+  try {
+    for (const [name, [width, height]] of Object.entries(SIZES)) {
+      const page = await b7.newPage({ viewport: { width, height } }), errs = [], bad = [];
+      page.on('pageerror', e => errs.push(e.message));
+      page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+      await page.goto(srv7.url); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5 && CG.coach && CG.coach.current === 'dc-welcome', 10000);
+      const begin = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, out = {};
+        out.drycreek = g.active === 'drycreek' && !g.towns.gulch && CG.town.board.group.name === 'board:drycreek';
+        out.welcome = CG.coach.current === 'dc-welcome';
+        CG.coach.skipAll(); await wait(100);
+        const t = g.town; t.coins = 500; t.goods.stone = 50;
+        CG.play.open('quarry'); await wait(100); const L = t.level('quarry'); document.getElementById('buy').click();
+        out.camp = t.level('quarry') === L + 1;
+        CG.play.openSpot(0); await wait(100);
+        out.onlyCrossbow = [...document.querySelectorAll('#card .build')].map(b => b.dataset.kind).join() === 'crossbow';
+        document.querySelector('#card .build[data-kind="crossbow"]').click(); CG.play.close();
+        out.tower = t.towers.some(x => x.spot === 0);
+        out.noChip = document.getElementById('townChip').hidden;
+        return out;
+      });
+      for (const [k, v] of Object.entries(begin)) if (!v) bad.push('outpost start: not ' + k);
+      bad.push(...(await check(page)).map(b => 'outpost: ' + b));
+      // win it: the win card shows, with a button that goes to Copper Gulch
+      await page.evaluate(() => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; });
+      if (!await waitFor(page, () => CG.coach.current === 'dc-won', 8000)) bad.push('the win card did not show');
+      bad.push(...(await check(page)).map(b => 'win card: ' + b));
+      // the countdown to the next raid is never cut off (the raid type may be, the number never)
+      await sleep(400);
+      const cut = await page.evaluate(() => { const w = document.querySelector('#wave .winfo'); return w.scrollWidth > w.clientWidth + 1 ? w.textContent : ''; });
+      if (cut) bad.push('the wave countdown is cut off (' + cut + ')');
+      await page.evaluate(() => document.getElementById('coachGo').click());
+      await sleep(300);
+      if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:gulch', 10000)) bad.push('the win card did not open Copper Gulch');
+      await page.evaluate(() => CG.coach.skipAll());
+      const chip = await page.evaluate(() => {
+        const c = document.getElementById('townChip'), bs = [...c.querySelectorAll('button')];
+        return { shown: !c.hidden, two: bs.map(b => b.dataset.town).join() === 'drycreek,gulch', on: (bs.find(b => b.classList.contains('on')) || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length };
+      });
+      if (!chip.shown || !chip.two || chip.on !== 'gulch') bad.push('the town chip is wrong (' + JSON.stringify(chip) + ')');
+      if (chip.canvases !== 1) bad.push(chip.canvases + ' canvases after switching');
+      bad.push(...(await check(page)).map(b => 'gulch: ' + b));
+      // the chip goes back to Dry Creek, which kept its tower, and then to the Gulch again
+      await page.evaluate(() => document.querySelector('#townChip [data-town="drycreek"]').click());
+      if (!await waitFor(page, () => CG.game.active === 'drycreek' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:drycreek', 10000)) bad.push('the chip did not go to Dry Creek');
+      const back = await page.evaluate(() => ({ tower: CG.game.town.towers.length > 0, won: CG.game.town.won, on: (document.querySelector('#townChip .on') || {}).dataset?.town }));
+      if (!back.tower || !back.won || back.on !== 'drycreek') bad.push('Dry Creek is not as it was left (' + JSON.stringify(back) + ')');
+      await page.evaluate(() => document.querySelector('#townChip [data-town="gulch"]').click());
+      if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5, 10000)) bad.push('the chip did not go back to the Gulch');
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cg-save')).game.active);
+      if (saved !== 'gulch') bad.push('the switch was not saved');
+      bad.push(...errs);
+      console.log('outpost ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+      failed += bad.length ? 1 : 0;
+      await page.close();
+    }
+  } finally { await b7.close(); srv7.close(); }
+
   // save slots: a new game in slot 2, a save loaded into it from text, back to slot 1, and the title says Continue
   const srv4 = await start(0), b4 = await chromium.launch();
   try {
     const page = await b4.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
     page.on('pageerror', e => errs.push(e.message));
-    await page.goto(srv4.url + '?coach=off');
+    await page.goto(srv4.url + '?coach=off&start=gulch');
     await waitFor(page, () => window.CG && CG.ready);
     await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
     await waitFor(page, () => CG.town && CG.town.frames > 5);
@@ -325,7 +388,7 @@ async function run() {
   try {
     const page = await b6.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
     page.on('pageerror', e => errs.push(e.message));
-    await page.goto(srv6.url + '?coach=off'); await waitFor(page, () => window.CG && CG.ready);
+    await page.goto(srv6.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
     await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
     await waitFor(page, () => CG.town && CG.town.frames > 5);
     await page.evaluate(async () => {
@@ -358,7 +421,7 @@ async function run() {
   try {
     const page = await b5.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
     page.on('pageerror', e => errs.push(e.message));
-    await page.goto(srv5.url + '?coach=off'); await waitFor(page, () => window.CG && CG.ready);
+    await page.goto(srv5.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
     if (await page.evaluate(() => !!document.getElementById('news'))) bad.push('a new player saw What\'s new');
     await page.evaluate(() => { document.getElementById('play').click(); });
     await waitFor(page, () => CG.town && CG.town.frames > 3);
@@ -384,25 +447,28 @@ async function run() {
     await page.goto(srv3.url);
     await waitFor(page, () => window.CG && CG.ready);
     await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
-    const shown = await waitFor(page, () => window.CG && CG.coach && CG.coach.current === 'welcome', 10000);
+    const shown = await waitFor(page, () => window.CG && CG.coach && CG.coach.current === 'dc-welcome', 10000);
     const bad = shown ? [] : ['the welcome card did not show'];
     if (shown) {
       const st = await page.evaluate(async () => {
         const t0 = CG.game.town.t; await new Promise(r => setTimeout(r, 1200));
-        const hole = document.querySelector('#coach .hole');
-        return { paused: CG.game.town.t === t0, hole: !hole.hidden && hole.getBoundingClientRect().width > 0 };
+        return { paused: CG.game.town.t === t0 };
       });
       if (!st.paused) bad.push('the game ran under the card');
-      if (!st.hole) bad.push('no spotlight on the camp');
       bad.push(...(await check(page)).map(b => 'coach: ' + b));
       await page.evaluate(() => document.getElementById('coachOk').click());
+      // the next card spotlights the Stone Camp
+      if (!await waitFor(page, () => CG.coach.current === 'dc-stone', 6000)) bad.push('the Stone Camp card did not follow');
+      const hole = await page.evaluate(() => { const h = document.querySelector('#coach .hole'); return !h.hidden && h.getBoundingClientRect().width > 0; });
+      if (!hole) bad.push('no spotlight on the Stone Camp');
+      await page.evaluate(() => document.getElementById('coachOk').click());
       await sleep(300);
-      const after = await page.evaluate(() => ({ hidden: document.getElementById('coach').hidden, seen: !!CG.game.shared.seen.welcome }));
-      if (!after.hidden || !after.seen) bad.push('Got it did not dismiss the card');
+      const after = await page.evaluate(() => !!CG.game.shared.seen['dc-welcome'] && !!CG.game.shared.seen['dc-stone']);
+      if (!after) bad.push('Got it did not dismiss the cards');
       await page.reload(); await waitFor(page, () => window.CG && CG.ready);
       await page.evaluate(() => document.getElementById('play').click());
       await waitFor(page, () => CG.town && CG.town.frames > 5); await sleep(2500);
-      if (await page.evaluate(() => CG.coach.current === 'welcome')) bad.push('the welcome card came back after a reload');
+      if (await page.evaluate(() => ['dc-welcome', 'dc-stone'].includes(CG.coach.current))) bad.push('the welcome cards came back after a reload');
     }
     bad.push(...errs);
     console.log('coach', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

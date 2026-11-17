@@ -12,7 +12,7 @@
 import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
-import { demand, output, buildingsOf } from './economy.js';
+import { demand, output, buildingsOf, isOutpost } from './economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 
 /* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
@@ -167,10 +167,15 @@ function kill(game, town, f) {
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }
 
+/* A town out of play waits: the wave on its road finishes, but the clock to the next one stops until the player is
+   back, so arriving always leaves the time it showed. An outpost keeps its raids (its towers fight them on their own). */
+export const waitsAway = (game, town) => !!game.active && game.active !== town.id && !isOutpost(town);
+
 /* One step of the battle. */
 export function fight(game, town, dt) {
   const ws = town.waves, road = roadOf(town);
   if (ws.phase === 'break') {
+    if (waitsAway(game, town)) return;
     ws.timer = Math.max(0, ws.timer - dt);
     if (ws.timer <= 0 && !ws.hold) startWave(game, town); // held: the town keeps working, the next wave waits
     return;

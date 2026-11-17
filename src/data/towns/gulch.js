@@ -2,6 +2,7 @@
 export const GULCH = {
   id: 'gulch',
   name: 'Copper Gulch',
+  short: 'Copper Gulch',
   era: 'Frontier',
   goods: ['timber', 'ore', 'clay', 'planks', 'copper', 'bricks', 'tools', 'wagons'],
   buildings: ['camp', 'mine', 'pit', 'saw', 'smelter', 'kiln', 'toolsmith', 'wagonworks'],

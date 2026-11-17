@@ -119,6 +119,9 @@ html.no3d body { background: var(--bg); }
 .vault i { display: block; height: 100%; background: var(--good); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .hudrow { display: flex; gap: 6px; }
+.townchip { display: flex; gap: 6px; flex-wrap: wrap; }
+.townchip .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
+.townchip[hidden], .townname[hidden] { display: none; }
 .hudrow .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
 .hudrow .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
 .pausedbanner {
@@ -127,7 +130,7 @@ html.no3d body { background: var(--bg); }
   box-shadow: 4px 4px 0 rgba(22, 15, 11, .6);
 }
 .wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; }
-@media (max-width: 420px) { .wave { gap: 6px; padding-left: 8px; } .vault { width: 30px; } }
+@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } }
 .option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--panel-2); border: 2px solid var(--line); }
 .option > div { display: grid; flex: 1; gap: 1px; }
 .option b { color: var(--copper-hi); }
@@ -258,6 +261,8 @@ html.flat .tag { position: static; transform: none !important; }
 .coachcard b { color: var(--copper-hi); font-size: 1.1rem; }
 .coachcard p { margin: 0; font-weight: 500; }
 .coachcard .btn { justify-self: end; min-width: 120px; font-size: 1rem; }
+.coachbtns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.coachbtns .btn[hidden] { display: none; }
 @keyframes pulse { 50% { border-color: var(--gold); } }
 @keyframes drop { from { transform: translateY(-24px); opacity: 0; } }
 @keyframes rise { from { transform: translateY(12px); opacity: 0; } }

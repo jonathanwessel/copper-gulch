@@ -1,10 +1,14 @@
 /* The explainer cards (src/data/explainers.js): one at a time, a dimmed screen with a spotlight on the thing being
    explained and a short card with "Got it". The game waits while a card is open. Each card shows once; what has been
-   seen is kept in the save (game.shared.seen). startCoach returns { frame(dt), current, dismiss(), skipAll() }. */
+   seen is kept in the save (game.shared.seen). An explainer with `town` shows only in that town. One with `go` (a town
+   id) and `button` gets a second button that takes the player there. startCoach returns
+   { frame(dt), current, dismiss(), skipAll(), destroy() }. */
 import { EXPLAINERS } from '../data/explainers.js';
 import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
+import { isOutpost } from '../core/economy.js';
+import { towerIn } from '../core/defense.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -12,7 +16,10 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 export function helper(town, game = null) {
   const ws = town.waves || {}, levels = Object.entries(town.buildings);
   const top = levels.reduce((a, b) => (b[1] > a[1] ? b : a), ['camp', 0]);
+  const outposts = game ? Object.values(game.towns).filter(isOutpost) : [];
   return {
+    id: town.id, outpost: isOutpost(town), won: !!town.won, towns: game ? Object.keys(game.towns).length : 1,
+    outpostWon: outposts.some(o => o.won), can: kind => towerIn(town, kind),
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
     unlocked: id => unlocked(town, id),
@@ -29,16 +36,19 @@ export function helper(town, game = null) {
 }
 
 /* locate(target) gives a screen point { x, y } for a 3D target, or null. */
-export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, off = false }) {
+export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, onGo = () => {}, off = false }) {
   const seen = game.shared.seen || (game.shared.seen = {});
   let cur = null, wait = 1.2, acc = 0;
   const layer = el('div', 'coach'); layer.hidden = true; layer.id = 'coach';
   const hole = el('div', 'hole'), card = el('div', 'coachcard'), title = el('b'), text = el('p'), ok = el('button', 'btn primary', 'Got it');
-  ok.id = 'coachOk'; card.append(title, text, ok); layer.append(hole, card); root.append(layer);
+  const go = el('button', 'btn primary', ''), btns = el('div', 'coachbtns');
+  ok.id = 'coachOk'; go.id = 'coachGo'; go.hidden = true; btns.append(ok, go); card.append(title, text, btns); layer.append(hole, card); root.append(layer);
   ok.addEventListener('click', () => api.dismiss());
+  go.addEventListener('click', () => { const to = cur && cur.e.go; api.dismiss(); if (to) onGo(to); });
 
   function show(e) {
     cur = { e }; title.textContent = e.title; text.textContent = e.text; layer.hidden = false; layer.dataset.id = e.id;
+    go.hidden = !e.go; go.textContent = e.button || ''; ok.textContent = e.go ? 'Stay here' : 'Got it'; ok.classList.toggle('primary', !e.go);
     pause(true); place();
   }
   function place() {
@@ -59,7 +69,7 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
       if (cur) { place(); return; }
       if ((wait -= dt) > 0 || (acc += dt) < .25) return;
       acc = 0;
-      const h = helper(town, game), next = EXPLAINERS.find(e => !seen[e.id] && e.when(h));
+      const h = helper(town, game), next = EXPLAINERS.find(e => !seen[e.id] && (!e.town || e.town === h.id) && e.when(h));
       if (next) show(next);
     },
     dismiss() {
@@ -68,6 +78,8 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     },
     /* Mark every card seen (for players who know the game, and for tools). */
     skipAll() { for (const e of EXPLAINERS) seen[e.id] = true; api.dismiss(); },
+    /* Take the cards down without marking the open one seen (switching towns); it shows again later. */
+    destroy() { off = true; if (cur) { cur = null; pause(false); } layer.remove(); },
   };
   return api;
 }

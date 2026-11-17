@@ -4,10 +4,49 @@
    works out the features from the game itself (each system, tower kind and goods tier, and the named mechanics
    below) and fails when any has no explainer.
      covers: the feature ids it teaches.     when(h): true once it should show; h reads the town (src/ui/coach.js).
-     at(h): what to spotlight: { plot }, { spot }, { tower }, { vault: true } or { el: css selector }; or nothing. */
+     at(h): what to spotlight: { plot }, { spot }, { tower }, { vault: true } or { el: css selector }; or nothing.
+     town: show it only while this town is in play.   go, button: a second button that takes the player to that town. */
 export const EXPLAINERS = [
+  // Dry Creek Outpost, where a new game starts
   {
-    id: 'welcome', covers: ['system:economy', 'tier:0'],
+    id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek'],
+    title: 'Welcome to Dry Creek',
+    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens.',
+    when: () => true,
+  },
+  {
+    id: 'dc-stone', town: 'drycreek', covers: ['system:economy', 'tier:0'],
+    title: 'The Stone Camp',
+    text: 'This is your Stone Camp. It cuts stone. Tap it to upgrade it. Every level cuts more. Crossbows here are built with stone.',
+    when: () => true, at: () => ({ plot: 'quarry' }),
+  },
+  {
+    id: 'dc-stockpile', town: 'drycreek', covers: ['stockpile'],
+    title: 'The stockpile',
+    text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it breaks, you lose a tenth of your coins and go back two waves.',
+    when: h => h.t > 12 && !h.won, at: () => ({ vault: true }),
+  },
+  {
+    id: 'dc-mine', town: 'drycreek', covers: ['building:dmine'],
+    title: 'The Mining Camp',
+    text: 'You can build a Mining Camp now. It digs copper ore, which sells for more than stone. Tap it to build it.',
+    when: h => h.unlocked('dmine'), at: () => ({ plot: 'dmine' }),
+  },
+  {
+    id: 'dc-boss', town: 'drycreek', covers: ['boss:bandits'],
+    title: 'The bandit wagon',
+    text: 'Wave 10 brings the bandit wagon. It is tougher than other raiders. Stop it and Dry Creek is yours.',
+    when: h => h.wave >= 9 && !h.won, at: () => ({ el: '#wave' }),
+  },
+  {
+    id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Go to Copper Gulch',
+    title: 'Copper Gulch is open',
+    text: 'You beat wave 10 at Dry Creek. Copper Gulch has more buildings and towers. Dry Creek keeps making coins while you play there.',
+    when: h => h.won,
+  },
+  // Copper Gulch
+  {
+    id: 'welcome', town: 'gulch', covers: ['welcome:gulch'],
     title: 'Welcome to Copper Gulch',
     text: 'This is your Lumber Camp. It cuts timber. Tap it to upgrade it. Every level cuts more.',
     when: () => true, at: () => ({ plot: 'camp' }),
@@ -45,7 +84,7 @@ export const EXPLAINERS = [
   {
     id: 'waves', covers: ['call'],
     title: 'Waves',
-    text: 'Raiders come in waves. The green bar is your vault\'s health. Tap Call now to start the next wave early and get bonus coins for the time you skip.',
+    text: 'Raiders come in waves. The green bar drops each time one gets through. Tap Call now to start the next wave early and get bonus coins for the time you skip.',
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {
@@ -67,7 +106,7 @@ export const EXPLAINERS = [
     when: h => h.towers.length > 0 && h.t > 150, at: () => ({ el: '#menuBtn' }),
   },
   {
-    id: 'vault', covers: ['vault', 'breach'],
+    id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
     text: 'Every raider that gets through damages the vault. If it breaks, you lose a tenth of your coins and go back two waves. Build more towers or upgrade the ones you have.',
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
@@ -106,19 +145,19 @@ export const EXPLAINERS = [
     id: 'cannon', covers: ['tower:cannon'],
     title: 'Cannon',
     text: 'Your Copper Mine digs ore, so you can build a Cannon. Tap a stone pad to build one. It\'s slow, but each shot hits a whole group of raiders.',
-    when: h => (h.made.ore || 0) > 0, at: () => ({ spot: 1 }),
+    when: h => h.can('cannon') && (h.made.ore || 0) > 0, at: () => ({ spot: 1 }),
   },
   {
     id: 'frost', covers: ['tower:frost'],
     title: 'Frost Lens',
     text: 'You can build a Frost Lens now. Tap a stone pad to build one. It slows every raider in range, so your other towers get more shots.',
-    when: h => (h.made.planks || 0) > 0 && (h.made.clay || 0) > 0, at: () => ({ spot: 4 }),
+    when: h => h.can('frost') && (h.made.planks || 0) > 0 && (h.made.clay || 0) > 0, at: () => ({ spot: 4 }),
   },
   {
     id: 'still', covers: ['tower:still'],
     title: 'Snake Oil Still',
     text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts armored raiders too.',
-    when: h => (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
+    when: h => h.can('still') && (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {
     id: 'finished', covers: ['tier:2'],
@@ -133,7 +172,7 @@ export const EXPLAINERS = [
     when: h => h.towerAtLevel(4) !== null, at: h => ({ tower: h.towerAtLevel(4) }),
   },
   {
-    id: 'boss', covers: ['boss'],
+    id: 'boss', town: 'gulch', covers: ['boss'],
     title: 'The war wagon',
     text: 'Every 10th wave brings the war wagon. It\'s slow and heavily armored. If it reaches the vault, it does a lot of damage.',
     when: h => h.wave % 10 === 0 && h.phase === 'wave', at: () => ({ el: '#wave' }),
@@ -142,13 +181,13 @@ export const EXPLAINERS = [
     id: 'charter', covers: ['system:charter'],
     title: 'Your charter',
     text: 'Tap Perks, then Sign the charter. Your town starts over at wave 1. You get deeds you keep forever. Each deed gives you more coins.',
-    when: h => h.offered, at: () => ({ el: '#perksBtn' }),
+    when: h => h.offered && !h.outpost, at: () => ({ el: '#perksBtn' }),
   },
   {
     id: 'perks', covers: ['perks', 'deeds'],
     title: 'Pick a perk',
     text: 'Tap Perks and pick one of two perks. More deeds open more perks. Each time you sign the charter, you pick again.',
-    when: h => h.toPick > 0, at: () => ({ el: '#perksBtn' }),
+    when: h => h.toPick > 0 && !h.outpost, at: () => ({ el: '#perksBtn' }),
   },
   {
     id: 'pit', covers: ['pit'],
@@ -157,10 +196,22 @@ export const EXPLAINERS = [
     when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
   },
   {
+    id: 'townchip', covers: ['townchip'],
+    title: 'Your towns',
+    text: 'The buttons at the top show your towns. Tap Dry Creek to go back to the outpost. Tap Copper Gulch to come back here.',
+    when: h => h.towns > 1 && !h.outpost && h.t > 20, at: () => ({ el: '#townChip' }),
+  },
+  {
     id: 'outposts', covers: ['system:outpost'],
-    title: 'Dry Creek Outpost',
-    text: 'It keeps working on its own. Your Smelter gets its copper ore first. Coins for the rest it sells are added here.',
-    when: h => h.drew && h.t > 30, at: () => ({ el: '#coins' }),
+    title: 'Dry Creek keeps working',
+    text: 'Raiders still come to Dry Creek while you are here. Its Crossbows fight them off. The coins from its stone and ore come to this town.',
+    when: h => h.outpostWon && !h.outpost && h.t > 50, at: () => ({ el: '#coins' }),
+  },
+  {
+    id: 'draw', covers: ['outpost:draw'],
+    title: 'Ore from Dry Creek',
+    text: 'Your Smelter now takes copper ore from Dry Creek before it runs short.',
+    when: h => h.drew && h.t > 30, at: () => ({ plot: 'smelter' }),
   },
   {
     id: 'mortar', covers: ['tower:mortar'],

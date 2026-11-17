@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-5',
+    lines: [
+      'A new game now starts in Dry Creek Outpost. Hold it for 10 waves and Copper Gulch opens.',
+      'Dry Creek has its own Stone Camp, Mining Camp and stockpile, and raiders come down a dry wash.',
+      'Tap Dry Creek or Copper Gulch at the top of the screen to switch towns.',
+      'While you are in another town, the next wave in Copper Gulch waits for you.',
+    ],
+  },
+  {
     v: '2026.11.17-4',
     lines: [
       'Dry Creek Outpost now keeps working while you play in Copper Gulch. It digs copper ore and cuts stone.',

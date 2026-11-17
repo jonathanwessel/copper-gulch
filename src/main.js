@@ -9,6 +9,8 @@ import { newGame, loadGame } from './core/setup.js';
 import { showNews } from './ui/news.js';
 
 initInstall();
+// the test tools may start a new game in Copper Gulch alone (?start=gulch); players always start in Dry Creek
+const START = new URLSearchParams(location.search).get('start') === 'gulch' ? 'gulch' : 'drycreek';
 const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();
@@ -28,14 +30,10 @@ async function startGame() {
     game = loadGame(saved.game);
     const secs = (Date.now() - (saved.at || Date.now())) / 1000;
     if (secs > 30) away = game.catchUp(secs);
-  } else game = newGame('cg-' + Date.now().toString(36), 'gulch'); // new games start in Dry Creek Outpost once it is on screen (M1b, next box)
+  } else game = newGame('cg-' + Date.now().toString(36), START); // a new game starts in Dry Creek Outpost
   CG.game = game;
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;
-  const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false, select: () => {} };
-  const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
-  CG.town = town;
-  if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; }
   // leaving this game (another slot, an imported save, the title): save first, stop saving, then reload
   let leaving = false;
   const leave = (kind, arg) => {
@@ -46,28 +44,56 @@ async function startGame() {
     location.reload();
   };
   CG.leave = leave;
-  CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, onHelp: () => CG.play.sheets.close() });
-  // the explainer cards; ?coach=off turns them off (the test tools use it)
-  const b = game.town.def.board;
-  CG.coach = startCoach({
-    game, town: game.town, root: document.body, off: new URLSearchParams(location.search).get('coach') === 'off',
-    pause: on => { if (town) town.pause('coach', on); },
-    onSeen: () => keep(),
-    locate: tg => !town ? null : tg.plot ? town.project(tg.plot) : tg.spot !== undefined ? town.projectSpot(tg.spot)
-      : tg.tower !== undefined ? town.projectSpot(tg.tower) : tg.vault ? town.projectPoint(b.vault[0], .6, b.vault[1]) : null,
-  });
-  if (!town) { // no 3D: keep the game running and lay the plot tags out as a list
-    document.documentElement.classList.add('flat');
-    let last = performance.now();
-    setInterval(() => { const now = performance.now(), dt = Math.min(1, (now - last) / 1000); last = now; game.advance(dt); CG.play.frame(dt); }, 100);
-    toast('This device cannot show the 3D town, so the plots are listed instead.');
+  const keep = () => { if (!leaving) writeSave(game); };
+  const coachOff = new URLSearchParams(location.search).get('coach') === 'off';
+  let flatTimer = 0;
+  /* The town in play on screen: its 3D board, its HUD and cards, and its explainers. Switching towns takes them down
+     and builds them again for the other town on a fresh canvas (the old one's GPU context is let go). */
+  function mount() {
+    const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false, select: () => {} };
+    const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
+    CG.town = town;
+    if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; }
+    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, onHelp: () => CG.play.sheets.close() });
+    // the explainer cards; ?coach=off turns them off (the test tools use it)
+    const b = game.town.def.board;
+    CG.coach = startCoach({
+      game, town: game.town, root: document.body, off: coachOff,
+      pause: on => { if (town) town.pause('coach', on); },
+      onSeen: () => keep(), onGo: id => go(id),
+      locate: tg => !town ? null : tg.plot ? town.project(tg.plot) : tg.spot !== undefined ? town.projectSpot(tg.spot)
+        : tg.tower !== undefined ? town.projectSpot(tg.tower) : tg.vault ? town.projectPoint(b.vault[0], .6, b.vault[1]) : null,
+    });
+    if (!town && !flatTimer) { // no 3D: keep the game running and lay the plot tags out as a list
+      document.documentElement.classList.add('flat');
+      let last = performance.now();
+      flatTimer = setInterval(() => { const now = performance.now(), dt = Math.min(1, (now - last) / 1000); last = now; game.advance(dt); CG.play.frame(dt); }, 100);
+      toast('This device cannot show the 3D town, so the plots are listed instead.');
+    }
   }
+  function unmount() {
+    if (CG.coach) CG.coach.destroy();
+    if (CG.play) CG.play.destroy();
+    if (CG.town) {
+      CG.town.stop(true);
+      const old = document.getElementById('view'), fresh = old.cloneNode(false); // a clean canvas: no old listeners, no lost context
+      old.replaceWith(fresh);
+    }
+    CG.coach = CG.play = CG.town = null;
+  }
+  /* Put another open town in play (the town chip, the outpost's win card). */
+  function go(id) {
+    if (!game.towns[id] || game.active === id) return false;
+    unmount(); game.go(id); mount(); keep();
+    return true;
+  }
+  CG.go = go;
+  mount();
   if (away && away.seconds > 60) {
     const earned = Object.values(away.earned).reduce((a, b) => a + b, 0);
-    toast('Welcome back. While you were away the town earned ' + fmt(earned) + ' coins.', 6000);
+    toast('Welcome back. While you were away your towns earned ' + fmt(earned) + ' coins.', 6000);
   }
   // keep the game: every 10 seconds, and whenever the app goes to the background
-  const keep = () => { if (!leaving) writeSave(game); };
   setInterval(keep, 10000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) keep(); });
   addEventListener('pagehide', keep);

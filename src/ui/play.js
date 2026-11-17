@@ -7,7 +7,9 @@ import { build, cost, output, explainOutput, missing, unlocked, uses } from '../
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
-import { WAVE_TYPES } from '../data/foes.js';
+import { WAVE_TYPES, FOES } from '../data/foes.js';
+import { TOWNS } from '../data/towns/index.js';
+import { isOutpost } from '../core/economy.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
@@ -26,11 +28,26 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const coins = el('div', 'coins'); coins.id = 'coins';
   const coinIcon = el('span', 'coin'), coinNum = el('b'), inc = el('span', 'inc');
   coins.append(coinIcon, coinNum, inc);
+  // the town's name; once a second town is open it becomes the town chip: one button per open town, tap one to go there
   const name = el('div', 'townname', town.def.name);
+  const chip = el('div', 'townchip'); chip.id = 'townChip'; chip.hidden = true;
+  let chipSig = '';
+  const paintChip = () => {
+    const open = Object.keys(TOWNS).filter(id => game.towns[id]), sig = open.join();
+    if (sig === chipSig) return; chipSig = sig;
+    const many = open.length > 1; chip.hidden = !many; name.hidden = many;
+    chip.replaceChildren(...open.map(id => {
+      const b = el('button', 'btn small' + (id === town.id ? ' on' : ''), TOWNS[id].short || TOWNS[id].name); b.dataset.town = id;
+      b.setAttribute('aria-pressed', String(id === town.id));
+      b.addEventListener('click', () => { if (id !== town.id && shell.go) shell.go(id); });
+      return b;
+    }));
+  };
+  const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
   const wave = el('div', 'wave'); wave.id = 'wave';
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
-  vault.append(vaultFill); vault.title = 'Vault strength';
+  vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
   wave.append(waveNum, vault, waveInfo, call);
@@ -51,7 +68,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
   ctl.append(pause, hold);
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
-  const left = el('div', 'hudleft'); left.append(name, wave, ctl);
+  const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl); paintChip();
   // side buttons under the coins: Goods and Menu open slide-up sheets
   const side = el('div', 'side');
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn';
@@ -239,10 +256,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
 
   // news from the road
-  game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The war wagon is coming. Stop it before it reaches the vault.', 4000); });
-  game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); });
-  game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); });
-  game.bus.on('breach', e => { if (e.town === town.id) toast('Your vault broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000); });
+  const offs = [
+    game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
+    game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
+    game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
+    game.bus.on('breach', e => {
+      if (e.town !== town.id) return;
+      if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);
+      else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
+    }),
+  ];
 
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
@@ -280,11 +303,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     setText(labBtn, town.lab ? 'Research · ' + Math.ceil(town.lab.left) + 's' : 'Research');
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
-    perksBtn.hidden = !charterOffered(game);
+    perksBtn.hidden = !charterOffered(game) || isOutpost(town); // an outpost has no charter
+    paintChip();
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
-  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks };
+  /* Take this town's screen down (switching towns builds a new one). */
+  const destroy = () => { for (const off of offs) off(); ui.remove(); };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks, destroy };
 }
 
 export function toast(text, ms = 4000) {

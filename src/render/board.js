@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { makeGround, makeMesas, polyDist, fbm, sstep, lerp } from './terrain.js';
 import { rng, mergeStatic } from './kit.js';
-import { makeBuilding, makeVault, PROPS } from '../assets/models/gulch.js';
+import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/gulch.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
@@ -60,7 +60,7 @@ export class Board {
     // all of it is static: one mesh per material instead of a draw call (and a shadow draw) per rock and cactus
     this.group.add(mergeStatic(scenery));
     scenery.forEach(disposeTree);
-    this.vault = makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
+    this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
     if (B.entrance) this.entrance = new Entrance(this);
     // smoke puffs: one instanced mesh for the whole board

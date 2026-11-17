@@ -5,6 +5,8 @@ export const DRYCREEK = {
   id: 'drycreek',
   kind: 'outpost',
   name: 'Dry Creek Outpost',
+  short: 'Dry Creek',              // on the town chip
+  store: 'stockpile',             // what raiders ride for, in words and on the board (a town's is the vault)
   era: 'Frontier',
   goods: ['ore', 'stone'],
   buildings: ['quarry', 'dmine'],
@@ -26,7 +28,7 @@ export const DRYCREEK = {
     road: [
       [3.6, -6], [3.6, .5],                                  // down the wash to the camp
       [6.3, .5], [7.1, 1.3], [7.1, 6.7], [6.3, 7.5],         // east, then down the east side
-      [.9, 7.5], [.1, 6.7], [.1, 1.3], [.9, .5],             // along the bottom and up the west side
+      [.9, 7.5], [.1, 6.7], [.1, 1.3], [.9, .5], [1.6, .5],  // along the bottom, up the west side and into the stockpile
     ],
     vault: [2.2, .5],                                        // the stockpile, where the loop closes
     entrance: { kind: 'wash', mouth: [3.6, -1.8], portal: [3.6, -5.6], width: 2.4, hide: .6 },

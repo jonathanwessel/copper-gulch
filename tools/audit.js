@@ -95,12 +95,14 @@ export function audit() {
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds'];
+export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'townchip', 'outpost:won', 'outpost:draw'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
   for (const k of Object.keys(TOWERS)) f.add('tower:' + k);
   for (const t of TOWN_ORDER) for (const g of TOWNS[t].goods) f.add('tier:' + GOODS[g].tier);
+  for (const t of TOWN_ORDER) f.add('welcome:' + t);                                  // every town says hello
+  for (const x of Object.values(FOES)) if (x.boss) f.add(x === FOES.wagon ? 'boss' : 'boss:' + Object.keys(FOES).find(k => FOES[k] === x));
   if (Object.keys(PATHS).length) f.add('path');
   if (Object.values(FOES).some(x => x.boss)) f.add('boss');
   return [...f];
