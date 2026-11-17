@@ -21,7 +21,7 @@ The design is in `GDD.md`. This file is the roadmap the hourly scheduled task wo
 - Publish working releases often; the owner plays the installed app between sessions.
 
 ## Release checklist (every release; stop and fix on any failure)
-1. `node --test test/` passes.
+1. `node --test test/*.test.js` passes (Node 24 does not take a bare folder).
 2. `node tools/audit.js` prints `audit ok`.
 3. Run the bots that the current milestone's target names. From M1 on that is `tools/balance.js`; from M2, `tools/firstplay.js`; from M4, `tools/idle.js`. Write their numbers in the notes.
 4. `node tools/smoke.js` ends with phone, land and desk `ok`.
@@ -34,12 +34,13 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
 ## Roadmap
 
 ### M1. Copper Gulch, playable
-- [ ] **Bootstrap.**
+- [x] **Bootstrap.**
   - `index.html` with an import map, `sw.js`, `manifest.webmanifest`, icons, and `package.json` set to `{"type":"module"}` with no dependencies.
   - Vendored three.js, copied from `../tycoon/vendor/three`.
   - Tools copied from `../tycoon/scripts`: `cdp`, `serve`, `update-test`, `bump-version`, `make-icons`.
   - `audit` v0, and a test harness.
   - Shipped when the live site shows a title over a Gulch model and works offline.
+  - Notes: shipped 2026.11.16-2. Tools are ES modules now (`tools/*.js`); also added `smoke` (phone, land, desk, then offline with the server stopped) and `shots`. The title scene (`src/render/title-scene.js`) uses the old buildings, adapted into `src/assets/models/gulch.js`; the Board box replaces it with the real board. Logo is a code-drawn 5x7 pixel font (`src/art/pixfont.js`), no web fonts. Version lives in `src/version.js`. Caches are named `cg-shell-*` because the old game on the same origin deletes its own `copper-gulch-*` caches. `update-test` also checks the new version boots offline. Audit v0: pure core, no other hosts, cg-* keys, American spelling, no emails or LAN addresses, matching versions, no missing cached files.
 - [ ] **Core.**
   - `src/core/`: `rng` (a seeded stream per town), `clock` (fixed 0.25 s steps and offline catch-up), `events` (the bus), `mods` (named sources with caps), `town` (`class Town`, with no global state), `save` (v1 with migrations), `game`.
   - Must be deterministic: no DOM, no three.js, no `Math.random`.

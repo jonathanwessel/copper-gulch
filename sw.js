@@ -1,0 +1,37 @@
+// Service worker: lets Copper Gulch install as an app and run offline.
+// The page and the game's code come from the network first (revalidated, never from a stale browser cache), so a new
+// version runs as soon as it is published; the cached copies are used only when offline. Icons come from the cache.
+// tools/bump-version.js sets VERSION and SHELL with every release, so old caches are cleared.
+// Cache names start with 'cg-shell-': the old game shares this origin and clears its own 'copper-gulch-' caches.
+const VERSION = '2026.11.16-2';
+const CACHE = 'cg-shell-' + VERSION;
+const SHELL = ["./","./index.html","./manifest.webmanifest","./icons/apple-touch-icon.png","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./src/art/pixfont.js","./src/assets/models/gulch.js","./src/main.js","./src/render/kit.js","./src/render/scene.js","./src/render/title-scene.js","./src/ui/title.js","./src/ui/update.js","./src/version.js","./vendor/three/addons/postprocessing/EffectComposer.js","./vendor/three/addons/postprocessing/MaskPass.js","./vendor/three/addons/postprocessing/OutputPass.js","./vendor/three/addons/postprocessing/Pass.js","./vendor/three/addons/postprocessing/RenderPass.js","./vendor/three/addons/postprocessing/ShaderPass.js","./vendor/three/addons/postprocessing/UnrealBloomPass.js","./vendor/three/addons/shaders/CopyShader.js","./vendor/three/addons/shaders/LuminosityHighPassShader.js","./vendor/three/addons/shaders/OutputShader.js","./vendor/three/addons/utils/BufferGeometryUtils.js","./vendor/three/three.module.min.js"];
+
+// Install: fetch every file fresh. A plain addAll can be answered from the HTTP cache with the previous version's code.
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k.startsWith('cg-shell-') && k !== CACHE).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+self.addEventListener('message', e => { if (e.data === 'skip') self.skipWaiting(); });
+self.addEventListener('fetch', e => {
+  const req = e.request, url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  if (url.pathname.endsWith('/version.json')) return; // always from the network: it is how the page spots new releases
+  const page = req.mode === 'navigate' || url.pathname.endsWith('/index.html');
+  const code = page || /\.(js|webmanifest|json)$/.test(url.pathname);
+  if (code) { // network first, revalidated; keep a copy for offline play
+    const key = page ? './index.html' : req;
+    e.respondWith(fetch(req, { cache: 'no-cache' })
+      .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); } return res; })
+      .catch(() => caches.match(key, { ignoreSearch: true })));
+    return;
+  }
+  e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+    return res;
+  })));
+});

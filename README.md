@@ -4,6 +4,6 @@ A free Old West tycoon and tower-defense game for the browser. Build frontier to
 
 No ads, no purchases, no tracking.
 
-This is a rebuild that is under way. The design is in [GDD.md](GDD.md) and the roadmap in [PLAN.md](PLAN.md).
+This is a rebuild that is under way: the first builds show the title, and the game grows with each release. The design is in [GDD.md](GDD.md) and the roadmap in [PLAN.md](PLAN.md).
 
-Play: https://jonathanwessel.github.io/copper-gulch/ (once the first build is published)
+Play: https://jonathanwessel.github.io/copper-gulch/
