@@ -32,6 +32,13 @@ export class Game {
     return t;
   }
   get town() { return this.towns[this.active]; }
+  /* Put another open town in play. Returns true when it switched. */
+  go(id) {
+    if (!this.towns[id] || this.active === id) return false;
+    this.active = id;
+    this.bus.emit('town:go', { town: id });
+    return true;
+  }
   /* Real seconds in; fixed steps out. Returns the number of steps taken. */
   advance(realSeconds) { return this.clock.advance(realSeconds, dt => this.step(dt)); }
   step(dt = STEP) {

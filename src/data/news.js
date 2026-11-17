@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-4',
+    lines: [
+      'Dry Creek Outpost now keeps working while you play in Copper Gulch. It digs copper ore and cuts stone.',
+      'Your Smelter gets its copper ore first. The rest is sold, and the coins go to Copper Gulch.',
+      'Raiders attack the outpost about every two minutes. Its two Crossbows fight them on their own.',
+    ],
+  },
+  {
     v: '2026.11.17-3',
     lines: [
       'The Cannon and the Snake Oil Still now cost copper ore, so you can build them in the first few minutes.',

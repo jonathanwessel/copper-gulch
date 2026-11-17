@@ -118,7 +118,7 @@ export function explainerRules() {
   for (const [k, t] of Object.entries(TOWERS)) for (const x of [t.name, t.about, ...Object.values(PATHS[k] || {}).flatMap(q => [q.name, q.about])]) if (/[:;]/.test(x || '')) p.push('tower text for ' + k + ' uses a colon or semicolon (writing rule)');
   for (const [k, r] of Object.entries(RESEARCH)) for (const x of [r.name, r.about, r.worse]) if (/[:;]/.test(x || '')) p.push('research text for ' + k + ' uses a colon or semicolon (writing rule)');
   // every town's research items exist, and each town lists 6 to 8 of them (GDD.md, Town research)
-  for (const id of TOWN_ORDER) { const list = TOWNS[id].research || []; if (list.length < 6 || list.length > 8) p.push(id + ' has ' + list.length + ' research items (want 6 to 8)'); for (const r of list) if (!RESEARCH[r]) p.push(id + ' lists unknown research ' + r); }
+  for (const id of TOWN_ORDER.filter(id => TOWNS[id].kind !== 'outpost')) { const list = TOWNS[id].research || []; if (list.length < 6 || list.length > 8) p.push(id + ' has ' + list.length + ' research items (want 6 to 8)'); for (const r of list) if (!RESEARCH[r]) p.push(id + ' lists unknown research ' + r); }
   return p;
 }
 
@@ -156,8 +156,10 @@ export function textRules(debug) {
 }
 
 /* The map rules (GDD.md, Town maps): every town has 3 to 5 mortar pits, each farther than a normal tower's reach from
-   the road, with at least PIT_COVER units of road inside the longest-range tower's ring. */
+   the road, with at least PIT_COVER units of road inside the longest-range tower's ring. Outposts have no pits, and
+   their road loops round the camp back past the stockpile. Every road has an entrance with a model. */
 export const PIT_COVER = 5;
+export const LOOP = 12; // an outpost's road passes its stockpile at least this far before it ends there
 export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
   const p = [], long = Object.values(TOWERS).filter(t => t.long).sort((a, b) => b.range - a.range)[0];
   for (const id of order) {
@@ -168,6 +170,13 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
     if (!b.entrance || !b.entrance.kind) p.push(id + ': the road has no entrance (board.entrance)');
     else if (!new RegExp('^\\s+' + b.entrance.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + b.entrance.kind + '"');
     const far = b.far ?? b.spots.length, n = b.spots.length - far;
+    if (towns[id].kind === 'outpost') { // outposts: no pits; the road loops round the camp and ends where the loop began
+      if (n) p.push(id + ' is an outpost with mortar pits');
+      const road = makePath([...b.road, b.vault]); let closes = false;
+      for (let s = 0; s < road.length - LOOP; s += .1) if (dist(pointAt(road, s), b.vault) <= 1.6) closes = true;
+      if (!closes) p.push(id + ': the outpost road does not loop back to its stockpile');
+      continue;
+    }
     if (n < 3 || n > 5) { p.push(id + ' has ' + n + ' mortar pits (want 3 to 5)'); continue; }
     const road = makePath([...b.road, b.vault]), pts = [];
     for (let s = 0; s <= road.length; s += .1) pts.push(pointAt(road, s));
@@ -182,14 +191,17 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
 }
 
 /* The chain rules (GDD.md): step value 1.3-1.6x, balanced at equal levels, one maker per good, imports from earlier
-   towns only, and every town's top good needs an import (except the first town, which has nothing to import). */
+   towns only, and every town's top good needs an import (except the first town, which has nothing to import).
+   Outposts are exempt: they make raw goods only, which may be goods a town makes too. */
 export function chainRules() {
-  const p = [], maker = {};
+  const p = [], maker = {}, outpost = id => TOWNS[id] && TOWNS[id].kind === 'outpost';
   for (const [id, b] of Object.entries(BUILDINGS)) {
-    if (maker[b.makes]) p.push('two buildings make ' + b.makes); maker[b.makes] = id;
     if (!GOODS[b.makes]) p.push(id + ' makes an unknown good');
+    if (!TOWNS[b.town]) p.push(id + ' belongs to an unknown town');
+    if (outpost(b.town)) { if (Object.keys(b.inputs).length) p.push(id + ': outposts make raw goods only'); continue; } // outposts only add raw supply
+    if (maker[b.makes]) p.push('two buildings make ' + b.makes); maker[b.makes] = id;
   }
-  for (const g of Object.keys(GOODS)) if (!maker[g]) p.push('nothing makes ' + g);
+  for (const g of Object.keys(GOODS)) if (!maker[g] && !Object.values(BUILDINGS).some(b => b.makes === g && b.town === GOODS[g].town)) p.push('nothing makes ' + g);
   for (const [id, b] of Object.entries(BUILDINGS)) {
     const ins = Object.entries(b.inputs);
     if (!ins.length) continue;
@@ -203,11 +215,13 @@ export function chainRules() {
       if (from && from !== b.town && !TOWNS[b.town].imports.includes(g)) p.push(b.town + ' uses ' + g + ' without listing it as an import');
     }
   }
-  TOWN_ORDER.forEach((id, i) => {
+  const towns = TOWN_ORDER.filter(id => !outpost(id));
+  towns.forEach((id, i) => { // the first town has nothing to import; every later one names its outpost (GDD.md, Outposts)
     const t = TOWNS[id];
     if (i > 0 && !t.imports.length) p.push(id + ': its top good needs no import');
-    for (const b of t.buildings) if (!BUILDINGS[b] || BUILDINGS[b].town !== id) p.push(id + ' lists building ' + b + ' of another town');
+    if (i > 0 && !(t.outpost && outpost(t.outpost))) p.push(id + ': names no outpost (town.outpost)');
   });
+  for (const id of TOWN_ORDER) for (const b of TOWNS[id].buildings) if (!BUILDINGS[b] || BUILDINGS[b].town !== id) p.push(id + ' lists building ' + b + ' of another town');
   return p;
 }
 

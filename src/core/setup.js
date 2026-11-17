@@ -6,14 +6,22 @@ import { defense } from './defense.js';
 import { research } from './research.js';
 import { foremen } from './foremen.js';
 import { charter } from './charter.js';
+import { outpost, grantOutpost } from './outpost.js';
 import { TOWNS } from '../data/towns/index.js';
 
-export const SYSTEMS = [market, economy, defense, research, foremen, charter];
+export const SYSTEMS = [market, economy, defense, research, foremen, charter, outpost];
 
-export function newGame(seed = 'cg') {
+/* A new game starts in Dry Creek Outpost. `start` opens another town alone instead (the Gulch-only bots and tests). */
+export function newGame(seed = 'cg', start = 'drycreek') {
   const g = new Game({ seed, systems: SYSTEMS, defs: TOWNS });
-  g.addTown('gulch');
+  g.addTown(start);
   return g;
 }
 
-export function loadGame(data) { return Game.fromJSON(data, { systems: SYSTEMS, defs: TOWNS }); }
+/* A saved game. Outposts a save migration granted (game.shared.grant) are opened here, as won and running. */
+export function loadGame(data) {
+  const g = Game.fromJSON(data, { systems: SYSTEMS, defs: TOWNS });
+  const grant = g.shared.grant;
+  if (grant) { delete g.shared.grant; for (const id of Object.keys(grant)) if (TOWNS[id] && !g.towns[id]) grantOutpost(g, id); }
+  return g;
+}

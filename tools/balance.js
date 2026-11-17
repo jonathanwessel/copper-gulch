@@ -129,7 +129,7 @@ export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, def
    best-paying building. The economy player buys its next building before defending unless a raider got through in
    the last two waves. */
 export function play(seed, minutes = MINUTES, strategy = 'active', watch = null) {
-  const S = STRATEGIES[strategy], g = newGame('balance-' + seed), t = g.town;
+  const S = STRATEGIES[strategy], g = newGame('balance-' + seed, 'gulch'), t = g.town;
   const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0 };
   g.bus.on('wave:start', () => { g.dealt = {}; });
   g.bus.on('leak', () => { if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });

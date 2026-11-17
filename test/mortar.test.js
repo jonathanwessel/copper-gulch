@@ -23,7 +23,7 @@ const place = (t, list) => {
 };
 
 test('the Mortar opens at wave 12, and only then can it be built or does the town keep goods for it', () => {
-  const g = newGame('m1'), t = rich(g), pit = pitSpots(t)[0];
+  const g = newGame('m1', 'gulch'), t = rich(g), pit = pitSpots(t)[0];
   assert.equal(towerOpen(t, 'mortar'), false);
   assert.equal(buildTower(g, t, pit, 'mortar'), false);
   t.goods = {}; assert.equal(towerReserve(t).bricks || 0, 0, 'only the Mortar is built with bricks');
@@ -35,7 +35,7 @@ test('the Mortar opens at wave 12, and only then can it be built or does the tow
 });
 
 test('mortar pits take only long-range towers, and the Mortar goes only in a pit', () => {
-  const g = newGame('m2'), t = rich(g); open(g, t);
+  const g = newGame('m2', 'gulch'), t = rich(g); open(g, t);
   const pits = pitSpots(t);
   assert.ok(pits.length >= 3 && pits.length <= 5 && pits.every(i => isPit(t, i)) && !isPit(t, 0));
   for (const k of ['crossbow', 'cannon', 'frost', 'still']) assert.equal(buildTower(g, t, pits[0], k), false, k);
@@ -44,7 +44,7 @@ test('mortar pits take only long-range towers, and the Mortar goes only in a pit
 });
 
 test('reach: from half to twice a normal tower, and the pits sit beyond a normal tower', () => {
-  const g = newGame('m3'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
+  const g = newGame('m3', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
   const st = towerStats(t, towerAt(t, 12));
   assert.equal(st.minRange, NORMAL_REACH / 2); assert.equal(st.range, NORMAL_REACH * 2);
   const r = roadOf(t);
@@ -54,7 +54,7 @@ test('reach: from half to twice a normal tower, and the pits sit beyond a normal
 
 test('the dead zone: a raider too close is never fired at, one in the ring is', () => {
   // a test board where the first pit sits inside the bottom bend, so road passes within the dead zone
-  const g = newGame('m4'), t = rich(g); t.def = { ...t.def, board: { ...t.def.board, far: 6 } }; open(g, t); assert.ok(buildTower(g, t, 6, 'mortar'));
+  const g = newGame('m4', 'gulch'), t = rich(g); t.def = { ...t.def, board: { ...t.def.board, far: 6 } }; open(g, t); assert.ok(buildTower(g, t, 6, 'mortar'));
   const close = sAt(t, 6, 0, 1.2), far = sAt(t, 6, 3, 5);
   assert.ok(close !== null && far !== null);
   const ev = g.bus.record();
@@ -65,7 +65,7 @@ test('the dead zone: a raider too close is never fired at, one in the ring is', 
 });
 
 test('a shell flies first, then hits every raider near where it lands', () => {
-  const g = newGame('m5'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
+  const g = newGame('m5', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
   const s = sAt(t, 12, 3, 5); place(t, [['raider', s], ['raider', s + .3], ['raider', s + 6]]);
   const ev = g.bus.record();
   g.step(.25);
@@ -81,7 +81,7 @@ test('a shell flies first, then hits every raider near where it lands', () => {
 test('a lobbed shell never targets an airship', () => {
   FOES.testship = { name: 'Test airship', hp: 1, speed: 1, bounty: 1, leak: 1, armor: 0, from: 99, air: true };
   try {
-    const g = newGame('m6'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
+    const g = newGame('m6', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
     const ev = g.bus.record();
     place(t, [['testship', sAt(t, 12, 3, 5)]]); run(g, 5);
     assert.equal(ev.filter(([n]) => n === 'shot').length, 0);
@@ -89,7 +89,7 @@ test('a lobbed shell never targets an airship', () => {
 });
 
 test('Shrapnel leaves burning ground that slows and hurts for a few seconds', () => {
-  const g = newGame('m7'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
+  const g = newGame('m7', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
   for (let L = 1; L < PATH_LEVEL; L++) assert.ok(upgradeTower(g, t, 12, L + 1 === PATH_LEVEL ? 'b' : undefined));
   assert.equal(towerAt(t, 12).path, 'b');
   const s = sAt(t, 12, 3, 5); place(t, [['raider', s]]);
@@ -103,7 +103,7 @@ test('Shrapnel leaves burning ground that slows and hurts for a few seconds', ()
 });
 
 test('the Siege Mortar reaches 2.4 times a normal tower', () => {
-  const g = newGame('m8'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
+  const g = newGame('m8', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar');
   for (let L = 1; L < PATH_LEVEL; L++) upgradeTower(g, t, 12, 'a');
   const st = towerStats(t, towerAt(t, 12)), base = towerStats(t, { ...towerAt(t, 12), path: null });
   assert.ok(Math.abs(st.range / base.range - 1.2) < 1e-9);
@@ -125,7 +125,7 @@ test("save v3: an older save gets empty shell and fire lists", () => {
 });
 
 test('damage is tallied by tower kind (the balance bot reads it)', () => {
-  const g = newGame('m9'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar'); buildTower(g, t, 0, 'crossbow');
+  const g = newGame('m9', 'gulch'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar'); buildTower(g, t, 0, 'crossbow');
   const s = sAt(t, 12, 3, 5); place(t, [['raider', s]]);
   run(g, TOWERS.mortar.flight + .5);
   assert.ok(g.dealt.gulch.mortar > 0);

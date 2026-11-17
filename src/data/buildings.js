@@ -12,6 +12,9 @@ export const BUILDINGS = {
   kiln:    { name: 'Kiln', town: 'gulch', makes: 'bricks', inputs: { clay: 2, timber: 1 }, rate: .5, cost: 600, growth: 1.17, needs: { pit: 5 }, model: 'kiln' },
   toolsmith: { name: 'Toolsmith', town: 'gulch', makes: 'tools', inputs: { planks: 1, copper: 1 }, rate: .4, cost: 9000, growth: 1.2, needs: { saw: 10, smelter: 5 }, model: 'toolsmith' },
   wagonworks: { name: 'Wagon Works', town: 'gulch', makes: 'wagons', inputs: { planks: 2, tools: 1, copper: 1 }, rate: .2, cost: 40000, growth: 1.2, needs: { toolsmith: 10 }, model: 'wagonworks' },
+  // Dry Creek Outpost: raw goods only. An outpost may make a good a town makes too (GDD.md, Outposts).
+  quarry:  { name: 'Stone Camp', town: 'drycreek', makes: 'stone', inputs: {}, rate: .8, cost: 10, growth: 1.15, model: 'quarry' },
+  dmine:   { name: 'Mining Camp', town: 'drycreek', makes: 'ore', inputs: {}, rate: .6, cost: 30, growth: 1.15, needs: { quarry: 2 }, model: 'dmine' },
 };
 
 /* Reaching each of these levels doubles a building's output (the "x2 milestones"). */

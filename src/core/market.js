@@ -48,15 +48,16 @@ export function quote(game, town, good, n, span = 0) {
   return n * GOODS[good].price * averageSaturation(good, r0, r1) * eventFactor(game, good) * town.mods.factor('price') * town.mods.factor('income');
 }
 
-/* Sell up to n units from a town's yard. Returns the coins earned. */
-export function sell(game, town, good, n, span = 0) {
+/* Sell up to n units from a town's yard. The coins go to `payee` (the town itself, or for a won outpost the town in
+   play), at the payee's prices. Returns the coins earned. */
+export function sell(game, town, good, n, span = 0, payee = town) {
   n = Math.min(n, town.goods[good] || 0);
   if (!(n > 0)) return 0;
-  const coins = quote(game, town, good, n, span), m = M(game);
+  const coins = quote(game, payee, good, n, span), m = M(game);
   m.rate[good] = (m.rate[good] || 0) + rateRise(n, span);
   m.sold[good] = (m.sold[good] || 0) + n;
   town.goods[good] -= n;
-  town.earn(coins);
+  payee.earn(coins);
   if (!town.flags.firstSale) { town.flags.firstSale = true; game.bus.emit('first:sale', { town: town.id, good }); }
   return coins;
 }

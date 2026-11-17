@@ -6,12 +6,27 @@
      'wave:start' { town, wave, type, boss }       'wave:clear' { town, wave }   'breach' { town, wave, lost }
    A town's waves: town.wave is the wave running or coming next; town.waves holds the phase, timer, queue and foes,
    the lobbed shells still in the air (shells) and the burning ground Shrapnel leaves (fires).
-   While the game catches up time away, defense rests (background battles arrive with Automation, M4). */
+   While the game catches up time away, defense rests (background battles arrive with Automation, M4).
+   A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
+   boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
 import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
 import { BUILDINGS } from '../data/buildings.js';
+
+/* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
+const WAVES = new WeakMap();
+export function wavesOf(town) {
+  const d = town && town.def;
+  if (!d || !d.waves) return WAVE;
+  if (!WAVES.has(d)) WAVES.set(d, { ...WAVE, ...d.waves });
+  return WAVES.get(d);
+}
+/* Is wave w a boss wave here? A won outpost's light raids never bring its boss again. */
+export const bossWave = (town, w) => !town.won && w % wavesOf(town).boss === 0;
+/* Share of each good in its stockpile a won outpost loses when raiders break in (its waves never drop back). */
+export const RAID_LOSS = .25;
 
 const PATH_CACHE = new WeakMap();
 /* The town's road as a path that ends at the vault. */
@@ -48,8 +63,10 @@ export const towerAt = (town, spot) => town.towers.find(t => t.spot === spot) ||
 /* Mortar pits: the far pads. board.spots lists the near pads first; from board.far on they are pits. */
 export const isPit = (town, spot) => spot >= (town.def.board.far ?? town.def.board.spots.length);
 export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i => isPit(town, i));
+/* Is this tower kind built in this town at all? (An outpost lists its few kinds in town.def.towers.) */
+export const towerIn = (town, kind) => !!TOWERS[kind] && !(town.def && town.def.towers && !town.def.towers.includes(kind));
 /* Has the town opened this tower kind? (Most are open from the start; some open at a wave.) */
-export const towerOpen = (town, kind) => !TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]);
+export const towerOpen = (town, kind) => towerIn(town, kind) && (!TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]));
 /* Can this kind stand on this spot? Pits take only long-range towers, and long-range towers go only in pits. */
 export const fitsSpot = (town, spot, kind) => isPit(town, spot) === !!TOWERS[kind].long;
 
@@ -88,25 +105,25 @@ export function sellTower(game, town, spot) {
 
 // --- waves -------------------------------------------------------------------------------------------------------------
 export function waveType(town, w) {
-  if (w % WAVE.boss === 0 || w < 4) return 'mixed';
+  if (bossWave(town, w) || w < 4) return 'mixed';
   const kinds = Object.keys(WAVE_TYPES).filter(k => w >= WAVE_TYPES[k].from);
   return town.rng.pick(kinds);
 }
 /* The raiders of wave w, in order. */
 export function planWave(town, w, type) {
-  const T = WAVE_TYPES[type], n = Math.max(4, Math.round(WAVE.count(w) * T.count));
+  const T = WAVE_TYPES[type], n = Math.max(4, Math.round(wavesOf(town).count(w) * T.count));
   const mix = Object.fromEntries(Object.entries(T.mix).filter(([k]) => w >= FOES[k].from));
   const q = [];
   for (let i = 0; i < n; i++) q.push(Object.keys(mix).length ? town.rng.weighted(mix) : 'raider');
-  if (w % WAVE.boss === 0) q.push('wagon');
+  if (bossWave(town, w)) q.push((town.def && town.def.boss) || 'wagon');
   return q;
 }
 export function startWave(game, town) {
   const ws = town.waves;
   if (ws.phase !== 'break') return false;
   const w = town.wave, type = waveType(town, w);
-  ws.phase = 'wave'; ws.type = type; ws.queue = planWave(town, w, type); ws.timer = 0; ws.age = 0; ws.gap = WAVE.gap(w) * WAVE_TYPES[type].gap;
-  game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: w % WAVE.boss === 0 });
+  ws.phase = 'wave'; ws.type = type; ws.queue = planWave(town, w, type); ws.timer = 0; ws.age = 0; ws.gap = wavesOf(town).gap(w) * WAVE_TYPES[type].gap;
+  game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: bossWave(town, w) });
   return true;
 }
 /* Hold the waves: the wave on the road finishes, but the next one does not start until released. */
@@ -119,7 +136,7 @@ export function setHold(game, town, on) {
 export function callEarly(game, town) {
   const ws = town.waves;
   if (ws.phase !== 'break') return -1;
-  const bonus = Math.ceil(WAVE.bounty(town.wave) * ws.timer / 4);
+  const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4);
   town.earn(bonus);
   startWave(game, town);
   return bonus;
@@ -127,7 +144,7 @@ export function callEarly(game, town) {
 
 function spawn(town, kind) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
-  const hp = WAVE.hp(town.wave) * f.hp * T.hp * town.mods.factor('foeHp');
+  const hp = wavesOf(town).hp(town.wave) * f.hp * T.hp * town.mods.factor('foeHp');
   ws.foes.push({ id: ws.nextId++, kind, hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
 }
 
@@ -145,7 +162,7 @@ function hurt(game, town, f, dmg, pierce = false, by = null) {
 }
 
 function kill(game, town, f) {
-  const coins = WAVE.bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
+  const coins = wavesOf(town).bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
   town.earn(coins);
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }
@@ -166,7 +183,7 @@ export function fight(game, town, dt) {
     if (f.poisonT > 0) { const n = f.poison * Math.min(dt, f.poisonT); tally(game, town, 'still', Math.min(Math.max(0, f.hp), n)); f.hp -= n; f.poisonT -= dt; }
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
-    f.s += FOES[f.kind].speed * WAVE.speed * (1 - slow) * dt;
+    f.s += FOES[f.kind].speed * wavesOf(town).speed * (1 - slow) * dt;
     if (f.s >= road.length && f.hp > 0) {
       const hp = FOES[f.kind].leak;
       town.vault.hp -= hp; f.hp = 0; f.leaked = true;
@@ -203,7 +220,7 @@ export function fight(game, town, dt) {
       const target = inReach.reduce((a, b) => (b.s > a.s ? b : a)); // the one closest to the vault
       let to = pos.get(target);
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
-        const lead = FOES[target.kind].speed * WAVE.speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
+        const lead = FOES[target.kind].speed * wavesOf(town).speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
         to = pointAt(road, Math.min(road.length, target.s + (target.frozenT > 0 ? 0 : lead)));
         ws.shells.push({ spot: t.spot, by: t.kind, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
         game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, flight: st.flight });
@@ -232,12 +249,21 @@ export function fight(game, town, dt) {
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
   // the vault falls: lose a share of coins, fall back two waves, start again after a rest
+  if (town.vault.hp <= 0 && town.won) { // a won outpost: raiders carry off part of each good, the waves stay
+    const took = {};
+    for (const g of Object.keys(town.goods)) { took[g] = town.goods[g] * RAID_LOSS; town.goods[g] -= took[g]; }
+    Object.assign(ws, { phase: 'break', timer: town.def.raid || 120, queue: [], foes: [], shells: [], fires: [] });
+    town.vault.hp = town.vault.max;
+    town.breaches = (town.breaches || 0) + 1;
+    game.bus.emit('breach', { town: town.id, wave: town.wave, lost: 0, goods: took });
+    return;
+  }
   if (town.vault.hp <= 0) {
-    const lost = Math.floor(town.coins * WAVE.breachLoss);
+    const lost = Math.floor(town.coins * wavesOf(town).breachLoss);
     town.coins -= lost;
     const from = town.wave;
-    town.wave = Math.max(1, town.wave - WAVE.breachBack);
-    Object.assign(ws, { phase: 'break', timer: WAVE.rest * 2, queue: [], foes: [], shells: [], fires: [] });
+    town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);
+    Object.assign(ws, { phase: 'break', timer: wavesOf(town).rest * 2, queue: [], foes: [], shells: [], fires: [] });
     town.vault.hp = town.vault.max;
     town.breaches = (town.breaches || 0) + 1;
     game.bus.emit('breach', { town: town.id, wave: from, lost });
@@ -246,8 +272,9 @@ export function fight(game, town, dt) {
   if (!ws.queue.length && !ws.foes.length) {
     town.bestWave = Math.max(town.bestWave, town.wave);
     game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
+    if (town.won) { Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, (town.def.raid || 120) - (ws.age || 0)) }); return; } // light raids
     town.wave++;
-    Object.assign(ws, { phase: 'break', timer: Math.max(WAVE.rest, WAVE.pace - (ws.age || 0)) });
+    Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, wavesOf(town).pace - (ws.age || 0)) });
   }
 }
 
@@ -298,7 +325,7 @@ export function shortfall(town, c) {
 }
 
 /* The vault's full strength: research (Thick Walls) raises it. */
-export const vaultMax = town => Math.round(WAVE.vault * town.mods.factor('vault'));
+export const vaultMax = town => Math.round(wavesOf(town).vault * town.mods.factor('vault'));
 function syncVault(town) {
   const m = vaultMax(town), v = town.vault;
   if (v.max !== m) { v.hp = Math.max(1, v.hp + m - v.max); v.max = m; }
@@ -308,8 +335,8 @@ export const defense = {
   id: 'defense',
   init(town) {
     town.wave = 1;
-    town.vault = { hp: WAVE.vault, max: WAVE.vault };
-    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [], age: 0 };
+    town.vault = { hp: wavesOf(town).vault, max: wavesOf(town).vault };
+    town.waves = { phase: 'break', timer: wavesOf(town).first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [], age: 0 };
     town.reserveOff = {};
     town.keep = towerReserve(town);
   },

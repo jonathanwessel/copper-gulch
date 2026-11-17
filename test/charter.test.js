@@ -11,7 +11,7 @@ import { quote } from '../src/core/market.js';
 import { output } from '../src/core/economy.js';
 import { migrate, encode, decode, SAVE_VERSION } from '../src/core/save.js';
 
-const ready = (seed = 'c') => { const g = newGame(seed), t = g.town; Object.assign(t.waves, { hold: true, timer: 0 }); return { g, t }; };
+const ready = (seed = 'c') => { const g = newGame(seed, 'gulch'), t = g.town; Object.assign(t.waves, { hold: true, timer: 0 }); return { g, t }; };
 
 test('deeds come from the best wave and the coins earned in this charter', () => {
   const { t } = ready();

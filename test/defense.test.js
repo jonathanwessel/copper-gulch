@@ -19,7 +19,7 @@ test('path: length and points along a polyline', () => {
 });
 
 test('the first wave comes after the opening rest, rides the road and reaches the vault', () => {
-  const g = newGame('d'), t = g.town, ev = g.bus.record();
+  const g = newGame('d', 'gulch'), t = g.town, ev = g.bus.record();
   run(g, WAVE.first - 1); assert.equal(t.waves.phase, 'break');
   run(g, 2); assert.equal(t.waves.phase, 'wave');
   assert.ok(ev.some(([n, d]) => n === 'wave:start' && d.wave === 1));
@@ -29,7 +29,7 @@ test('the first wave comes after the opening rest, rides the road and reaches th
 });
 
 test('towers cost coins and the town goods, and a crossbow downs raiders for a bounty', () => {
-  const g = newGame('d'), t = g.town;
+  const g = newGame('d', 'gulch'), t = g.town;
   const c = towerCost(t, 'crossbow');
   assert.ok(c.coins > 0 && c.goods.timber > 0);
   assert.equal(buildTower(g, t, 5, 'crossbow'), false, 'not without the timber');
@@ -45,7 +45,7 @@ test('towers cost coins and the town goods, and a crossbow downs raiders for a b
 });
 
 test('upgrades raise damage; level 5 needs a path, and the path changes the tower', () => {
-  const g = newGame('p'), t = rich(g);
+  const g = newGame('p', 'gulch'), t = rich(g);
   buildTower(g, t, 0, 'crossbow');
   const d1 = towerStats(t, towerAt(t, 0)).dmg;
   for (let i = 0; i < 3; i++) assert.ok(upgradeTower(g, t, 0));
@@ -61,7 +61,7 @@ test('upgrades raise damage; level 5 needs a path, and the path changes the towe
 });
 
 test('selling a tower returns part of its cost and frees the spot', () => {
-  const g = newGame('s'), t = rich(g);
+  const g = newGame('s', 'gulch'), t = rich(g);
   buildTower(g, t, 2, 'cannon'); upgradeTower(g, t, 2);
   const spent = towerAt(t, 2).spent, coins = t.coins;
   const back = sellTower(g, t, 2);
@@ -72,13 +72,13 @@ test('selling a tower returns part of its cost and frees the spot', () => {
 
 test('splash, frost and poison each work', () => {
   for (const kind of ['cannon', 'frost', 'still']) {
-    const g = newGame('k' + kind), t = rich(g);
+    const g = newGame('k' + kind, 'gulch'), t = rich(g);
     for (const s of [1, 2, 3, 4, 5]) buildTower(g, t, s, kind);
     const kills = []; g.bus.on('kill', e => kills.push(e));
     run(g, WAVE.first + 60);
     assert.ok(kills.length > 0, kind + ' downs raiders');
   }
-  const g = newGame('slow'), t = rich(g);
+  const g = newGame('slow', 'gulch'), t = rich(g);
   buildTower(g, t, 8, 'frost'); // beside the first pass, near where raiders come in
   let chilled = false;
   for (let i = 0; i < (WAVE.first + 30) * 4 && !chilled; i++) { g.step(.25); chilled = t.waves.foes.some(f => f.slowT > 0); }
@@ -86,7 +86,7 @@ test('splash, frost and poison each work', () => {
 });
 
 test('the vault falls: the town loses a tenth of its coins and drops back two waves', () => {
-  const g = newGame('b'), t = g.town, ev = g.bus.record();
+  const g = newGame('b', 'gulch'), t = g.town, ev = g.bus.record();
   let after = null; g.bus.on('breach', () => { after = { wave: t.wave, hp: t.vault.hp }; });
   t.wave = 5; t.coins = 1000; t.vault.hp = 1; t.buildings = {}; // no income, so the loss is exact
   run(g, WAVE.first + 60);
@@ -98,17 +98,17 @@ test('the vault falls: the town loses a tenth of its coins and drops back two wa
 });
 
 test('every tenth wave brings the war wagon; waves are the same for the same seed', () => {
-  const g = newGame('w');
+  const g = newGame('w', 'gulch');
   const q = planWave(g.town, 10, 'mixed');
   assert.equal(q.at(-1), 'wagon');
   assert.ok(FOES.wagon.boss);
-  const a = newGame('same'), b = newGame('same');
+  const a = newGame('same', 'gulch'), b = newGame('same', 'gulch');
   run(a, 120); run(b, 120);
   assert.deepEqual(a.toJSON(), b.toJSON());
 });
 
 test('held waves wait while the town keeps working, and start once released', () => {
-  const g = newGame('h'), t = g.town;
+  const g = newGame('h', 'gulch'), t = g.town;
   setHold(g, t, true);
   const l0 = t.lifetime;
   run(g, WAVE.first + 30);
@@ -121,7 +121,7 @@ test('held waves wait while the town keeps working, and start once released', ()
 });
 
 test('calling a wave early pays a bonus; a break is required', () => {
-  const g = newGame('e'), t = g.town, c0 = t.coins;
+  const g = newGame('e', 'gulch'), t = g.town, c0 = t.coins;
   const bonus = callEarly(g, t);
   assert.ok(bonus > 0 && t.coins === c0 + bonus);
   assert.equal(t.waves.phase, 'wave');
@@ -129,7 +129,7 @@ test('calling a wave early pays a bonus; a break is required', () => {
 });
 
 test('the town keeps goods for its next tower, and defense rests while time away is caught up', () => {
-  const g = newGame('r'), t = g.town;
+  const g = newGame('r', 'gulch'), t = g.town;
   assert.equal(towerReserve(t).timber, towerCost(t, 'crossbow').goods.timber);
   const w = t.waves.timer;
   g.catchUp(600);
@@ -138,7 +138,7 @@ test('the town keeps goods for its next tower, and defense rests while time away
 });
 
 test('a battle in progress survives a save and load exactly', () => {
-  const g = newGame('sv'), t = rich(g);
+  const g = newGame('sv', 'gulch'), t = rich(g);
   buildTower(g, t, 4, 'crossbow'); buildTower(g, t, 9, 'still');
   run(g, WAVE.first + 8);
   assert.ok(t.waves.foes.length > 0);
@@ -149,7 +149,7 @@ test('a battle in progress survives a save and load exactly', () => {
 });
 
 test('the wave pace: a wave cleared fast still waits, so the next comes a full pace after the last one started', () => {
-  const g = newGame('pace'), t = rich(g), starts = [];
+  const g = newGame('pace', 'gulch'), t = rich(g), starts = [];
   for (let s = 0; s < 12; s++) buildTower(g, t, s, 'crossbow');
   for (const tw of t.towers) for (let L = 1; L < 8; L++) upgradeTower(g, t, tw.spot, 'a');
   g.bus.on('wave:start', () => starts.push(t.t));
@@ -159,7 +159,7 @@ test('the wave pace: a wave cleared fast still waits, so the next comes a full p
 });
 
 test('after a long wave the rest is still at least WAVE.rest, and Call now skips the wait for a bonus', () => {
-  const g = newGame('pace2'), t = g.town;
+  const g = newGame('pace2', 'gulch'), t = g.town;
   Object.assign(t.waves, { phase: 'wave', queue: [], foes: [], age: WAVE.pace + 30 });
   g.step(.25); // nothing left on the road: the wave is cleared
   assert.equal(t.waves.phase, 'break');
@@ -171,7 +171,7 @@ test('after a long wave the rest is still at least WAVE.rest, and Call now skips
 });
 
 test('the Cannon and the Snake Oil Still are paid with ore and planks, so they come before the Smelter', () => {
-  const g = newGame('early'), t = g.town;
+  const g = newGame('early', 'gulch'), t = g.town;
   assert.deepEqual(Object.keys(towerCost(t, 'cannon', 0).goods), ['ore']);
   assert.deepEqual(Object.keys(towerCost(t, 'still', 0).goods).sort(), ['ore', 'planks']);
   t.coins = 1000; t.goods.ore = 20; t.goods.planks = 20;

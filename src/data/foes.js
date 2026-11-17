@@ -1,11 +1,13 @@
 /* Raiders. hp: times the wave's base health; speed: world units per second; bounty: times the wave's base bounty;
    leak: vault strength lost when it reaches the vault; armor: share of each hit it shrugs off (poison ignores it).
-   from: the first wave it rides in. The boss of every 10th wave is the town's own (the Gulch: the war wagon). */
+   from: the first wave it rides in. The boss of every 10th wave is the town's own (town.def.boss; the Gulch: the war
+   wagon, Dry Creek Outpost: the smaller bandit wagon). */
 export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
   runner: { name: 'Rider', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
   wagon:  { name: 'War wagon', hp: 20, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
+  bandits: { name: 'Bandit wagon', hp: 10, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
 };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */

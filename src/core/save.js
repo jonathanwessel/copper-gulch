@@ -3,7 +3,7 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -48,6 +48,13 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t.waves && t.waves.age === undefined) t.waves.age = 0;
     return { ...s, v: 7, game: g };
+  },
+  // v8: the game starts in Dry Creek Outpost. A game already in Copper Gulch gets the outpost as won and running
+  // (its buildings at level 5 and two Crossbows); loadGame opens it from game.shared.grant.
+  7: s => {
+    const g = s.game || {}, towns = g.towns || {};
+    if (towns.gulch && !towns.drycreek) { g.shared = g.shared || {}; g.shared.grant = { ...(g.shared.grant || {}), drycreek: true }; }
+    return { ...s, v: 8, game: g };
   },
 };
 

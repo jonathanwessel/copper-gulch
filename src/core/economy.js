@@ -87,24 +87,48 @@ export function produce(town, dt) {
   }
 }
 
+/* Outposts (GDD.md, Outposts): an outpost that is not in play sends its goods to the town in play. That town's
+   workshops draw what they are short of first, up to their KEEP_SECONDS buffer, and the rest of the outpost's surplus
+   sells with the coins going to that town. Returns the town to send to, or null. */
+export const isOutpost = town => !!(town && town.def && town.def.kind === 'outpost');
+export function feedTarget(game, town) {
+  const a = game.town;
+  return isOutpost(town) && a && a !== town && !isOutpost(a) ? a : null;
+}
+/* Move goods from an outpost into a town's yard, up to its workshops' buffer. Records them in to.drawn[good]. */
+export function feed(game, from, to, extra) {
+  const need = demand(to);
+  for (const g of Object.keys(extra)) {
+    const n = Math.min(extra[g], (need[g] || 0) * KEEP_SECONDS - (to.goods[g] || 0));
+    if (!(n > 1e-9)) continue;
+    from.goods[g] -= n; extra[g] -= n; to.addGood(g, n);
+    to.drawn = to.drawn || {}; to.drawn[g] = (to.drawn[g] || 0) + n;
+    if (!to.flags['drew:' + from.id]) { to.flags['drew:' + from.id] = true; game.bus.emit('outpost:draw', { town: to.id, from: from.id, good: g }); }
+  }
+}
+
 /* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer
-   and what the town keeps for its next tower (town.keep, set by the defense). */
+   and what the town keeps for its next tower (town.keep, set by the defense). An outpost out of play first feeds the
+   town in play and pays it for the rest. */
 export function sellSurplus(game, town, dt) {
-  const need = demand(town), keep = town.keep || {};
+  const need = demand(town), keep = town.keep || {}, extra = {};
   for (const g of Object.keys(town.goods)) {
     if (town.sell[g] === false) continue;
-    const extra = town.goods[g] - (need[g] || 0) * KEEP_SECONDS - (keep[g] || 0);
-    if (extra > 1e-9) sell(game, town, g, extra, dt);
+    const n = town.goods[g] - (need[g] || 0) * KEEP_SECONDS - (keep[g] || 0);
+    if (n > 1e-9) extra[g] = n;
   }
+  const to = feedTarget(game, town);
+  if (to) feed(game, town, to, extra);
+  for (const [g, n] of Object.entries(extra)) if (n > 1e-9) sell(game, town, g, n, dt, to || town);
 }
 
 export const economy = {
   id: 'economy',
   init(town) {
     const s = town.def && town.def.start;
-    town.made = {}; town.sell = {}; town.starved = {};
+    town.made = {}; town.sell = {}; town.starved = {}; town.drawn = {};
     if (s) { town.coins = s.coins || 0; Object.assign(town.buildings, s.buildings || {}); }
   },
-  load(town) { town.made ||= {}; town.sell ||= {}; town.starved ||= {}; },
+  load(town) { town.made ||= {}; town.sell ||= {}; town.starved ||= {}; town.drawn ||= {}; },
   step(town, dt, game) { produce(town, dt); sellSurplus(game, town, dt); },
 };

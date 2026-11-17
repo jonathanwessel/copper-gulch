@@ -11,4 +11,6 @@ export const GOODS = {
   bricks: { name: 'Bricks', town: 'gulch', tier: 1, price: 4.5, depth: 1.6 },
   tools:  { name: 'Tools', town: 'gulch', tier: 2, price: 13, depth: .6 },
   wagons: { name: 'Wagons', town: 'gulch', tier: 2, price: 36, depth: .3 },
+  // Dry Creek Outpost (it also digs copper ore, a good the Gulch makes too)
+  stone:  { name: 'Stone', town: 'drycreek', tier: 0, price: 1.2, depth: 3 },
 };

@@ -3,7 +3,7 @@
    merged by material, the shade is one quad, and the plume is one instanced mesh. Reads the town; never changes it. */
 import * as THREE from 'three';
 import { ENTRANCES } from '../assets/models/entrances.js';
-import { WAVE } from '../data/foes.js';
+import { bossWave } from '../core/defense.js';
 
 const MAX = 40, WARN = 6, AFTER = 3; // puffs in the plume; seconds before a wave it starts, and after it stops
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
@@ -38,7 +38,7 @@ export class Entrance {
   cue() {
     const t = this.town, ws = t.waves;
     if (!ws) return 0;
-    const boss = t.wave % WAVE.boss === 0 ? 2 : 1;
+    const boss = bossWave(t, t.wave) ? 2 : 1;
     if (ws.phase === 'break') return ws.timer < WARN && !ws.hold ? boss : 0; // held waves do not come
     return this.since < AFTER ? boss : 0; // the first seconds of the wave
   }

@@ -28,7 +28,7 @@ async function startGame() {
     game = loadGame(saved.game);
     const secs = (Date.now() - (saved.at || Date.now())) / 1000;
     if (secs > 30) away = game.catchUp(secs);
-  } else game = newGame('cg-' + Date.now().toString(36));
+  } else game = newGame('cg-' + Date.now().toString(36), 'gulch'); // new games start in Dry Creek Outpost once it is on screen (M1b, next box)
   CG.game = game;
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;

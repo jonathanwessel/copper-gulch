@@ -14,7 +14,7 @@ import { migrate, SAVE_VERSION, encode, decode } from '../src/core/save.js';
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
 /* A town with research open, waves held so nothing breaks it, and plenty of coins. */
 function ready(seed = 'r') {
-  const g = newGame(seed), t = g.town;
+  const g = newGame(seed, 'gulch'), t = g.town;
   Object.assign(t.waves, { hold: true, timer: 0 });
   t.buildings.camp = 10; t.buildings.saw = 1; g.step(.25);
   t.coins = 1e9;
@@ -24,7 +24,7 @@ function ready(seed = 'r') {
 const finish = (g, t, id) => { assert.ok(startResearch(g, t, id), 'started ' + id); run(g, t.lab.left + .5); };
 
 test('research opens when the Sawmill is built, and not before', () => {
-  const g = newGame('r0'), t = g.town, ev = g.bus.record();
+  const g = newGame('r0', 'gulch'), t = g.town, ev = g.bus.record();
   Object.assign(t.waves, { hold: true, timer: 0 }); t.coins = 1e9;
   run(g, 5);
   assert.equal(researchOpen(t), false);

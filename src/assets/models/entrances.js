@@ -3,7 +3,7 @@
    A builder returns { obj, plume, shade } built from merged kit parts:
      obj: the static model, merged by material;   plume: [x, y, z] where the wave's dust rises (behind the entrance);
      shade: { x, z0, z1, w } a strip of road to darken (the inside of the entrance), or null.
-   Later towns (GDD.md): tunnel (Iron Ridge), bend (Silver Falls), clouds (Thunder Mesa), fissure (Radium Springs). */
+   Outposts: wash (Dry Creek). Later towns (GDD.md): tunnel (Iron Ridge), bend (Silver Falls), clouds (Thunder Mesa), fissure (Radium Springs). */
 import { Kit, rng } from '../../render/kit.js';
 
 export const ENTRANCES = {
@@ -64,5 +64,45 @@ export const ENTRANCES = {
     k.box(sx0 + .02, .95, sz0 + .04, .22, .06, .015, 'paintR', { ry: .35, ao: false });
     k.box(sx0 + .02, .8, sz0 + .04, .1, .1, .015, 'ink', { ry: .35, ao: false });
     return { obj: k.build({ cast: true }), plume: [mx, 1.8, pz - 2.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width } };
+  },
+  /* Dry Creek Outpost: a dry wash through a gap in a low rock ridge. The ridge runs east and west across the top of
+     the board; the wash bed comes down through the gap between two rock shoulders, and at the back the road ducks
+     under a natural rock arch, dark inside, where raiders wait. A broken windmill stands at the mouth, one blade
+     fallen in the sand. e: { mouth: [x, z], portal: [x, z], width, mesa } with the wash running toward -z. */
+  wash: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(23), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const tones = e.mesa || ['#a8705a', '#c99a6c', '#9a6650', '#d8b282'];
+    // the ridge: rounded blocks of rock, tall at the gap and lower toward the ends, set back from the board
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const x = mx + side * (half + .7 + i * 1.25 + R() * .3), z = mz - .8 - R() * .9 - (i > 2 ? .6 : 0);
+        const H = (1.9 - i * .16) * (.85 + R() * .3), w = 1.2 + R() * .5, d = 1.4 + R() * .6;
+        let y = -.3;
+        for (let l = 0; y < H; l++) { const h = .55 + R() * .3; k.box(x + (R() - .5) * .15, y, z, w - l * .14, h + .02, d - l * .16, tones[(l + i) % tones.length], { jit: .1, ao: false }); y += h; }
+        if (R() < .6) k.dode(x + (R() - .5) * .6, .2, z + d / 2 + .25, .25 + R() * .2, R() < .5 ? 'rock' : 'rockR', { jit: .15 });
+      }
+      // the wash's banks: low rocks along both sides of the bed, from the mouth back to the arch
+      for (let z = mz + .2; z > pz + .3; z -= .7 + R() * .3) k.dode(mx + side * (half + .15 + R() * .25), .1, z, .26 + R() * .2, R() < .5 ? 'rock' : 'rockD', { jit: .2 });
+    }
+    // the arch over the back of the wash, dark underneath
+    k.box(mx, -.05, pz - .7, e.width * .7, 1.3, 1.2, 'black', { ao: false });
+    for (const sx of [-1, 1]) k.box(mx + sx * (half * .7 + .25), -.1, pz - .55, .7, 1.45, 1.5, tones[0], { jit: .12 });
+    k.box(mx, 1.2, pz - .55, e.width * .7 + 1.2, .55, 1.5, tones[1], { jit: .15 });
+    k.box(mx, 1.7, pz - .9, e.width * .6, .4, 1.1, tones[2], { jit: .15 });
+    for (let i = 0; i < 6; i++) k.dode(mx + (R() * 2 - 1) * (half + 1), .9 + R() * 1.1, pz - 1.6 - R() * 1.6, .45 + R() * .4, R() < .5 ? 'rock' : 'rockR', { jit: .15 });
+    // the broken windmill at the mouth, west of the road: a leaning timber tower, its head tipped, two blades left
+    const wx = mx - half - .95, wz = mz + .55;
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.box(wx + dx * .26, 0, wz + dz * .26, .07, 1.75, .07, 'woodD', { rz: -dx * .1, rx: dz * .1 });
+    for (const y of [.45, 1.05]) { k.box(wx, y, wz - .22, .5, .05, .05, 'wood'); k.box(wx, y, wz + .22, .5, .05, .05, 'wood'); }
+    k.box(wx, 1.72, wz, .38, .06, .38, 'wood');                                                 // the platform
+    k.box(wx + .02, 1.78, wz, .2, .22, .34, 'iron', { rz: .25 });                               // the head, tipped
+    k.box(wx - .02, 1.88, wz + .3, .05, .05, .3, 'iron', { rz: .25 });                          // the hub
+    k.box(wx - .1, 1.9, wz + .44, .07, .62, .03, 'plank', { rz: .5 });                          // the blades left
+    k.box(wx + .18, 1.75, wz + .44, .07, .5, .03, 'plank', { rz: -1.9 });
+    k.box(wx + .34, 1.9, wz - .1, .03, .18, .5, 'iron', { rx: .3 });                            // the bent tail vane
+    k.box(wx + .5, 0, wz + .55, .62, .025, .07, 'plank', { ry: .6, ao: false });                // a blade fallen in the sand
+    k.box(wx - .45, 0, wz + .35, .32, .28, .32, 'woodD');                                       // a dry trough
+    k.box(wx - .45, .26, wz + .35, .26, .03, .26, 'sand', { ao: false });
+    return { obj: k.build({ cast: true }), plume: [mx, 1.8, pz - 2.4], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
 };

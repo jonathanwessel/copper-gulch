@@ -12,7 +12,7 @@ import { TOWERS, PATH_LEVEL } from '../src/data/towers.js';
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
 /* A town with a working chain, waves held, and lots of coins (goods come only from its own buildings). */
 function town(seed) {
-  const g = newGame(seed), t = g.town;
+  const g = newGame(seed, 'gulch'), t = g.town;
   t.coins = 1e9; t.buildings = { camp: 30, mine: 20, pit: 20, saw: 12, smelter: 12, kiln: 12 };
   Object.assign(t.waves, { phase: 'break', timer: 1e9, hold: true });
   return { g, t };
@@ -20,7 +20,7 @@ function town(seed) {
 const sum = cs => { const o = {}; for (const c of cs) for (const [k, n] of Object.entries(c.goods)) o[k] = (o[k] || 0) + n; return o; };
 
 test('a new town keeps the timber for its first Crossbow from the start', () => {
-  const g = newGame('r1'), t = g.town;
+  const g = newGame('r1', 'gulch'), t = g.town;
   assert.equal(towerReserve(t).timber, TOWERS.crossbow.goods.gulch.timber);
   assert.equal(t.keep.timber, TOWERS.crossbow.goods.gulch.timber);
 });
@@ -93,7 +93,7 @@ test('Keep for towers is on by default, and switching it off lets the good sell'
 });
 
 test('shortfall names the good, how much is there, the building that makes it and about how long', () => {
-  const g = newGame('r7'), t = g.town;
+  const g = newGame('r7', 'gulch'), t = g.town;
   t.goods = { ore: 2 };
   const c = towerCost(t, 'cannon', 0);
   let s = shortfall(t, c);

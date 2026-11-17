@@ -9,7 +9,7 @@ import { encode, decode } from '../src/core/save.js';
 
 /* A town with waves held, the camp at level `L`, and no sales (so the coins only change by spending). */
 function town(L = FOREMAN_LEVEL, seed = 'f') {
-  const g = newGame(seed), t = g.town;
+  const g = newGame(seed, 'gulch'), t = g.town;
   Object.assign(t.waves, { hold: true, timer: 0 });
   t.buildings.camp = L; t.sell = { timber: false };
   return { g, t };

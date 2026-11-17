@@ -8,7 +8,7 @@
 export const TOWERS = {
   crossbow: {
     name: 'Crossbow', about: 'Shoots one raider at a time, fast.',
-    coins: 20, goods: { gulch: { timber: 8 } }, dmg: 4, rate: 1.25, range: 2.4,
+    coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot hits a whole group.',

@@ -157,6 +157,12 @@ export const EXPLAINERS = [
     when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
   },
   {
+    id: 'outposts', covers: ['system:outpost'],
+    title: 'Dry Creek Outpost',
+    text: 'It keeps working on its own. Your Smelter gets its copper ore first. Coins for the rest it sells are added here.',
+    when: h => h.drew && h.t > 30, at: () => ({ el: '#coins' }),
+  },
+  {
     id: 'mortar', covers: ['tower:mortar'],
     title: 'The Mortar is open',
     text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. It can\'t hit raiders close to it.',

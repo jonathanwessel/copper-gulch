@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, explainOutput, missing, unlocked, uses } from '../core/economy.js';
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, setReserve, shortfall } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
@@ -175,7 +175,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return 'Your town kept ' + n.toLowerCase() + ' for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
   let pathNext = false;
   function paintSpot(i, force) {
-    const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => fitsSpot(town, i, k));
+    const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
     const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
     const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;

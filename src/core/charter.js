@@ -8,6 +8,7 @@
    Events: 'charter:offer' { town, deeds }, 'charter:sign' { town, deeds, wave, coins }, 'perk:pick' { id, side }. */
 import { DEEDS, PERKS, PERK } from '../data/perks.js';
 import { Town } from './town.js';
+import { isOutpost } from './economy.js';
 
 const C = game => game.shared.charter;
 export const deedsHeld = game => C(game).deeds;
@@ -66,7 +67,7 @@ export function resetTown(game, town) {
 
 /* Sign the town's charter: pays its deeds, resets it and clears the perk picks. Returns the deeds paid (0: not yet). */
 export function signCharter(game, town) {
-  const n = deedsFor(town);
+  const n = isOutpost(town) ? 0 : deedsFor(town);
   if (n < 1) return 0;
   const c = C(game), wave = town.bestWave, coins = Math.round(town.lifetime);
   c.deeds += n; c.signed++; c.perks = {};
@@ -85,7 +86,7 @@ export const charter = {
   /* The charter is offered (and the Perks button appears) the first time a town's charter would pay a deed. */
   step(town, dt, game) {
     const c = C(game);
-    if (c.offered) return;
+    if (c.offered || isOutpost(town)) return; // outposts have no charter
     const n = deedsFor(town);
     if (n >= 1) { c.offered = true; game.bus.emit('charter:offer', { town: town.id, deeds: n }); }
   },

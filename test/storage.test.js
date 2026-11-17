@@ -26,7 +26,7 @@ test('the active slot defaults to 1, is remembered, and refuses a slot that does
 });
 
 test('each slot keeps its own game', () => {
-  const s = fakeStore(), a = newGame('a'), b = newGame('b');
+  const s = fakeStore(), a = newGame('a', 'gulch'), b = newGame('b', 'gulch');
   a.town.coins = 111; b.town.coins = 222; b.town.wave = 7;
   writeSave(a, 1, s, 1000); writeSave(b, 2, s, 2000);
   assert.equal(readSave(1, s).game.towns.gulch.coins, 111);
@@ -40,7 +40,7 @@ test('each slot keeps its own game', () => {
 });
 
 test('export and import round-trip a game, and import stamps the time as now', () => {
-  const g = newGame('x'); g.town.coins = 4321; g.town.buildings.camp = 9;
+  const g = newGame('x', 'gulch'); g.town.coins = 4321; g.town.buildings.camp = 9;
   const text = exportText(g, 5);
   const { text: out, game } = importText('  ' + text + '\n', loadGame, 9999);
   assert.equal(game.town.coins, 4321); assert.equal(game.town.level('camp'), 9);
