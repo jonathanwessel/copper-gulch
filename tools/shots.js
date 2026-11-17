@@ -32,6 +32,7 @@ const SCREENS = [
   ['path', () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === CG.game.town.def.board.far); if (tw) tw.level = 4; CG.play.close(); CG.play.openSpot(CG.game.town.def.board.far); }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
   ['menu', () => { CG.play.openMenu(); }],
+  ['research', () => { const t = CG.game.town; t.flags['open:research'] = true; t.coins = 5000; t.research = { saws: 2 }; t.lab = { id: 'walls', left: 14, total: 20 }; CG.play.openResearch(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));

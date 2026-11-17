@@ -85,6 +85,12 @@ export const EXPLAINERS = [
     when: h => h.unlocked('saw'), at: () => ({ plot: 'saw' }),
   },
   {
+    id: 'research', covers: ['system:research'],
+    title: 'Research',
+    text: 'Tap Research to make your saws, mines and towers better. Each item costs coins and takes some time. Only one can work at a time.',
+    when: h => !!h.flags['open:research'], at: () => ({ el: '#researchBtn' }),
+  },
+  {
     id: 'short', covers: ['starved'],
     title: 'Out of materials',
     text: 'A red edge on a building\'s tag means it ran out of what it needs. Upgrade the building that supplies it.',

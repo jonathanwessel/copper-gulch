@@ -3,7 +3,7 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -26,6 +26,15 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) t.reserveOff = t.reserveOff || {};
     return { ...s, v: 4, game: g };
+  },
+  // v5: town research runs one item at a time (town.lab); a town that already has its Sawmill has research open
+  4: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) {
+      t.research = t.research || {}; t.lab = t.lab || null; t.flags = t.flags || {};
+      if ((t.buildings || {}).saw > 0) t.flags['open:research'] = true;
+    }
+    return { ...s, v: 5, game: g };
   },
 };
 

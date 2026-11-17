@@ -8,6 +8,8 @@ export const GULCH = {
   top: 'wagons',                  // the town's top good
   start: { coins: 15, buildings: { camp: 1 } },
   imports: [],                    // goods shipped in from other towns (none: the Gulch is first)
+  research: ['saws', 'shafts', 'walls', 'gunsmith', 'posters', 'stalls', 'furnaces'], // src/data/research.js
+  researchOpens: 'saw',           // research opens when this building is built
   // The board, in world units (1 unit = 1 map cell; x east, z south toward the camera). Each plot is 2x2, centered.
   // The road winds through the town in three passes (down, up, down) with a switchback at each end, so raiders pass
   // the same towers again and again. Plots stand in two columns between the passes; tower spots sit between the

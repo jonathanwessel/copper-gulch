@@ -101,7 +101,7 @@ test('shortfall names the good, how much is there, the building that makes it an
 });
 
 test('save v4: an older save gets every Keep for towers switch on', () => {
-  assert.equal(SAVE_VERSION, 4);
+  assert.ok(SAVE_VERSION >= 4);
   const s = migrate({ v: 3, at: 0, game: { towns: { gulch: { waves: { phase: 'break', foes: [], shells: [], fires: [] } } } } });
-  assert.deepEqual([s.v, s.game.towns.gulch.reserveOff], [4, {}]);
+  assert.deepEqual([s.v, s.game.towns.gulch.reserveOff], [SAVE_VERSION, {}]);
 });

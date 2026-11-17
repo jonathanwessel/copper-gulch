@@ -14,6 +14,7 @@ import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
+import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 3), MINUTES = arg('minutes', 60);
@@ -70,10 +71,11 @@ export function options(town) {
 }
 
 /* One player's run: every second, defend first when the defense is thin for the coming wave (the best affordable
-   build or upgrade by value), then the best-paying building. */
+   build or upgrade by value), then research (the cheapest item that does not cost more than the next building),
+   then the best-paying building. */
 export function play(seed, minutes = MINUTES) {
   const g = newGame('balance-' + seed), t = g.town;
-  const r = { seed, firstTower: null, wave10: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [] };
+  const r = { seed, research: {}, firstResearch: null, firstTower: null, wave10: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [] };
   g.bus.on('wave:start', () => { g.dealt = {}; });
   g.bus.on('wave:clear', e => {
     if (e.wave === 10 && r.wave10 === null) r.wave10 = t.t;
@@ -104,6 +106,10 @@ export function play(seed, minutes = MINUTES) {
       const b = BUILDINGS[id], v = (b.rate * GOODS[b.makes].price + (t.level(id) ? 0 : 2)) / cost(t, id);
       if (v > bv) { bv = v; best = id; }
     }
+    if (!t.lab) {
+      const item = itemsOf(t).filter(id => researchBlock(t, id) === null).sort((a, b) => researchCost(t, a) - researchCost(t, b))[0];
+      if (item && (!best || researchCost(t, item) <= cost(t, best)) && startResearch(g, t, item)) { r.research[item] = (r.research[item] || 0) + 1; r.firstResearch ??= t.t; continue; }
+    }
     if (best && t.coins >= cost(t, best)) build(g, t, best);
   }
   r.final = { wave: t.wave, best: t.bestWave, lifetime: Math.round(t.lifetime), towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } };
@@ -129,6 +135,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     if (r.wave10 === null || r.wave10 < 7 * 60 || r.wave10 > 9 * 60) misses.push(`seed ${s}: wave 10 at ${w10} (want 7-9 min)`);
     if (r.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in waves 1-3`);
   }
+  console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('towers bought (first minute bought, in the first hour):');
   for (const r of runs) console.log(`  seed ${r.seed}: ` + Object.keys(TOWERS).map(k => `${k} ${r.bought[k] || 0}` + (r.firstBuy[k] !== undefined ? ` (min ${r.firstBuy[k]})` : '')).join(', '));
   console.log('most damage per wave (first hour): ' + runs.map(r => `seed ${r.seed} ` + r.top.map(([w, k]) => w + ':' + k).join(' ')).join(' | '));

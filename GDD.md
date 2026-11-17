@@ -126,6 +126,28 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | Empire | Influence, plus treasury coins (a 10% tithe on every town, set by law) | founding each institution once with coins; its levels are nodes in one Empire tree; laws in pairs, locked until the Convention | the Convention, which pays Legacy |
 | Perks | deeds and Legacy | deed perks and Legacy perks, on one Perks screen | never |
 
+### Town research
+- Each town has 6 to 8 research items. Each has levels, a coin price that triples per level, and a wait that doubles per level (from 20 s). One item runs at a time. Research keeps going while you are away.
+- Research opens in Copper Gulch when the Sawmill is built (about 4 minutes in), with a Research button beside Goods.
+- Every bonus is a named source on a stat, so the explain view lists it ("Sharp Saws research").
+- Copper Gulch:
+
+| Item | Levels | Each level | Starts at |
+|---|---|---|---|
+| Sharp Saws | 5 | Lumber Camp and Sawmill +25% | 200 coins |
+| Deep Shafts | 5 | Copper Mine and Clay Pit +25% | 400 |
+| Thick Walls | 5 | vault +25% | 300 |
+| Gunsmith | 5 | towers hit 15% harder | 500 |
+| Wanted Posters | 5 | raiders pay 30% more when they fall | 600 |
+| Market Stalls | 5 | goods sell for 10% more | 800 |
+| Hot Furnaces | 2 | Smelter and Kiln +60%, but they burn one more timber per unit per level (a trade-off) | 1500 |
+
+### Charters and deeds
+- A town's charter resets that town (coins, buildings, towers, waves, research, foremen) and pays deeds. It keeps the explainers seen, the badges and the stats.
+- Deeds paid (first guesses, the charter box tunes them): 1 at best wave 25 and 1 more for every 5 waves past it, plus 1 at 100K coins earned in this charter and 1 more each time that grows tenfold. The charter is offered once it would pay at least 1 deed.
+- Deeds are kept for good. Each one adds 10% to income in every town, as a named source.
+- Deed perks come in pairs, and you pick one side of each pair once you hold enough deeds. You can pick again each time you sign a charter.
+
 - **Institutions**: Market Board, Department of Transport, Bank, University, Stock Exchange, War Office. Each has its own branch in the Empire tree.
 - **Names** are never reused across institutions, tabs, branches, laws or sliders.
 - **Laws** come in three pairs:

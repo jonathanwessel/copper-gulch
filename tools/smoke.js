@@ -211,6 +211,28 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(gfx)) if (!v) bad.push('Menu and Graphics: not ' + k);
+      // research: the button shows once research opens; its sheet starts an item, the others wait, and it finishes
+      const lab = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, btn = document.getElementById('researchBtn'), out = {};
+        delete t.flags['open:research']; t.buildings.saw = 0; await wait(400); out.hiddenFirst = btn.hidden;
+        t.buildings.saw = 1; await wait(600); out.opens = !!t.flags['open:research'] && !btn.hidden;
+        btn.click(); await wait(200);
+        const sheet = document.getElementById('sheet'); out.sheet = !sheet.hidden && sheet.dataset.id === 'research';
+        t.coins = 1e6; t.lab = null; const before = t.research.saws || 0;
+        document.querySelector('#sheet [data-research="saws"]').click(); await wait(400);
+        out.started = !!t.lab && t.lab.id === 'saws' && /ready in/.test(sheet.textContent);
+        out.oneAtATime = document.querySelector('#sheet [data-research="walls"]').disabled;
+        out.label = /Research · [0-9]+s/.test(btn.textContent);
+        out.tradeoff = /burn one more timber/.test(sheet.textContent);
+        return out;
+      });
+      for (const [k, v] of Object.entries(lab)) if (!v) bad.push('Research: not ' + k);
+      bad.push(...(await check(page)).map(b => 'research sheet: ' + b));
+      const labDone = await page.evaluate(async () => {
+        const t = CG.game.town, before = t.research.saws || 0; t.lab.left = .1; await new Promise(r => setTimeout(r, 900));
+        const ok = (t.research.saws || 0) === before + 1 && !t.lab; document.getElementById('sheetClose').click(); return ok;
+      });
+      if (!labDone) bad.push('Research: the item did not finish');
       await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

@@ -3,12 +3,14 @@
    this into the full HUD with tabs and sheets. */
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { build, cost, output, explainOutput, missing, unlocked } from '../core/economy.js';
+import { build, cost, output, explainOutput, missing, unlocked, uses } from '../core/economy.js';
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
-import { createSheets, goodsSheet, menuSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet } from './sheets.js';
+import { researchOpen } from '../core/research.js';
+import { RESEARCH } from '../data/research.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt } from './format.js';
@@ -52,7 +54,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const side = el('div', 'side');
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn';
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
-  side.append(goodsBtn, menuBtn);
+  const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
+  side.append(goodsBtn, labBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // tags over the plots
@@ -68,7 +71,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openGoods = () => sheets.open('goods', 'Goods', goodsSheet(game, town));
   const menuCtx = { game, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
-  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu);
+  const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
+  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch);
 
   let openId = null, why = false;
   function open(id) {
@@ -106,7 +110,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       card.append(ex);
     }
     const ins = Object.entries(b.inputs);
-    if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k, n]) => n + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
     if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
@@ -213,6 +217,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // news from the road
   game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The war wagon is coming. Stop it before it reaches the vault.', 4000); });
+  game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); });
   game.bus.on('breach', e => { if (e.town === town.id) toast('Your vault broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000); });
 
   // income: coins earned over the last few seconds
@@ -245,9 +250,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     paintCtl();
     setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left');
     call.hidden = ws.phase !== 'break';
+    // the Research button shows once research opens, with the time left on the item running
+    labBtn.hidden = !researchOpen(town);
+    setText(labBtn, town.lab ? 'Research · ' + Math.ceil(town.lab.left) + 's' : 'Research');
+    labBtn.classList.toggle('on', !!town.lab);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
-  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch };
 }
 
 export function toast(text, ms = 4000) {

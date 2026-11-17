@@ -13,6 +13,9 @@ export function buildingsOf(town) {
   return ids.slice().sort((a, b) => GOODS[BUILDINGS[a].makes].tier - GOODS[BUILDINGS[b].makes].tier);
 }
 
+/* How much of a good a building uses for each unit it makes (research can raise it, e.g. Hot Furnaces). */
+export const uses = (town, id, g) => BUILDINGS[id].inputs[g] * town.mods.factor('use:' + id + ':' + g);
+
 export const milestonesAt = level => MILESTONES.filter(m => level >= m).length;
 
 /* Units per second a building makes at full supply. */
@@ -62,7 +65,7 @@ export function demand(town) {
   const d = {};
   for (const id of buildingsOf(town)) {
     const out = output(town, id);
-    for (const [g, n] of Object.entries(BUILDINGS[id].inputs)) d[g] = (d[g] || 0) + out * n;
+    for (const g of Object.keys(BUILDINGS[id].inputs)) d[g] = (d[g] || 0) + out * uses(town, id, g);
   }
   return d;
 }
@@ -74,10 +77,11 @@ export function produce(town, dt) {
     const b = BUILDINGS[id], want = output(town, id) * dt;
     if (!(want > 0)) continue;
     let made = want;
-    for (const [g, n] of Object.entries(b.inputs)) made = Math.min(made, (town.goods[g] || 0) / n);
+    const need = Object.keys(b.inputs).map(g => [g, uses(town, id, g)]);
+    for (const [g, n] of need) made = Math.min(made, (town.goods[g] || 0) / n);
     if (made < want * .999) town.starved[id] = true;
     if (made <= 0) continue;
-    for (const [g, n] of Object.entries(b.inputs)) town.goods[g] -= made * n;
+    for (const [g, n] of need) town.goods[g] -= made * n;
     town.addGood(b.makes, made);
     town.made[b.makes] = (town.made[b.makes] || 0) + made;
   }

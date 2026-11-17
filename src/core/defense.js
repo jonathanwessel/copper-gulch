@@ -145,7 +145,7 @@ function hurt(game, town, f, dmg, pierce = false, by = null) {
 }
 
 function kill(game, town, f) {
-  const coins = WAVE.bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income');
+  const coins = WAVE.bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
   town.earn(coins);
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }
@@ -297,6 +297,13 @@ export function shortfall(town, c) {
   return out;
 }
 
+/* The vault's full strength: research (Thick Walls) raises it. */
+export const vaultMax = town => Math.round(WAVE.vault * town.mods.factor('vault'));
+function syncVault(town) {
+  const m = vaultMax(town), v = town.vault;
+  if (v.max !== m) { v.hp = Math.max(1, v.hp + m - v.max); v.max = m; }
+}
+
 export const defense = {
   id: 'defense',
   init(town) {
@@ -316,9 +323,10 @@ export const defense = {
   step(town, dt, game) {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
+    syncVault(town);
     town.keep = towerReserve(town);
     if (game.catching) return;
     fight(game, town, dt);
   },
-  coarse(town) { town.keep = towerReserve(town); },
+  coarse(town) { syncVault(town); town.keep = towerReserve(town); },
 };

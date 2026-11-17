@@ -21,6 +21,7 @@ export class Town {
     this.bestWave = 0;
     this.vault = { hp: 100, max: 100 };
     this.research = {};           // item id -> level
+    this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
     this.foremen = {};            // building id -> true
     this.flags = {};              // one-time things that happened (first sale, coach cards seen...)
   }

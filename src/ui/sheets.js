@@ -1,5 +1,6 @@
 /* Slide-up sheets over the town: one at a time, with a dimmed backdrop that closes it when tapped.
      Goods: what the town has in stock, what each good sells for now, and a Selling or Holding switch per good.
+     Research: the town's research items, their next level's price and wait, and the one running.
      Menu: Graphics, Install, save slots, copying the save out and loading one in, the help cards, the title screen.
    Every word here follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 import { GOODS } from '../data/goods.js';
@@ -12,6 +13,8 @@ import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { fmt, ago } from './format.js';
+import { RESEARCH } from '../data/research.js';
+import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -77,6 +80,46 @@ export function goodsSheet(game, town) {
     build();
     let acc = 0;
     return dt => { if ((acc += dt) < .3) return; acc = 0; if (shown().join() !== sig) build(); else paint(); };
+  };
+}
+
+/* Seconds in words: "40 seconds", "3 minutes". */
+export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
+
+/* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
+export function researchSheet(game, town) {
+  return body => {
+    const list = el('div', 'goods research'), rows = {};
+    body.append(list);
+    for (const id of itemsOf(town)) {
+      const r = RESEARCH[id], row = el('div', 'option'), txt = el('div');
+      const name = el('b'), info = el('small'), bar = el('i', 'depth'), fill = el('i');
+      bar.append(fill); txt.append(name, el('span', null, r.about));
+      if (r.worse) txt.append(el('span', 'worse', r.worse));
+      txt.append(info, bar);
+      const go = btn('Research', 'btn small build'); go.dataset.research = id;
+      go.addEventListener('click', () => { if (startResearch(game, town, id)) paint(); });
+      row.append(txt, go); list.append(row);
+      rows[id] = { row, name, info, bar, fill, go };
+    }
+    const paint = () => {
+      for (const [id, x] of Object.entries(rows)) {
+        const r = RESEARCH[id], L = researchLevel(town, id), lab = town.lab && town.lab.id === id ? town.lab : null, block = researchBlock(town, id);
+        const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
+        const info = lab ? 'Level ' + (L + 1) + ' ready in ' + wait(lab.left)
+          : block === 'max' ? 'All ' + r.max + ' levels done'
+          : 'Next level ' + (L + 1) + ' of ' + r.max + ' · ' + fmt(researchCost(town, id)) + ' coins · ' + wait(researchTime(town, id));
+        if (x.info.textContent !== info) x.info.textContent = info;
+        x.bar.hidden = !lab;
+        if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
+        const label = lab ? 'Working' : block === 'max' ? 'Done' : block === 'busy' ? 'Wait' : 'Research';
+        if (x.go.textContent !== label) x.go.textContent = label;
+        x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
+      }
+    };
+    paint();
+    let acc = 0;
+    return dt => { if ((acc += dt) < .25) return; acc = 0; paint(); };
   };
 }
 

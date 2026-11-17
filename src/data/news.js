@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.16-18',
+    lines: [
+      'Research is here. Build the Sawmill, then tap Research to make your saws, mines and towers better.',
+      'Each item costs coins and takes some time. Only one can work at a time.',
+      'Hot Furnaces makes the Smelter and the Kiln faster, but they burn more timber.',
+    ],
+  },
+  {
     v: '2026.11.16-17',
     lines: [
       'Your town saves the timber, copper and bricks your towers need next, instead of selling them. Building cards show how much.',
