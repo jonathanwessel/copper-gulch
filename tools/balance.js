@@ -76,21 +76,74 @@ export function options(town) {
   return out.sort((a, b) => b.value - a.value);
 }
 
+/* The strategies (CLAUDE.md: more than one way to win). Each says how many towers it wants for the coming wave, the
+   level it keeps them at, which defense buys it takes first, and whether the town or the defense gets the coins first.
+     active: the steady player the pacing targets are set for.
+     minmax: a few towers on the best pads, pushed to high levels and their paths.
+     swarm: towers on every pad it can (a new one every wave or two), kept at low levels and raised evenly.
+     economy: the town first while no raider got through in the last two waves, with the fewest towers that hold
+       (each wave that lets a raider through raises its towers half a level for good).
+     defense: towers first, the town gets what is left. */
+export const STRATEGIES = {
+  active: { want: w => 1 + Math.ceil(w / 3), level: w => 1 + w / 3 },
+  minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true },
+  swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
+  economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1 + w / 3.3 + r.bump, eco: true },
+  defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
+};
+
 /* One player's run: every second, defend first when the defense is thin for the coming wave (the best affordable
-   build or upgrade by value), then research (the cheapest item that does not cost more than the next building),
-   then (after the first boss) a foreman for a building at level 10 once it can pay for one, then the best-paying
-   building. */
-export function play(seed, minutes = MINUTES) {
-  const g = newGame('balance-' + seed), t = g.town;
-  const r = { seed, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [] };
+   build or upgrade the strategy allows, by value), then research (the cheapest item that does not cost more than the
+   next building), then (after the first boss) a foreman for a building at level 10 once it can pay for one, then the
+   best-paying building. The economy player buys its next building before defending unless a raider got through in
+   the last two waves. */
+export function play(seed, minutes = MINUTES, strategy = 'active') {
+  const S = STRATEGIES[strategy], g = newGame('balance-' + seed), t = g.town;
+  const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0 };
   g.bus.on('wave:start', () => { g.dealt = {}; });
+  g.bus.on('leak', () => { if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });
   g.bus.on('wave:clear', e => {
     if (e.wave === 10 && r.wave10 === null) r.wave10 = t.t;
+    if (e.wave === 20 && r.wave20 === null) r.wave20 = t.t;
     const d = (g.dealt || {})[t.id] || {}, best = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
-    if (best && t.t <= 3600) r.top.push([e.wave, best[0], Object.keys(d).length]);
+    if (best && t.t <= 3600) { r.top.push([e.wave, best[0], Object.keys(d).length]); for (const [k, n] of Object.entries(d)) r.dealt[k] = (r.dealt[k] || 0) + n; }
   });
   g.bus.on('breach', e => r.breaches.push(e.wave));
   g.bus.on('charter:offer', () => { r.offer = t.t; });
+  // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
+  // also waits until a raider got through in the last two waves, once it has its first towers)
+  const defend = () => {
+    const w = t.wave, want = S.want(w), lv = S.level(w, r);
+    if (t.towers.length >= want && !t.towers.some(x => x.level < lv)) return false;
+    let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
+    if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
+    if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
+    const pick = opts[0];
+    if (!pick) return false;
+    const ok = pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
+    if (!ok) return false;
+    if (!pick.up) r.firstTower ??= t.t;
+    r.bought[pick.kind] = (r.bought[pick.kind] || 0) + 1;
+    if (t.t <= 3600) r.firstBuy[pick.kind] ??= Math.round(t.t / 60);
+    return true;
+  };
+  // the town: research (the cheapest item that costs no more than the next building), then (after the first boss) a
+  // foreman for a level-10 building, then the best-paying building. Returns true when it bought something.
+  const grow = () => {
+    let best = null, bv = 0;
+    for (const id of t.def.buildings) {
+      if (!unlocked(t, id)) continue;
+      const b = BUILDINGS[id], v = (b.rate * GOODS[b.makes].price + (t.level(id) ? 0 : 2)) / cost(t, id);
+      if (v > bv) { bv = v; best = id; }
+    }
+    if (!t.lab) {
+      const item = itemsOf(t).filter(id => researchBlock(t, id) === null).sort((a, b) => researchCost(t, a) - researchCost(t, b))[0];
+      if (item && (!best || researchCost(t, item) <= cost(t, best)) && startResearch(g, t, item)) { r.research[item] = (r.research[item] || 0) + 1; r.firstResearch ??= t.t; return true; }
+    }
+    const boss = t.bestWave >= 10 && t.def.buildings.find(id => canHire(t, id) && hireCost(t, id) <= t.coins);
+    if (boss && hireForeman(g, t, boss)) { r.foremen.push(boss + ' ' + (t.t / 60).toFixed(1)); return true; }
+    return !!best && t.coins >= cost(t, best) && build(g, t, best);
+  };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
@@ -102,35 +155,34 @@ export function play(seed, minutes = MINUTES) {
       continue;
     }
     if (r.signed && r.regain === null && t.bestWave >= r.signed.wave) r.regain = t.t - r.signed.at;
-    const want = 1 + Math.ceil(t.wave / 3), behind = t.towers.some(x => x.level < 1 + t.wave / 3);
-    if (t.towers.length < want || behind) {
-      const pick = options(t).filter(o => o.can && (o.up ? o.level < 1 + t.wave / 3 : t.towers.length < want))[0];
-      if (pick) {
-        const ok = pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
-        if (ok) {
-          if (!pick.up) r.firstTower ??= t.t;
-          r.bought[pick.kind] = (r.bought[pick.kind] || 0) + 1;
-          if (t.t <= 3600) r.firstBuy[pick.kind] ??= Math.round(t.t / 60);
-          continue;
-        }
-      }
-    }
-    let best = null, bv = 0;
-    for (const id of t.def.buildings) {
-      if (!unlocked(t, id)) continue;
-      const b = BUILDINGS[id], v = (b.rate * GOODS[b.makes].price + (t.level(id) ? 0 : 2)) / cost(t, id);
-      if (v > bv) { bv = v; best = id; }
-    }
-    if (!t.lab) {
-      const item = itemsOf(t).filter(id => researchBlock(t, id) === null).sort((a, b) => researchCost(t, a) - researchCost(t, b))[0];
-      if (item && (!best || researchCost(t, item) <= cost(t, best)) && startResearch(g, t, item)) { r.research[item] = (r.research[item] || 0) + 1; r.firstResearch ??= t.t; continue; }
-    }
-    const boss = t.bestWave >= 10 && t.def.buildings.find(id => canHire(t, id) && hireCost(t, id) <= t.coins);
-    if (boss && hireForeman(g, t, boss)) { r.foremen.push(boss + ' ' + (t.t / 60).toFixed(1)); continue; }
-    if (best && t.coins >= cost(t, best)) build(g, t, best);
+    const safe = t.towers.length > 0 && t.wave - r.leakAt > 2;
+    if (S.eco && safe && grow()) continue;
+    if (defend()) continue;
+    grow();
   }
   r.final = { wave: t.wave, best: t.bestWave, lifetime: Math.round(t.lifetime), towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } };
   return r;
+}
+
+/* The strategy check (CLAUDE.md, Strategies must stay close): every strategy over the seeds, the median time to
+   clear waves 10 and 20, and a miss when a strategy is more than 25% slower than the best one or breaches in waves
+   1-3. Returns { rows, misses }. */
+export const STRATEGY_MINUTES = 40, STRATEGY_SLACK = 1.25;
+export function strategies(seeds = SEEDS) {
+  const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
+  const rows = Object.keys(STRATEGIES).map(k => {
+    const runs = []; for (let s = 1; s <= seeds; s++) runs.push(play(s, STRATEGY_MINUTES, k));
+    const dealt = {}, bought = {};
+    for (const r of runs) { for (const [a, n] of Object.entries(r.dealt)) dealt[a] = (dealt[a] || 0) + n; for (const [a, n] of Object.entries(r.bought)) bought[a] = (bought[a] || 0) + n; }
+    return { strategy: k, runs, wave10: med(runs.map(r => r.wave10)), wave20: med(runs.map(r => r.wave20)), coins30: med(runs.map(r => r.life[30] && r.life[30][1])), early: runs.filter(r => r.breaches.some(w => w <= 3)).length, firstBreach: runs.map(r => r.breaches[0] ?? null), dealt, bought };
+  });
+  const misses = [];
+  for (const key of ['wave10', 'wave20']) {
+    const best = Math.min(...rows.map(x => x[key] ?? Infinity));
+    for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${key === 'wave10' ? 'wave 10' : 'wave 20'} at ${x[key] === null ? 'never' : (x[key] / 60).toFixed(1) + ' min'}, more than 25% behind the best (${(best / 60).toFixed(1)} min)`);
+  }
+  for (const x of rows) if (x.early) misses.push(`${x.strategy}: a breach in waves 1-3 on ${x.early} seed(s)`);
+  return { rows, misses };
 }
 
 /* The variety check (M1 target): kinds never bought in the first hour, and whether one kind topped every wave. */
@@ -160,6 +212,14 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('towers bought (first minute bought, in the first hour):');
   for (const r of runs) console.log(`  seed ${r.seed}: ` + Object.keys(TOWERS).map(k => `${k} ${r.bought[k] || 0}` + (r.firstBuy[k] !== undefined ? ` (min ${r.firstBuy[k]})` : '')).join(', '));
   console.log('most damage per wave (first hour): ' + runs.map(r => `seed ${r.seed} ` + r.top.map(([w, k]) => w + ':' + k).join(' ')).join(' | '));
+  console.log(`strategies (median over ${SEEDS} seeds, ${STRATEGY_MINUTES} min each): strategy | wave 10 | wave 20 | coins at 30 min | first breach (wave) | buys by kind | damage by kind`);
+  const st = strategies();
+  for (const x of st.rows) {
+    const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1, mm = v => v === null ? 'never' : (v / 60).toFixed(1) + ' min';
+    console.log(`  ${x.strategy} | ${mm(x.wave10)} | ${mm(x.wave20)} | ${x.coins30 === null ? '-' : Math.round(x.coins30 / 1000) + 'K'} | ${x.firstBreach.map(w => w ?? '-').join(',')} | `
+      + Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ') + ' | ' + Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', '));
+  }
+  misses.push(...st.misses);
   const v = variety(runs);
   console.log('variety (M1 target, not a release gate yet): ' + (v.never.length || v.oneKind ? 'MISS' : 'ok')
     + (v.never.length ? ' · never the best buy in the first hour: ' + v.never.join(', ') : '')

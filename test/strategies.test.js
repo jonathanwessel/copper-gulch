@@ -1,0 +1,27 @@
+// The strategy bots (tools/balance.js): each plays its own way, and none falls over early.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { play, STRATEGIES } from '../tools/balance.js';
+
+const runs = Object.fromEntries(Object.keys(STRATEGIES).map(k => [k, play(1, 20, k)]));
+
+test('there are five strategies, the ones the design claims work', () => {
+  assert.deepEqual(Object.keys(STRATEGIES).sort(), ['active', 'defense', 'economy', 'minmax', 'swarm']);
+});
+
+test('every strategy builds its first tower in time and holds waves 1-3', () => {
+  for (const [k, r] of Object.entries(runs)) {
+    assert.ok(r.firstTower !== null && r.firstTower < 60, k + ' first tower at ' + r.firstTower);
+    assert.ok(!r.breaches.some(w => w <= 3), k + ' breached early: ' + r.breaches);
+    assert.ok(r.wave10 !== null, k + ' never cleared wave 10');
+  }
+});
+
+test('min-max keeps few towers high, swarm spreads many low', () => {
+  const lv = r => r.final.towers.map(s => +s.match(/\d+/)[0]);
+  const mm = lv(runs.minmax), sw = lv(runs.swarm);
+  assert.ok(mm.length <= 6, 'min-max has ' + mm.length + ' towers');
+  assert.ok(sw.length > mm.length, 'swarm has no more towers than min-max');
+  assert.ok(Math.max(...mm) > Math.max(...sw), 'min-max top level is not above swarm');
+  assert.ok(Math.max(...sw) - Math.min(...sw) <= 1, 'swarm levels are uneven: ' + sw);
+});
