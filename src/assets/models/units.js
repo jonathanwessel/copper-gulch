@@ -63,6 +63,26 @@ FOE.wagon = () => {
   const hl = [[-.12, .36], [.12, .36], [-.12, .64], [.12, .64]].map(([x, z]) => { const l = part(k => k.box(0, -.3, 0, .045, .3, .045, 'black', { ao: false }), { ao: false }); l.position.set(x, .32, z); root.add(l); return l; });
   root.userData.legs = hl; root.userData.gallop = 1; return root;
 };
+FOE.bandits = () => {
+  // the bandit wagon (Dry Creek's boss): a patched canvas wagon with a driver in a red bandana, drawn by one horse
+  const root = G(); root.userData = {};
+  root.add(part(k => {
+    k.box(0, .2, -.12, .4, .07, .62, 'woodD'); for (const sx of [-1, 1]) k.box(sx * .19, .27, -.12, .03, .12, .62, 'wood');
+    k.cyl(0, .38, -.42, .19, .5, 'sand', { rx: Math.PI / 2, seg: 10 }); // the canvas cover, lying along the wagon
+    for (const z of [-.4, -.17, .06]) k.torus(0, .38, z, .2, .012, 'woodD', { ts: 10 });
+    k.box(.19, .4, -.25, .01, .09, .1, 'paintR'); k.box(-.19, .44, -.05, .01, .08, .09, 'cloth'); // patches
+    barrelBits(k);
+    k.box(0, .3, .2, .3, .05, .12, 'wood'); // the driver's bench
+    k.box(0, .42, .2, .14, .2, .1, 'cloth'); k.box(0, .58, .2, .1, .1, .1, 'skin'); k.box(0, .56, .26, .11, .05, .02, 'paintR');
+    k.cyl(0, .64, .2, .12, .02, 'bark', { seg: 8 }); k.cyl(0, .66, .2, .055, .06, 'bark', { seg: 8 });
+    k.box(0, .3, .58, .14, .15, .32, 'woodD', { ao: false }); k.box(0, .4, .76, .08, .16, .1, 'woodD', { rx: -.5, ao: false }); k.box(0, .49, .84, .07, .07, .14, 'woodD', { ao: false });
+    for (const sx of [-1, 1]) k.box(sx * .05, .3, .32, .02, .02, .3, 'woodL', { ao: false }); // the shafts
+  }));
+  wheels(root, [[-.23, .13, -.35], [.23, .13, -.35], [-.23, .13, .08], [.23, .13, .08]], .13, 'wood');
+  const hl = [[-.05, .47], [.05, .47], [-.05, .69], [.05, .69]].map(([x, z]) => { const l = part(k => k.box(0, -.3, 0, .04, .3, .04, 'woodD', { ao: false }), { ao: false }); l.position.set(x, .32, z); root.add(l); return l; });
+  root.userData.legs = hl; root.userData.gallop = 1; return root;
+};
+function barrelBits(k) { k.cyl(-.1, .24, -.42, .06, .12, 'wood', { seg: 8 }); k.box(.1, .24, -.42, .1, .08, .08, 'woodL'); }
 
 export function makeFoe(kind) {
   const f = (FOE[kind] || FOE.raider)();

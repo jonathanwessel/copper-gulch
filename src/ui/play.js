@@ -306,8 +306,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
-  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '';
+  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null;
   function measure() {
+    // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
+    if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
     markBox = null;
@@ -330,6 +332,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
       if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
     }
+    const over = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    if (r && !tg.el && stripBox && over(r, stripBox)) r = null; // the thing is under the strip: show the words, not the frame
     if (mark.hidden !== !r) mark.hidden = !r;
     if (!r) return;
     mark.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;

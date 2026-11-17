@@ -59,6 +59,15 @@ const OUTPOST = [
   ['goal', () => {}],
   ['outpost-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['outpost-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.stone = 500; t.buildings.quarry = 6; t.buildings.dmine = 3; for (const s of [0, 1, 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
+  // Dry Creek's boss: the bandit wagon at wave 10, close up as it comes down the road
+  ['bandits', async () => {
+    const t = CG.game.town, r = CG.town.rig, v = { x: 3.9, z: .2, yaw: .5, pitch: .5, dist: 4.2 }, w = ms => new Promise(k => setTimeout(k, ms));
+    Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; Object.assign(r.t, v); Object.assign(r.c, v);
+    for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await w(50);
+    t.waves.queue = ['bandits'];
+    let f = null;
+    for (let i = 0; i < 300; i++) { f = t.waves.foes.find(x => x.kind === 'bandits'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.6) break; } await w(50); }
+  }],
   ['won', () => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
 ];
@@ -80,7 +89,7 @@ try {
     await q.goto(srv.url);
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
-      await q.evaluate(go); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'won' ? 2500 : 1500);
+      await q.evaluate(go); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'bandits' ? 150 : name === 'won' ? 2500 : 1500);
       const f = path.join(dir, `${name}-${size}.png`); await q.screenshot({ path: f }); wrote.push(f);
     }
     await q.close();

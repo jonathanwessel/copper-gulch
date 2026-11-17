@@ -165,12 +165,12 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 - The Perks button appears at the first charter offer. Its sheet shows the deeds the charter would pay now, the best wave and coins earned with the next deed's mark for each, what signing takes away, the deeds held and the pairs. Sign the charter and Pick each need a second tap.
 
 - **Institutions**: Market Board, Department of Transport, Bank, University, Stock Exchange, War Office. Each has its own branch in the Empire tree.
-- **Names** are never reused across institutions, tabs, branches, laws or sliders.
+- **Names** are never reused across institutions, tabs, branches, laws or sliders. `tools/audit.js` fails two goods, buildings, towns, tower kinds, paths, raiders, research items or perks with one name.
 - **Laws** come in three pairs:
   - Free Market vs Planned Economy;
   - Militia vs Standing Army;
   - Open Borders vs Protectionism.
-- **Multipliers.** Every one is a named source in `src/core/mods.js`, with a published cap per stat. The "explain" view lists each part.
+- **Multipliers.** Every one is a named source in `src/core/mods.js`, with a published cap per stat. The "explain" view lists each part. `tools/audit.js` fails a perk, research item or core rule that puts a bonus on a stat with no cap.
 - **The Convention** resets every town, the Capital, Influence, the tree, laws and shares. It keeps perks, badges and stats, and pays Legacy (×1.25 each).
   - Legacy perks open towns early, found the Capital pre-built, and give a starting Influence pot.
   - A second life must reach the first life's peak in under 30% of the time.
@@ -208,8 +208,8 @@ One panel, with three switches per town and one spend share per town. The share 
 | Milestone | Target |
 |---|---|
 | First tower (in Dry Creek) | under 1 min |
-| Dry Creek won, Copper Gulch opens | 10-15 min active, 15-20 min for the newcomer bot |
-| Copper Gulch wave 10 | 7-9 min after the Gulch opens (balance bot), 10-14 min for the newcomer bot |
+| Dry Creek won, Copper Gulch opens | 10-15 min active, within 20 min for the newcomer bot |
+| Copper Gulch wave 10 | 7-9 min after the Gulch opens (balance bot), within 14 min for the newcomer bot |
 | First charter offered | 35-45 min after the Gulch opens (about 45-60 min of play) |
 | Iron Ridge | 55-80 min active, under 2 h 15 min for the newcomer bot |
 | Capital | 2.5-4 h |
@@ -218,12 +218,15 @@ One panel, with three switches per town and one spend share per town. The share 
 | Radium Springs | 50-80 h |
 | First Convention worth it (4 or more Legacy) | 80-120 h |
 | Second life back to the first life's peak | under 30% of the time |
-| Longest stretch with nothing to do in the first hour | under 3 min |
+| Longest stretch with nothing to do in the first hour | under 3 min (newcomer bot) |
+
+Waves come on a clock, so a newcomer who holds them keeps the careful player's pace. The newcomer limits are upper ones: `tools/firstplay.js` (slow taps, 30% wrong buys, only the buttons that are out) must win Dry Creek and reach the Gulch's wave 10 no later than these.
 
 ## Look and sound
 - **Models.** Low-poly 3D built in code, on vendored three.js.
   - One model file per town.
   - Each builder returns `{obj, movers, smoke, lights}` per tier, merged into one vertex-colored mesh per model, so several dioramas fit a phone's budget.
+  - Every building, tower kind and raider has its own model; `tools/audit.js` fails one that would fall back to a stand-in.
 - **Lighting.** Warm desert light, soft shadows, a day and night cycle, bloom on lamps and fires, and color grading.
 - **Interface.** Crisp, flat pixel UI with hard 2px borders and pixel bevels. No glossy gradients or glass. Menu icons are rendered from the 3D models.
 - **Sound.** Procedural Western music (WebAudio, no files) and synthesized sound effects.

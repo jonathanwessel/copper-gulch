@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-10',
+    lines: [
+      'The bandit wagon at wave 10 in Dry Creek now has a canvas top and a horse.',
+      'A gold frame no longer hides the words of your goal.',
+    ],
+  },
+  {
     v: '2026.11.17-9',
     lines: [
       'Tap your coins at the top to see what earns them each second.',

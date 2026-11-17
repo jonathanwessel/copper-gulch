@@ -1,7 +1,8 @@
 // node tools/audit.js: checks the owner's rules and the release plumbing, and prints "audit ok" or each problem.
 // It covers: the chain rules from GDD.md, an explainer for every feature, a pure core, no requests to other hosts, cg-* storage keys only, American spelling, no personal details,
-// matching versions, and a service worker list with no missing files. The full audit (chain rules, names, caps) grows
-// with the game; see GDD.md.
+// matching versions, and a service worker list with no missing files. The full audit (GDD.md, Numbers and names) also
+// checks that no two things share a name, that every bonus lands on a stat with a published cap, and that every
+// building, tower kind and raider has its own model. It grows with the game.
 import fs from 'node:fs';
 import path from 'node:path';
 import { root } from './serve.js';
@@ -17,6 +18,8 @@ import { NEWS } from '../src/data/news.js';
 import { GOALS } from '../src/data/goals.js';
 import { SYSTEMS } from '../src/core/setup.js';
 import { RESEARCH } from '../src/data/research.js';
+import { PERKS } from '../src/data/perks.js';
+import { CAPS } from '../src/core/mods.js';
 
 const walk = dir => fs.existsSync(path.join(root, dir))
   ? fs.readdirSync(path.join(root, dir), { recursive: true }).map(f => (dir + '/' + f).replace(/\\/g, '/')).filter(f => fs.statSync(path.join(root, f)).isFile())
@@ -90,7 +93,7 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...nameRules(), ...capRules(), ...modelRules());
   return { problems, unlisted };
 }
 
@@ -226,6 +229,59 @@ export function chainRules() {
     if (i > 0 && !(t.outpost && outpost(t.outpost))) p.push(id + ': names no outpost (town.outpost)');
   });
   for (const id of TOWN_ORDER) for (const b of TOWNS[id].buildings) if (!BUILDINGS[b] || BUILDINGS[b].town !== id) p.push(id + ' lists building ' + b + ' of another town');
+  return p;
+}
+
+/* Names (GDD.md): a name a player reads means one thing. No two goods, buildings, towns, tower kinds, paths, raiders,
+   research items or perks share a name. */
+export function nameRules() {
+  const p = [], seen = new Map();
+  const add = (what, name) => {
+    if (!name) { p.push(what + ' has no name'); return; }
+    const key = name.trim().toLowerCase();
+    if (seen.has(key) && seen.get(key) !== what) p.push('the name "' + name + '" is used by ' + seen.get(key) + ' and ' + what);
+    else seen.set(key, what);
+  };
+  for (const [k, x] of Object.entries(GOODS)) add('good ' + k, x.name);
+  for (const [k, x] of Object.entries(BUILDINGS)) add('building ' + k, x.name);
+  for (const [k, x] of Object.entries(TOWNS)) { add('town ' + k, x.name); if (x.short && x.short !== x.name) add('town ' + k, x.short); }
+  for (const [k, x] of Object.entries(TOWERS)) add('tower ' + k, x.name);
+  for (const [k, ps] of Object.entries(PATHS)) for (const [side, x] of Object.entries(ps)) add('path ' + k + '.' + side, x.name);
+  for (const [k, x] of Object.entries(FOES)) add('raider ' + k, x.name);
+  for (const [k, x] of Object.entries(RESEARCH)) add('research ' + k, x.name);
+  for (const x of PERKS) for (const side of ['a', 'b']) add('perk ' + x.id + '.' + side, x[side].name);
+  return p;
+}
+
+/* Caps (GDD.md, Multipliers): every bonus is a named source on a stat with a published cap in src/core/mods.js, so
+   nothing stacks out of sight. Checks the perks, the research items and every stat the core names in the code. */
+export function capRules() {
+  const p = [], fam = st => CAPS[st] || CAPS[st.split(':')[0]];
+  const stats = [];
+  for (const x of PERKS) for (const side of ['a', 'b']) for (const e of x[side].effects) stats.push(['perk ' + x.id, e.stat]);
+  for (const [k, r] of Object.entries(RESEARCH)) for (const e of [...(r.effects || []), ...(r.downside || [])]) stats.push(['research ' + k, e.stat]);
+  for (const f of walk('src/core').filter(f => f.endsWith('.js'))) {
+    for (const m of stripComments(read(f)).matchAll(/mods\.(?:set|factor|value|explain)\(\s*'([^']+)'/g)) stats.push([f, m[1]]);
+  }
+  for (const [where, st] of stats) if (!fam(st)) p.push(where + ': the stat "' + st + '" has no published cap (src/core/mods.js)');
+  return p;
+}
+
+/* Models (GDD.md, Look and sound): every building names a model recipe that exists, and every tower kind and every
+   raider has its own model (never the stand-in a missing one falls back to). Read from the model files' text, since
+   they need three.js. */
+export function modelRules() {
+  const p = [], units = read('src/assets/models/units.js');
+  const recipes = new Set();
+  for (const f of walk('src/assets/models').filter(f => f.endsWith('.js') && !/units|entrances/.test(f))) {
+    const s = read(f).replace(/\r\n/g, '\n'), body = (s.match(/\nconst R = \{([\s\S]*?)\n\};/) || [, ''])[1];
+    for (const m of body.matchAll(/^ {2}(\w+)\s*\(/gm)) recipes.add(m[1]);
+  }
+  for (const [k, b] of Object.entries(BUILDINGS)) if (!b.model || !recipes.has(b.model)) p.push('building ' + k + ' has no model recipe' + (b.model ? ' "' + b.model + '"' : ''));
+  const u = units.replace(/\r\n/g, '\n'), foeBody = (u.match(/\nconst FOE = \{([\s\S]*?)\n\};/) || [, ''])[1];
+  const foes = new Set([...foeBody.matchAll(/^ {2}(\w+):/gm)].map(m => m[1]).concat([...u.matchAll(/\nFOE\.(\w+) = /g)].map(m => m[1])));
+  for (const k of Object.keys(FOES)) if (!foes.has(k)) p.push('raider ' + k + ' has no model (src/assets/models/units.js, FOE)');
+  for (const k of Object.keys(TOWERS)) if (!new RegExp("type === '" + k + "'").test(units)) p.push('tower ' + k + ' has no model (src/assets/models/units.js, makeTower)');
   return p;
 }
 
