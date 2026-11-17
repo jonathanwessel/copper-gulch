@@ -2,6 +2,7 @@
 import { drawText } from '../art/pixfont.js';
 import { GAME_VERSION } from '../version.js';
 import { APP, checkUpdates } from './update.js';
+import { installButton } from './install.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
@@ -20,7 +21,7 @@ export function mountTitle(root, { onPlay = () => {} } = {}) {
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));
-  row.append(check);
+  row.append(installButton(), check);
   sign.append(play, note, row);
   const foot = el('p', 'foot'); foot.id = 'version';
   const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status : '') + ' · Free, no ads'; };

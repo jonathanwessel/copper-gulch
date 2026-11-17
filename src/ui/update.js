@@ -38,7 +38,7 @@ export function initUpdates() {
   if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
   const go = async () => {
     try {
-      const reg = APP.reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      const reg = APP.reg = await navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' });
       const watch = w => {
         if (!w) return;
         const done = () => { if (w.state === 'installed' && navigator.serviceWorker.controller) { APP.waiting = w; showUpdate(); } };

@@ -1,5 +1,7 @@
 // node tools/make-icons.js: renders the app icons from the game's own 3D title scene into icons/: the saloon and the
-// vault at golden hour, framed in copper. The maskable icon is the same scene full bleed (phones cut their own shape).
+// vault at golden hour, framed in copper ("any" icons, 192 and 512). The maskable icons (192 and 512) are the scene
+// full bleed from further back, so the saloon sits inside the central safe zone (a circle of 80% of the width) that
+// every phone's mask keeps. The apple-touch-icon uses the maskable art (iOS rounds the corners itself).
 import fs from 'node:fs';
 import path from 'node:path';
 import { start, root } from './serve.js';
@@ -20,9 +22,14 @@ try {
   });
   await sleep(800);
   const png = (await p.screenshot()).toString('base64');
-  const icons = await p.evaluate(async src => {
-    const img = new Image(); img.src = 'data:image/png;base64,' + src; await img.decode();
+  await p.evaluate(() => { CG.scene.pose = { yaw: -.3, pitch: .36, dist: 8.2, look: [.35, .55, -.1] }; });
+  await sleep(800);
+  const wide = (await p.screenshot()).toString('base64');
+  const icons = await p.evaluate(async ([src, wsrc]) => {
+    const load = async s => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); return i; };
+    const close = await load(src), far = await load(wsrc);
     const make = (n, framed) => {
+      const img = framed ? close : far;
       const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d');
       g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, n, n);
       if (framed) { // a flat copper frame with a dark keyline and a light inner bevel
@@ -33,8 +40,11 @@ try {
       }
       return c.toDataURL('image/png');
     };
-    return { 'icon-192.png': make(192, true), 'icon-512.png': make(512, true), 'icon-maskable-512.png': make(512, false), 'apple-touch-icon.png': make(180, false) };
-  }, png);
+    return {
+      'icon-192.png': make(192, true), 'icon-512.png': make(512, true),
+      'icon-maskable-192.png': make(192, false), 'icon-maskable-512.png': make(512, false), 'apple-touch-icon.png': make(180, false),
+    };
+  }, [png, wide]);
   for (const [name, url] of Object.entries(icons)) fs.writeFileSync(path.join(out, name), Buffer.from(url.split(',')[1], 'base64'));
   console.log('wrote', Object.keys(icons).join(', '));
 } finally { await b.close(); srv.close(); }

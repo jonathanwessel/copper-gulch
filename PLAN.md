@@ -19,6 +19,7 @@ The design is in `GDD.md`. This file is the roadmap the hourly scheduled task wo
 - American spelling.
 - Saves: bump `v` and add a migration for any change to the save's shape. Use only `cg-*` storage keys. The old game's key `copper-gulch-save-v1` may be read, never written.
 - Publish working releases often; the owner plays the installed app between sessions.
+- Always installable as an app (PWA), above all in Chrome on Android, where the browser must offer "Install app". `tools/install-test.js` must print ok for every release, locally and against the live site.
 
 ## Release checklist (every release; stop and fix on any failure)
 1. `node --test test/*.test.js` passes (Node 24 does not take a bare folder).
@@ -26,8 +27,8 @@ The design is in `GDD.md`. This file is the roadmap the hourly scheduled task wo
 3. Run the bots that the current milestone's target names. From M1 on that is `tools/balance.js`; from M2, `tools/firstplay.js`; from M4, `tools/idle.js`. Write their numbers in the notes.
 4. `node tools/smoke.js` ends with phone, land and desk `ok`.
 5. `node tools/shots.js <scratch dir>`: look at every screenshot and fix anything ugly or broken.
-6. `node tools/bump-version.js "note, no apostrophes"`, then `node tools/update-test.js` prints ok.
-7. Commit, push `main`, wait for the Pages build, and confirm the live `version.json` shows the new version.
+6. `node tools/bump-version.js "note, no apostrophes"`, then `node tools/update-test.js` and `node tools/install-test.js` print ok.
+7. Commit, push `main`, wait for the Pages build, and confirm the live `version.json` shows the new version. Then `node tools/install-test.js https://jonathanwessel.github.io/copper-gulch/` prints ok (the live manifest and icons).
 
 Until a tool exists, the box that creates it is the first to use it; skip the steps for tools that don't exist yet.
 
@@ -40,6 +41,12 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
   - Tools copied from `../tycoon/scripts`: `cdp`, `serve`, `update-test`, `bump-version`, `make-icons`.
   - `audit` v0, and a test harness.
   - Shipped when the live site shows a title over a Gulch model and works offline.
+  - Installable as an app (owner requirement, added after the first release), above all in Chrome on Android:
+    - `manifest.webmanifest` linked from `index.html`: name, short_name, id, start_url and scope `./`, display standalone with display_override fullscreen, orientation any, theme and background colors matching the page, a description; PNG icons 192 and 512 with purpose any, separate 192 and 512 maskable icons with the art inside the safe zone, and an apple-touch-icon. Every path relative (the site lives under `/copper-gulch/`).
+    - `sw.js` registered with scope `./`, with a real fetch handler that serves the game offline.
+    - An Install button: catch beforeinstallprompt, show the button only while the prompt is available (on the title, and in Settings once the Phone shell builds it), call prompt() on tap, hide it after appinstalled or when already running as an app. On iPhone and iPad, a one-line "Share, then Add to Home Screen" hint instead.
+    - `tools/install-test.js`: CDP Page.getAppManifest with no errors and every icon loading at its size, and Page.getInstallabilityErrors returning an empty list; run on the served repo and on the live URL after publishing.
+  - Notes (install): shipped 2026.11.16-6. `tools/install-test.js` on the served repo: no manifest errors; icons 192, 512, maskable 192, maskable 512 and the 180 apple-touch-icon all load at their sizes; installabilityErrors `[]`; headless Chrome fired beforeinstallprompt and the Install button showed. A broken copy (no icons, no fetch handler) fails it with `no-acceptable-icon`, so the check bites. The maskable icons are the scene from further back so the saloon sits inside the safe zone. `index.html` catches beforeinstallprompt in a tiny inline script before the modules load; `src/ui/install.js` owns the button (`installButton()`), counting fullscreen and minimal-ui as already installed because of display_override. The live check result is in the release notes of 2026.11.16-6 below.
   - Notes: shipped 2026.11.16-2. Tools are ES modules now (`tools/*.js`); also added `smoke` (phone, land, desk, then offline with the server stopped) and `shots`. The title scene (`src/render/title-scene.js`) uses the old buildings, adapted into `src/assets/models/gulch.js`; the Board box replaces it with the real board. Logo is a code-drawn 5x7 pixel font (`src/art/pixfont.js`), no web fonts. Version lives in `src/version.js`. Caches are named `cg-shell-*` because the old game on the same origin deletes its own `copper-gulch-*` caches. `update-test` also checks the new version boots offline. Audit v0: pure core, no other hosts, cg-* keys, American spelling, no emails or LAN addresses, matching versions, no missing cached files.
 - [x] **Core.**
   - `src/core/`: `rng` (a seeded stream per town), `clock` (fixed 0.25 s steps and offline catch-up), `events` (the bus), `mods` (named sources with caps), `town` (`class Town`, with no global state), `save` (v1 with migrations), `game`.
@@ -57,6 +64,7 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
   - Paths at level 5.
   - Notes: shipped 2026.11.16-5. `src/core/defense.js` with `data/towers.js` and `data/foes.js`. Towers stand on 12 fixed stone-pad spots beside the road (data in `towns/gulch.js`); tap a pad for its card. Costs: crossbow timber (so the first tower comes in under a minute), cannon copper, frost lens bricks and copper, still bricks and tools; the town holds back the goods its next tower needs instead of selling them. Paths at level 5: Repeater or Longbow, Mortar or Grapeshot, Deep Freeze or Brittle Ice, Plague Cloud or Spreading Fever. Raiders: bandit, rider (wave 3+), armored brute (wave 6+), the war wagon every 10th wave; wave kinds mixed, rush, swarm, heavy. 30 s before wave 1, 12 s rests, and Call now pays for the time skipped. The vault holds 20; when it falls the town loses 10% of its coins and drops back two waves. Hits land at once in the core and the renderer draws the flight. Defense rests during offline catch-up until M4 brings background battles. The home view now frames the yard down to the far-side spots. A scratch greedy bot gave: first tower at 17 s, wave 10 at 6.5 min, no breach in waves 1-3, first breach at wave 15; the M1 target box tunes this with `tools/balance.js`. Pinch and twist are still untried on a real phone.
 - [ ] **Phone shell.** The HUD, slide-up sheets, cards, side buttons, the title, settings, save slots, and export and import.
+  - Settings includes the Install entry: `installButton()` from `src/ui/install.js` (button while Chrome offers it, the iOS hint on iPhone and iPad).
 - [ ] **Town layer.** Town research, foremen, charter and deeds, and the Perks screen.
 - [ ] **Target:** `tools/balance.js` gives wave 10 in 7-9 min, the first charter offered at 35-45 min, and no breach in waves 1-3.
 

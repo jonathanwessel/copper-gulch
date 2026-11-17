@@ -3,10 +3,12 @@
 import { GAME_VERSION, GAME_NEWS } from './version.js';
 import { APP, checkUpdates, initUpdates } from './ui/update.js';
 import { mountTitle } from './ui/title.js';
+import { INSTALL, installState, initInstall } from './ui/install.js';
 import { readSave, writeSave } from './ui/storage.js';
 import { newGame, loadGame } from './core/setup.js';
 
-const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, scene: null, ready: false, game: null, town: null, play: null };
+initInstall();
+const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame() });
 initUpdates();
 const titleScene = import('./render/title-scene.js')

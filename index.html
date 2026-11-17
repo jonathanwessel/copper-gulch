@@ -76,6 +76,8 @@ html.no3d body { background: var(--bg); }
 .btn:disabled { opacity: .55; cursor: default; }
 .btn.primary { background: var(--copper); color: #1d120c; font-size: 1.25rem; letter-spacing: .06em; box-shadow: inset 2px 2px 0 var(--copper-hi), inset -2px -2px 0 var(--copper-lo), 2px 2px 0 var(--line); }
 .btn.small { min-height: 34px; padding: 4px 12px; font-size: .85rem; }
+.install { display: contents; }
+.install .hint { font-size: .8rem; color: var(--muted); font-weight: 500; flex-basis: 100%; }
 .foot { margin: 0; color: var(--muted); font-size: .75rem; text-align: center; text-shadow: 1px 1px 0 var(--line); }
 
 /* --- the update bar ------------------------------------------------------------------------------------------------ */
@@ -175,6 +177,10 @@ html.flat .tag { position: static; transform: none !important; }
   .foot { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); text-align: left; }
 }
 </style>
+<script>
+  // Chrome may offer installing before the game's modules load: keep the prompt for the Install button (src/ui/install.js).
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.cgInstallPrompt = e; window.dispatchEvent(new Event('cg-install-ready')); });
+</script>
 <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }</script>
 </head>
 <body>
