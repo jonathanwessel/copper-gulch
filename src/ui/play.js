@@ -17,7 +17,7 @@ import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks } from '../core/reveal.js';
-import { goalNow, goalContext, goalsOf } from '../core/goals.js';
+import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt } from './format.js';
@@ -75,8 +75,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
   // the goal strip (src/core/goals.js): one short goal at a time through the first half hour; tap it to point again
   const goal = el('button', 'goal'); goal.id = 'goal'; goal.hidden = true;
-  const goalTag = el('span', 'glabel', 'Goal'), goalText = el('span', 'gtext');
-  goal.append(goalTag, goalText);
+  const goalTag = el('span', 'glabel', 'Goal'), goalWords = el('span', 'gtext');
+  goal.append(goalTag, goalWords);
   const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
   goal.addEventListener('click', () => { mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping'); });
   const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl, goal); paintChip();
@@ -301,7 +301,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     goalId = now ? now.id : null; goalCur = now;
     goal.hidden = !now;
     if (!now) return;
-    setText(goalText, now.text);
+    setText(goalWords, goalText(game, town, now));
     goal.classList.remove('new'); void goal.offsetWidth; goal.classList.add('new');
   }
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
@@ -310,6 +310,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null;
   function measure() {
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
+    if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
+    // what covers the board: the camera fits its home view under the top bar and keeps the selection clear of the card
+    if (viewApi.setView) {
+      let top = 0;
+      for (const n of hud.querySelectorAll('.hudleft, .hudright')) { const b = n.getBoundingClientRect(); if (b.height) top = Math.max(top, b.bottom); }
+      const cb = openId && !card.hidden ? card.getBoundingClientRect() : null;
+      viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null);
+    }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;

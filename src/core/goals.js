@@ -5,7 +5,8 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
+import { GOODS } from '../data/goods.js';
 import { researchOpen } from './research.js';
 
 /* What a goal reads: a small view of one town. */
@@ -22,6 +23,14 @@ export function goalContext(game, town) {
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
     visited: id => !!sh.visited[id] || game.active === id,
     freeSpot: () => free(false), freePit: () => free(true),
+    canBuild: kind => canPay(town, towerCost(town, kind)),
+    // what is still missing to pay for a tower, as words that count down ("5 more coins and 3 more timber")
+    shortText: kind => {
+      const c = towerCost(town, kind), more = (n, name) => Math.ceil(n - 1e-9) + ' more ' + name, out = [];
+      if (town.coins < c.coins) out.push(more(c.coins - town.coins, 'coins'));
+      for (const [k, n] of Object.entries(c.goods)) { const have = town.goods[k] || 0; if (have < n) out.push(more(n - have, GOODS[k].name.toLowerCase())); }
+      return out.join(' and ');
+    },
     lowTower: () => by((a, b) => a.level < b.level),
     topTower: () => by((a, b) => a.level > b.level, t => !t.path),
   };
@@ -40,6 +49,14 @@ export function goalNow(game) {
     if (!g.ready || g.ready(c)) return g;
   }
   return null;
+}
+
+/* The words the strip shows for a goal: its text, or, for a goal with wait: kind while that tower can't be paid yet,
+   what is still missing ("Wait for 5 more coins and 3 more timber, then tap a stone pad"), counting down as it comes. */
+export function goalText(game, town, g) {
+  if (!g.wait) return g.text;
+  const c = goalContext(game, town);
+  return c.canBuild(g.wait) ? g.text : 'Wait for ' + c.shortText(g.wait) + ', then tap a stone pad';
 }
 
 /* Mark every goal done (for players already past the start; the save migration uses the list too). */

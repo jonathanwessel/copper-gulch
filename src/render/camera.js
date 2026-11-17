@@ -5,12 +5,19 @@
      right-drag or Shift-drag: the map turns around the point under the pointer, the way the pointer moves;
      the wheel zooms toward the pointer;   a double tap eases back to the home view.
    While touching, the camera follows the fingers exactly (no easing); only a flick's glide and the reset ease.
-   A drag never counts as a tap: onTap(x, y) only fires for a press that did not move. */
+   A drag never counts as a tap: onTap(x, y) only fires for a press that did not move.
+   Framing: the home view fits the town into the part of the screen the top bar leaves free, close enough that every
+   stone pad is at least MIN_PAD pixels across (a short landscape screen pans to see the ends). While a card covers
+   the selected thing, the camera slides it into the free part, and slides back when the card closes, unless the
+   player has moved the map in between. */
 import * as THREE from 'three';
 
 const _cam = new THREE.PerspectiveCamera(), _ray = new THREE.Raycaster(), _v2 = new THREE.Vector2(), _hit = new THREE.Vector3();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const ang = (x, z) => Math.atan2(x, z); // a ground direction's angle; turning the rig by f adds f to it
+export const MIN_PAD = 32;  // pixels across the smallest stone pad at home (the touch rule is 30)
+const PAD_R = .5;           // a stone pad's radius in world units (src/render/battle.js)
+const _pv = new THREE.Vector3();
 
 /* Put a camera where a rig state { x, z, yaw, pitch, dist } says. */
 export function pose(cam, s) {
@@ -19,8 +26,10 @@ export function pose(cam, s) {
 }
 
 export class CameraRig {
-  constructor(cam, el, { center, size = 12, onTap = () => {} }) {
-    this.cam = cam; this.el = el; this.onTap = onTap;
+  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [] }) {
+    this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads;
+    this.view = { top: 0, cover: null }; // the top bar's lower edge and the open card's box, in client pixels
+    this.gestures = 0; this.atHome = true; this.slid = null; this.keepKey = null;
     this.home = { x: center.x, z: center.z, yaw: 0, pitch: .78, dist: 19 };
     this.size = size;
     this.t = { ...this.home };      // where the camera is heading
@@ -32,40 +41,126 @@ export class CameraRig {
   reset() {
     // ease back the short way round, however many turns the map has had
     this.c.yaw = this.home.yaw + Math.atan2(Math.sin(this.c.yaw - this.home.yaw), Math.cos(this.c.yaw - this.home.yaw));
-    Object.assign(this.t, this.home); this.flick = null;
+    Object.assign(this.t, this.home); this.flick = null; this.atHome = true; this.slid = null;
   }
   /* What the home view should show: a center and a width in world units. When it grows, the camera eases out to it. */
   frame(x, z, w, d) {
-    if (this.fw === w && this.fd === d && this.home.x === x && this.home.z === z) return;
+    if (this.fw === w && this.fd === d && this.fx === x && this.fz === z) return;
     const first = this.fw === undefined;
-    this.home.x = x; this.home.z = z; this.fw = w; this.fd = d; this.aspect = 0;
-    this.t.x = x; this.t.z = z;
+    this.home.x = x; this.home.z = z; this.fx = x; this.fz = z; this.fw = w; this.fd = d; this.fitKey = ''; // (fit slides home off the frame's middle)
     if (first) { this.c.x = x; this.c.z = z; this.fitted = false; } // the opening view starts framed, without a glide
   }
-  /* Fit to the screen shape: the whole yard fits on screen at home zoom. Tall phones get a wider lens and a steeper
-     view, so the board fills the height instead of shrinking to a strip. */
-  fit(aspect) {
-    if (aspect === this.aspect) return;
-    this.aspect = aspect;
+  /* What covers the board: top, the lower edge of the top bar; cover, the open card's box { l, t, r, b } or null. */
+  setView(top, cover) {
+    this.view.cover = cover;
+    if (Math.abs(top - this.view.top) > 4) { this.view.top = top; this.fitKey = ''; }
+  }
+  /* Where world point (x, y, z) lands on screen (client pixels) for rig state s. */
+  proj(s, x, y, z) {
+    const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
+    this.tmp(s, W, H);
+    _pv.set(x, y, z).project(_cam);
+    return { x: r.left + (_pv.x + 1) / 2 * W, y: r.top + (1 - _pv.y) / 2 * H };
+  }
+  tmp(s, W, H) { _cam.fov = this.cam.fov; _cam.aspect = W / H; _cam.near = this.cam.near; _cam.far = this.cam.far; _cam.updateProjectionMatrix(); pose(_cam, s); }
+  /* The smallest stone pad's width on screen, in pixels, for rig state s (the current one by default). */
+  padPx(s = this.c) {
+    let min = Infinity;
+    for (const [x, z] of this.pads) {
+      let w = 0;
+      for (const [ux, uz] of [[1, 0], [0, 1], [.707, .707], [.707, -.707]]) {
+        const a = this.proj(s, x - ux * PAD_R, 0, z - uz * PAD_R), b = this.proj(s, x + ux * PAD_R, 0, z + uz * PAD_R);
+        w = Math.max(w, Math.hypot(a.x - b.x, a.y - b.y));
+      }
+      min = Math.min(min, w);
+    }
+    return min;
+  }
+  /* Fit the home view to the screen: the town's frame fits into the part the top bar leaves free, centered there,
+     but never so far out that a stone pad drops under MIN_PAD pixels. Tall phones get a wider lens and a steeper
+     view; wide screens a lower one, so the town's depth takes less height. Solved by projecting the frame's corners. */
+  fit(aspect, w = 0, h = 0) {
+    const key = w + 'x' + h + ':' + Math.round(this.view.top) + ':' + this.fw + ',' + this.fd + ',' + this.fx + ',' + this.fz; // (no reads of the page each frame)
+    if (key === this.fitKey) return;
+    const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
+    this.fitKey = key; this.aspect = aspect;
     const tall = aspect < .8, fov = tall ? 50 : 36;
     if (this.cam.fov !== fov) { this.cam.fov = fov; this.cam.updateProjectionMatrix(); }
-    const v = THREE.MathUtils.degToRad(fov), h = 2 * Math.atan(Math.tan(v / 2) * aspect);
-    let w = this.fw || this.size - .5, d = this.fd || this.size * .75;
+    const fw = this.fw || this.size - .5, fd = this.fd || this.size * .75;
     // a wide screen and a tall town: look from the west, so the town's length runs left to right
-    const turn = aspect > 1.2 && d > w * 1.15;
-    this.home.yaw = turn ? -Math.PI / 2 : 0;
-    if (turn) [w, d] = [d, w];
-    const dist = Math.max((w / 2) / Math.tan(h / 2), (d / 2) / Math.tan(v / 2) * 1.2);
-    this.home.pitch = tall ? .95 : .8;
-    this.home.dist = Math.min(this.max, Math.max(this.min, dist));
-    if (!this.fitted) { Object.assign(this.t, this.home); Object.assign(this.c, this.home); this.fitted = true; }
-    else { this.t.pitch = this.home.pitch; this.t.dist = this.home.dist; this.t.yaw = this.home.yaw; }
+    const turn = aspect > 1.2 && fd > fw * 1.15;
+    const cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z;
+    const s = { x: cx, z: cz, yaw: turn ? -Math.PI / 2 : 0, pitch: tall ? 1.08 : aspect > 1.5 ? .72 : .8, dist: 19 };
+    const m = 8, top = Math.min(H * .45, this.view.top) + m, R = { l: r.left + m, r: r.left + W - m, t: r.top + top, b: r.top + H - m };
+    const corners = [];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [0, 1.2]) corners.push([cx + sx * fw / 2, y, cz + sz * fd / 2]);
+    const box = st => {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y, z] of corners) { const p = this.proj(st, x, y, z); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+      return { x0, x1, y0, y1 };
+    };
+    const center = () => { // slide so the frame's middle sits in the middle of the free part
+      for (let i = 0; i < 3; i++) {
+        const b = box(s), g1 = this.ground((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, s), g2 = this.ground((R.l + R.r) / 2, (R.t + R.b) / 2, s);
+        if (!g1 || !g2) return;
+        s.x += g1.x - g2.x; s.z += g1.z - g2.z;
+      }
+    };
+    // the edge between near distances (ok() true for padsBig, false for fits) and far ones, by halving
+    const search = (ok, near) => {
+      let lo = this.min, hi = this.max;
+      for (let i = 0; i < 22; i++) { s.dist = (lo + hi) / 2; if (ok() === near) lo = s.dist; else hi = s.dist; }
+      s.dist = near ? lo : hi;
+    };
+    const fits = () => { const b = box(s); return b.x1 - b.x0 <= R.r - R.l && b.y1 - b.y0 <= R.b - R.t; };
+    for (let k = 0; k < 3; k++) { search(fits, false); center(); }  // the closest view where the whole frame fits
+    for (let k = 0; k < 3 && this.pads.length && this.padPx(s) < MIN_PAD - .5; k++) { search(() => this.padPx(s) >= MIN_PAD, true); center(); } // the farthest with pads big enough
+    Object.assign(this.home, s);
+    if (!this.fitted || this.atHome) { Object.assign(this.t, this.home); if (!this.fitted) Object.assign(this.c, this.home); }
+    this.fitted = true; this.slid = null;
+  }
+  /* Keep the selected thing (world point p, or null when no card is open) out from under its card: if the card covers
+     it, slide the camera's target so it sits in the nearest free part of the screen. key names the selection; once the
+     player moves the map, the camera leaves it alone until the next selection. On close, slide back if untouched. */
+  keep(p, key) {
+    const cv = this.view.cover;
+    if (!p || !cv) {
+      if (!p && this.slid && this.slid.g === this.gestures) { this.t.x = this.slid.x; this.t.z = this.slid.z; } // back where it was
+      if (!p) { this.slid = null; this.keepKey = null; }
+      return;
+    }
+    if (key !== this.keepKey) { this.keepKey = key; this.keepG = this.gestures; }
+    if (this.keepG !== this.gestures) return; // the player has taken the map
+    const r = this.el.getBoundingClientRect(), W = r.left + (r.width || innerWidth), H = r.top + (r.height || innerHeight), top = r.top + this.view.top;
+    const q = this.proj(this.t, p.x, p.y, p.z), pad = 44;
+    const parts = [
+      { l: r.left, r: W, t: top, b: cv.t },   // above the card
+      { l: r.left, r: cv.l, t: top, b: H },   // left of it
+      { l: cv.r, r: W, t: top, b: H },        // right of it
+    ].map(a => ({ l: a.l + pad, r: a.r - pad, t: a.t + pad * .8, b: a.b - pad * .8 }));
+    const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
+    const clear = q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20;
+    if (clear && q.y > top + 10 && q.y < H - 20 && q.x > r.left + 20 && q.x < W - 20) return; // on screen and not under the card
+    let best = null, bd = Infinity;
+    for (const a of parts) {
+      if (a.r - a.l < 10 || a.b - a.t < 4) { // too small for the margin: use its middle line
+        if (a.r - a.l + 2 * pad < 60 || a.b - a.t + 1.6 * pad < 40) continue;
+      }
+      if (inside(a)) return;
+      const x = a.r < a.l ? (a.l + a.r) / 2 : Math.min(a.r, Math.max(a.l, q.x)), y = a.b < a.t ? (a.t + a.b) / 2 : Math.min(a.b, Math.max(a.t, q.y));
+      const d = Math.hypot(x - q.x, y - q.y);
+      if (d < bd) { bd = d; best = { x, y }; }
+    }
+    if (!best) return;
+    const g1 = this.ground(q.x, q.y, this.t), g2 = this.ground(best.x, best.y, this.t);
+    if (!g1 || !g2) return;
+    if (!this.slid || this.slid.g !== this.gestures) this.slid = { x: this.t.x, z: this.t.z, g: this.gestures };
+    this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
   }
   /* The ground point { x, z } under a screen point (client pixels), for a rig state (the current one by default). */
   ground(px, py, s = this.c) {
     const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
-    _cam.fov = this.cam.fov; _cam.aspect = W / H; _cam.near = this.cam.near; _cam.far = this.cam.far; _cam.updateProjectionMatrix();
-    pose(_cam, s);
+    this.tmp(s, W, H);
     _v2.set(((px - r.left) / W) * 2 - 1, -((py - r.top) / H) * 2 + 1);
     _ray.setFromCamera(_v2, _cam);
     return _ray.ray.intersectPlane(_plane, _hit) ? { x: _hit.x, z: _hit.z } : null;
@@ -85,9 +180,9 @@ export class CameraRig {
   }
   /* Keep the view on the board and the zoom in range (applied to the drawn state and the target). */
   clamp(s = this.t) {
-    const r = this.size * .6;
-    s.x = Math.max(this.home.x - r, Math.min(this.home.x + r, s.x));
-    s.z = Math.max(this.home.z - r * .8, Math.min(this.home.z + r * .8, s.z));
+    const r = this.size * .6, cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z; // around the town's middle
+    s.x = Math.max(cx - r, Math.min(cx + r, s.x));
+    s.z = Math.max(cz - r * .8, Math.min(cz + r * .8, s.z));
     s.dist = Math.max(this.min, Math.min(this.max, s.dist));
   }
   /* Two fingers: put grabbed ground points A and B back under screen points a and b, by turning, zooming and
@@ -125,10 +220,11 @@ export class CameraRig {
       pts.set(e.pointerId, [e.clientX, e.clientY]);
       if (pts.size >= 2 && two && two.A && two.B) {
         const [a, b] = [...pts.values()];
-        this.twoFinger(two.A, two.B, a, b); this.clamp(this.c); this.hold(); down.moved = true; return;
+        this.twoFinger(two.A, two.B, a, b); this.clamp(this.c); this.hold(); down.moved = true; this.gestures++; this.atHome = false; return;
       }
       if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
       if (!down.moved) return;
+      this.gestures++; this.atHome = false; // the map is the player's now
       const now = performance.now(), dt = Math.max(1, now - down.t);
       if (down.turn) { // turn the map around the point under the pointer, the way the pointer moves
         const f = (e.clientX - down.lx) / (el.clientWidth || 400) * 3;
@@ -151,7 +247,7 @@ export class CameraRig {
     for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, up);
     el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('wheel', e => { // zoom toward the pointer
-      e.preventDefault();
+      e.preventDefault(); this.gestures++; this.atHome = false;
       const g = this.ground(e.clientX, e.clientY);
       this.c.dist = Math.max(this.min, Math.min(this.max, this.c.dist * (1 + Math.sign(e.deltaY) * .1)));
       this.pin(g, e.clientX, e.clientY); this.clamp(this.c); this.hold();

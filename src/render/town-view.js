@@ -20,12 +20,21 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const battle = new Battle(board, game), selection = new Selection(board, battle);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
-  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
+  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   const api = {
     view: v, board, battle, rig, game, selection, holds: new Set(),
     /* Highlight what a card is open for: { plot }, { spot } or null. */
-    select: target => selection.set(target),
+    select: target => { selection.set(target); if (!target) rig.keep(null); },
+    /* What covers the board (client pixels): the top bar's lower edge, and the open card's box or null. Read by the
+       interface five times a second; the camera refits its home view and keeps the selected thing clear of the card. */
+    setView(top, cover) {
+      rig.setView(top, cover);
+      const tg = selection.target, B = town.def.board;
+      if (!tg) return;
+      const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
+      rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot);
+    },
     get paused() { return api.holds.size > 0; },
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */
     pause(reason, on) { if (on) api.holds.add(reason); else api.holds.delete(reason); },
@@ -50,12 +59,12 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     if (!api.paused) game.advance(dt);
     t += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
-    v.resize(w, h); rig.fit(w / h);
+    v.resize(w, h); rig.fit(w / h, w, h);
     // the board only changes when the simulation steps: check then, not every frame
     const stepped = game.stats.steps !== lastStep; lastStep = game.stats.steps;
     const levels = stepped || !lastLevels ? JSON.stringify(town.buildings) : lastLevels;
     if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w, f.d); }
-    board.update(dt, t, id => !town.starved[id]);
+    board.update(dt, t, id => !town.starved[id], rig.c);
     const towers = stepped || !lastTowers ? town.towers.map(x => x.spot + x.kind + x.level + x.path).join() : lastTowers;
     if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);

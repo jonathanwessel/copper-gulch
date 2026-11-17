@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { goalNow, goalsOf, goalContext } from '../src/core/goals.js';
+import { goalNow, goalsOf, goalContext, goalText } from '../src/core/goals.js';
 import { winOutpost } from '../src/core/outpost.js';
 import { buildTower } from '../src/core/defense.js';
 import { build } from '../src/core/economy.js';
@@ -84,6 +84,20 @@ test('the save keeps the goals done, and save v10 skips them for a game already 
   // a v9 game still in Dry Creek keeps every goal
   const fresh = migrate({ v: 9, at: 0, game: { towns: { drycreek: { id: 'drycreek' } }, shared: {} } });
   assert.deepEqual(fresh.game.shared.goals.done, {});
+});
+
+test('the first Crossbow goal says what to wait for until a Crossbow can be paid', () => {
+  const g = newGame('goalwait', 'gulch'), t = g.town, gl = goalNow(g);
+  assert.equal(gl.id, 'g-tower');
+  t.coins = 15; t.goods.timber = 5;
+  assert.equal(goalText(g, t, gl), 'Wait for 5 more coins and 3 more timber, then tap a stone pad');
+  t.coins = 20;
+  assert.equal(goalText(g, t, gl), 'Wait for 3 more timber, then tap a stone pad');
+  assert.deepEqual(textIssues(goalText(g, t, gl)), []);
+  t.coins = 20; t.goods.timber = 8;
+  assert.equal(goalText(g, t, gl), 'Tap a stone pad and build a Crossbow');
+  const d = newGame('goalwait2'); d.town.coins = 0;
+  assert.match(goalText(d, d.town, goalNow(d)), /^Wait for \d+ more coins and \d+ more stone, then tap a stone pad$/);
 });
 
 test('goal text is short and follows the writing rule', () => {

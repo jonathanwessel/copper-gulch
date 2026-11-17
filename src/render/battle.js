@@ -53,7 +53,7 @@ export class Battle {
     const B = this.town.def.board, far = B.far ?? B.spots.length;
     const pads = B.spots.map(([x, z], i) => {
       const pad = i < far
-        ? part(k => { k.cyl(0, 0, 0, .42, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .34, .015, 'stone', { seg: 8 }); })
+        ? part(k => { k.cyl(0, 0, 0, .5, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .41, .015, 'stone', { seg: 8 }); })
         : part(k => { // a mortar pit: a dug-out floor in a ring of sandbags
           k.cyl(0, 0, 0, .5, .03, 'stoneD', { seg: 12 });
           for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; k.ball(Math.cos(a) * .52, .07, Math.sin(a) * .52, .12, 'sand', { sy: .55, ry: -a }); }

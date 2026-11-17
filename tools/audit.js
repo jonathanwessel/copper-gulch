@@ -149,6 +149,7 @@ export function textRules(debug) {
   for (const e of EXPLAINERS) seen.push(['explainer ' + e.id, e.title], ['explainer ' + e.id, e.text]);
   for (const n of NEWS) for (const l of n.lines) seen.push(['news ' + n.v, l]);
   for (const x of GOALS) seen.push(['goal ' + x.id, x.text]);
+  seen.push(['goal wait', 'Wait for 5 more coins and 3 more timber, then tap a stone pad']); // goalText's other line
   for (const [k, t] of Object.entries(TOWERS)) seen.push(['tower ' + k, t.about], ...Object.values(PATHS[k] || {}).map(q => ['path ' + q.name, q.about]));
   for (const [k, r] of Object.entries(RESEARCH)) seen.push(['research ' + k, r.about + (r.worse ? ' ' + r.worse : '')]);
   for (const file of walk('src/ui').filter(x => x.endsWith('.js'))) {

@@ -155,6 +155,29 @@ async function run() {
         return open && closed && plot;
       });
       if (!sel) bad.push('the selection highlight did not follow the card');
+      // framing: at home every stone pad is at least 30 px across; with its card open, a selected tower (and a far
+      // mortar pit) sits on screen, below the top bar and clear of the card; closing the card slides the camera back
+      const frame = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), rig = CG.town.rig, t = CG.game.town, B = t.def.board, out = { pad: 0, bad: [] };
+        rig.reset(); await wait(1500); out.pad = Math.round(rig.padPx());
+        const coins = t.coins, timber = t.goods.timber; t.coins = 1e5; t.goods.timber = 500;
+        const spot = 11; if (!t.towers.some(x => x.spot === spot)) { CG.play.openSpot(spot); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); }
+        CG.play.close(); t.coins = coins; t.goods.timber = timber; rig.reset(); await wait(1200);
+        const home = { x: rig.c.x, z: rig.c.z };
+        for (const s of [spot, B.far + 3]) {
+          CG.play.openSpot(s); await wait(1600);
+          const [x, z] = B.spots[s], p = CG.town.projectPoint(x, .3, z), c = document.getElementById('card').getBoundingClientRect();
+          const under = p && p.x > c.left && p.x < c.right && p.y > c.top && p.y < c.bottom;
+          const off = !p || p.x < 0 || p.x > innerWidth || p.y < rig.view.top || p.y > innerHeight;
+          if (under || off) out.bad.push('spot ' + s + (under ? ' under its card' : ' off screen') + ' at ' + (p ? Math.round(p.x) + ',' + Math.round(p.y) : '-'));
+          CG.play.close(); await wait(1600);
+          const back = Math.hypot(rig.c.x - home.x, rig.c.z - home.z);
+          if (back > .15) out.bad.push('the camera did not slide back after spot ' + s + ' (' + back.toFixed(2) + ' away)');
+        }
+        return out;
+      });
+      if (!(frame.pad >= 30)) bad.push('a stone pad is ' + frame.pad + ' px across at home (needs 30)');
+      bad.push(...frame.bad);
       // the camera moves the map under the fingers: after a pan, a twist-and-pinch, a wheel zoom and a Shift-drag turn,
       // the ground that was grabbed is back under the fingers (within 4 px)
       const cam = await page.evaluate(async () => {
@@ -359,10 +382,11 @@ async function run() {
         CG.coach.skipAll(); await wait(100);
         // the goal strip starts on the first Crossbow, with the spotlight on a stone pad
         const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent, mk = document.getElementById('goalMark');
-        out.goalFirst = gt() === 'Tap a stone pad and build a Crossbow';
+        out.goalFirst = /^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(gt()); // or what to wait for, until a Crossbow can be paid
         for (let i = 0; i < 10 && mk.hidden; i++) await wait(100); // the frame is placed five times a second
         out.goalMark = !mk.hidden;
         const t = g.town; t.coins = 500; t.goods.stone = 50;
+        await wait(400); out.goalPaid = gt() === 'Tap a stone pad and build a Crossbow';
         CG.play.open('quarry'); await wait(100); const L = t.level('quarry'); document.getElementById('buy').click();
         out.camp = t.level('quarry') === L + 1;
         CG.play.openSpot(0); await wait(100);
@@ -397,7 +421,7 @@ async function run() {
         const c = document.getElementById('townChip'), bs = [...c.querySelectorAll('button')];
         return { shown: !c.hidden, two: bs.map(b => b.dataset.town).join() === 'drycreek,gulch', on: (bs.find(b => b.classList.contains('on')) || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length, goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] };
       });
-      if (chip.goal !== 'Tap a stone pad and build a Crossbow' || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
+      if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
       if (!chip.shown || !chip.two || chip.on !== 'gulch') bad.push('the town chip is wrong (' + JSON.stringify(chip) + ')');
       if (chip.canvases !== 1) bad.push(chip.canvases + ' canvases after switching');
       bad.push(...(await check(page)).map(b => 'gulch: ' + b));

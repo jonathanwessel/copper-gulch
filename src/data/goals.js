@@ -4,13 +4,14 @@
    and is ready(c). Text follows the writing rule: a short order that names the real thing to tap, no colons.
      town: the town the goal belongs to.   done(c), ready(c): read the context from src/core/goals.js.
      at(c): what to spotlight, as for explainers: { plot }, { spot }, { tower }, { el: css selector }; or nothing.
+     wait: a tower kind. While it can't be paid yet, the strip says what to wait for (goalText in src/core/goals.js).
      kind: the tower to build. Once the card of the spotlit pad or building is open, the spotlight moves to its button. */
 /* Dry Creek's goals before the win: once it is won, only Go to Copper Gulch is left to show. */
 const early = (f = null) => c => !c.won && (!f || f(c));
 
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
-  { id: 'dc-tower', town: 'drycreek', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  { id: 'dc-tower', town: 'drycreek', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
   { id: 'dc-stone2', town: 'drycreek', text: 'Tap the Stone Camp, then tap Upgrade', done: c => c.lv('quarry') >= 2, ready: early(), at: () => ({ plot: 'quarry' }) },
   { id: 'dc-mine', town: 'drycreek', text: 'Tap Build to build the Mining Camp', done: c => c.lv('dmine') >= 1, ready: early(c => c.unlocked('dmine')), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-three', town: 'drycreek', text: 'Build Crossbows on 3 stone pads', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }) },
@@ -21,7 +22,7 @@ export const GOALS = [
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', done: c => c.won },
   { id: 'dc-go', town: 'drycreek', text: 'Tap Copper Gulch at the top to go there', done: c => c.visited('gulch'), ready: c => c.won, at: () => ({ el: '#townChip [data-town="gulch"]' }) },
   // Copper Gulch
-  { id: 'g-tower', town: 'gulch', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', done: c => c.towers.length >= 1, at: c => ({ spot: c.freeSpot() }) },
+  { id: 'g-tower', town: 'gulch', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-camp3', town: 'gulch', text: 'Tap the Lumber Camp and upgrade it to level 3', done: c => c.lv('camp') >= 3, at: () => ({ plot: 'camp' }) },
   { id: 'g-mine', town: 'gulch', text: 'Tap Build to build the Copper Mine', done: c => c.lv('mine') >= 1, ready: c => c.unlocked('mine'), at: () => ({ plot: 'mine' }) },
   { id: 'g-cannon', town: 'gulch', text: 'Tap a stone pad and build a Cannon', kind: 'cannon', done: c => c.built('cannon'), ready: c => c.lv('mine') >= 1, at: c => ({ spot: c.freeSpot() }) },

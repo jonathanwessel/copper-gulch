@@ -113,8 +113,8 @@ export class Board {
   anchor(id, out = new THREE.Vector3()) { const [x, z] = this.def.plots[id], b = this.bld[id]; return out.set(x, (b ? b.top : 1) + .3, z); }
 
   /* Animate: t is seconds; working(id) says whether a building is producing right now. */
-  update(dt, t, working = () => true) {
-    if (this.entrance) this.entrance.update(dt);
+  update(dt, t, working = () => true, view = null) {
+    if (this.entrance) this.entrance.update(dt, view);
     for (const [id, b] of Object.entries(this.bld)) {
       const on = b.level > 0 && working(id);
       for (const m of b.movers) {

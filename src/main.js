@@ -57,7 +57,7 @@ async function startGame() {
       : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
     const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
     CG.town = town;
-    if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; }
+    if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; viewApi.setView = town.setView; }
     CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, locate, onHelp: () => CG.play.sheets.close() });
     // the explainer cards; ?coach=off turns them off (the test tools use it)
     CG.coach = startCoach({

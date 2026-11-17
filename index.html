@@ -182,6 +182,9 @@ html.flat .tag { position: static; transform: none !important; }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; }
+  /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
+  .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
+  .hudleft > .goal { grid-column: 1 / -1; }
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }

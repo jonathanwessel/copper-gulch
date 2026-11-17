@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { ENTRANCES } from '../assets/models/entrances.js';
 import { bossWave } from '../core/defense.js';
 
+const CUT = .3; // how tall an entrance's walls stand (of full height) when they would hide the board
 const MAX = 40, WARN = 6, AFTER = 3; // puffs in the plume; seconds before a wave it starts, and after it stops
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
@@ -14,7 +15,11 @@ export class Entrance {
     this.town = board.town; this.group = new THREE.Group(); this.group.name = 'entrance';
     const built = make({ ...e, mesa: board.def.look && board.def.look.mesa });
     built.obj.traverse(o => { o.renderOrder = -1; }); // drawn before the ground, so the ground under it is skipped
-    this.group.add(built.obj);
+    this.group.add(built.obj); this.obj = built.obj; this.cut = 1;
+    // the way the entrance runs, out from the board (mouth toward portal): seen from that side or across, its walls
+    // would hide the road and the pads beside it, so they sink (cutaway) until the camera looks in from the board
+    const [mx, mz] = e.mouth, [px, pz] = e.portal || [mx, mz - 1], L = Math.hypot(px - mx, pz - mz) || 1;
+    this.dir = [(px - mx) / L, (pz - mz) / L];
     if (built.shade) { // darker toward the inside, so raiders ride out of shadow
       const { x, z0, z1, w } = built.shade;
       const g = new THREE.PlaneGeometry(w, Math.abs(z1 - z0)).rotateX(-Math.PI / 2).translate(x, .03, (z0 + z1) / 2);
@@ -42,7 +47,18 @@ export class Entrance {
     if (ws.phase === 'break') return ws.timer < WARN && !ws.hold ? boss : 0; // held waves do not come
     return this.since < AFTER ? boss : 0; // the first seconds of the wave
   }
-  update(dt) {
+  /* How tall the walls stand for a camera looking from yaw: 1 seen from the board side, CUT seen across or from behind. */
+  height(yaw) {
+    const k = -(Math.sin(yaw) * this.dir[0] + Math.cos(yaw) * this.dir[1]); // 1 when the camera is on the board side
+    return CUT + (1 - CUT) * Math.min(1, Math.max(0, (k - .45) / .4));
+  }
+  update(dt, view = null) {
+    if (view) {
+      const h = this.height(view.yaw);
+      this.cut += (h - this.cut) * (1 - Math.pow(.02, dt));
+      const y = Math.round(this.cut * 200) / 200;
+      if (this.obj.scale.y !== y) this.obj.scale.y = y;
+    }
     const ph = this.town.waves && this.town.waves.phase;
     if (ph !== this.phase) { this.phase = ph; this.since = 0; } else this.since = (this.since || 0) + dt;
     const c = this.cue();

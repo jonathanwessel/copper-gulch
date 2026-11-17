@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-14',
+    lines: [
+      'The town fits the screen better on wide screens, and stone pads are bigger.',
+      'When you open a card, the map slides so you can still see what you tapped.',
+      'The rock walls where raiders come in sink down when they would hide the road.',
+      "If you can't pay for your first Crossbow yet, the goal says how much more you need.",
+    ],
+  },
+  {
     v: '2026.11.17-13',
     lines: [
       'Each tower hits some raiders harder. Tap a tower to see what it is best against.',
