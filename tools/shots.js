@@ -20,6 +20,7 @@ const SCREENS = [
   ['selected', () => { CG.play.openSpot(3); }],
   // a tower card short of a good: how much there is, about how long, and which building to upgrade
   ['short', () => { const t = CG.game.town; t.goods.copper = 2; t.buildings.mine = Math.max(5, t.level('mine')); t.buildings.smelter = Math.max(1, t.level('smelter')); CG.play.close(); CG.play.openSpot(3); }],
+  ['foreman', () => { const t = CG.game.town; t.buildings.camp = Math.max(10, t.level('camp')); t.coins = 600; CG.play.close(); CG.play.open('camp'); }],
   ['pit', () => { CG.play.openSpot(CG.game.town.def.board.far); }],
   ['mortar', async () => { // a shell in flight, and the Mortar selected with both of its circles
     const t = CG.game.town, B = t.def.board, wait = ms => new Promise(r => setTimeout(r, ms));

@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.16-19',
+    lines: [
+      "Once a building reaches level 10, tap it and tap Hire foreman.",
+      "A foreman buys the next level for you when it costs half your coins or less.",
+      "To stop it, tap Foreman · On on the building's card.",
+      "Research buttons say Busy while another item is working.",
+    ],
+  },
+  {
     v: '2026.11.16-18',
     lines: [
       'Research is here. Build the Sawmill, then tap Research to make your saws, mines and towers better.',

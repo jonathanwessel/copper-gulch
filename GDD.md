@@ -142,6 +142,11 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | Market Stalls | 5 | goods sell for 10% more | 800 |
 | Hot Furnaces | 2 | Smelter and Kiln +60%, but they burn one more timber per unit per level (a trade-off) | 1500 |
 
+### Foremen
+- A building you have raised to level 10 by hand can hire a foreman, for 3 times its next level's price.
+- A working foreman buys that building's next level whenever it costs half the coins on hand or less, so the other half stays for towers and research. A switch on the building card turns it off.
+- Foremen keep working while you are away. The Automation panel (M4) grows Auto-build out of them.
+
 ### Charters and deeds
 - A town's charter resets that town (coins, buildings, towers, waves, research, foremen) and pays deeds. It keeps the explainers seen, the badges and the stats.
 - Deeds paid (first guesses, the charter box tunes them): 1 at best wave 25 and 1 more for every 5 waves past it, plus 1 at 100K coins earned in this charter and 1 more each time that grows tenfold. The charter is offered once it would pay at least 1 deed.

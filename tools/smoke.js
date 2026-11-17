@@ -85,6 +85,21 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(reserve)) if (!v) bad.push('tower reserve: not ' + k);
+      // a foreman: the camp card offers one at level 10, hiring it makes the camp buy levels by itself, and its switch stops that
+      const boss = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
+        t.buildings.camp = 9; CG.play.open('camp'); await wait(100);
+        out.notYet = !document.getElementById('hireForeman');
+        t.buildings.camp = 10; t.coins = 1e5; CG.play.open('camp'); await wait(100);
+        const h = document.getElementById('hireForeman'); out.offered = !!h && !h.disabled; h.click(); await wait(400);
+        out.hired = t.foremen.camp === true && t.level('camp') > 10;
+        document.getElementById('foremanSwitch').click(); await wait(50);
+        const L = t.level('camp'); await wait(500);
+        out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
+        CG.play.close();
+        return out;
+      });
+      for (const [k, v] of Object.entries(boss)) if (!v) bad.push('Foreman: not ' + k);
       // Pause stops the whole game and Resume starts it again; Hold waves keeps the next wave back until released
       const ctl = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};

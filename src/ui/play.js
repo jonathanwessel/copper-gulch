@@ -10,6 +10,7 @@ import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, ca
 import { WAVE_TYPES } from '../data/foes.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet } from './sheets.js';
 import { researchOpen } from '../core/research.js';
+import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -91,7 +92,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
-    const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn].join();
+    const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -134,6 +135,25 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks); card.append(kr);
+    }
+    // a foreman: hired once the building reaches level 10, then it buys levels by itself until switched off
+    if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
+      const fr = el('div', 'row keeprow');
+      if (!hasForeman(town, id)) {
+        fr.append(el('span', 'uses', 'Buys the next level when it costs half your coins or less'));
+        const h = el('button', 'btn small', 'Hire foreman · ' + fmt(hireCost(town, id)) + ' coins'); h.id = 'hireForeman';
+        h.disabled = town.coins < hireCost(town, id);
+        h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
+        fr.append(h);
+      } else {
+        const on = foremanOn(town, id);
+        fr.append(el('span', 'uses', on ? 'Buys the next level when it costs half your coins or less' : ''));
+        const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
+        sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
+        sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
+        fr.append(sw);
+      }
+      card.append(fr);
     }
   }
 
@@ -234,6 +254,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (t.textContent !== txt) t.textContent = txt;
       t.classList.toggle('short', !!(L && town.starved[id]));
       t.classList.toggle('can', town.coins >= cost(town, id));
+      t.classList.toggle('boss', foremanOn(town, id));
     }
     if (document.documentElement.classList.contains('flat')) spotTags.forEach((t, i) => {
       const tw = towerAt(town, i), txt = (isPit(town, i) ? 'Mortar pit ' : 'Spot ') + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');

@@ -91,6 +91,12 @@ export const EXPLAINERS = [
     when: h => !!h.flags['open:research'], at: () => ({ el: '#researchBtn' }),
   },
   {
+    id: 'foremen', covers: ['system:foremen'],
+    title: 'Foremen',
+    text: "Tap Hire foreman on this building's card. The foreman buys the next level for you when it costs half your coins or less.",
+    when: h => h.foremanPlot !== null, at: h => ({ plot: h.foremanPlot }),
+  },
+  {
     id: 'short', covers: ['starved'],
     title: 'Out of materials',
     text: 'A red edge on a building\'s tag means it ran out of what it needs. Upgrade the building that supplies it.',

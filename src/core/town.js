@@ -22,7 +22,7 @@ export class Town {
     this.vault = { hp: 100, max: 100 };
     this.research = {};           // item id -> level
     this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
-    this.foremen = {};            // building id -> true
+    this.foremen = {};            // building id -> true (working) or false (switched off) (src/core/foremen.js)
     this.flags = {};              // one-time things that happened (first sale, coach cards seen...)
   }
   /* Add coins earned (sales, bounties); lifetime counts every coin earned. */

@@ -112,7 +112,7 @@ export function researchSheet(game, town) {
         if (x.info.textContent !== info) x.info.textContent = info;
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
-        const label = lab ? 'Working' : block === 'max' ? 'Done' : block === 'busy' ? 'Wait' : 'Research';
+        const label = lab ? 'Working' : block === 'max' ? 'Done' : block === 'busy' ? 'Busy' : 'Research';
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
       }
