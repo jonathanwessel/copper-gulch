@@ -12,15 +12,15 @@ export const TOWERS = {
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot hits a whole group.',
-    coins: 90, goods: { gulch: { copper: 4 } }, dmg: 16, rate: .5, range: 2.8, splash: 1.1,
+    coins: 100, goods: { gulch: { ore: 6 } }, dmg: 14, rate: .5, range: 2.8, splash: 1.1,
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
-    coins: 130, goods: { gulch: { planks: 4, clay: 3 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
+    coins: 100, goods: { gulch: { planks: 4, clay: 3 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
   },
   still: {
     name: 'Snake Oil Still', about: 'Throws poison that hurts armored raiders too.',
-    coins: 110, goods: { gulch: { copper: 2, planks: 4 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
+    coins: 100, goods: { gulch: { ore: 4, planks: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {

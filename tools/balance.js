@@ -1,4 +1,4 @@
-// node tools/balance.js [--seeds 3] [--minutes 60]: plays Copper Gulch with a steady, sensible player (no waiting,
+// node tools/balance.js [--seeds 6] [--minutes 90]: plays Copper Gulch with a steady, sensible player (no waiting,
 // no mistakes) straight on the simulation core, and checks the pacing targets that exist so far:
 //   the first tower under 1 minute; wave 10 cleared in 7-9 minutes; no breach in waves 1-3; the first charter offered
 //   at 35-45 minutes. The player signs the first charter once it pays a deed (--sign n: once it pays n), picks the
@@ -7,8 +7,8 @@
 // The player picks towers the way a careful player would: every open tower kind on every empty pad it fits (mortar
 // pits included), and every upgrade, scored by damage per coin over the stretch of road that pad covers. It reports
 // which kinds it bought and which kind did the most damage in each wave.
-// Tower variety (the M1 target, reported here, not yet a release gate): every tower kind is the best buy at some
-// point in the first hour, and no single kind does the most damage in every wave.
+// Tower variety (a release gate since the M1 target): every tower kind is the best buy at some point in the first
+// hour, and no single kind does the most damage in every wave.
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
@@ -22,9 +22,10 @@ import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core
 import { canHire, hireCost, hireForeman } from '../src/core/foremen.js';
 import { deedsFor, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
+import { FOES, WAVE_TYPES } from '../src/data/foes.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 3), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1);
+const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1);
 const SPACING = 1.1; // about how far apart raiders ride, in world units
 
 /* Road units inside a ring [lo, hi] around a spot (memoized). */
@@ -38,18 +39,27 @@ function cover(town, spot, lo, hi) {
   }
   return COVER.get(key);
 }
+/* The share of a hit the coming waves shrug off: armor weighted by health, averaged over the wave kinds open at
+   wave w (poison gets past it). */
+export function armorShare(w) {
+  const kinds = Object.values(WAVE_TYPES).filter(T => w >= T.from);
+  const one = T => { let hp = 0, a = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { hp += n * FOES[k].hp; a += n * FOES[k].hp * FOES[k].armor; } return hp ? a / hp : 0; };
+  return kinds.reduce((x, T) => x + one(T), 0) / kinds.length;
+}
 /* Damage a tower deals per second to a column of raiders passing through its reach, times the road it covers. */
 export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
-  let dps = st.dmg * st.rate;
+  // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
+  const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
+  let dps = st.dmg * st.rate * (1 - armorShare(town.wave + 1));
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
   else if (st.splash) dps *= targets(st.splash);
-  if (st.poison) dps += st.poison * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) * 1.2; // poison gets past armor
-  if (st.slow) dps *= 1 + st.slow * 2; // slowed raiders take longer to pass every tower
+  if (st.poison) dps += st.poison * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
+  if (st.slow) dps *= 1 + st.slow * 2 / share; // slowed raiders take longer to pass every tower
   if (st.fire) dps *= 1.35;
   let w = dps * cover(town, t.spot, st.minRange, st.range);
   // a slowing tower also gives the towers around it more time to shoot
-  if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += st.slow * .5 * worth(town, o, false);
+  if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += st.slow * .5 * worth(town, o, false) / share;
   return w;
 }
 /* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market
@@ -66,6 +76,9 @@ export function buildValue(game, town, id) {
 /* Coins plus the goods at their base price. */
 const price = c => c.coins + Object.entries(c.goods).reduce((a, [g, n]) => a + GOODS[g].price * n, 0);
 
+/* A new tower of a kind the town already has is worth a little less to a careful player, who keeps a mix of kinds
+   for the different raiders (each one of that kind already standing takes MIX off, as 1 / (1 + MIX * n)). */
+export const MIX = .15;
 /* Every purchase the defense could make now: { kind, spot, path, value per coin, can afford }. A new tower also uses up
    a pad, and pads are few, so a build is charged half of what the average tower has had spent on it so far: early on
    cheap towers fill pads, later a pad is worth saving for a strong tower. */
@@ -83,7 +96,8 @@ export function options(town) {
   for (const kind of Object.keys(TOWERS)) {
     if (!towerOpen(town, kind)) continue;
     const c = towerCost(town, kind, 0);
-    for (const spot of empty) if (fitsSpot(town, spot, kind)) out.push({ up: false, kind, spot, level: 0, value: worth(town, { kind, spot, level: 1, path: null }) / (price(c) + (isPit(town, spot) ? 0 : pad)), can: canPay(town, c) });
+    const mix = 1 / (1 + MIX * town.towers.filter(x => x.kind === kind).length); // a careful player keeps a mix
+    for (const spot of empty) if (fitsSpot(town, spot, kind)) out.push({ up: false, kind, spot, level: 0, value: mix * worth(town, { kind, spot, level: 1, path: null }) / (price(c) + (isPit(town, spot) ? 0 : pad)), can: canPay(town, c) });
   }
   return out.sort((a, b) => b.value - a.value);
 }
@@ -105,6 +119,8 @@ export const STRATEGIES = {
 };
 
 /* Seconds a building may take to pay for itself and still come before the towers. */
+/* A buy this many times better, with its goods in the yard, is worth saving coins for. */
+export const SAVE_FOR = 1.4, SAVE_GAP = 100; // and no more than this many coins away
 export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, defense: 120 };
 
 /* One player's run: every second, defend first when the defense is thin for the coming wave (the best affordable
@@ -112,7 +128,7 @@ export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, def
    next building), then (after the first boss) a foreman for a building at level 10 once it can pay for one, then the
    best-paying building. The economy player buys its next building before defending unless a raider got through in
    the last two waves. */
-export function play(seed, minutes = MINUTES, strategy = 'active') {
+export function play(seed, minutes = MINUTES, strategy = 'active', watch = null) {
   const S = STRATEGIES[strategy], g = newGame('balance-' + seed), t = g.town;
   const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0 };
   g.bus.on('wave:start', () => { g.dealt = {}; });
@@ -136,8 +152,16 @@ export function play(seed, minutes = MINUTES, strategy = 'active') {
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     const pick = opts[0];
+    // a careful player saves for a much better new tower whose goods are already in the yard and whose coins are
+    // nearly there, rather than build a weak one, while the vault is holding (returns true: the coins wait, the town
+    // does not spend them either)
+    if (!S.even && !S.ups && t.towers.length && t.vault.hp >= .6 * t.vault.max) {
+      const ready = options(t).filter(o => !o.can && !o.up && t.towers.length < want && towerCost(t, o.kind, 0).coins <= t.coins + SAVE_GAP
+        && Object.entries(towerCost(t, o.kind, 0).goods).every(([k, n]) => t.has(k, n)))[0];
+      if (ready && (!pick || ready.value > SAVE_FOR * pick.value)) return true;
+    }
     if (!pick) return false;
-    const ok = pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
+    const ok =pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
     if (!ok) return false;
     if (!pick.up) r.firstTower ??= t.t;
     r.bought[pick.kind] = (r.bought[pick.kind] || 0) + 1;
@@ -177,6 +201,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active') {
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
+    if (watch && s % 240 === 0) watch(g, t, r);
     if (s % 4) continue;
     // the first charter: signed once it pays SIGN_AT deeds; then pick the first side of each open perk pair
     if (!r.signed && deedsFor(t) >= SIGN_AT) {
@@ -254,7 +279,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   }
   misses.push(...st.misses);
   const v = variety(runs);
-  console.log('variety (M1 target, not a release gate yet): ' + (v.never.length || v.oneKind ? 'MISS' : 'ok')
+  if (v.never.length) misses.push('variety: never the best buy in the first hour: ' + v.never.join(', '));
+  if (v.oneKind) misses.push('variety: ' + v.oneKind + ' does the most damage in every wave');
+  console.log('variety: ' + (v.never.length || v.oneKind ? 'MISS' : 'ok')
     + (v.never.length ? ' · never the best buy in the first hour: ' + v.never.join(', ') : '')
     + (v.oneKind ? ' · ' + v.oneKind + ' does the most damage in every wave' : ' · wave leaders: ' + v.tops.join(', ')));
   console.log(misses.length ? misses.map(m => 'FAIL ' + m).join('\n') : 'ok');

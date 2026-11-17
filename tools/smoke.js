@@ -122,7 +122,7 @@ async function run() {
       const fx = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, b = CG.town.battle;
         const effects = () => b.group.children.filter(o => o.isMesh);
-        t.coins = 1e6; Object.assign(t.goods, { copper: 200, bricks: 200, tools: 200, planks: 200, clay: 200 }); t.sell = { copper: false, bricks: false, tools: false, planks: false, clay: false };
+        t.coins = 1e6; Object.assign(t.goods, { ore: 200, copper: 200, bricks: 200, tools: 200, planks: 200, clay: 200 }); t.sell = { ore: false, copper: false, bricks: false, tools: false, planks: false, clay: false };
         for (const [s, k] of [[0, 'cannon'], [1, 'still'], [8, 'cannon']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
         CG.play.close();
         Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); await wait(9000); // a wave rides past them

@@ -104,7 +104,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 
 ## Defense
 - **Towers.** Nine, unlocked by era: crossbow, cannon, frost lens, snake oil still, mortar, tesla coil, gatling, barracks, drone helipad.
-  - Each costs coins plus that town's own goods, so the chain feeds the defense. In Copper Gulch (2026-11-17, tuned for variety): the Crossbow takes timber, the Cannon copper, the Frost Lens planks and clay, the Snake Oil Still copper and planks, the Mortar copper and bricks. Level-1 damage per coin stays within about a third of the Crossbow's, so pricier kinds win where pads run out.
+  - Each costs coins plus that town's own goods, so the chain feeds the defense. In Copper Gulch (tuned for variety, last on 2026-11-17): the Crossbow takes timber, the Cannon copper ore, the Frost Lens planks and clay, the Snake Oil Still copper ore and planks, the Mortar copper and bricks. So four kinds can be built in the first 7 minutes, before the Smelter, and the Mortar waits for wave 12 and the Smelter and Kiln. Level-1 damage per coin stays within about a third of the Crossbow's, so pricier kinds win where pads run out. A raider carries one dose of poison and one chill at a time, so a second Still or Frost Lens on the same stretch of road adds less than the first.
   - Paths open at level 5.
 - **The Mortar** is the long-range tower. If a normal tower reaches from 0 to R, the Mortar reaches from 0.5R to 2R: it cannot fire at raiders inside 0.5R (its dead zone).
   - Slow fire. A high, arcing shell with a visible flight time, a marker on the ground where it will land, and splash damage on landing.
@@ -114,6 +114,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Copper Gulch opens it at wave 12, for coins plus copper and bricks. Later towns pay with their own goods (Iron Ridge: pig iron).
   - In the background battle its damage counts only for the share of the lane inside its ring; Auto-towers treats it like any tower.
 - **Waves** come in types (mixed, rush, swarm, heavy), with weather, and a boss every 10th wave.
+  - The wave pace: the next wave comes a short rest after the last one is cleared, and never sooner than a set time after the last one started (Copper Gulch: 7 s and 40 s). A strong defense does not race through the waves, and Call now skips the wait for bonus coins.
 - **Each lane has its own threats**: boats on the river, airships in the sky (only Tesla and drones reach them), and jamming in Radium Springs.
 - **The vault** is each town's health. When it falls, the town loses 10% of its coins and drops back 2 waves.
 - **Background towns** fight through an analytic battle based on their tower strength. A fallen vault, or a town looping at its boss gate, raises an alert.

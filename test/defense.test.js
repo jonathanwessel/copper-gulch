@@ -8,7 +8,7 @@ import { TOWERS, PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { WAVE, FOES } from '../src/data/foes.js';
 
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
-const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'copper', 'bricks', 'tools', 'planks', 'clay']) { t.goods[k] = 1e6; t.sell[k] = false; } return t; };
+const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) { t.goods[k] = 1e6; t.sell[k] = false; } return t; };
 
 test('path: length and points along a polyline', () => {
   const p = makePath([[0, 0], [3, 0], [3, 4]]);
@@ -146,4 +146,35 @@ test('a battle in progress survives a save and load exactly', () => {
   run(g, 20); run(h, 20);
   assert.deepEqual(h.toJSON(), g.toJSON());
   assert.ok(roadOf(t).length > 15);
+});
+
+test('the wave pace: a wave cleared fast still waits, so the next comes a full pace after the last one started', () => {
+  const g = newGame('pace'), t = rich(g), starts = [];
+  for (let s = 0; s < 12; s++) buildTower(g, t, s, 'crossbow');
+  for (const tw of t.towers) for (let L = 1; L < 8; L++) upgradeTower(g, t, tw.spot, 'a');
+  g.bus.on('wave:start', () => starts.push(t.t));
+  run(g, WAVE.first + 3 * WAVE.pace + 5);
+  assert.ok(starts.length >= 3, 'three waves started');
+  for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= WAVE.pace - .26, 'wave ' + (i + 1) + ' came ' + (starts[i] - starts[i - 1]) + ' s after the last');
+});
+
+test('after a long wave the rest is still at least WAVE.rest, and Call now skips the wait for a bonus', () => {
+  const g = newGame('pace2'), t = g.town;
+  Object.assign(t.waves, { phase: 'wave', queue: [], foes: [], age: WAVE.pace + 30 });
+  g.step(.25); // nothing left on the road: the wave is cleared
+  assert.equal(t.waves.phase, 'break');
+  assert.ok(Math.abs(t.waves.timer - WAVE.rest) < 1e-9, 'rest ' + t.waves.timer);
+  Object.assign(t.waves, { phase: 'wave', queue: [], foes: [], age: 5 });
+  g.step(.25);
+  assert.ok(Math.abs(t.waves.timer - (WAVE.pace - 5.25)) < 1e-9, 'waits out the pace: ' + t.waves.timer);
+  assert.ok(callEarly(g, t) > 0); assert.equal(t.waves.phase, 'wave');
+});
+
+test('the Cannon and the Snake Oil Still are paid with ore and planks, so they come before the Smelter', () => {
+  const g = newGame('early'), t = g.town;
+  assert.deepEqual(Object.keys(towerCost(t, 'cannon', 0).goods), ['ore']);
+  assert.deepEqual(Object.keys(towerCost(t, 'still', 0).goods).sort(), ['ore', 'planks']);
+  t.coins = 1000; t.goods.ore = 20; t.goods.planks = 20;
+  assert.ok(buildTower(g, t, 1, 'cannon')); assert.ok(buildTower(g, t, 2, 'still'));
+  assert.equal(t.buildings.smelter, undefined);
 });

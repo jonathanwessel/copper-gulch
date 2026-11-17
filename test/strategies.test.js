@@ -23,5 +23,7 @@ test('min-max keeps few towers high, swarm spreads many low', () => {
   assert.ok(mm.length <= 6, 'min-max has ' + mm.length + ' towers');
   assert.ok(sw.length > mm.length, 'swarm has no more towers than min-max');
   assert.ok(Math.max(...mm) > Math.max(...sw), 'min-max top level is not above swarm');
-  assert.ok(Math.max(...sw) - Math.min(...sw) <= 1, 'swarm levels are uneven: ' + sw);
+  // on the stone pads (a Mortar in a far pit may have just been built)
+  const pads = runs.swarm.final.towers.filter(s => !s.startsWith('mortar')).map(s => +s.match(/\d+/)[0]);
+  assert.ok(Math.max(...pads) - Math.min(...pads) <= 1, 'swarm levels are uneven: ' + pads);
 });

@@ -105,8 +105,8 @@ export const EXPLAINERS = [
   {
     id: 'cannon', covers: ['tower:cannon'],
     title: 'Cannon',
-    text: 'You\'ve made copper, so you can build a Cannon. It\'s slow, but each shot hits a whole group of raiders.',
-    when: h => (h.made.copper || 0) > 0, at: () => ({ spot: 1 }),
+    text: 'Your Copper Mine digs ore, so you can build a Cannon. Tap a stone pad to build one. It\'s slow, but each shot hits a whole group of raiders.',
+    when: h => (h.made.ore || 0) > 0, at: () => ({ spot: 1 }),
   },
   {
     id: 'frost', covers: ['tower:frost'],
@@ -118,7 +118,7 @@ export const EXPLAINERS = [
     id: 'still', covers: ['tower:still'],
     title: 'Snake Oil Still',
     text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts armored raiders too.',
-    when: h => (h.made.copper || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
+    when: h => (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {
     id: 'finished', covers: ['tier:2'],

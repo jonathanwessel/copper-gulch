@@ -165,14 +165,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let armed = null; // a path tapped once, waiting for the second tap
   const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
   /* What a tower buy is short of, in words: "Copper 6 of 10, about 40 s. Upgrade the Smelter to speed it up." */
-  const time = s => s < 90 ? Math.max(1, Math.round(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
+  const time = s => { const n = s < 90 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 90 ? ' second' : ' minute') + (n === 1 ? '' : 's'); };
   const shortText = c => shortfall(town, c).map(s => {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker], amt = name + ' ' + Math.floor(s.have) + ' of ' + s.need;
     if (!b || !town.level(s.maker)) return amt + '. Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return amt + '. Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
     return amt + ', ready in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.';
   });
-  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n.charAt(0) + n.slice(1).toLowerCase() + ' saved for this ' + (pathNext ? 'path' : 'upgrade'); };
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return 'Your town kept ' + n.toLowerCase() + ' for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => fitsSpot(town, i, k));
@@ -273,7 +273,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     setText(waveNum, 'Wave ' + town.wave);
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
-    setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left');
+    setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
     call.hidden = ws.phase !== 'break';
     // the Research button shows once research opens, with the time left on the item running
     labBtn.hidden = !researchOpen(town);

@@ -26,11 +26,16 @@ test('a new town keeps the timber for its first Crossbow from the start', () => 
 });
 
 test('the reserve adds up every tower\'s next upgrade and the cheapest new tower for each good', () => {
-  const { g, t } = town('r2'); t.goods = { timber: 1e6, copper: 1e6, bricks: 1e6 };
+  const { g, t } = town('r2'); t.goods = { timber: 1e6, ore: 1e6, bricks: 1e6 };
   buildTower(g, t, 0, 'crossbow'); buildTower(g, t, 1, 'crossbow'); upgradeTower(g, t, 1); buildTower(g, t, 2, 'cannon');
-  const want = sum([towerCost(t, 'crossbow', 1), towerCost(t, 'crossbow', 2), towerCost(t, 'cannon', 1), towerCost(t, 'crossbow', 0), towerCost(t, 'cannon', 0), towerCost(t, 'frost', 0), towerCost(t, 'still', 0)]);
-  // per good, the cheapest tower built with it: copper the Cannon (not the Still), planks the Still (not the Frost Lens)
-  want.copper -= towerCost(t, 'still', 0).goods.copper; want.planks -= towerCost(t, 'frost', 0).goods.planks;
+  const want = sum([towerCost(t, 'crossbow', 1), towerCost(t, 'crossbow', 2), towerCost(t, 'cannon', 1)]);
+  // per good, the cheapest stone-pad tower built with it (the first listed on a tie): timber the Crossbow, ore the
+  // Cannon, planks and clay the Frost Lens
+  for (const [g, kind] of [['timber', 'crossbow'], ['ore', 'cannon'], ['planks', 'frost'], ['clay', 'frost']]) {
+    const cheapest = Object.keys(TOWERS).filter(k => !TOWERS[k].long && TOWERS[k].goods.gulch[g]).reduce((a, k) => towerCost(t, k, 0).coins < towerCost(t, a, 0).coins ? k : a);
+    assert.equal(cheapest, kind, g);
+    want[g] = (want[g] || 0) + towerCost(t, kind, 0).goods[g];
+  }
   assert.deepEqual(towerReserve(t), want);
 });
 
@@ -48,7 +53,7 @@ test('the path choice at level 4 is kept, and a free mortar pit keeps a Mortar o
 });
 
 test('auto-sell never sells below the reserve, and then every next buy can be paid at once', () => {
-  const { g, t } = town('r4'); t.goods = { timber: 500, copper: 100, bricks: 100 };
+  const { g, t } = town('r4'); t.goods = { timber: 500, ore: 100, bricks: 100 };
   for (let i = 0; i < 6; i++) buildTower(g, t, i, i % 2 ? 'cannon' : 'crossbow');
   for (let i = 0; i < 6; i++) upgradeTower(g, t, i);
   t.goods = {}; t.coins = 1e9;
@@ -89,15 +94,15 @@ test('Keep for towers is on by default, and switching it off lets the good sell'
 
 test('shortfall names the good, how much is there, the building that makes it and about how long', () => {
   const g = newGame('r7'), t = g.town;
-  t.goods = { copper: 2 };
+  t.goods = { ore: 2 };
   const c = towerCost(t, 'cannon', 0);
   let s = shortfall(t, c);
   assert.equal(s.length, 1);
-  assert.deepEqual([s[0].good, s[0].have, s[0].need, s[0].maker, s[0].seconds], ['copper', 2, c.goods.copper, 'smelter', null]);
-  t.buildings.smelter = 2; t.buildings.mine = 10;
+  assert.deepEqual([s[0].good, s[0].have, s[0].need, s[0].maker, s[0].seconds], ['ore', 2, c.goods.ore, 'mine', null]);
+  t.buildings.mine = 2;
   s = shortfall(t, c);
-  assert.ok(Math.abs(s[0].seconds - (c.goods.copper - 2) / output(t, 'smelter')) < 1e-9);
-  t.goods.copper = 99; assert.deepEqual(shortfall(t, c), []);
+  assert.ok(Math.abs(s[0].seconds - (c.goods.ore - 2) / output(t, 'mine')) < 1e-9);
+  t.goods.ore = 99; assert.deepEqual(shortfall(t, c), []);
 });
 
 test('save v4: an older save gets every Keep for towers switch on', () => {

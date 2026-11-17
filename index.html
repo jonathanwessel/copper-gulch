@@ -127,6 +127,7 @@ html.no3d body { background: var(--bg); }
   box-shadow: 4px 4px 0 rgba(22, 15, 11, .6);
 }
 .wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; }
+@media (max-width: 420px) { .wave { gap: 6px; padding-left: 8px; } .vault { width: 30px; } }
 .option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--panel-2); border: 2px solid var(--line); }
 .option > div { display: grid; flex: 1; gap: 1px; }
 .option b { color: var(--copper-hi); }
@@ -160,7 +161,6 @@ html.flat .tag { position: static; transform: none !important; }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; }
-  .card .option span { display: none; }
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }

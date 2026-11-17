@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-3',
+    lines: [
+      'The Cannon and the Snake Oil Still now cost copper ore, so you can build them in the first few minutes.',
+      'The Frost Lens, the Smelter and the Kiln cost fewer coins.',
+      'A new wave never comes sooner than 40 seconds after the last one started. Tap Call now to bring it sooner for bonus coins.',
+      'The Perks button shows up once you have earned 60K coins.',
+    ],
+  },
+  {
     v: '2026.11.17-2',
     lines: [
       'The Cannon, Frost Lens, Snake Oil Still and Mortar cost far fewer coins.',

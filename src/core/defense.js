@@ -105,7 +105,7 @@ export function startWave(game, town) {
   const ws = town.waves;
   if (ws.phase !== 'break') return false;
   const w = town.wave, type = waveType(town, w);
-  ws.phase = 'wave'; ws.type = type; ws.queue = planWave(town, w, type); ws.timer = 0; ws.gap = WAVE.gap(w) * WAVE_TYPES[type].gap;
+  ws.phase = 'wave'; ws.type = type; ws.queue = planWave(town, w, type); ws.timer = 0; ws.age = 0; ws.gap = WAVE.gap(w) * WAVE_TYPES[type].gap;
   game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: w % WAVE.boss === 0 });
   return true;
 }
@@ -159,7 +159,7 @@ export function fight(game, town, dt) {
     return;
   }
   // spawn
-  ws.timer -= dt;
+  ws.timer -= dt; ws.age = (ws.age || 0) + dt;
   while (ws.queue.length && ws.timer <= 0) { spawn(town, ws.queue.shift()); ws.timer += ws.gap; }
   // move, poison, leak
   for (const f of ws.foes) {
@@ -247,7 +247,7 @@ export function fight(game, town, dt) {
     town.bestWave = Math.max(town.bestWave, town.wave);
     game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
     town.wave++;
-    Object.assign(ws, { phase: 'break', timer: WAVE.rest });
+    Object.assign(ws, { phase: 'break', timer: Math.max(WAVE.rest, WAVE.pace - (ws.age || 0)) });
   }
 }
 
@@ -309,7 +309,7 @@ export const defense = {
   init(town) {
     town.wave = 1;
     town.vault = { hp: WAVE.vault, max: WAVE.vault };
-    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [] };
+    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [], age: 0 };
     town.reserveOff = {};
     town.keep = towerReserve(town);
   },

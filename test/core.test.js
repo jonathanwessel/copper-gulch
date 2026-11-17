@@ -157,3 +157,9 @@ test('save: old shapes migrate, newer and damaged saves are refused', () => {
   assert.throws(() => migrate({ v: SAVE_VERSION + 1, game: {} }), /newer version/);
   assert.throws(() => decode('{nope'), /damaged/);
 });
+
+test('save v7: an older save gets its wave age, so the wave pace carries on', () => {
+  const s = migrate({ v: 6, at: 0, game: { towns: { gulch: { waves: { phase: 'wave', foes: [], shells: [], fires: [] } } } } });
+  assert.equal(s.v, SAVE_VERSION);
+  assert.equal(s.game.towns.gulch.waves.age, 0);
+});
