@@ -13,6 +13,7 @@
 // hour, and no single kind does the most damage in every wave.
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
+import { GOALS } from '../src/data/goals.js';
 import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
 import { buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit } from '../src/core/defense.js';
@@ -233,14 +234,30 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
    from when it opens (its own clock starts then). Returns { dc, gulch } (gulch is null if Dry Creek was never won). */
 export const OUTPOST_MINUTES = 30;
 export function campaign(seed, strategy = 'active', minutes = MINUTES) {
-  const g = newGame('balance-' + seed);
+  const g = newGame('balance-' + seed), goals = {};
+  // the goal strip: when each goal was done, in seconds from the new game
+  const off = g.bus.on('goal:done', e => { goals[e.id] = g.stats.steps * .25; });
   const dc = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won });
   dc.won = g.town.won ? dc.until : null;
-  if (!g.town.won) return { dc, gulch: null, game: g };
+  if (!g.town.won) { off(); return { dc, gulch: null, game: g, goals }; }
   g.go(g.town.def.opens);
   const gulch = play(seed, minutes, strategy, null, { game: g });
   gulch.outpost = { wave: g.towns.drycreek.wave, breaches: g.towns.drycreek.breaches || 0, coins: Math.round(g.towns.drycreek.lifetime) };
-  return { dc, gulch, game: g };
+  off();
+  return { dc, gulch, game: g, goals };
+}
+
+/* The goal strip check (M2, The first 30 minutes): the careful player finishes every goal within GOAL_MINUTES of a
+   new game on every seed. Returns { rows: [{ id, text, times }], misses }. */
+export const GOAL_MINUTES = 40;
+export function goalCheck(camps) {
+  const rows = GOALS.map(x => ({ id: x.id, text: x.text, times: camps.map(c => c.goals[x.id] ?? null) }));
+  const misses = [];
+  for (const r of rows) {
+    const late = r.times.map((t, i) => [t, camps[i].dc.seed]).filter(([t]) => t === null || t > GOAL_MINUTES * 60);
+    if (late.length) misses.push('goal ' + r.id + ' not done within ' + GOAL_MINUTES + ' min on seed(s) ' + late.map(([, s]) => s).join(','));
+  }
+  return { rows, misses };
 }
 
 /* The strategy check (CLAUDE.md, Strategies must stay close): every strategy over the seeds, the median time to
@@ -298,6 +315,10 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     if (r.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in waves 1-3`);
     if (r.offer === null || r.offer < 35 * 60 || r.offer > 45 * 60) misses.push(`seed ${s}: the first charter offered at ${r.offer === null ? 'never' : (r.offer / 60).toFixed(1) + ' min'} (want 35-45 min)`);
   }
+  const gc = goalCheck(camps);
+  console.log('goals (minutes from a new game, per seed):');
+  for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
+  misses.push(...gc.misses);
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));

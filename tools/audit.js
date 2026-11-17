@@ -14,6 +14,7 @@ import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { NEWS } from '../src/data/news.js';
+import { GOALS } from '../src/data/goals.js';
 import { SYSTEMS } from '../src/core/setup.js';
 import { RESEARCH } from '../src/data/research.js';
 
@@ -144,6 +145,7 @@ export function textRules(debug) {
   const p = [], seen = [];
   for (const e of EXPLAINERS) seen.push(['explainer ' + e.id, e.title], ['explainer ' + e.id, e.text]);
   for (const n of NEWS) for (const l of n.lines) seen.push(['news ' + n.v, l]);
+  for (const x of GOALS) seen.push(['goal ' + x.id, x.text]);
   for (const [k, t] of Object.entries(TOWERS)) seen.push(['tower ' + k, t.about], ...Object.values(PATHS[k] || {}).map(q => ['path ' + q.name, q.about]));
   for (const [k, r] of Object.entries(RESEARCH)) seen.push(['research ' + k, r.about + (r.worse ? ' ' + r.worse : '')]);
   for (const file of walk('src/ui').filter(x => x.endsWith('.js'))) {

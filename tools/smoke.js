@@ -310,6 +310,10 @@ async function run() {
         out.drycreek = g.active === 'drycreek' && !g.towns.gulch && CG.town.board.group.name === 'board:drycreek';
         out.welcome = CG.coach.current === 'dc-welcome';
         CG.coach.skipAll(); await wait(100);
+        // the goal strip starts on the first Crossbow, with the spotlight on a stone pad
+        const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent, mk = document.getElementById('goalMark');
+        out.goalFirst = gt() === 'Tap a stone pad and build a Crossbow';
+        out.goalMark = !mk.hidden;
         const t = g.town; t.coins = 500; t.goods.stone = 50;
         CG.play.open('quarry'); await wait(100); const L = t.level('quarry'); document.getElementById('buy').click();
         out.camp = t.level('quarry') === L + 1;
@@ -318,6 +322,13 @@ async function run() {
         document.querySelector('#card .build[data-kind="crossbow"]').click(); CG.play.close();
         out.tower = t.towers.some(x => x.spot === 0);
         out.noChip = document.getElementById('townChip').hidden;
+        // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Mining Camp, its tag spotlit
+        await wait(300); out.goalDone = gl.classList.contains('done');
+        await wait(1800);
+        out.goalNext = gt() === 'Tap Build to build the Mining Camp' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
+        out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
+        const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
         return out;
       });
       for (const [k, v] of Object.entries(begin)) if (!v) bad.push('outpost start: not ' + k);
@@ -336,8 +347,9 @@ async function run() {
       await page.evaluate(() => CG.coach.skipAll());
       const chip = await page.evaluate(() => {
         const c = document.getElementById('townChip'), bs = [...c.querySelectorAll('button')];
-        return { shown: !c.hidden, two: bs.map(b => b.dataset.town).join() === 'drycreek,gulch', on: (bs.find(b => b.classList.contains('on')) || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length };
+        return { shown: !c.hidden, two: bs.map(b => b.dataset.town).join() === 'drycreek,gulch', on: (bs.find(b => b.classList.contains('on')) || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length, goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] };
       });
+      if (chip.goal !== 'Tap a stone pad and build a Crossbow' || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
       if (!chip.shown || !chip.two || chip.on !== 'gulch') bad.push('the town chip is wrong (' + JSON.stringify(chip) + ')');
       if (chip.canvases !== 1) bad.push(chip.canvases + ' canvases after switching');
       bad.push(...(await check(page)).map(b => 'gulch: ' + b));

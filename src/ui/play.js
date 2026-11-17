@@ -16,6 +16,7 @@ import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks } from '../core/reveal.js';
+import { goalNow, goalContext, goalsOf } from '../core/goals.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt } from './format.js';
@@ -69,7 +70,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
   ctl.append(pause, hold);
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
-  const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl); paintChip();
+  // the goal strip (src/core/goals.js): one short goal at a time through the first half hour; tap it to point again
+  const goal = el('button', 'goal'); goal.id = 'goal'; goal.hidden = true;
+  const goalTag = el('span', 'glabel', 'Goal'), goalText = el('span', 'gtext');
+  goal.append(goalTag, goalText);
+  const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
+  goal.addEventListener('click', () => { mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping'); });
+  const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl, goal); paintChip();
   // side buttons under the coins: Goods and Menu open slide-up sheets
   const side = el('div', 'side');
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn'; goodsBtn.hidden = true;
@@ -86,7 +93,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
-  ui.append(tags, hud, card, banner);
+  ui.append(tags, hud, card, mark, banner);
   root.append(ui);
   const sheets = createSheets(ui, { onOpen: () => close() });
   const openGoods = () => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town)); };
@@ -268,11 +275,63 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }),
   ];
 
+  // the goal strip: a finished goal shows Done for a moment, then the next one comes in
+  let goalId = null, goalCur = null, doneFor = 0;
+  function paintGoal(dt) {
+    const now = goalNow(game), sh = game.shared.goals || { done: {} };
+    if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); }
+    if ((now && now.id) === goalId) return;
+    if (goalId && sh.done[goalId]) {
+      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); goalId = null; goalCur = null;
+      if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000);
+      return;
+    }
+    goalId = now ? now.id : null; goalCur = now;
+    goal.hidden = !now;
+    if (!now) return;
+    setText(goalText, now.text);
+    goal.classList.remove('new'); void goal.offsetWidth; goal.classList.add('new');
+  }
+  // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
+  // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
+  // what it points at, and the size of a button or tag, are looked up five times a second (measure).
+  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '';
+  function measure() {
+    const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
+    markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
+    markBox = null;
+    // the card of the spotlit pad or building is open: point at its Build, Upgrade or path button instead
+    const s = markTg && (markTg.spot ?? markTg.tower);
+    if (markTg && openId && (openId === markTg.plot || (s !== null && s !== undefined && openId === 'spot:' + s))) {
+      const k = goalCur.kind, b = (k && card.querySelector('.build[data-kind="' + k + '"]')) || (!k && (card.querySelector('#buy') || card.querySelector('.build[data-path]')));
+      markTg = b ? { el: b } : null;
+    } else if (openId) markTg = null; // a card for something else is open: it has the player's attention
+    if (markTg && markTg.el) { const n = typeof markTg.el === 'string' ? document.querySelector(markTg.el) : markTg.el; if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); markBox = { x: b.left - 5, y: b.top - 5, w: b.width + 10, h: b.height + 10 }; } }
+    else if (markTg && markTg.plot && tag[markTg.plot] && !tag[markTg.plot].hidden) { markW = tag[markTg.plot].offsetWidth + 10; markH = tag[markTg.plot].offsetHeight + 10; }
+  }
+  function placeMark() {
+    const tg = markTg;
+    let r = null;
+    if (!tg || (tg.plot && openId === tg.plot)) r = null; // its card is open: the selection shows it
+    else if (tg.el) r = markBox;
+    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) r = { x: p.x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } // the tag sits above its point
+    else if (openId !== 'spot:' + (tg.spot ?? tg.tower)) {
+      const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
+      if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
+    }
+    if (mark.hidden !== !r) mark.hidden = !r;
+    if (!r) return;
+    mark.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;
+    const sig = Math.round(r.w) + ',' + Math.round(r.h);
+    if (sig !== markSig) { markSig = sig; mark.style.width = Math.round(r.w) + 'px'; mark.style.height = Math.round(r.h) + 'px'; }
+  }
+
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
   function frame(dt) {
     acc += dt; cardAcc += dt;
     sheets.frame(dt);
+    paintGoal(dt); placeMark();
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
@@ -297,6 +356,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     setText(waveNum, 'Wave ' + town.wave);
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
+    measure();
     setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
     call.hidden = ws.phase !== 'break';
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you

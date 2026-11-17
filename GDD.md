@@ -191,6 +191,9 @@ One panel, with three switches per town and one spend share per town. The share 
 
 ## Onboarding
 - **Tutorial**: spotlight steps through the first 30 minutes. It starts in Dry Creek Outpost, the smallest map (one camp, one tower, one loop), and carries on into Copper Gulch.
+  - **The goal strip** (`src/data/goals.js`): one short order at a time under Pause and Hold waves, with a pulsing gold frame on the pad, building tag or button it means. Dry Creek: build a Crossbow, the Stone Camp to 2, the Mining Camp, 3 Crossbows, an upgrade, the Mining Camp to 5, a path, beat wave 10, go to Copper Gulch. Copper Gulch: a Crossbow, the Lumber Camp to 3, the Copper Mine, a Cannon, the Lumber Camp to 5, the Sawmill, a research, the Clay Pit, a Frost Lens, the Copper Mine to 5, the Smelter, a path, the war wagon, a Mortar.
+  - A goal counts the first time it is true, in any order, and a goal that can't be done yet is passed over. Finished goals stay finished in the save. A finished goal shows Done for a moment, then the next one comes in. When a town's goals are all done the strip goes away.
+  - The careful bot finishes them all by about 25 minutes into a new game; `tools/balance.js` fails if any goal takes longer than 40 minutes.
 - **Coach cards** appear once each, when a system unlocks.
 - **Tabs appear one by one:**
   - Town at the start (Dry Creek);

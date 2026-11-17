@@ -105,7 +105,7 @@ test('coins from an outpost sale reach the town in play but do not count toward 
   assert.equal(deedParts(gulch).coins, 0, 'outpost coins earn no deed');
   gulch.fromOutposts = 0;
   assert.ok(deedParts(gulch).coins > 0);
-  assert.equal(SAVE_VERSION, 9);
+  assert.ok(SAVE_VERSION >= 9);
   const old = { v: 8, at: 0, game: { towns: { gulch: { id: 'gulch', lifetime: 5 } } } };
   assert.equal(migrate(old).game.towns.gulch.fromOutposts, 0);
 });

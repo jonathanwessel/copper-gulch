@@ -9,10 +9,10 @@
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
-    id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek'],
+    id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek', 'system:goals'],
     title: 'Welcome to Dry Creek',
-    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens.',
-    when: () => true,
+    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Start with the goal shown here.',
+    when: () => true, at: () => ({ el: '#goal' }),
   },
   {
     id: 'dc-stone', town: 'drycreek', covers: ['system:economy', 'tier:0'],

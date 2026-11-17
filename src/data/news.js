@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-8',
+    lines: [
+      'A goal under the Pause button now tells you what to do next, from your first Crossbow to your first Mortar.',
+      'A gold frame blinks on the pad, building or button the goal means. Tap the goal to make it flash again.',
+      'If you already play in Copper Gulch, goals you are past are skipped.',
+    ],
+  },
+  {
     v: '2026.11.17-7',
     lines: [
       'The Goods, Research and Perks buttons now appear as you unlock them.',

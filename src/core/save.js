@@ -3,7 +3,9 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 9;
+import { GOALS } from '../data/goals.js';
+
+export const SAVE_VERSION = 10;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -61,6 +63,18 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t.fromOutposts === undefined) t.fromOutposts = 0;
     return { ...s, v: 9, game: g };
+  },
+  // v10: the goal strip (game.shared.goals). A game already in Copper Gulch has done Dry Creek's goals; one past the
+  // Gulch's first war wagon, or one that signed a charter, needs no goals at all.
+  9: s => {
+    const g = s.game || {}, towns = g.towns || {}, sh = g.shared = g.shared || {};
+    const goals = sh.goals = { done: {}, visited: {}, off: false, ...(sh.goals || {}) };
+    if (towns.gulch) {
+      goals.visited.gulch = true;
+      for (const x of GOALS) if (x.town === 'drycreek') goals.done[x.id] = true;
+      if ((towns.gulch.bestWave || 0) >= 10 || ((sh.charter || {}).signed || 0) > 0) goals.off = true;
+    }
+    return { ...s, v: 10, game: g };
   },
 };
 

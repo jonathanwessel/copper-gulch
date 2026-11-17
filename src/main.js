@@ -51,18 +51,19 @@ async function startGame() {
      and builds them again for the other town on a fresh canvas (the old one's GPU context is let go). */
   function mount() {
     const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false, select: () => {} };
+    const b = game.town.def.board;
+    // a screen point for a 3D target (a plot, a stone pad, a tower or the vault), for the spotlights
+    const locate = tg => !CG.town ? null : tg.plot ? CG.town.project(tg.plot) : tg.spot !== undefined ? CG.town.projectSpot(tg.spot)
+      : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
     const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
     CG.town = town;
     if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; }
-    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, onHelp: () => CG.play.sheets.close() });
+    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, locate, onHelp: () => CG.play.sheets.close() });
     // the explainer cards; ?coach=off turns them off (the test tools use it)
-    const b = game.town.def.board;
     CG.coach = startCoach({
       game, town: game.town, root: document.body, off: coachOff,
       pause: on => { if (town) town.pause('coach', on); },
-      onSeen: () => keep(), onGo: id => go(id),
-      locate: tg => !town ? null : tg.plot ? town.project(tg.plot) : tg.spot !== undefined ? town.projectSpot(tg.spot)
-        : tg.tower !== undefined ? town.projectSpot(tg.tower) : tg.vault ? town.projectPoint(b.vault[0], .6, b.vault[1]) : null,
+      onSeen: () => keep(), onGo: id => go(id), locate,
     });
     if (!town && !flatTimer) { // no 3D: keep the game running and lay the plot tags out as a list
       document.documentElement.classList.add('flat');
