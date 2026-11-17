@@ -140,7 +140,7 @@ test('save v8: a game already in Copper Gulch gets Dry Creek won and running', (
   const old = JSON.parse(encode(g, 5)); old.v = 7; delete old.game.shared.grant;
   const s = migrate(old);
   assert.equal(s.v, SAVE_VERSION);
-  assert.equal(SAVE_VERSION, 8);
+  assert.ok(SAVE_VERSION >= 8);
   const back = loadGame(s.game), d = back.towns.drycreek;
   assert.equal(back.active, 'gulch');
   assert.equal(back.town.coins, 321);

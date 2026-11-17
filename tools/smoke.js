@@ -231,7 +231,7 @@ async function run() {
       const perks = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, btn = document.getElementById('perksBtn'), out = {};
         out.hiddenFirst = btn.hidden;
-        const life = t.lifetime; t.lifetime = 6e4; await wait(600);
+        const life = t.lifetime; t.lifetime = 9e4; await wait(600);
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
@@ -393,7 +393,7 @@ async function run() {
     await waitFor(page, () => CG.town && CG.town.frames > 5);
     await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town;
-      t.buildings.saw = 8; t.bestWave = 31; t.wave = 31; t.coins = 5e4; t.lifetime = 7e4; await wait(600);
+      t.buildings.saw = 8; t.bestWave = 34; t.wave = 34; t.coins = 5e4; t.lifetime = 1e5; await wait(600);
       document.getElementById('perksBtn').click(); await wait(200);
       const s = document.getElementById('signCharter'); s.click(); await wait(100); s.click();
     }).catch(() => {});

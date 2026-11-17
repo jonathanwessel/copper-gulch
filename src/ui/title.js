@@ -28,7 +28,7 @@ export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } 
   row.append(installButton(), check);
   sign.append(play, saved, note, row);
   const foot = el('p', 'foot'); foot.id = 'version';
-  const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status : '') + ' · Free, no ads'; };
+  const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status.replace(/\.$/, '') : '') + ' · Free, no ads'; };
   APP.onChange = paint; paint();
   const head = el('div', 'head'); head.append(logo, tag);
   t.append(head, sign, foot);

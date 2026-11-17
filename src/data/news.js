@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-6',
+    lines: [
+      'Waves in Dry Creek now come about a minute apart. Beating all 10 takes about 11 minutes.',
+      'Coins from Dry Creek still go to Copper Gulch. They no longer help you earn deeds.',
+      'You get your first deed at wave 33, or when Copper Gulch earns 85K coins.',
+    ],
+  },
+  {
     v: '2026.11.17-5',
     lines: [
       'A new game now starts in Dry Creek Outpost. Hold it for 10 waves and Copper Gulch opens.',

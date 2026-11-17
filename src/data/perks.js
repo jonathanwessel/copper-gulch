@@ -6,8 +6,8 @@
    Text follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 
 export const DEEDS = {
-  wave: 30, waveStep: 5,     // 1 deed at best wave 30, and 1 more for every 5 waves past it
-  coins: 6e4, coinStep: 10, // 1 deed at 60K coins earned in this charter, and 1 more each time that grows tenfold
+  wave: 33, waveStep: 5,     // 1 deed at best wave 33, and 1 more for every 5 waves past it
+  coins: 85e3, coinStep: 10, // 1 deed at 85K coins the town earned itself in this charter, and 1 more each tenfold
   income: .25,               // each deed adds 25% to the coins earned in every town
 };
 

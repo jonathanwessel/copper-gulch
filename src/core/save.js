@@ -3,7 +3,7 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -55,6 +55,12 @@ export const MIGRATIONS = {
     const g = s.game || {}, towns = g.towns || {};
     if (towns.gulch && !towns.drycreek) { g.shared = g.shared || {}; g.shared.grant = { ...(g.shared.grant || {}), drycreek: true }; }
     return { ...s, v: 8, game: g };
+  },
+  // v9: a town counts the coins its outposts' sales paid in (town.fromOutposts), which deeds leave out
+  8: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t.fromOutposts === undefined) t.fromOutposts = 0;
+    return { ...s, v: 9, game: g };
   },
 };
 

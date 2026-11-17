@@ -29,7 +29,7 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
   - One tower: the Crossbow, paid with coins plus stone.
   - The road comes in through a dry wash in a gap of a rock ridge (a broken windmill at its mouth), loops once around the camp and leaves the same way. Raiders who finish the loop raid the camp's stockpile, which is the outpost's small vault.
   - About 6 stone pads, inside and outside the loop. No mortar pits: outposts never have a Mortar, so the pit rule does not apply to them.
-  - Waves 1 to 10, and wave 10 is a bandit wagon (a small boss). Beating wave 10 wins the outpost and opens Copper Gulch, the first town.
+  - Waves 1 to 10, at least 65 seconds apart (the bots win it in about 11 minutes), and wave 10 is a bandit wagon (a small boss). Beating wave 10 wins the outpost and opens Copper Gulch, the first town.
 - **Each new town opens one more outpost**, so there are outposts between the towns for the whole game. There is no outpost between Dry Creek and Copper Gulch, and none with the Capital. Each one's two raw goods fit the era it opens in:
 
 | # | Outpost | Opens with | Raw goods | Entrance |
@@ -152,7 +152,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 
 ### Charters and deeds
 - A town's charter resets that town (coins, buildings, towers, waves, research, foremen) and pays deeds. It keeps the explainers seen, the badges and the stats.
-- Deeds paid (set by the charter box with the balance bot, 2026-11-17): 1 at best wave 30 and 1 more for every 5 waves past it, plus 1 at 52K coins earned in this charter (60K until 2026-11-17, lowered when tower prices dropped) and 1 more each time that grows tenfold. The charter is offered once it would pay at least 1 deed (the active bot: at 40-44 minutes, from the coins).
+- Deeds paid (set with the balance bot; last changed 2026-11-17 when the game began in Dry Creek): 1 at best wave 33 and 1 more for every 5 waves past it, plus 1 at 85K coins the town earned itself in this charter and 1 more each time that grows tenfold. Coins an outpost's sales pay into the town are spent like any coins and show in its income, but do not count toward deeds (`town.fromOutposts`), so a deed measures the town's own work. Earlier marks: wave 30 with 60K, then 52K, then 60K, all before the outpost fed the Gulch; with Dry Creek paying in and drawn on, the Gulch reached those 3-8 minutes sooner. The charter is offered once it would pay at least 1 deed (the active bot: at 37-42 minutes after the Gulch opens, from the coins).
 - Deeds are kept for good. Each one adds 25% to the coins earned in every town (sales and bounties), as the named source "Deeds". (10% made a new charter barely faster than the old one.)
 - Deed perks come in pairs, and you pick one side of each pair once you hold enough deeds. A pick stays until the next charter, which clears every pick so you choose again (src/data/perks.js):
 

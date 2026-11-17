@@ -88,3 +88,32 @@ test('the town chip and the outpost cards show in the Gulch once both towns are 
   for (const id of ['townchip', 'outposts']) assert.ok(EXPLAINERS.find(e => e.id === id).when(h), id);
   for (const id of TOWN_ORDER) assert.ok(TOWNS[id].short, id + ' has a short name for the chip');
 });
+
+test('coins from an outpost sale reach the town in play but do not count toward its deeds; save v9 adds the count', async () => {
+  const { deedParts } = await import('../src/core/charter.js');
+  const { migrate, SAVE_VERSION } = await import('../src/core/save.js');
+  const g = newGame('t9');
+  winOutpost(g, g.town); g.go('gulch');
+  const gulch = g.towns.gulch, dc = g.towns.drycreek;
+  dc.buildings.quarry = 15; dc.sell = {};
+  const before = gulch.coins;
+  run(g, 60);
+  assert.ok(gulch.fromOutposts > 0, 'Dry Creek paid in');
+  assert.ok(gulch.coins - before >= gulch.fromOutposts * .5);
+  assert.equal(gulch.ownEarned, gulch.lifetime - gulch.fromOutposts);
+  gulch.lifetime = 1e6; gulch.fromOutposts = 1e6;
+  assert.equal(deedParts(gulch).coins, 0, 'outpost coins earn no deed');
+  gulch.fromOutposts = 0;
+  assert.ok(deedParts(gulch).coins > 0);
+  assert.equal(SAVE_VERSION, 9);
+  const old = { v: 8, at: 0, game: { towns: { gulch: { id: 'gulch', lifetime: 5 } } } };
+  assert.equal(migrate(old).game.towns.gulch.fromOutposts, 0);
+});
+
+test('Dry Creek is paced to be won in 10-15 minutes: waves at least 65 s apart', async () => {
+  const { wavesOf } = await import('../src/core/defense.js');
+  const g = newGame('t10'), w = wavesOf(g.town);
+  assert.equal(w.pace, 65);
+  const earliest = w.first + (TOWNS.drycreek.goal - 1) * w.pace;
+  assert.ok(earliest >= 9.5 * 60 && earliest <= 13 * 60, 'wave 10 starts at ' + earliest + ' s at the soonest');
+});

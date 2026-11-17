@@ -57,7 +57,7 @@ export function sell(game, town, good, n, span = 0, payee = town) {
   m.rate[good] = (m.rate[good] || 0) + rateRise(n, span);
   m.sold[good] = (m.sold[good] || 0) + n;
   town.goods[good] -= n;
-  payee.earn(coins);
+  payee.earn(coins, payee !== town);
   if (!town.flags.firstSale) { town.flags.firstSale = true; game.bus.emit('first:sale', { town: town.id, good }); }
   return coins;
 }

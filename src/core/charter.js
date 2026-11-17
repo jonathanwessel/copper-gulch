@@ -16,7 +16,7 @@ export const charterOffered = game => !!C(game).offered;
 
 /* Deeds the town's charter would pay now, and from what. */
 export function deedParts(town) {
-  const w = town.bestWave || 0, c = town.lifetime || 0;
+  const w = town.bestWave || 0, c = town.ownEarned || 0; // an outpost's sales do not count toward deeds
   const wave = w >= DEEDS.wave ? 1 + Math.floor((w - DEEDS.wave) / DEEDS.waveStep) : 0;
   const coins = c >= DEEDS.coins ? 1 + Math.floor(Math.log10(c / DEEDS.coins) / Math.log10(DEEDS.coinStep) + 1e-9) : 0;
   return { wave, coins, total: wave + coins };
@@ -69,7 +69,7 @@ export function resetTown(game, town) {
 export function signCharter(game, town) {
   const n = isOutpost(town) ? 0 : deedsFor(town);
   if (n < 1) return 0;
-  const c = C(game), wave = town.bestWave, coins = Math.round(town.lifetime);
+  const c = C(game), wave = town.bestWave, coins = Math.round(town.ownEarned);
   c.deeds += n; c.signed++; c.perks = {};
   c.last = { town: town.id, deeds: n, wave, coins };
   resetTown(game, town);

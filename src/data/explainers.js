@@ -41,7 +41,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Go to Copper Gulch',
     title: 'Copper Gulch is open',
-    text: 'You beat wave 10 at Dry Creek. Copper Gulch has more buildings and towers. Dry Creek keeps making coins while you play there.',
+    text: 'You beat wave 10 at Dry Creek. Copper Gulch has more buildings and towers. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
   },
   // Copper Gulch

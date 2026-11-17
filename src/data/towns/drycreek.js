@@ -18,7 +18,7 @@ export const DRYCREEK = {
   goal: 10,                       // clearing this wave wins the outpost
   opens: 'gulch',                 // and opens this town
   raid: 120,                      // once won: seconds from one light raid to the next (wave-10 strength, no boss)
-  waves: { speed: .9 },           // overrides of WAVE (src/data/foes.js) on this short road
+  waves: { speed: .9, first: 30, pace: 65 }, // overrides of WAVE (src/data/foes.js): a short road, and waves far enough apart that winning takes 10-15 min
   // The road comes down the dry wash from the north, loops once clockwise around the camp and ends at the stockpile
   // (the vault), beside the point where the loop began. Pads sit inside the corners of the loop, between the two camps
   // and outside each side. No mortar pits: outposts never have a Mortar.

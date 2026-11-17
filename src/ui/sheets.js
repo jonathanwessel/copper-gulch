@@ -239,7 +239,7 @@ export function perksSheet(ctx) {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
       const t1 = p.total ? 'Sign now to get ' + plural(p.total, (c.deeds ? 'more ' : '') + 'deed') + '.' : 'Earn a deed to sign the charter.';
       if (now.textContent !== t1) now.textContent = t1;
-      const w = 'Best wave ' + town.bestWave + ' · next deed at wave ' + n.wave, k = 'Coins earned ' + fmt(town.lifetime) + ' · next deed at ' + fmt(n.coins) + ' coins';
+      const w = 'Best wave ' + town.bestWave + ' · next deed at wave ' + n.wave, k = 'Coins earned ' + fmt(town.ownEarned) + ' · next deed at ' + fmt(n.coins) + ' coins';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;

@@ -13,7 +13,8 @@ export class Town {
     this.mods = new Mods();
     this.t = 0;                   // seconds this town has run
     this.coins = 0;
-    this.lifetime = 0;            // coins earned in this charter (the deed formula reads it)
+    this.lifetime = 0;            // coins earned in this charter, outposts' sales included (the income on screen)
+    this.fromOutposts = 0;        // of those, the coins an outpost's sales paid in (deeds count only the rest)
     this.goods = {};              // good id -> amount in the yard
     this.buildings = {};          // building id -> level (0 or missing: not built)
     this.towers = [];             // [{ id, kind, x, y, level, path }]
@@ -25,8 +26,10 @@ export class Town {
     this.foremen = {};            // building id -> true (working) or false (switched off) (src/core/foremen.js)
     this.flags = {};              // one-time things that happened (first sale, coach cards seen...)
   }
-  /* Add coins earned (sales, bounties); lifetime counts every coin earned. */
-  earn(n) { if (n > 0) { this.coins += n; this.lifetime += n; } }
+  /* Add coins earned (sales, bounties); lifetime counts every coin earned. fromOutpost: an outpost's sale paid it. */
+  earn(n, fromOutpost = false) { if (n > 0) { this.coins += n; this.lifetime += n; if (fromOutpost) this.fromOutposts = (this.fromOutposts || 0) + n; } }
+  /* Coins this town earned by itself in this charter (what deeds count). */
+  get ownEarned() { return this.lifetime - (this.fromOutposts || 0); }
   /* Spend if affordable; returns whether it was paid. */
   spend(n) { if (n < 0 || this.coins + 1e-9 < n) return false; this.coins -= n; return true; }
   has(good, n) { return (this.goods[good] || 0) + 1e-9 >= n; }

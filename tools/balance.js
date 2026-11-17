@@ -1,7 +1,9 @@
-// node tools/balance.js [--seeds 6] [--minutes 90]: plays Copper Gulch with a steady, sensible player (no waiting,
-// no mistakes) straight on the simulation core, and checks the pacing targets that exist so far:
-//   the first tower under 1 minute; wave 10 cleared in 7-9 minutes; no breach in waves 1-3; the first charter offered
-//   at 35-45 minutes. The player signs the first charter once it pays a deed (--sign n: once it pays n), picks the
+// node tools/balance.js [--seeds 6] [--minutes 90]: plays the start of the game with a steady, sensible player (no
+// waiting, no mistakes) straight on the simulation core: a new game in Dry Creek Outpost until it is won, then Copper
+// Gulch from the moment it opens, with Dry Creek working in the background. It checks the pacing targets so far:
+//   Dry Creek: the first tower under 1 minute, won in 10-15 minutes, no breach in waves 1-3;
+//   Copper Gulch (counted from when it opens): wave 10 cleared in 7-9 minutes, no breach in waves 1-3, the first
+//   charter offered at 35-45 minutes. The player signs the first charter once it pays a deed (--sign n: once it pays n), picks the
 //   first side of every perk pair it can, and plays on; it reports how long the new charter takes to get back to the
 //   old one's best wave.
 // The player picks towers the way a careful player would: every open tower kind on every empty pad it fits (mortar
@@ -128,19 +130,21 @@ export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, def
    next building), then (after the first boss) a foreman for a building at level 10 once it can pay for one, then the
    best-paying building. The economy player buys its next building before defending unless a raider got through in
    the last two waves. */
-export function play(seed, minutes = MINUTES, strategy = 'active', watch = null) {
-  const S = STRATEGIES[strategy], g = newGame('balance-' + seed, 'gulch'), t = g.town;
+export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null } = {}) {
+  const S = STRATEGIES[strategy], g = game || newGame('balance-' + seed, 'gulch'), t = g.town, mine = e => e.town === t.id, offs = [];
+  const on = (name, fn) => offs.push(g.bus.on(name, fn));
   const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0 };
-  g.bus.on('wave:start', () => { g.dealt = {}; });
-  g.bus.on('leak', () => { if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });
-  g.bus.on('wave:clear', e => {
+  on('wave:start', e => { if (mine(e)) g.dealt = {}; });
+  on('leak', e => { if (!mine(e)) return; if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });
+  on('wave:clear', e => {
+    if (!mine(e)) return;
     if (e.wave === 10 && r.wave10 === null) r.wave10 = t.t;
     if (e.wave === 20 && r.wave20 === null) r.wave20 = t.t;
     const d = (g.dealt || {})[t.id] || {}, best = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
     if (best && t.t <= 3600) { r.top.push([e.wave, best[0], Object.keys(d).length]); for (const [k, n] of Object.entries(d)) r.dealt[k] = (r.dealt[k] || 0) + n; }
   });
-  g.bus.on('breach', e => r.breaches.push(e.wave));
-  g.bus.on('charter:offer', () => { r.offer = t.t; });
+  on('breach', e => { if (mine(e)) r.breaches.push(e.wave); });
+  on('charter:offer', e => { if (mine(e)) r.offer = t.t; });
   // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
   // also waits until a raider got through in the last two waves, once it has its first towers)
   // urgent: short of towers, a tower more than a level behind, or the vault below 60%
@@ -200,6 +204,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null)
   };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
+    if (until && until(t)) { r.until = t.t; break; }
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
     if (watch && s % 240 === 0) watch(g, t, r);
     if (s % 4) continue;
@@ -218,8 +223,24 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null)
     if (defend(pays)) continue;
     grow();
   }
+  for (const off of offs) off();
   r.final = { wave: t.wave, best: t.bestWave, lifetime: Math.round(t.lifetime), towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } };
   return r;
+}
+
+/* The whole start of the game: a new game in Dry Creek Outpost, played until it is won (or for OUTPOST_MINUTES), then
+   Copper Gulch from the moment it opens, with Dry Creek working and raided in the background. The Gulch's times count
+   from when it opens (its own clock starts then). Returns { dc, gulch } (gulch is null if Dry Creek was never won). */
+export const OUTPOST_MINUTES = 30;
+export function campaign(seed, strategy = 'active', minutes = MINUTES) {
+  const g = newGame('balance-' + seed);
+  const dc = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won });
+  dc.won = g.town.won ? dc.until : null;
+  if (!g.town.won) return { dc, gulch: null, game: g };
+  g.go(g.town.def.opens);
+  const gulch = play(seed, minutes, strategy, null, { game: g });
+  gulch.outpost = { wave: g.towns.drycreek.wave, breaches: g.towns.drycreek.breaches || 0, coins: Math.round(g.towns.drycreek.lifetime) };
+  return { dc, gulch, game: g };
 }
 
 /* The strategy check (CLAUDE.md, Strategies must stay close): every strategy over the seeds, the median time to
@@ -229,17 +250,19 @@ export const STRATEGY_MINUTES = 40, STRATEGY_SLACK = 1.25;
 export function strategies(seeds = SEEDS) {
   const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
   const rows = Object.keys(STRATEGIES).map(k => {
-    const runs = []; for (let s = 1; s <= seeds; s++) runs.push(play(s, STRATEGY_MINUTES, k));
+    const camps = []; for (let s = 1; s <= seeds; s++) camps.push(campaign(s, k, STRATEGY_MINUTES));
+    const runs = camps.map(c => c.gulch).filter(Boolean), dcs = camps.map(c => c.dc);
     const dealt = {}, bought = {};
     for (const r of runs) { for (const [a, n] of Object.entries(r.dealt)) dealt[a] = (dealt[a] || 0) + n; for (const [a, n] of Object.entries(r.bought)) bought[a] = (bought[a] || 0) + n; }
-    return { strategy: k, runs, wave10: med(runs.map(r => r.wave10)), wave20: med(runs.map(r => r.wave20)), coins30: med(runs.map(r => r.life[30] && r.life[30][1])), early: runs.filter(r => r.breaches.some(w => w <= 3)).length, firstBreach: runs.map(r => r.breaches[0] ?? null), dealt, bought };
+    return { strategy: k, runs, won: med(dcs.map(r => r.won)), dcEarly: dcs.filter(r => r.breaches.some(w => w <= 3)).length, dcBought: dcs.reduce((a, r) => a + (r.bought.crossbow || 0), 0) / seeds, dcLevel: med(dcs.map(r => r.final.towers.reduce((a, x) => a + parseInt(x.replace(/\D+/g, ''), 10), 0) / Math.max(1, r.final.towers.length))), wave10: med(runs.map(r => r.wave10)), wave20: med(runs.map(r => r.wave20)), coins30: med(runs.map(r => r.life[30] && r.life[30][1])), early: runs.filter(r => r.breaches.some(w => w <= 3)).length, firstBreach: runs.map(r => r.breaches[0] ?? null), dealt, bought };
   });
   const misses = [];
-  for (const key of ['wave10', 'wave20']) {
+  for (const key of ['won', 'wave10', 'wave20']) {
     const best = Math.min(...rows.map(x => x[key] ?? Infinity));
-    for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${key === 'wave10' ? 'wave 10' : 'wave 20'} at ${x[key] === null ? 'never' : (x[key] / 60).toFixed(1) + ' min'}, more than 25% behind the best (${(best / 60).toFixed(1)} min)`);
+    for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${key === 'won' ? 'Dry Creek won' : key === 'wave10' ? 'wave 10' : 'wave 20'} at ${x[key] === null ? 'never' : (x[key] / 60).toFixed(1) + ' min'}, more than 25% behind the best (${(best / 60).toFixed(1)} min)`);
   }
   for (const x of rows) if (x.early) misses.push(`${x.strategy}: a breach in waves 1-3 on ${x.early} seed(s)`);
+  for (const x of rows) if (x.dcEarly) misses.push(`${x.strategy}: a breach in Dry Creek's waves 1-3 on ${x.dcEarly} seed(s)`);
   return { rows, misses };
 }
 
@@ -253,28 +276,39 @@ export function variety(runs) {
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balance.js')) {
   const misses = [], runs = [];
-  console.log('seed | first tower | wave 10 | breaches (waves) | wave at 10/20/30/40/60 min | lifetime coins');
+  const m = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
+  console.log('Dry Creek Outpost: seed | first tower | won | breaches (waves) | Crossbows bought | camp levels');
+  const camps = [];
   for (let s = 1; s <= SEEDS; s++) {
-    const r = play(s); runs.push(r);
+    const c = campaign(s); camps.push(c); const d = c.dc;
+    console.log(`${s} | ${d.firstTower === null ? 'never' : Math.round(d.firstTower) + ' s'} | ${m(d.won)} | ${d.breaches.join(',') || 'none'} | ${d.bought.crossbow || 0} | ${Object.entries(d.final.buildings).map(([k, n]) => k + ' ' + n).join(', ')}`);
+    if (d.firstTower === null || d.firstTower > 60) misses.push(`seed ${s}: Dry Creek's first tower at ${d.firstTower} s (want under 60)`);
+    if (d.won === null || d.won < 10 * 60 || d.won > 15 * 60) misses.push(`seed ${s}: Dry Creek won at ${m(d.won)} (want 10-15 min)`);
+    if (d.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in Dry Creek's waves 1-3`);
+    if (!c.gulch) misses.push(`seed ${s}: Copper Gulch never opened`);
+  }
+  console.log('Copper Gulch, from when it opens, with Dry Creek running: seed | first tower | wave 10 | breaches (waves) | wave at 10/20/30/40/60 min | lifetime coins (from Dry Creek) | Dry Creek after (breaches, coins)');
+  for (const c of camps) {
+    if (!c.gulch) continue;
+    const r = c.gulch, s = c.dc.seed; runs.push(r);
     const w10 = r.wave10 === null ? 'never' : (r.wave10 / 60).toFixed(1) + ' min';
-    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${w10} | ${r.breaches.join(',') || 'none'} | ${[10, 20, 30, 40, 60].map(m => r.waveAt[m] ?? '-').join('/')} | ${r.final.lifetime}`);
+    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${w10} | ${r.breaches.join(',') || 'none'} | ${[10, 20, 30, 40, 60].map(m => r.waveAt[m] ?? '-').join('/')} | ${r.final.lifetime} (${Math.round(c.game.towns.gulch.fromOutposts)}) | ${r.outpost.breaches}, ${r.outpost.coins}`);
     if (r.firstTower === null || r.firstTower > 60) misses.push(`seed ${s}: first tower at ${r.firstTower} s (want under 60)`);
     if (r.wave10 === null || r.wave10 < 7 * 60 || r.wave10 > 9 * 60) misses.push(`seed ${s}: wave 10 at ${w10} (want 7-9 min)`);
     if (r.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in waves 1-3`);
     if (r.offer === null || r.offer < 35 * 60 || r.offer > 45 * 60) misses.push(`seed ${s}: the first charter offered at ${r.offer === null ? 'never' : (r.offer / 60).toFixed(1) + ' min'} (want 35-45 min)`);
   }
-  const m = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));
   console.log('towers bought (first minute bought, in the first hour):');
   for (const r of runs) console.log(`  seed ${r.seed}: ` + Object.keys(TOWERS).map(k => `${k} ${r.bought[k] || 0}` + (r.firstBuy[k] !== undefined ? ` (min ${r.firstBuy[k]})` : '')).join(', '));
   console.log('most damage per wave (first hour): ' + runs.map(r => `seed ${r.seed} ` + r.top.map(([w, k]) => w + ':' + k).join(' ')).join(' | '));
-  console.log(`strategies (median over ${SEEDS} seeds, ${STRATEGY_MINUTES} min each): strategy | wave 10 | wave 20 | coins at 30 min | first breach (wave) | buys by kind | damage by kind`);
+  console.log(`strategies (median over ${SEEDS} seeds; Dry Creek, then ${STRATEGY_MINUTES} min of the Gulch): strategy | Dry Creek won | Crossbows there, their level | wave 10 | wave 20 | coins at 30 min | first breach (wave) | buys by kind | damage by kind`);
   const st = strategies();
   for (const x of st.rows) {
     const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1, mm = v => v === null ? 'never' : (v / 60).toFixed(1) + ' min';
-    console.log(`  ${x.strategy} | ${mm(x.wave10)} | ${mm(x.wave20)} | ${x.coins30 === null ? '-' : Math.round(x.coins30 / 1000) + 'K'} | ${x.firstBreach.map(w => w ?? '-').join(',')} | `
+    console.log(`  ${x.strategy} | ${mm(x.won)} | ${x.dcBought.toFixed(0)}, ${x.dcLevel === null ? '-' : x.dcLevel.toFixed(1)} | ${mm(x.wave10)} | ${mm(x.wave20)} | ${x.coins30 === null ? '-' : Math.round(x.coins30 / 1000) + 'K'} | ${x.firstBreach.map(w => w ?? '-').join(',')} | `
       + Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ') + ' | ' + Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', '));
   }
   misses.push(...st.misses);
