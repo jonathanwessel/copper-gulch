@@ -9,8 +9,11 @@ test('fmt keeps small numbers exact enough and shortens big ones', () => {
   assert.equal(fmt(42.9), '42');
   assert.equal(fmt(999), '999');
   assert.equal(fmt(1234), '1.23K');
+  assert.equal(fmt(1800), '1.8K');
+  assert.equal(fmt(2000), '2K');
+  assert.equal(fmt(.25), '0.25');
   assert.equal(fmt(56789), '56.8K');
-  assert.equal(fmt(2.5e6), '2.50M');
-  assert.equal(fmt(7.1e9), '7.10B');
+  assert.equal(fmt(2.5e6), '2.5M');
+  assert.equal(fmt(7.1e9), '7.1B');
   assert.equal(fmt(Infinity), '0');
 });

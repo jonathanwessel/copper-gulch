@@ -38,6 +38,12 @@ const SCREENS = [
   ['research', () => { const t = CG.game.town; t.flags['open:research'] = true; t.coins = 5000; t.research = { saws: 2 }; t.lab = { id: 'walls', left: 14, total: 20 }; CG.play.openResearch(); }],
   // the Perks sheet: a charter ready to sign, two deeds held, one pair picked and one open
   ['perks', () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 2, offered: true, perks: { trade: 'a' } }); t.bestWave = Math.max(t.bestWave, 34); t.lifetime = Math.max(t.lifetime, 1e5); CG.play.openPerks(); }],
+  // tap a number: where coins come from, the vault, a tower's damage, a building's output and a good's price
+  ['why-income', () => { CG.play.sheets.close(); CG.game.town.sell = {}; CG.play.openIncome(); }], // waits 6 s so the numbers settle
+  ['why-vault', () => { CG.play.sheets.close(); CG.play.openVault(); }],
+  ['why-tower', () => { CG.play.sheets.close(); const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); if (tw) Object.assign(tw, { level: 6, path: 'a' }); t.mods.set('towerDmg', 'Gunsmith research', { mul: 1.3 }); CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }],
+  ['why-output', () => { CG.play.close(); CG.play.open('camp'); document.querySelector('#card .stat').click(); }],
+  ['why-price', () => { CG.play.close(); CG.play.openGoods(); const b = document.querySelector('#sheet [data-why="timber"]'); if (b) b.click(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
 ];
 // a new game, which starts in Dry Creek Outpost (cards on, so the win card can be shown)
@@ -66,7 +72,7 @@ try {
     await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : 1200);
+      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : 1200);
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();

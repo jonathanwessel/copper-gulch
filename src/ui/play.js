@@ -3,8 +3,9 @@
    this into the full HUD with tabs and sheets. */
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { build, cost, output, explainOutput, missing, unlocked, uses } from '../core/economy.js';
-import { price } from '../core/market.js';
+import { build, cost, output, missing, unlocked, uses } from '../core/economy.js';
+import { explainOutput, explainTower, explainIncome, paysEach } from '../core/explain.js';
+import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
@@ -30,6 +31,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const coins = el('div', 'coins'); coins.id = 'coins';
   const coinIcon = el('span', 'coin'), coinNum = el('b'), inc = el('span', 'inc');
   coins.append(coinIcon, coinNum, inc);
+  coins.setAttribute('role', 'button'); coins.tabIndex = 0; // tap the coins: where they come from
   // the town's name; once a second town is open it becomes the town chip: one button per open town, tap one to go there
   const name = el('div', 'townname', town.def.name);
   const chip = el('div', 'townchip'); chip.id = 'townChip'; chip.hidden = true;
@@ -50,9 +52,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const wave = el('div', 'wave'); wave.id = 'wave';
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
   vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
+  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(waveNum, vault); // tap it: the vault's strength explained
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
-  wave.append(waveNum, vault, waveInfo, call);
+  wave.append(vaultBtn, waveInfo, call);
   // Pause stops the whole game; Hold waves keeps the town working but the next wave waits
   const ctl = el('div', 'hudrow');
   const pause = el('button', 'btn small', 'Pause'); pause.id = 'pauseBtn';
@@ -101,12 +104,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
+  const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
+  const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
+  coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
+  vaultBtn.addEventListener('click', openVault);
   goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
 
-  let openId = null, why = false;
+  let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
   function open(id) {
     if (sheets.current) sheets.close();
-    openId = id; why = false; card.hidden = false; paintCard();
+    openId = id; why = false; whyStat = null; card.hidden = false; paintCard();
     viewApi.select(id.startsWith('spot:') ? { spot: +id.slice(5) } : { plot: id }); // highlight it on the board while the card is open
   }
   function openSpot(i) { open('spot:' + i); }
@@ -133,11 +140,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     line.append(el('span', null, 'Makes ' + g.name.toLowerCase()), el('b', null, rate(out) + (L ? '' : ' at level 1')));
     line.addEventListener('click', () => { why = !why; paintCard(); });
     card.append(line);
-    if (why && L) {
-      const ex = el('div', 'explain');
-      for (const p of explainOutput(town, id)) { const r = el('div'); r.append(el('span', null, p.source), el('b', null, '× ' + fmt(p.factor))); ex.append(r); }
-      card.append(ex);
-    }
+    line.setAttribute('aria-expanded', String(why && !!L));
+    if (why && L) card.append(explainBox(explainOutput(town, id)));
     const ins = Object.entries(b.inputs);
     if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
     if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
@@ -151,7 +155,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     row.append(buy);
     const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', selling ? 'Selling' : 'Holding');
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling));
-    sell.title = 'Price now ' + fmt(price(game, town, b.makes)) + ' each';
+    sell.title = 'Sells for ' + fmt(paysEach(game, town, b.makes)) + ' coins each';
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     row.append(sell);
     card.append(row);
@@ -185,8 +189,6 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
   }
 
-  /* Reach in words a player can compare (the circles on the map show the rest). */
-  const reach = st => (st.minRange ? 'Long, not up close' : st.range < 2.3 ? 'Short' : st.range < 3.2 ? 'Medium' : 'Long');
   let armed = null; // a path tapped once, waiting for the second tap
   const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
   /* What a tower buy is short of, in words: "Copper 6 of 10, about 40 s. Upgrade the Smelter to speed it up." */
@@ -202,7 +204,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
     const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
-    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k))), JSON.stringify(shorts)].join();
+    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmt(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -226,14 +228,23 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
     const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
     head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), x); card.append(head);
-    const stats = el('div', 'explain');
-    const line = (a, b) => { const r = el('div'); r.append(el('span', null, a), el('b', null, b)); stats.append(r); };
-    line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''));
-    line('Shots', st.rate >= 1 ? fmt(st.rate) + ' a second' : 'One every ' + Math.round(1 / st.rate) + ' seconds'); line('Range', reach(st));
+    const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [];
+    // Damage, Shots and Range can be tapped: what makes the number shows under the list
+    const line = (a, b, key) => {
+      const r = el(key ? 'button' : 'div', key ? 'statrow' : null); r.append(el('span', null, a), el('b', null, b)); stats.append(r);
+      if (!key) return;
+      r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
+      r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; paintCard(); });
+    };
+    line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''), 'dmg');
+    line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', st.splash < 1.2 ? 'Small' : 'Wide');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
     card.append(stats);
+    if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
+    else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
+    card.append(...whyBox);
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
@@ -328,6 +339,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
+  // the Income sheet explains the same few seconds as the number at the top
+  const income = () => { const h = hist[0]; return h ? explainIncome(town, h[2], town.tally, town.t - h[0]) : explainIncome(town, town.tally, town.tally, 0); };
   function frame(dt) {
     acc += dt; cardAcc += dt;
     sheets.frame(dt);
@@ -349,7 +362,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     });
     if (acc < .2) return;
     acc = 0;
-    hist.push([town.t, town.lifetime]); while (hist.length > 25) hist.shift();
+    hist.push([town.t, town.lifetime, { ...town.tally }]); while (hist.length > 25) hist.shift();
     const [t0, l0] = hist[0], per = town.t > t0 ? (town.lifetime - l0) / (town.t - t0) : 0;
     setText(coinNum, fmt(town.coins)); setText(inc, '+' + rate(per));
     const ws = town.waves;
@@ -375,7 +388,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); };
-  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks, destroy };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks, openIncome, openVault, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

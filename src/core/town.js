@@ -25,9 +25,15 @@ export class Town {
     this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
     this.foremen = {};            // building id -> true (working) or false (switched off) (src/core/foremen.js)
     this.flags = {};              // one-time things that happened (first sale, coach cards seen...)
+    this.tally = {};              // coins earned since load, by where they came from (src/core/explain.js); not saved
   }
-  /* Add coins earned (sales, bounties); lifetime counts every coin earned. fromOutpost: an outpost's sale paid it. */
-  earn(n, fromOutpost = false) { if (n > 0) { this.coins += n; this.lifetime += n; if (fromOutpost) this.fromOutposts = (this.fromOutposts || 0) + n; } }
+  /* Add coins earned (sales, bounties); lifetime counts every coin earned. fromOutpost: an outpost's sale paid it.
+     key: where they came from, for the income explained ('sale:timber', 'from:drycreek', 'bounty', 'call'). */
+  earn(n, fromOutpost = false, key = 'other') {
+    if (!(n > 0)) return;
+    this.coins += n; this.lifetime += n; if (fromOutpost) this.fromOutposts = (this.fromOutposts || 0) + n;
+    this.tally[key] = (this.tally[key] || 0) + n;
+  }
   /* Coins this town earned by itself in this charter (what deeds count). */
   get ownEarned() { return this.lifetime - (this.fromOutposts || 0); }
   /* Spend if affordable; returns whether it was paid. */
@@ -38,13 +44,13 @@ export class Town {
 
   toJSON() {
     const o = {};
-    for (const [k, v] of Object.entries(this)) if (k !== 'def') o[k] = v;
+    for (const [k, v] of Object.entries(this)) if (k !== 'def' && k !== 'tally') o[k] = v;
     o.rng = this.rng.state; o.mods = this.mods.toJSON();
     return JSON.parse(JSON.stringify(o));
   }
   static fromJSON(o, def = null) {
     const t = new Town(o.id, { def });
-    for (const [k, v] of Object.entries(o)) if (k !== 'rng' && k !== 'mods') t[k] = JSON.parse(JSON.stringify(v));
+    for (const [k, v] of Object.entries(o)) if (k !== 'rng' && k !== 'mods' && k !== 'tally') t[k] = JSON.parse(JSON.stringify(v));
     t.rng = Rng.from(o.rng); t.mods = Mods.from(o.mods); t.def = def;
     return t;
   }

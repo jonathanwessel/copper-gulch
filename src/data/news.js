@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-9',
+    lines: [
+      'Tap your coins at the top to see what earns them each second.',
+      'Tap the wave number or the green bar next to it to see how many hits your vault can take. Big raiders hit it harder.',
+      'On a tower card, tap Damage, Shots or Range to see what adds to it. On a building card, tap the Makes line.',
+      'In Goods, tap Timber or any other good to see what sets its price.',
+    ],
+  },
+  {
     v: '2026.11.17-8',
     lines: [
       'A goal under the Pause button now tells you what to do next, from your first Crossbow to your first Mortar.',

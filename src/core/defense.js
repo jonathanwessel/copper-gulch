@@ -137,7 +137,7 @@ export function callEarly(game, town) {
   const ws = town.waves;
   if (ws.phase !== 'break') return -1;
   const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4);
-  town.earn(bonus);
+  town.earn(bonus, false, 'call');
   startWave(game, town);
   return bonus;
 }
@@ -163,7 +163,7 @@ function hurt(game, town, f, dmg, pierce = false, by = null) {
 
 function kill(game, town, f) {
   const coins = wavesOf(town).bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
-  town.earn(coins);
+  town.earn(coins, false, 'bounty');
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }
 

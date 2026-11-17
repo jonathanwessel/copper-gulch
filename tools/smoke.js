@@ -286,6 +286,40 @@ async function run() {
         const ok = (t.research.saws || 0) === before + 1 && !t.lab; document.getElementById('sheetClose').click(); return ok;
       });
       if (!labDone) bad.push('Research: the item did not finish');
+      // tap a number, see where it comes from: the coins open Income, the wave and vault bar open the Vault sheet, and
+      // a tower's Damage and Range, a building's output and a good's price each open their breakdown
+      const why = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {}, sheet = document.getElementById('sheet'), card = document.getElementById('card');
+        const box = () => card.querySelector('.explain.why');
+        document.getElementById('coins').click(); await wait(700);
+        out.income = !sheet.hidden && sheet.dataset.id === 'income' && /Selling timber/.test(sheet.textContent) && /^\+.*\/s$/.test(sheet.querySelector('.explain .total b')?.textContent || '');
+        document.getElementById('sheetClose').click(); await wait(100);
+        document.getElementById('vaultBtn').click(); await wait(300);
+        out.vault = !sheet.hidden && sheet.dataset.id === 'vault' && /Hits left/.test(sheet.textContent) && /War wagon/.test(sheet.textContent);
+        document.getElementById('sheetClose').click(); await wait(100);
+        const tw = t.towers[0]; CG.play.openSpot(tw.spot); await wait(200);
+        card.querySelector('[data-why="dmg"]').click(); await wait(150);
+        out.damage = !!box() && box().children.length >= 1 && card.querySelector('[data-why="dmg"]').getAttribute('aria-expanded') === 'true';
+        card.querySelector('[data-why="range"]').click(); await wait(150);
+        out.range = !!box() && /Short|Medium|Long/.test(box().textContent);
+        out.oneAtATime = card.querySelectorAll('.explain.why').length === 1;
+        return out;
+      });
+      bad.push(...(await check(page)).map(b => 'tower why: ' + b));
+      const why2 = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), out = {}, sheet = document.getElementById('sheet'), card = document.getElementById('card');
+        CG.play.close(); CG.play.open('camp'); await wait(150);
+        card.querySelector('.stat').click(); await wait(150);
+        out.output = /Level [0-9]+/.test(card.querySelector('.explain.why')?.textContent || '');
+        CG.play.close();
+        document.getElementById('goodsBtn').click(); await wait(300);
+        sheet.querySelector('[data-why="timber"]').click(); await wait(400);
+        out.price = /Base price/.test(sheet.textContent) && /You get/.test(sheet.textContent);
+        return out;
+      });
+      bad.push(...(await check(page)).map(b => 'price why: ' + b));
+      await page.evaluate(() => document.getElementById('sheetClose').click());
+      for (const [k, v] of Object.entries({ ...why, ...why2 })) if (!v) bad.push('Tap to explain: not ' + k);
       await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
@@ -313,6 +347,7 @@ async function run() {
         // the goal strip starts on the first Crossbow, with the spotlight on a stone pad
         const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent, mk = document.getElementById('goalMark');
         out.goalFirst = gt() === 'Tap a stone pad and build a Crossbow';
+        for (let i = 0; i < 10 && mk.hidden; i++) await wait(100); // the frame is placed five times a second
         out.goalMark = !mk.hidden;
         const t = g.town; t.coins = 500; t.goods.stone = 50;
         CG.play.open('quarry'); await wait(100); const L = t.level('quarry'); document.getElementById('buy').click();

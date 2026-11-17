@@ -196,6 +196,12 @@ export const EXPLAINERS = [
     when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
   },
   {
+    id: 'numbers', covers: ['explain'],
+    title: 'Tap to see why',
+    text: 'Tap your coins at the top to see what earns them. Tap Damage, Range or another line on a card to see what adds to it.',
+    when: h => h.flags.firstSale && h.towers.length > 0 && h.t > 150, at: () => ({ el: '#coins' }),
+  },
+  {
     id: 'dots', covers: ['dots'],
     title: 'Red dots',
     text: 'A red dot on a button means something new is waiting there. Tap the button to see it.',

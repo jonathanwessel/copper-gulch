@@ -148,7 +148,7 @@ html.no3d body { background: var(--bg); }
 .goalmark.ping { animation: markPing .45s 3; }
 @keyframes markPulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
 @keyframes markPing { 50% { border-color: #fff8dc; border-width: 5px; } }
-@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } }
+@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vaultbtn { gap: 5px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } }
 .option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--panel-2); border: 2px solid var(--line); }
 .option > div { display: grid; flex: 1; gap: 1px; }
 .option b { color: var(--copper-hi); }
@@ -189,6 +189,20 @@ html.flat .tag { position: static; transform: none !important; }
 .stat b { color: var(--gold); }
 .explain { display: grid; gap: 2px; padding: 6px 10px; background: var(--line); font-size: .85rem; }
 .explain div { display: flex; justify-content: space-between; }
+/* tap a number, see where it comes from (src/ui/explain.js) */
+.explain.why { gap: 1px; padding: 6px 10px; background: #1f150f; border: 2px solid var(--line); }
+.explain.why div { gap: 10px; }
+.explain.why span { color: var(--muted); }
+.explain.why b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.explain .total { margin-top: 3px; padding-top: 3px; border-top: 2px solid var(--line); }
+.explain .total span, .explain .total b { color: var(--gold); }
+.explain .statrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 30px; margin: 0 -6px; padding: 0 6px; background: none; border: 0; border-bottom: 2px dotted #5a4030; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.explain .statrow.on { background: #1f150f; }
+.explain .statrow b::after, .stat b::after { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 2px 1px 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); }
+.explain .statrow.on b::after, .stat[aria-expanded="true"] b::after { transform: rotate(45deg); margin-bottom: 3px; }
+.tapwhy { cursor: pointer; }
+.coins { cursor: pointer; }
+.vaultbtn { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
 .card .row { justify-content: stretch; }

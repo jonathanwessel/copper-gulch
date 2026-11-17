@@ -6,7 +6,9 @@
    Every word here follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { price, saturation } from '../core/market.js';
+import { saturation } from '../core/market.js';
+import { explainPrice } from '../core/explain.js';
+import { explainBox } from './explain.js';
 import { encode } from '../core/save.js';
 import { loadGame } from '../core/setup.js';
 import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage.js';
@@ -51,7 +53,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town) {
   return body => {
-    const list = el('div', 'goods'), rows = {};
+    const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
     let sig = '';
@@ -60,21 +62,27 @@ export function goodsSheet(game, town) {
       list.replaceChildren();
       if (!goods.length) list.append(el('p', 'uses', 'Build a Lumber Camp to make your first good.'));
       for (const g of goods) {
-        const row = el('div', 'option good'), txt = el('div'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i');
+        const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
         bar.append(fill); bar.title = 'How much the price has dropped';
-        txt.append(name, line, bar);
+        txt.append(name, line, bar, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
+        txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
         row.append(txt, sw); list.append(row);
-        rows[g] = { line, fill, sw };
+        rows[g] = { line, fill, sw, why, txt };
       }
       paint();
     };
     const paint = () => {
       for (const [g, r] of Object.entries(rows)) {
         const kept = Math.ceil((town.keep || {})[g] || 0);
-        const selling = town.sell[g] !== false, txt = fmt(town.goods[g] || 0) + ' in stock' + (kept && selling ? ' · ' + kept + ' saved for towers' : '') + ' · sells for ' + fmt(price(game, town, g)) + ' coins each';
+        const ex = explainPrice(game, town, g);
+        const selling = town.sell[g] !== false, have = town.goods[g] || 0, saved = !kept || !selling ? '' : kept > have + .5 ? ' · towers need ' + kept : ' · ' + kept + ' saved for towers';
+        const txt = fmt(have) + ' in stock' + saved + (open[g] ? '' : ' · sells for ' + fmt(ex.value) + ' coins each'); // open, the box says it
         if (r.line.textContent !== txt) r.line.textContent = txt;
+        r.txt.setAttribute('aria-expanded', String(!!open[g]));
+        const ws = open[g] ? JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) : '';
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(open[g] ? [explainBox(ex, { total: 'You get' })] : [])); }
         const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const s = selling ? 'Selling' : 'Holding'; if (r.sw.textContent !== s) r.sw.textContent = s;
         r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', !selling);
@@ -86,6 +94,8 @@ export function goodsSheet(game, town) {
   };
 }
 
+/* A short phrase that never breaks across lines (a line wraps only between phrases). */
+const keep = s => s.replace(/ /g, '\u00a0');
 /* Seconds in words: "40 seconds", "3 minutes". */
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
@@ -111,7 +121,7 @@ export function researchSheet(game, town) {
         const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
         const info = lab ? 'Level ' + (L + 1) + ' ready in ' + wait(lab.left)
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : 'Next level ' + (L + 1) + ' of ' + r.max + ' · ' + fmt(researchCost(town, id)) + ' coins · ' + wait(researchTime(town, id));
+          : ['Next level ' + (L + 1) + ' of ' + r.max, fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
