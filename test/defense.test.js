@@ -8,7 +8,7 @@ import { TOWERS, PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { WAVE, FOES } from '../src/data/foes.js';
 
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
-const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'copper', 'bricks', 'tools']) t.goods[k] = 1e6; t.sell = { timber: false, copper: false, bricks: false, tools: false }; return t; };
+const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'copper', 'bricks', 'tools', 'planks', 'clay']) { t.goods[k] = 1e6; t.sell[k] = false; } return t; };
 
 test('path: length and points along a polyline', () => {
   const p = makePath([[0, 0], [3, 0], [3, 4]]);

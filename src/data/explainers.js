@@ -111,13 +111,19 @@ export const EXPLAINERS = [
   {
     id: 'frost', covers: ['tower:frost'],
     title: 'Frost Lens',
-    text: 'You\'ve made bricks, so you can build a Frost Lens. It slows every raider in range, so your other towers get more shots.',
-    when: h => (h.made.bricks || 0) > 0, at: () => ({ spot: 4 }),
+    text: 'You can build a Frost Lens now. Tap a stone pad to build one. It slows every raider in range, so your other towers get more shots.',
+    when: h => (h.made.planks || 0) > 0 && (h.made.clay || 0) > 0, at: () => ({ spot: 4 }),
   },
   {
-    id: 'finished', covers: ['tier:2', 'tower:still'],
+    id: 'still', covers: ['tower:still'],
+    title: 'Snake Oil Still',
+    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts armored raiders too.',
+    when: h => (h.made.copper || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
+  },
+  {
+    id: 'finished', covers: ['tier:2'],
     title: 'Tools',
-    text: 'The Toolsmith makes tools, which sell for much more than the planks and copper that go in. Tools also build the Snake Oil Still. Its poison hurts armored raiders.',
+    text: 'The Toolsmith makes tools, which sell for much more than the planks and copper that go in.',
     when: h => h.unlocked('toolsmith'), at: () => ({ plot: 'toolsmith' }),
   },
   {
@@ -147,7 +153,7 @@ export const EXPLAINERS = [
   {
     id: 'pit', covers: ['pit'],
     title: 'Mortar pit',
-    text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. Opens at wave 12.',
+    text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. You can build one here at wave 12.',
     when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
   },
   {

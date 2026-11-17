@@ -29,8 +29,8 @@ test('the reserve adds up every tower\'s next upgrade and the cheapest new tower
   const { g, t } = town('r2'); t.goods = { timber: 1e6, copper: 1e6, bricks: 1e6 };
   buildTower(g, t, 0, 'crossbow'); buildTower(g, t, 1, 'crossbow'); upgradeTower(g, t, 1); buildTower(g, t, 2, 'cannon');
   const want = sum([towerCost(t, 'crossbow', 1), towerCost(t, 'crossbow', 2), towerCost(t, 'cannon', 1), towerCost(t, 'crossbow', 0), towerCost(t, 'cannon', 0), towerCost(t, 'frost', 0), towerCost(t, 'still', 0)]);
-  // the cheapest tower that uses bricks is the Frost Lens, the cheapest that uses copper the Cannon
-  want.copper -= towerCost(t, 'frost', 0).goods.copper; want.bricks -= towerCost(t, 'still', 0).goods.bricks;
+  // per good, the cheapest tower built with it: copper the Cannon (not the Still), planks the Still (not the Frost Lens)
+  want.copper -= towerCost(t, 'still', 0).goods.copper; want.planks -= towerCost(t, 'frost', 0).goods.planks;
   assert.deepEqual(towerReserve(t), want);
 });
 
@@ -40,7 +40,7 @@ test('the path choice at level 4 is kept, and a free mortar pit keeps a Mortar o
   assert.equal(t.towers[0].level, PATH_LEVEL - 1);
   const before = towerReserve(t).timber;
   assert.equal(before, towerCost(t, 'crossbow', PATH_LEVEL - 1).goods.timber + towerCost(t, 'crossbow', 0).goods.timber);
-  const b0 = towerReserve(t).bricks;
+  const b0 = towerReserve(t).bricks || 0;
   t.flags['open:mortar'] = true;
   assert.equal(towerReserve(t).bricks, b0 + TOWERS.mortar.goods.gulch.bricks);
   for (const p of pitSpots(t)) buildTower(g, t, p, 'mortar'); // every pit full: only the Mortars' upgrades are kept

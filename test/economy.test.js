@@ -87,7 +87,7 @@ test('the town keeps its workshops inputs and sells the rest', () => {
   for (let i = 0; i < 400; i++) g.step(.25);
   const want = 10 + t.keep.timber; // 10 s of the sawmill's timber, plus what the next tower needs
   assert.ok(Math.abs(t.goods.timber - want) < 1, 'keeps ' + want + ', has ' + t.goods.timber);
-  assert.ok((t.goods.planks || 0) < 1e-6, 'planks sell');
+  assert.ok((t.goods.planks || 0) <= (t.keep.planks || 0) + 1e-6, 'planks past the tower reserve sell');
 });
 
 test('market: flooding one good drops its price and it recovers with time', () => {

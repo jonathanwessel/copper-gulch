@@ -12,7 +12,7 @@ import { mapRules } from '../tools/audit.js';
 import { TOWNS } from '../src/data/towns/index.js';
 
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
-const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'copper', 'bricks', 'tools']) t.goods[k] = 1e6; t.sell = { timber: false, copper: false, bricks: false, tools: false }; return t; };
+const rich = g => { const t = g.town; t.coins = 1e9; for (const k of ['timber', 'copper', 'bricks', 'tools', 'planks', 'clay']) { t.goods[k] = 1e6; t.sell[k] = false; } return t; };
 const open = (g, t) => { t.wave = 12; Object.assign(t.waves, { phase: 'break', timer: 999, hold: true }); g.step(.25); };
 /* A distance along the road whose point is between lo and hi from a spot. */
 const sAt = (t, spot, lo, hi) => { const r = roadOf(t), p = t.def.board.spots[spot]; for (let s = 1; s < r.length; s += .05) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) return s; } return null; };
@@ -26,7 +26,7 @@ test('the Mortar opens at wave 12, and only then can it be built or does the tow
   const g = newGame('m1'), t = rich(g), pit = pitSpots(t)[0];
   assert.equal(towerOpen(t, 'mortar'), false);
   assert.equal(buildTower(g, t, pit, 'mortar'), false);
-  t.goods = {}; assert.equal(towerReserve(t).bricks || 0, TOWERS.frost.goods.gulch.bricks);
+  t.goods = {}; assert.equal(towerReserve(t).bricks || 0, 0, 'only the Mortar is built with bricks');
   rich(g); const ev = g.bus.record(); open(g, t);
   assert.ok(towerOpen(t, 'mortar') && ev.some(([n, d]) => n === 'tower:open' && d.kind === 'mortar'));
   t.wave = 3; g.step(.25); assert.ok(towerOpen(t, 'mortar'), 'it stays open after falling back');

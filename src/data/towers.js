@@ -12,20 +12,20 @@ export const TOWERS = {
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot hits a whole group.',
-    coins: 150, goods: { gulch: { copper: 6 } }, dmg: 16, rate: .5, range: 2.8, splash: 1.1,
+    coins: 90, goods: { gulch: { copper: 4 } }, dmg: 16, rate: .5, range: 2.8, splash: 1.1,
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
-    coins: 220, goods: { gulch: { bricks: 4, copper: 1 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
+    coins: 130, goods: { gulch: { planks: 4, clay: 3 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
   },
   still: {
     name: 'Snake Oil Still', about: 'Throws poison that hurts armored raiders too.',
-    coins: 450, goods: { gulch: { bricks: 3, tools: 2 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
+    coins: 110, goods: { gulch: { copper: 2, planks: 4 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
     name: 'Mortar', about: 'Lobs shells far over the road, not up close.',
-    coins: 1200, goods: { gulch: { copper: 10, bricks: 8 } }, dmg: 34, rate: .3, range: 5.6, minRange: 1.4, splash: 1.3,
+    coins: 400, goods: { gulch: { copper: 6, bricks: 6 } }, dmg: 34, rate: .3, range: 5.6, minRange: 1.4, splash: 1.3,
     flight: 1.5, lob: true, long: true, opens: 12,
   },
 };
@@ -36,7 +36,7 @@ export const NORMAL_REACH = 2.8;
 export const PATHS = {
   crossbow: {
     a: { name: 'Repeater', about: 'Shoots twice as fast, softer hits.', rate: 2.2, dmg: .6 },
-    b: { name: 'Longbow', about: 'Hits much harder and farther, but slowly.', dmg: 2.6, rate: .55, range: 1.45 },
+    b: { name: 'Longbow', about: 'Hits much harder and farther, but slowly.', dmg: 2.2, rate: .55, range: 1.3 },
   },
   cannon: {
     a: { name: 'Heavy Cannon', about: 'Bigger blast, reaches farther.', splash: 1.7, range: 1.3, dmg: 1.15, rate: .85 },

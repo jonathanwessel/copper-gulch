@@ -11,8 +11,9 @@
 // point in the first hour, and no single kind does the most damage in every wave.
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
-import { build, cost, unlocked } from '../src/core/economy.js';
-import { buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf } from '../src/core/defense.js';
+import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
+import { price as marketPrice } from '../src/core/market.js';
+import { buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -51,6 +52,17 @@ export function worth(town, t, support = true) {
   if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += st.slow * .5 * worth(town, o, false);
   return w;
 }
+/* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market
+   price (a flooded good pays little), less the inputs they use at their price. A building not yet built gets a
+   bonus for what it opens up, and a bigger one when it makes a good the town's towers are built with. */
+export function buildValue(game, town, id) {
+  const b = BUILDINGS[id], L = town.level(id), now = output(town, id);
+  town.buildings[id] = L + 1; const next = output(town, id); town.buildings[id] = L; if (!L) delete town.buildings[id];
+  const mp = g => marketPrice(game, town, g);
+  const net = mp(b.makes) - Object.keys(b.inputs).reduce((a, g) => a + uses(town, id, g) * mp(g), 0);
+  const forTowers = Object.values(TOWERS).some(d => (d.goods[town.id] || {})[b.makes]);
+  return ((next - now) * net + (L ? 0 : forTowers ? 2 : 2)) / cost(town, id);
+}
 /* Coins plus the goods at their base price. */
 const price = c => c.coins + Object.entries(c.goods).reduce((a, [g, n]) => a + GOODS[g].price * n, 0);
 
@@ -71,7 +83,7 @@ export function options(town) {
   for (const kind of Object.keys(TOWERS)) {
     if (!towerOpen(town, kind)) continue;
     const c = towerCost(town, kind, 0);
-    for (const spot of empty) if (fitsSpot(town, spot, kind)) out.push({ up: false, kind, spot, level: 0, value: worth(town, { kind, spot, level: 1, path: null }) / (price(c) + pad), can: canPay(town, c) });
+    for (const spot of empty) if (fitsSpot(town, spot, kind)) out.push({ up: false, kind, spot, level: 0, value: worth(town, { kind, spot, level: 1, path: null }) / (price(c) + (isPit(town, spot) ? 0 : pad)), can: canPay(town, c) });
   }
   return out.sort((a, b) => b.value - a.value);
 }
@@ -85,12 +97,15 @@ export function options(town) {
        (each wave that lets a raider through raises its towers half a level for good).
      defense: towers first, the town gets what is left. */
 export const STRATEGIES = {
-  active: { want: w => 1 + Math.ceil(w / 3), level: w => 1 + w / 3 },
+  active: { want: w => 1 + Math.ceil(w / 3), level: w => 1.3 + w / 3 },
   minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
   economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1 + w / 3.3 + r.bump, eco: true },
   defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
 };
+
+/* Seconds a building may take to pay for itself and still come before the towers. */
+export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, defense: 120 };
 
 /* One player's run: every second, defend first when the defense is thin for the coming wave (the best affordable
    build or upgrade the strategy allows, by value), then research (the cheapest item that does not cost more than the
@@ -112,9 +127,11 @@ export function play(seed, minutes = MINUTES, strategy = 'active') {
   g.bus.on('charter:offer', () => { r.offer = t.t; });
   // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
   // also waits until a raider got through in the last two waves, once it has its first towers)
-  const defend = () => {
+  // urgent: short of towers, a tower more than a level behind, or the vault below 60%
+  const defend = (urgent = false) => {
     const w = t.wave, want = S.want(w), lv = S.level(w, r);
     if (t.towers.length >= want && !t.towers.some(x => x.level < lv)) return false;
+    if (urgent && t.towers.length >= want && !t.towers.some(x => x.level < lv - 1.5) && t.vault.hp >= .6 * t.vault.max) return false;
     let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
@@ -129,18 +146,31 @@ export function play(seed, minutes = MINUTES, strategy = 'active') {
   };
   // the town: research (the cheapest item that costs no more than the next building), then (after the first boss) a
   // foreman for a level-10 building, then the best-paying building. Returns true when it bought something.
-  const grow = () => {
-    let best = null, bv = 0;
+  let best = null, bv = 0;
+  const pickBuilding = () => {
+    best = null; bv = 0;
     for (const id of t.def.buildings) {
       if (!unlocked(t, id)) continue;
-      const b = BUILDINGS[id], v = (b.rate * GOODS[b.makes].price + (t.level(id) ? 0 : 2)) / cost(t, id);
+      const v = buildValue(g, t, id);
       if (v > bv) { bv = v; best = id; }
     }
-    if (!t.lab) {
+    // a building still locked counts toward the levels that open it: what it would earn, over its price plus theirs
+    for (const id of t.def.buildings) {
+      const need = missing(t, id);
+      if (!need.length || t.level(id) || need.some(n => !unlocked(t, n.id))) continue;
+      const total = cost(t, id) + need.reduce((a, n) => a + cost(t, n.id, n.level - t.level(n.id)), 0);
+      const v = buildValue(g, t, id) * cost(t, id) / total, step = need.sort((a, b) => cost(t, a.id) - cost(t, b.id))[0].id;
+      if (v > bv) { bv = v; best = step; }
+    }
+  };
+  let saving = false;
+  const grow = () => {
+    if (!t.lab && !(saving && t.coins < cost(t, best))) { // while saving for a building that pays fast, research waits
       const item = itemsOf(t).filter(id => researchBlock(t, id) === null).sort((a, b) => researchCost(t, a) - researchCost(t, b))[0];
       if (item && (!best || researchCost(t, item) <= cost(t, best)) && startResearch(g, t, item)) { r.research[item] = (r.research[item] || 0) + 1; r.firstResearch ??= t.t; return true; }
     }
-    const boss = t.bestWave >= 10 && t.def.buildings.find(id => canHire(t, id) && hireCost(t, id) <= t.coins);
+    // a foreman only for a building still worth raising (it pays back within 10 minutes): a flooded good is not
+    const boss = t.bestWave >= 10 && t.def.buildings.find(id => canHire(t, id) && hireCost(t, id) <= t.coins && buildValue(g, t, id) * 600 > 1);
     if (boss && hireForeman(g, t, boss)) { r.foremen.push(boss + ' ' + (t.t / 60).toFixed(1)); return true; }
     return !!best && t.coins >= cost(t, best) && build(g, t, best);
   };
@@ -155,9 +185,12 @@ export function play(seed, minutes = MINUTES, strategy = 'active') {
       continue;
     }
     if (r.signed && r.regain === null && t.bestWave >= r.signed.wave) r.regain = t.t - r.signed.at;
+    // a building that pays for itself within the strategy's payback time comes before the towers
+    pickBuilding();
     const safe = t.towers.length > 0 && t.wave - r.leakAt > 2;
-    if (S.eco && safe && grow()) continue;
-    if (defend()) continue;
+    const pays = saving = t.towers.length > 0 && t.wave - r.leakAt > 1 && bv * PAYBACK[strategy] > 1; // not right after a leak
+    if (((S.eco && safe) || pays) && grow()) continue;
+    if (defend(pays)) continue;
     grow();
   }
   r.final = { wave: t.wave, best: t.bestWave, lifetime: Math.round(t.lifetime), towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } };

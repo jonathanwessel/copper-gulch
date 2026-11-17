@@ -186,12 +186,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (!t) {
       head.append(el('h2', null, pit ? 'Mortar pit' : 'Stone pad'), x); card.append(head);
       if (pit && !kinds.some(k => towerOpen(town, k))) {
-        card.append(el('p', 'uses', 'A Mortar goes here. Opens at wave ' + TOWERS.mortar.opens + '.'));
+        card.append(el('p', 'uses', 'You can build a Mortar here at wave ' + TOWERS.mortar.opens + '.'));
         return;
       }
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
-        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, shut ? 'Opens at wave ' + d.opens : costText(c)));
+        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, shut ? 'You can build it at wave ' + d.opens : costText(c)));
         if (!shut) for (const s of shortText(c)) txt.append(el('small', 'short', s));
         const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
@@ -233,7 +233,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
     if (sh.length) for (const s of sh) card.append(el('p', 'warn short', s));
     else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
-    const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK))); sell.id = 'sellTower';
+    const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     row.append(sell); card.append(row);
   }

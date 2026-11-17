@@ -104,7 +104,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 
 ## Defense
 - **Towers.** Nine, unlocked by era: crossbow, cannon, frost lens, snake oil still, mortar, tesla coil, gatling, barracks, drone helipad.
-  - Each costs coins plus that town's own goods, so the chain feeds the defense.
+  - Each costs coins plus that town's own goods, so the chain feeds the defense. In Copper Gulch (2026-11-17, tuned for variety): the Crossbow takes timber, the Cannon copper, the Frost Lens planks and clay, the Snake Oil Still copper and planks, the Mortar copper and bricks. Level-1 damage per coin stays within about a third of the Crossbow's, so pricier kinds win where pads run out.
   - Paths open at level 5.
 - **The Mortar** is the long-range tower. If a normal tower reaches from 0 to R, the Mortar reaches from 0.5R to 2R: it cannot fire at raiders inside 0.5R (its dead zone).
   - Slow fire. A high, arcing shell with a visible flight time, a marker on the ground where it will land, and splash damage on landing.
@@ -149,7 +149,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 
 ### Charters and deeds
 - A town's charter resets that town (coins, buildings, towers, waves, research, foremen) and pays deeds. It keeps the explainers seen, the badges and the stats.
-- Deeds paid (set by the charter box with the balance bot, 2026-11-17): 1 at best wave 30 and 1 more for every 5 waves past it, plus 1 at 60K coins earned in this charter and 1 more each time that grows tenfold. The charter is offered once it would pay at least 1 deed (the active bot: at 40-44 minutes, from the coins).
+- Deeds paid (set by the charter box with the balance bot, 2026-11-17): 1 at best wave 30 and 1 more for every 5 waves past it, plus 1 at 52K coins earned in this charter (60K until 2026-11-17, lowered when tower prices dropped) and 1 more each time that grows tenfold. The charter is offered once it would pay at least 1 deed (the active bot: at 40-44 minutes, from the coins).
 - Deeds are kept for good. Each one adds 25% to the coins earned in every town (sales and bounties), as the named source "Deeds". (10% made a new charter barely faster than the old one.)
 - Deed perks come in pairs, and you pick one side of each pair once you hold enough deeds. A pick stays until the next charter, which clears every pick so you choose again (src/data/perks.js):
 

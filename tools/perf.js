@@ -27,7 +27,7 @@ try {
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(CG.town && CG.town.frames > 3))); i++) await sleep(100);
   // a busy town: buildings up, four towers, a wave on the road
   await p.evaluate(() => {
-    const t = CG.game.town; t.coins = 1e9; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false };
+    const t = CG.game.town; t.coins = 1e9; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500, planks: 500, clay: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false, planks: false, clay: false };
     for (const [id, n] of Object.entries({ camp: 12, mine: 8, pit: 6, saw: 8, smelter: 5, kiln: 3 })) t.buildings[id] = n;
     for (const [s, k] of [[1, 'crossbow'], [2, 'cannon'], [3, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
     CG.play.close(); document.getElementById('callWave').click();

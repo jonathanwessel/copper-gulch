@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-2',
+    lines: [
+      'The Cannon, Frost Lens, Snake Oil Still and Mortar cost far fewer coins.',
+      'The Frost Lens is now built with planks and clay, and the Snake Oil Still with copper and planks.',
+      'The Kiln now costs 1000 coins. The war wagon rides faster but has less health.',
+      'Waves come a little sooner. The Perks button shows up once you have earned 52K coins.',
+    ],
+  },
+  {
     v: '2026.11.17-1',
     lines: [
       'When your town reaches wave 30 or earns 60K coins, a Perks button shows up.',

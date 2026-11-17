@@ -5,7 +5,7 @@ export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
   runner: { name: 'Rider', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
-  wagon:  { name: 'War wagon', hp: 25, speed: .5, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
+  wagon:  { name: 'War wagon', hp: 20, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
 };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */
@@ -17,8 +17,8 @@ export const WAVE_TYPES = {
 };
 
 export const WAVE = {
-  first: 30,        // seconds before wave 1
-  rest: 8.5,        // seconds between a cleared wave and the next
+  first: 20,        // seconds before wave 1
+  rest: 6.5,        // seconds between a cleared wave and the next
   speed: 1.07,      // every raider's pace on the long, winding Gulch road
   hp: w => 8 * 1.2 ** (w - 1) * (1 + w * .04),
   bounty: w => 1.5 * 1.13 ** (w - 1),

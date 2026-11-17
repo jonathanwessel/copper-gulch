@@ -122,7 +122,7 @@ async function run() {
       const fx = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, b = CG.town.battle;
         const effects = () => b.group.children.filter(o => o.isMesh);
-        t.coins = 1e6; Object.assign(t.goods, { copper: 200, bricks: 200, tools: 200 }); t.sell = { copper: false, bricks: false, tools: false };
+        t.coins = 1e6; Object.assign(t.goods, { copper: 200, bricks: 200, tools: 200, planks: 200, clay: 200 }); t.sell = { copper: false, bricks: false, tools: false, planks: false, clay: false };
         for (const [s, k] of [[0, 'cannon'], [1, 'still'], [8, 'cannon']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
         CG.play.close();
         Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); await wait(9000); // a wave rides past them
@@ -185,7 +185,7 @@ async function run() {
       const mortar = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, pit = t.def.board.far, out = {};
         delete t.flags['open:mortar']; CG.play.openSpot(pit); await wait(100);
-        out.closedText = /Opens at wave/.test(document.getElementById('card').textContent) && !document.querySelector('#card .build');
+        out.closedText = /build a Mortar here at wave|build it at wave/.test(document.getElementById('card').textContent) && !document.querySelector('#card .build');
         t.flags['open:mortar'] = true; t.coins = 1e6; Object.assign(t.goods, { copper: 500, bricks: 500 }); CG.play.close(); CG.play.openSpot(pit); await wait(100);
         const kinds = [...document.querySelectorAll('#card .build')].map(b => b.dataset.kind);
         out.onlyMortar = kinds.length === 1 && kinds[0] === 'mortar';
