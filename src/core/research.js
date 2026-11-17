@@ -3,12 +3,14 @@
    named source on a stat ("Sharp Saws research"), so the explain view lists it.
    Research opens when the town's `researchOpens` building is built (Copper Gulch: the Sawmill), and keeps going
    while the game catches up time away. Events: 'research:open' { town }, 'research:start' { town, id, level },
-   'research:done' { town, id, level }. */
+   'research:done' { town, id, level }, 'research:new' { town, id } (an item with `opens` shows up). */
 import { RESEARCH, GROWTH, TIME, TIME_GROWTH } from '../data/research.js';
 
-/* The research items this town has, in the order its card lists them. */
-export const itemsOf = town => (town.def && town.def.research) || [];
 export const researchLevel = (town, id) => (town.research && town.research[id]) || 0;
+/* Has this item shown up yet? An item with `opens` waits for that best wave (a level already done keeps it). */
+export const itemShown = (town, id) => !RESEARCH[id].opens || (town.bestWave || 0) >= RESEARCH[id].opens || researchLevel(town, id) > 0;
+/* The research items this town has now, in the order its card lists them. */
+export const itemsOf = town => ((town.def && town.def.research) || []).filter(id => itemShown(town, id));
 export const researchOpen = town => !!(town.flags && town.flags['open:research']);
 
 /* Coins and seconds for the next level of an item (or for level L + 1). */
@@ -49,6 +51,9 @@ function advance(game, town, dt) {
   if (!researchOpen(town)) {
     const b = town.def && town.def.researchOpens;
     if (b && town.level(b) > 0) { town.flags['open:research'] = true; game.bus.emit('research:open', { town: town.id }); }
+  }
+  for (const id of (town.def && town.def.research) || []) if (RESEARCH[id].opens && !town.flags['new:' + id] && researchOpen(town) && itemShown(town, id)) {
+    town.flags['new:' + id] = true; game.bus.emit('research:new', { town: town.id, id });
   }
   const lab = town.lab;
   if (!lab) return;

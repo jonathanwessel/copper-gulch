@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -75,6 +75,13 @@ export const MIGRATIONS = {
       if ((towns.gulch.bestWave || 0) >= 10 || ((sh.charter || {}).signed || 0) > 0) goals.off = true;
     }
     return { ...s, v: 10, game: g };
+  },
+  // v11: a town remembers its best wave from before its last charter (town.record), so those waves can be called at
+  // once. A town that signed a charter takes it from the last charter's wave when that charter was its own.
+  10: s => {
+    const g = s.game || {}, last = ((g.shared || {}).charter || {}).last;
+    for (const [id, t] of Object.entries(g.towns || {})) if (t.record === undefined) t.record = last && last.town === id && t.charters ? last.wave || 0 : 0;
+    return { ...s, v: 11, game: g };
   },
 };
 

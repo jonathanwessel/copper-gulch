@@ -43,8 +43,8 @@ export function towerStats(town, t) {
     dmg: d.dmg * PER_LEVEL.dmg ** (L - 1) * (p.dmg || 1) * town.mods.factor('towerDmg'),
     rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * town.mods.factor('towerRate'),
     range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * town.mods.factor('towerRange'),
-    splash: (d.splash || 0) * (p.splash || 1), slow: d.slow || 0, pulse: !!d.pulse,
-    poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.dmg ** (L - 1) * town.mods.factor('towerDmg'),
+    splash: (d.splash || 0) * (p.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
+    poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
     minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire,
   };
@@ -135,9 +135,15 @@ export function setHold(game, town, on) {
 /* Call now opens once the wait for the next wave is down to CALL_OPEN of the wave pace, so a strong defense can go
    up to about twice as fast as the clock and no faster: the strategies stay close (CLAUDE.md), and a careful player
    still beats one who never calls by a fifth or more (PLAN.md M2, Skill pays). The wait before the first wave can
-   always be cut short. */
+   always be cut short, and so can the wait before a wave the town beat before its last charter (oldGround: town.record
+   is the best wave of every charter before this one, kept when the charter resets the town), so a signed town races
+   back to where it was. */
 export const CALL_OPEN = .52;
-export const canCall = town => town.waves.phase === 'break' && ((town.wave === 1 && !town.bestWave) || town.waves.timer <= wavesOf(town).pace * CALL_OPEN + 1e-9);
+export const oldGround = town => town.wave <= (town.record || 0);
+/* On old ground the towers also hit OLD_GROUND times harder (the named source "Waves you beat before" on tower damage, so the
+   tower card's breakdown shows it), so those waves fall fast and the town can call the next one at once. */
+export const OLD_GROUND = { dmg: 3 };
+export const canCall = town => town.waves.phase === 'break' && ((town.wave === 1 && !town.bestWave) || oldGround(town) || town.waves.timer <= wavesOf(town).pace * CALL_OPEN + 1e-9);
 /* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 if it can't be called
    yet (not in a break, or the wait is still long). town.flags.called counts the calls (the goal strip asks for one). */
 export function callEarly(game, town) {
@@ -163,8 +169,14 @@ function tally(game, town, by, n) {
   const d = game.dealt || (game.dealt = {}), t = d[town.id] || (d[town.id] = {});
   t[by] = (t[by] || 0) + n;
 }
+/* How much harder a tower kind hits this raider kind (TOWERS[kind].best): by raider kind, then 'boss', then 'armored'. */
+export function bestFactor(kind, foe) {
+  const b = TOWERS[kind] && TOWERS[kind].best, F = FOES[foe];
+  if (!b || !F) return 1;
+  return b[foe] || (F.boss && b.boss) || (F.armor > 0 && b.armored) || 1;
+}
 function hurt(game, town, f, dmg, pierce = false, by = null) {
-  const armor = pierce ? 0 : FOES[f.kind].armor, n = dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0));
+  const armor = pierce ? 0 : FOES[f.kind].armor, n = dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1);
   tally(game, town, by, Math.min(Math.max(0, f.hp), n));
   f.hp -= n;
 }
@@ -250,7 +262,7 @@ export function fight(game, town, dt) {
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg, false, t.kind);
       } else if (st.poison) {
         hurt(game, town, target, st.dmg, false, t.kind);
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison); f.poisonT = POISON_SECONDS; f.spread = f.spread || st.spread; }
+        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; f.spread = f.spread || st.spread; }
       } else hurt(game, town, target, st.dmg, false, t.kind);
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
     }
@@ -258,7 +270,7 @@ export function fight(game, town, dt) {
   // the fallen pay their bounty (a fever-carrier passes its poison on)
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);
-    if (f.spread && f.poisonT > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poison, f.poison); g.poisonT = POISON_SECONDS; g.spread = true; }
+    if (f.spread && f.poisonT > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, f.poison / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
   // the vault falls: lose a share of coins, fall back two waves, start again after a rest
@@ -364,6 +376,7 @@ export const defense = {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
     syncVault(town);
+    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     town.keep = towerReserve(town);
     if (game.catching) return;
     fight(game, town, dt);

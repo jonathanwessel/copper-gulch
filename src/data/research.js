@@ -2,7 +2,8 @@
    TIME x TIME_GROWTH^level seconds. One item runs at a time per town.
    effects: what each level adds, as a named source on a stat (src/core/mods.js): a level adds `per` to the factor,
    so level 3 of +25% is x1.75. downside: effects that are the price of the item (shown on its card before buying).
-   about and worse: what one level does, in plain words for the card (the writing rule in PLAN.md). */
+   about and worse: what one level does, in plain words for the card (the writing rule in PLAN.md).
+   opens: the best wave at which the item shows up (it stays hidden before), so something new opens late in a charter. */
 export const RESEARCH = {
   saws: {
     name: 'Sharp Saws', town: 'gulch', max: 5, cost: 200,
@@ -40,6 +41,11 @@ export const RESEARCH = {
     worse: 'They burn one more timber for each thing they make.',
     effects: [{ stat: 'prod:smelter', per: .6 }, { stat: 'prod:kiln', per: .6 }],
     downside: [{ stat: 'use:smelter:timber', per: 1 }, { stat: 'use:kiln:timber', per: 1 }],
+  },
+  kegs: {
+    name: 'Powder Kegs', town: 'gulch', max: 3, cost: 2500, opens: 26,
+    about: 'Cannon and Mortar blasts are 20% wider.',
+    effects: [{ stat: 'blast', per: .2 }],
   },
 };
 

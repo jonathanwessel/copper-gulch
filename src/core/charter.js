@@ -58,7 +58,7 @@ export function pickPerk(game, id, side) {
 /* Start a town over, in place (the interface and the renderer keep their reference to it). Its random stream and
    clock carry on, so a new charter never replays the old one's dice. */
 export function resetTown(game, town) {
-  const keep = { id: town.id, def: town.def, rng: town.rng, t: town.t, charters: (town.charters || 0) + 1 };
+  const keep = { id: town.id, def: town.def, rng: town.rng, t: town.t, charters: (town.charters || 0) + 1, record: Math.max(town.record || 0, town.bestWave || 0) };
   const fresh = new Town(town.id, { def: town.def });
   for (const k of Object.keys(town)) delete town[k];
   Object.assign(town, fresh, keep);

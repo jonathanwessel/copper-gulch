@@ -70,10 +70,10 @@ test('the save keeps the goals done, and save v10 skips them for a game already 
   const back = loadGame(JSON.parse(JSON.stringify(g.toJSON())));
   assert.ok(back.shared.goals.done['dc-tower']);
   assert.equal(goalNow(back).id, 'dc-stone2');
-  assert.equal(SAVE_VERSION, 10);
+  assert.ok(SAVE_VERSION >= 10);
   // a v9 game in the Gulch, before its first war wagon: Dry Creek's goals are done, the Gulch's still show
   const early = migrate({ v: 9, at: 0, game: { towns: { gulch: { id: 'gulch', bestWave: 4 } }, shared: {} } });
-  assert.equal(early.v, 10);
+  assert.equal(early.v, SAVE_VERSION);
   for (const x of goalsOf('drycreek')) assert.ok(early.game.shared.goals.done[x.id]);
   assert.equal(early.game.shared.goals.off, false);
   // past wave 10, or after a charter: no goals at all

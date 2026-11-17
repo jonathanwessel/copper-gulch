@@ -42,6 +42,10 @@ const SCREENS = [
   ['why-income', () => { CG.play.sheets.close(); CG.game.town.sell = {}; CG.play.openIncome(); }], // waits 6 s so the numbers settle
   ['why-vault', () => { CG.play.sheets.close(); CG.play.openVault(); }],
   ['why-tower', () => { CG.play.sheets.close(); const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); if (tw) Object.assign(tw, { level: 6, path: 'a' }); t.mods.set('towerDmg', 'Gunsmith research', { mul: 1.3 }); CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }],
+  // a signed town back on old ground: the tower's damage breakdown shows the Old ground factor, Call now is lit
+  ['why-old', () => { CG.play.close(); const t = CG.game.town; t.record = Math.max(t.record || 0, t.wave + 20); Object.assign(t.waves, { phase: 'break', timer: 50, hold: true }); setTimeout(() => { CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }, 400); }],
+  // Powder Kegs, the research that opens at wave 26
+  ['kegs', () => { CG.play.close(); const t = CG.game.town; t.record = 0; t.bestWave = Math.max(t.bestWave, 26); t.flags['open:research'] = true; t.coins = Math.max(t.coins, 9000); t.lab = null; setTimeout(() => { CG.play.openResearch(); setTimeout(() => { const b = document.querySelector('[data-research="kegs"]'); if (b) b.scrollIntoView({ block: 'center' }); }, 200); }, 400); }],
   ['why-output', () => { CG.play.close(); CG.play.open('camp'); document.querySelector('#card .stat').click(); }],
   ['why-price', () => { CG.play.close(); CG.play.openGoods(); const b = document.querySelector('#sheet [data-why="timber"]'); if (b) b.click(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],

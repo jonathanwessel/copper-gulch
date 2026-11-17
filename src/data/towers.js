@@ -4,28 +4,34 @@
    goods: by town, so each town pays with what it makes. At level 5 a tower takes one of two paths.
    Long-range towers (long: true) also fit the mortar pits, the far pads every map has. minRange: a dead zone it cannot
    fire into. flight: seconds a lobbed shell flies before it lands (the hit comes on landing). lob: it cannot hit
-   airships. opens: the wave at which the town opens it (remembered in town.flags). */
+   airships. opens: the wave at which the town opens it (remembered in town.flags).
+   best: the raiders it hits hardest, as a damage factor by raider kind, 'armored' (any armor) or 'boss' (the wagons).
+   The Still's applies to its poison. Each kind has a job no other does (CLAUDE.md, more than one way to win): the
+   Crossbow picks off Riders, the Still's poison eats armor, the Mortar cracks wagons and packed groups.
+   bestText: those raiders in words, for the tower card ("Best against"). */
 export const TOWERS = {
   crossbow: {
-    name: 'Crossbow', about: 'Shoots one raider at a time, fast.',
+    name: 'Crossbow', about: 'Shoots one raider at a time, fast. Best against Riders.', best: { runner: 2 }, bestText: 'Riders',
     coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot hits a whole group.',
-    coins: 100, goods: { gulch: { ore: 6 } }, dmg: 14, rate: .5, range: 2.8, splash: 1.1,
+    coins: 100, goods: { gulch: { ore: 6 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1,
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
-    coins: 100, goods: { gulch: { planks: 4, clay: 3 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
+    coins: 100, goods: { gulch: { planks: 4, clay: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true,
   },
   still: {
-    name: 'Snake Oil Still', about: 'Throws poison that hurts armored raiders too.',
-    coins: 100, goods: { gulch: { ore: 4, planks: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
+    name: 'Snake Oil Still', about: 'Throws poison. Best against Brutes and wagons.',
+    coins: 100, goods: { gulch: { ore: 4, planks: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
+    best: { armored: 2.2 }, bestText: 'Brutes and wagons',
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
-    name: 'Mortar', about: 'Lobs shells far over the road, not up close.',
-    coins: 400, goods: { gulch: { copper: 6, bricks: 6 } }, dmg: 34, rate: .3, range: 5.6, minRange: 1.4, splash: 1.3,
+    name: 'Mortar', about: 'Lobs shells far over the road, not up close. Best against wagons.',
+    coins: 400, goods: { gulch: { copper: 6, bricks: 6 } }, dmg: 36, rate: .3, range: 5.6, minRange: 1.4, splash: 1.4,
+    best: { boss: 2.5 }, bestText: 'Wagons and big groups',
     flight: 1.5, lob: true, long: true, opens: 12,
   },
 };
@@ -51,7 +57,7 @@ export const PATHS = {
     b: { name: 'Spreading Fever', about: 'Poison spreads when a raider falls.', spread: 1 },
   },
   mortar: {
-    a: { name: 'Siege Mortar', about: 'Hits farther, bigger blast.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
+    a: { name: 'Siege Mortar', about: 'Shoots farther. The blast is bigger.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
     b: { name: 'Shrapnel', about: 'Smaller blast that sets the ground on fire.', splash: .7, rate: 1.15, fire: 1 },
   },
 };
@@ -62,5 +68,6 @@ export const POISON_SECONDS = 4;
 /* Shrapnel's burning ground: how long it burns, how much it slows, and its damage per second as a share of a hit. */
 export const FIRE = { seconds: 3, slow: .3, dps: .35 };
 export const SELL_BACK = .6;           // share of the coins spent that selling a tower returns
-/* Per level after the first: damage x1.3, rate x1.04, range +0.05. Costs: coins x1.55 and goods x1.35 per level. */
-export const PER_LEVEL = { dmg: 1.3, rate: 1.04, range: .05, coins: 1.55, goods: 1.35 };
+/* Per level after the first: damage x1.3, poison x1.15 (one high Still must not carry a town: its poison grows
+   slower than a hit), rate x1.04, range +0.05. Costs: coins x1.55 and goods x1.35 per level. */
+export const PER_LEVEL = { dmg: 1.3, poison: 1.15, rate: 1.04, range: .05, coins: 1.55, goods: 1.35 };

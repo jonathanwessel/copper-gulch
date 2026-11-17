@@ -107,6 +107,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 ## Defense
 - **Towers.** Nine, unlocked by era: crossbow, cannon, frost lens, snake oil still, mortar, tesla coil, gatling, barracks, drone helipad.
   - Each costs coins plus that town's own goods, so the chain feeds the defense. In Copper Gulch (tuned for variety, last on 2026-11-17): the Crossbow takes timber, the Cannon copper ore, the Frost Lens planks and clay, the Snake Oil Still copper ore and planks, the Mortar copper and bricks. So four kinds can be built in the first 7 minutes, before the Smelter, and the Mortar waits for wave 12 and the Smelter and Kiln. Level-1 damage per coin stays within about a third of the Crossbow's, so pricier kinds win where pads run out. A raider carries one dose of poison and one chill at a time, so a second Still or Frost Lens on the same stretch of road adds less than the first.
+  - **Each kind has a job** (set 2026-11-17, M2 Tower balance), shown on its card as "Best against": the Crossbow hits Riders twice as hard; the Still's poison is weak on unarmored raiders and 2.2 times as strong on armored ones (Brutes and the wagons), and it grows 15% a level where a hit grows 30%, so one maxed Still can't carry a town; the Mortar hits the wagons 2.5 times as hard and has the widest blast, for packed groups. The Cannon (groups) and the Frost Lens (slows, chips every raider in range) keep their old jobs. No kind may do more than about 35% of the damage for any strategy bot, and every kind must lead some waves for at least one (`tools/balance.js`).
   - Paths open at level 5.
 - **The Mortar** is the long-range tower. If a normal tower reaches from 0 to R, the Mortar reaches from 0.5R to 2R: it cannot fire at raiders inside 0.5R (its dead zone).
   - Slow fire. A high, arcing shell with a visible flight time, a marker on the ground where it will land, and splash damage on landing.
@@ -144,6 +145,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | Wanted Posters | 5 | raiders pay 30% more when they fall | 600 |
 | Market Stalls | 5 | goods sell for 10% more | 800 |
 | Hot Furnaces | 2 | Smelter and Kiln +60%, but they burn one more timber per unit per level (a trade-off) | 1500 |
+| Powder Kegs | 3 | Cannon and Mortar blasts 20% wider. Shows up at best wave 26, with a toast, so something new opens between the Mortar and the first charter | 2500 |
 
 ### Foremen
 - A building you have raised to level 10 by hand can hire a foreman, for 3 times its next level's price.
@@ -154,6 +156,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 - A town's charter resets that town (coins, buildings, towers, waves, research, foremen) and pays deeds. It keeps the explainers seen, the badges and the stats.
 - Deeds paid (set with the balance bot; last changed 2026-11-17 when the game began in Dry Creek): 1 at best wave 33 and 1 more for every 5 waves past it, plus 1 at 85K coins the town earned itself in this charter and 1 more each time that grows tenfold. Coins an outpost's sales pay into the town are spent like any coins and show in its income, but do not count toward deeds (`town.fromOutposts`), so a deed measures the town's own work. Earlier marks: wave 30 with 60K, then 52K, then 60K, all before the outpost fed the Gulch; with Dry Creek paying in and drawn on, the Gulch reached those 3-8 minutes sooner. The charter is offered once it would pay at least 1 deed (the active bot: at 37-42 minutes after the Gulch opens, from the coins).
 - Deeds are kept for good. Each one adds 25% to the coins earned in every town (sales and bounties), as the named source "Deeds". (10% made a new charter barely faster than the old one.)
+- **Old ground.** A signed town remembers its best wave from before (`town.record`). Until it passes that wave again, its towers hit 3 times harder (the named source "Waves you beat before") and Call now works right away, so it races back. The bots showed why: even double income or kept research left the climb back at 45-75% of the first, because the wall near wave 25-30 is a damage wall and the waves come on a clock. Target: back to the old best wave in half the first climb or less (median over the seeds, no seed over two thirds).
 - Deed perks come in pairs, and you pick one side of each pair once you hold enough deeds. A pick stays until the next charter, which clears every pick so you choose again (src/data/perks.js):
 
 | Deeds | One side | The other side |
@@ -211,6 +214,8 @@ One panel, with three switches per town and one spend share per town. The share 
 | Dry Creek won, Copper Gulch opens | 8-12 min active (calls waves early), within 20 min for the newcomer bot, which must be at least 20% slower |
 | Copper Gulch wave 10 | 7-9 min after the Gulch opens (active, calls waves early), within 14 min for the newcomer bot, which must be at least 20% slower |
 | First charter offered | 35-45 min after the Gulch opens (about 45-60 min of play) |
+| Back to the old best wave after the first charter | half the first climb or less (median), no seed over two thirds |
+| Something new between minute 23 and the first charter offer | Powder Kegs research (best wave 26) |
 | Iron Ridge | 55-80 min active, under 2 h 15 min for the newcomer bot |
 | Capital | 2.5-4 h |
 | Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |

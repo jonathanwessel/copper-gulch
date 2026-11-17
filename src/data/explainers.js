@@ -156,7 +156,7 @@ export const EXPLAINERS = [
   {
     id: 'still', covers: ['tower:still'],
     title: 'Snake Oil Still',
-    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts armored raiders too.',
+    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison is best against Brutes and war wagons.',
     when: h => h.can('still') && (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {
@@ -230,5 +230,17 @@ export const EXPLAINERS = [
     title: 'The Mortar is open',
     text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. It can\'t hit raiders close to it.',
     when: h => !!h.flags['open:mortar'] && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
+  },
+  {
+    id: 'best', town: 'gulch', covers: ['best'],
+    title: 'Best against',
+    text: 'Each tower hits some raiders harder. Crossbows are best against Riders. The Still is best against Brutes. Tap a tower to see what it is best against.',
+    when: h => h.wave >= 6 && h.phase === 'wave' && Object.keys(h.kinds).length > 1, at: h => ({ spot: h.kinds.still ?? h.kinds.crossbow ?? Object.values(h.kinds)[0] }),
+  },
+  {
+    id: 'oldground', covers: ['oldground'],
+    title: 'Waves you beat before',
+    text: 'You beat these waves before you signed. Until you pass your old best wave, your towers hit 3 times harder and Call now works right away.',
+    when: h => h.oldGround && h.phase === 'break' && h.towers.length > 0, at: () => ({ el: '#callWave' }),
   },
 ];

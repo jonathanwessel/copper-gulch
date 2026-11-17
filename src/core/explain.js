@@ -65,7 +65,7 @@ export function explainTower(town, t) {
     rate: part('towerRate', d.rate, PER_LEVEL.rate ** (L - 1), p && p.rate, 'shots', 'Base shots'),
     range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range'),
   };
-  if (d.poison) out.poison = part('towerDmg', d.poison, PER_LEVEL.dmg ** (L - 1), p && p.poison, 'dmg', 'Base poison');
+  if (d.poison) out.poison = part('towerDmg', d.poison, PER_LEVEL.poison ** (L - 1), p && p.poison, 'dmg', 'Base poison');
   const st = towerStats(town, t); // the same numbers the battle uses
   out.dmg.value = st.dmg; out.rate.value = st.rate; out.range.value = st.range;
   if (out.poison) out.poison.value = st.poison;

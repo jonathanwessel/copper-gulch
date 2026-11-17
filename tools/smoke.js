@@ -310,6 +310,7 @@ async function run() {
         out.vault = !sheet.hidden && sheet.dataset.id === 'vault' && /Hits left/.test(sheet.textContent) && /War wagon/.test(sheet.textContent);
         document.getElementById('sheetClose').click(); await wait(100);
         const tw = t.towers[0]; CG.play.openSpot(tw.spot); await wait(200);
+        out.best = !['crossbow', 'still', 'mortar'].includes(tw.kind) || /Best against/.test(card.textContent); // what the tower is best against
         card.querySelector('[data-why="dmg"]').click(); await wait(150);
         out.damage = !!box() && box().children.length >= 1 && card.querySelector('[data-why="dmg"]').getAttribute('aria-expanded') === 'true';
         card.querySelector('[data-why="range"]').click(); await wait(150);

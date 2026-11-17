@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-13',
+    lines: [
+      'Each tower hits some raiders harder. Tap a tower to see what it is best against.',
+      'The Snake Oil Still is weaker on Bandits and Riders and stronger on Brutes and wagons.',
+      'The Mortar hits war wagons much harder.',
+      'After you sign the charter, your towers hit 3 times harder until you pass your old best wave.',
+      'New research at wave 26. Powder Kegs makes Cannon and Mortar blasts wider.',
+    ],
+  },
+  {
     v: '2026.11.17-12',
     lines: [
       'Waves now wait longer before they come.',

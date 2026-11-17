@@ -12,6 +12,7 @@ export const CAPS = {
   towerDmg:  { max: 1e4 },
   towerRate: { max: 5 },
   towerRange: { max: 2 },
+  blast:     { max: 3 },     // how wide a blast reaches (Cannon, Mortar)
   foeHp:     { max: 1e12 },
   vault:     { max: 1e4 },
   deeds:     { max: 1e6 },

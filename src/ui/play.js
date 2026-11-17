@@ -240,6 +240,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (st.splash) line('Blast', st.splash < 1.2 ? 'Small' : 'Wide');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
+    if (d.bestText) line('Best against', d.bestText);
     card.append(stats);
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
@@ -278,6 +279,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
+    game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
     game.bus.on('breach', e => {
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);

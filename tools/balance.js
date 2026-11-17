@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
+import { bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -46,22 +46,30 @@ function cover(town, spot, lo, hi) {
   }
   return COVER.get(key);
 }
-/* The share of a hit the coming waves shrug off: armor weighted by health, averaged over the wave kinds open at
-   wave w (poison gets past it). */
-export function armorShare(w) {
+/* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
+   kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
+   boss wave adds its boss: the town's own wagon, in a wave of about count(w) raiders. */
+export function hitShare(town, kind, w, poison = false) {
   const kinds = Object.values(WAVE_TYPES).filter(T => w >= T.from);
-  const one = T => { let hp = 0, a = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { hp += n * FOES[k].hp; a += n * FOES[k].hp * FOES[k].armor; } return hp ? a / hp : 0; };
-  return kinds.reduce((x, T) => x + one(T), 0) / kinds.length;
+  const f = k => (poison ? 1 : 1 - FOES[k].armor) * (poison || kind !== 'still' ? bestFactor(kind, k) : 1);
+  let hp = 0, a = 0;
+  for (const T of kinds) { let h = 0, x = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { h += n * FOES[k].hp; x += n * FOES[k].hp * f(k); } if (h) { hp += 1; a += x / h; } }
+  let share = hp ? a / hp : 1;
+  if (bossWave(town, w)) { const b = (town.def && town.def.boss) || 'wagon', bh = FOES[b].hp, rest = wavesOf(town).count(w); share = (share * rest + bh * f(b)) / (rest + bh); }
+  return share;
 }
+/* A careful player buys for the next few waves, not just the coming one, so the boss is seen coming (HORIZON waves). */
+export const HORIZON = 5;
+const ahead = (town, kind, w, poison) => { let a = 0; for (let k = 0; k < HORIZON; k++) a += hitShare(town, kind, w + k, poison); return a / HORIZON; };
 /* Damage a tower deals per second to a column of raiders passing through its reach, times the road it covers. */
 export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
   const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
-  let dps = st.dmg * st.rate * (1 - armorShare(town.wave + 1));
+  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave);
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
   else if (st.splash) dps *= targets(st.splash);
-  if (st.poison) dps += st.poison * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
+  if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
   if (st.slow) dps *= 1 + st.slow * 2 / share; // slowed raiders take longer to pass every tower
   if (st.fire) dps *= 1.35;
   let w = dps * cover(town, t.spot, st.minRange, st.range);
@@ -85,7 +93,7 @@ const price = c => c.coins + Object.entries(c.goods).reduce((a, [g, n]) => a + G
 
 /* A new tower of a kind the town already has is worth a little less to a careful player, who keeps a mix of kinds
    for the different raiders (each one of that kind already standing takes MIX off, as 1 / (1 + MIX * n)). */
-export const MIX = .15;
+export const MIX = .3;
 /* Every purchase the defense could make now: { kind, spot, path, value per coin, can afford }. A new tower also uses up
    a pad, and pads are few, so a build is charged half of what the average tower has had spent on it so far: early on
    cheap towers fill pads, later a pad is worth saving for a strong tower. */
@@ -146,7 +154,7 @@ export const GOAL_PICK = .6;
 export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null } = {}) {
   const S = STRATEGIES[strategy], g = game || newGame('balance-' + seed, 'gulch'), t = g.town, mine = e => e.town === t.id, offs = [];
   const on = (name, fn) => offs.push(g.bus.on(name, fn));
-  const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0 };
+  const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0, reach: {}, news: [] };
   on('wave:start', e => { if (mine(e)) g.dealt = {}; });
   // how long the last wave lasted, as a share of the wave pace (Call now skips what is left of it)
   r.lastAge = 1; r.calls = 0;
@@ -156,10 +164,12 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (!mine(e)) return;
     if (e.wave === 10 && r.wave10 === null) { r.wave10 = t.t; r.calls10 = r.calls; }
     if (e.wave === 20 && r.wave20 === null) r.wave20 = t.t;
+    if (!r.signed) r.reach[e.wave] ??= t.t; // the first climb, to compare the charter's regain with
     const d = (g.dealt || {})[t.id] || {}, best = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
     if (best && t.t <= 3600) { r.top.push([e.wave, best[0], Object.keys(d).length]); for (const [k, n] of Object.entries(d)) r.dealt[k] = (r.dealt[k] || 0) + n; }
   });
   on('breach', e => { if (mine(e)) r.breaches.push(e.wave); });
+  on('research:new', e => { if (mine(e) && !r.signed) r.news.push(t.t); });
   on('charter:offer', e => { if (mine(e)) r.offer = t.t; });
   // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
   // also waits until a raider got through in the last two waves, once it has its first towers)
@@ -225,7 +235,8 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   const ahead = () => {
     const ws = t.waves, w = t.wave;
     if (ws.phase !== 'break' || ws.hold || t.won || ws.timer < 2 || bossWave(t, w)) return false;
-    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && r.lastAge <= CALL_AGE;
+    // on old ground (waves the town beat before its charter) it calls as soon as the road is clear
+    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge <= CALL_AGE || oldGround(t));
   };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
@@ -237,6 +248,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // the first charter: signed once it pays SIGN_AT deeds; then pick the first side of each open perk pair
     if (!r.signed && deedsFor(t) >= SIGN_AT) {
       r.signed = { at: t.t, wave: t.bestWave, coins: Math.round(t.lifetime), deeds: signCharter(g, t) };
+      r.leakAt = -99; r.lastAge = 1; r.bump = 0; // a new start: the old leaks are forgotten
       for (const p of PERKS) if (perkState(g, p.id) === 'open') pickPerk(g, p.id, 'a');
       continue;
     }
@@ -308,6 +320,38 @@ export function strategies(seeds = SEEDS) {
   return { rows, misses };
 }
 
+/* Tower balance (M2, fresh-eyes issue 2): no kind does more than SHARE_MAX of the damage for any strategy, and every
+   kind does the most damage in some wave for at least one strategy. Returns the misses. */
+export const SHARE_MAX = .36; // "about 35%"
+export function towerBalance(rows) {
+  const misses = [], led = new Set();
+  for (const x of rows) {
+    const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1;
+    for (const [k, n] of Object.entries(x.dealt)) if (n / tot > SHARE_MAX) misses.push(`${x.strategy}: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
+    for (const r of x.runs) for (const [, k, n] of r.top) if (n > 1) led.add(k);
+  }
+  for (const k of Object.keys(TOWERS)) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
+  return misses;
+}
+/* The charter's payoff (M2, fresh-eyes issue 3): a signed town gets back to its old best wave in REGAIN_MAX of the
+   first climb or less (the median over the seeds; no seed over REGAIN_SEED), and something new opens between minute
+   NEW_FROM and the first charter offer. */
+export const REGAIN_MAX = .5, REGAIN_SEED = .67, NEW_FROM = 23;
+export function charterPayoff(runs) {
+  const misses = [], shares = [];
+  for (const r of runs) {
+    if (!r.signed) { misses.push(`seed ${r.seed}: the charter was never signed`); continue; }
+    if (r.regain === null) { misses.push(`seed ${r.seed}: never got back to wave ${r.signed.wave} after the charter`); continue; }
+    const k = r.regain / r.reach[r.signed.wave]; shares.push(k);
+    if (k > REGAIN_SEED) misses.push(`seed ${r.seed}: back to wave ${r.signed.wave} in ${Math.round(100 * k)}% of the first climb (want at most ${Math.round(100 * REGAIN_SEED)}%)`);
+    const late = r.news.filter(t => t >= NEW_FROM * 60 && (r.offer === null || t <= r.offer));
+    if (!late.length) misses.push(`seed ${r.seed}: nothing new opens between minute ${NEW_FROM} and the charter offer`);
+  }
+  const med = shares.sort((a, b) => a - b)[Math.floor(shares.length / 2)];
+  if (med > REGAIN_MAX) misses.push(`the median regain is ${Math.round(100 * med)}% of the first climb (want at most ${Math.round(100 * REGAIN_MAX)}%)`);
+  return misses;
+}
+
 /* The variety check (M1 target): kinds never bought in the first hour, and whether one kind topped every wave. */
 export function variety(runs) {
   const kinds = Object.keys(TOWERS), never = kinds.filter(k => runs.every(r => r.firstBuy[k] === undefined));
@@ -344,7 +388,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('goals (minutes from a new game, per seed):');
   for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...gc.misses);
-  console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) : ', not signed')).join(' | '));
+  console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));
   console.log('towers bought (first minute bought, in the first hour):');
@@ -357,7 +401,8 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     console.log(`  ${x.strategy} | ${mm(x.won)} | ${x.dcBought.toFixed(0)}, ${x.dcLevel === null ? '-' : x.dcLevel.toFixed(1)} | ${mm(x.wave10)} | ${mm(x.wave20)} | ${x.coins30 === null ? '-' : Math.round(x.coins30 / 1000) + 'K'} | ${x.firstBreach.map(w => w ?? '-').join(',')} | `
       + Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ') + ' | ' + Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', '));
   }
-  misses.push(...st.misses);
+  misses.push(...st.misses, ...towerBalance(st.rows), ...charterPayoff(runs));
+  console.log('new before the charter (minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.news.map(t => (t / 60).toFixed(1)).join(', ') || 'none')).join(' | '));
   const v = variety(runs);
   if (v.never.length) misses.push('variety: never the best buy in the first hour: ' + v.never.join(', '));
   if (v.oneKind) misses.push('variety: ' + v.oneKind + ' does the most damage in every wave');

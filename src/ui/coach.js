@@ -32,6 +32,9 @@ export function helper(town, game = null) {
     foremanPlot: Object.keys(town.foremen || {}).length ? null : Object.keys(town.buildings).find(id => town.level(id) >= 10 && town.def && town.def.board && town.def.board.plots[id]) || null,
     offered: !!(game && game.shared.charter && charterOffered(game)), toPick: game && game.shared.charter ? perksToPick(game) : 0,
     drew: Object.keys(town.flags || {}).some(k => k.startsWith('drew:')), // the town has drawn goods from an outpost
+    record: town.record || 0, oldGround: town.wave <= (town.record || 0) && (town.record || 0) > 0,
+    // a tower of each kind on the board: kind -> spot (the first one built)
+    kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
   };
 }

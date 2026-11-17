@@ -20,6 +20,7 @@ export class Town {
     this.towers = [];             // [{ id, kind, x, y, level, path }]
     this.wave = 0;
     this.bestWave = 0;
+    this.record = 0;              // the best wave before this town's last charter (src/core/charter.js)
     this.vault = { hp: 100, max: 100 };
     this.research = {};           // item id -> level
     this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
