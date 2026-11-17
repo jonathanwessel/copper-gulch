@@ -1,6 +1,7 @@
 /* What is selected on the board, made unmistakable while its card is open: a bright pulsing gold frame on the ground
    (a square around a building's plot, a ring around a pad or tower), the tower's range drawn as a circle on the ground
-   (an empty pad shows the Crossbow's range), and the selected tower lifts a little. Cleared when the card closes. */
+   (an empty pad shows the Crossbow's range), a soft column of light rising around the object that pulses with the frame,
+   and the selected tower lifts a little. Cleared when the card closes. */
 import * as THREE from 'three';
 import { towerAt, towerStats } from '../core/defense.js';
 import { TOWERS } from '../data/towers.js';
@@ -16,7 +17,15 @@ export class Selection {
     this.ring = new THREE.Mesh(new THREE.RingGeometry(.5, .64, 40).rotateX(-Math.PI / 2), mat('#ffd36a', .95));
     this.range = new THREE.Mesh(new THREE.RingGeometry(.965, 1, 96).rotateX(-Math.PI / 2), mat('#ffc58f', .7));
     this.fill = new THREE.Mesh(new THREE.CircleGeometry(1, 96).rotateX(-Math.PI / 2), mat('#ffd36a', .08));
-    for (const m of [this.square, this.ring, this.range, this.fill]) { m.renderOrder = 3; this.group.add(m); }
+    // the glow: an open cylinder, bright at the ground and fading upward, drawn additively (one mesh, one material)
+    this.glowMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      uniforms: { uColor: { value: new THREE.Color('#ffc24a') }, uOp: { value: .5 } },
+      vertexShader: 'varying float vY; void main(){ vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      fragmentShader: 'uniform vec3 uColor; uniform float uOp; varying float vY; void main(){ float a = (1. - vY); gl_FragColor = vec4(uColor, a * a * uOp); }',
+    });
+    this.glow = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 32, 1, true).translate(0, .5, 0), this.glowMat);
+    for (const m of [this.square, this.ring, this.range, this.fill, this.glow]) { m.renderOrder = 3; this.group.add(m); }
     board.group.add(this.group);
   }
   /* { plot: id } or { spot: index } or null. */
@@ -31,6 +40,8 @@ export class Selection {
     const s = 1 + pulse * .08;
     this.square.scale.set(s, 1, s); this.ring.scale.set(s, 1, s);
     this.square.material.opacity = this.ring.material.opacity = .65 + .35 * pulse;
+    const b = tg.plot ? this.board.bld && this.board.bld[tg.plot] : null, gr = tg.plot ? 1.25 : .58, gh = tg.plot ? Math.max(1.2, (b ? b.top : 1) + .6) : 1.7;
+    this.glow.scale.set(gr, gh, gr); this.glowMat.uniforms.uOp.value = .32 + .28 * pulse;
     // a tower's reach, or what a Crossbow here would reach
     const tw = tg.spot !== undefined ? towerAt(this.town, tg.spot) : null;
     const r = tg.plot ? 0 : tw ? towerStats(this.town, tw).range : TOWERS.crossbow.range;

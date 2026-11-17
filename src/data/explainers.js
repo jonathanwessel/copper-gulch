@@ -25,6 +25,12 @@ export const EXPLAINERS = [
     when: h => h.flags.firstSale && h.t > 20, at: () => ({ el: '#coins' }),
   },
   {
+    id: 'goods', covers: ['goods'],
+    title: 'Goods',
+    text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Selling next to a good to keep it instead of selling it.',
+    when: h => h.flags.firstSale && h.t > 60, at: () => ({ el: '#goodsBtn' }),
+  },
+  {
     id: 'waves', covers: ['call'],
     title: 'Waves',
     text: 'Raiders come in waves. The green bar is your vault\'s health. Tap Call now to start the next wave early and get bonus coins for the time you skip.',
@@ -41,6 +47,12 @@ export const EXPLAINERS = [
     title: 'Hold waves',
     text: 'Hold waves stops new waves from coming. The wave on the road still finishes, and your town keeps working. Tap it again when you\'re ready.',
     when: h => h.bestWave >= 1 && h.phase === 'break', at: () => ({ el: '#holdWaves' }),
+  },
+  {
+    id: 'menu', covers: ['menu', 'slots', 'export'],
+    title: 'Menu',
+    text: 'Tap Menu to change the graphics, start a new game in another save slot, or copy your save to keep it safe.',
+    when: h => h.towers.length > 0 && h.t > 150, at: () => ({ el: '#menuBtn' }),
   },
   {
     id: 'vault', covers: ['vault', 'breach'],

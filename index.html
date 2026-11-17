@@ -153,7 +153,7 @@ html.flat .tag { position: static; transform: none !important; }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; }
-  .option span { display: none; }
+  .card .option span { display: none; }
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }
@@ -171,6 +171,46 @@ html.flat .tag { position: static; transform: none !important; }
   box-shadow: 3px 3px 0 rgba(22, 15, 11, .6); animation: riseX .3s both; transition: opacity .4s;
 }
 .toast.out { opacity: 0; }
+
+/* --- side buttons and slide-up sheets ---------------------------------------------------------------------- */
+.hudright { display: grid; gap: 6px; justify-items: end; align-self: start; pointer-events: none; }
+.hudright > * { pointer-events: auto; }
+.side { display: grid; gap: 6px; justify-items: stretch; pointer-events: none; }
+.side .btn { pointer-events: auto; min-height: 36px; min-width: 76px; padding: 4px 10px; }
+.play .scrim, .play .sheet { pointer-events: auto; }
+.scrim { position: absolute; inset: 0; background: rgba(14, 9, 6, .45); z-index: 24; animation: fade .2s both; }
+.sheet {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 25;
+  width: min(100%, 480px); max-height: min(82%, 720px); display: flex; flex-direction: column;
+  background: var(--panel); border: 2px solid var(--line); border-bottom: 0;
+  box-shadow: inset 2px 2px 0 var(--bevel), inset -2px 0 0 #24170f, 0 -4px 0 rgba(22, 15, 11, .5);
+  animation: riseX .22s both;
+}
+.sheethead { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; border-bottom: 2px solid var(--line); }
+.sheethead h2 { margin: 0; flex: 1; font-size: 1.2rem; color: var(--copper-hi); letter-spacing: .04em; }
+.sheetbody { overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 12px; }
+.sec { display: grid; gap: 6px; }
+.sec h3 { margin: 0; font-size: .95rem; color: var(--gold); letter-spacing: .04em; }
+.sec .row { justify-content: flex-start; }
+.sec .ver { margin: 0; color: var(--muted); font-size: .75rem; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.btn[aria-pressed="true"], .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
+.goods { display: grid; gap: 6px; }
+.option .depth { display: block; height: 6px; margin-top: 3px; background: var(--line); }
+.option .depth i { display: block; height: 100%; background: var(--copper); }
+.option .btn { flex: none; min-width: 84px; }
+.slot .btn + .btn { margin-left: -4px; }
+.btn.arm { background: var(--bad); color: #1d120c; }
+.savetext {
+  width: 100%; resize: vertical; padding: 6px 8px; font: 500 .8rem/1.3 ui-monospace, Consolas, monospace; color: var(--ink);
+  background: var(--line); border: 2px solid #000; word-break: break-all;
+}
+.slotline { color: var(--copper-hi); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .sheet { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(56%, 460px); max-height: calc(100% - 8px); animation-name: rise; }
+  .side { grid-auto-flow: column; }
+}
+@keyframes fade { from { opacity: 0; } }
 
 /* --- explainer cards: a dimmed screen, a spotlight, a short card ------------------------------------------- */
 .coach { position: fixed; inset: 0; z-index: 40; }

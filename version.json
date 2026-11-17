@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.16-12",
-  "notes": "Fix: cannon blasts and poison clouds no longer stay on the road"
+  "version": "2026.11.16-13",
+  "notes": "Menu with graphics, save slots, copy and load saves, and a Goods list"
 }

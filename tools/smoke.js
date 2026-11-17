@@ -111,6 +111,32 @@ async function run() {
         return open && closed && plot;
       });
       if (!sel) bad.push('the selection highlight did not follow the card');
+      // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
+      await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
+      bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));
+      const goods = await page.evaluate(() => {
+        const t = CG.game.town, b = document.querySelector('#sheet [data-good="timber"]');
+        if (!b || document.getElementById('sheet').hidden) return false;
+        const was = t.sell.timber !== false; b.click(); const now = t.sell.timber !== false; b.click();
+        return was !== now && (t.sell.timber !== false) === was;
+      });
+      if (!goods) bad.push('the Goods sheet did not switch selling');
+      await page.evaluate(() => document.getElementById('menuBtn').click()); await sleep(350);
+      bad.push(...(await check(page)).map(b => 'menu sheet: ' + b));
+      const gfx = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+        document.querySelector('#sheet [data-q="low"]').click(); await wait(300);
+        out.low = CG.town.view.tier === 'low' && JSON.parse(localStorage.getItem('cg-gfx')).auto === false;
+        out.drawing = CG.town.frames > 0;
+        document.querySelector('#sheet [data-q="auto"]').click(); await wait(100);
+        out.auto = JSON.parse(localStorage.getItem('cg-gfx')).auto === true && CG.town.quality === 'auto';
+        const r = document.getElementById('sheet').getBoundingClientRect();
+        out.fits = r.top >= -1 && r.bottom <= innerHeight + 1;
+        document.getElementById('sheetClose').click(); await wait(100);
+        out.closed = document.getElementById('sheet').hidden;
+        return out;
+      });
+      for (const [k, v] of Object.entries(gfx)) if (!v) bad.push('Menu and Graphics: not ' + k);
       await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
@@ -118,6 +144,53 @@ async function run() {
       await page.close();
     }
   } finally { await browser.close(); srv.close(); }
+
+  // save slots: a new game in slot 2, a save loaded into it from text, back to slot 1, and the title says Continue
+  const srv4 = await start(0), b4 = await chromium.launch();
+  try {
+    const page = await b4.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await page.goto(srv4.url + '?coach=off');
+    await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    await waitFor(page, () => CG.town && CG.town.frames > 5);
+    const tap = async sel => { await page.evaluate(q => { CG.play.openMenu(); setTimeout(() => document.querySelector(q).click(), 50); }, sel).catch(() => {}); };
+    const inGame = () => waitFor(page, () => window.CG && CG.town && CG.town.frames > 5, 15000);
+    await page.evaluate(() => { CG.game.town.coins = 12345; });
+    await tap('#sheet [data-slot="2"]'); await sleep(500);
+    if (!await inGame()) bad.push('slot 2 did not start');
+    const s2 = await page.evaluate(() => ({ slot: localStorage.getItem('cg-slot'), coins: CG.game.town.coins }));
+    if (s2.slot !== '2' || s2.coins > 1000) bad.push('slot 2 is not a new game (' + JSON.stringify(s2) + ')');
+    // load slot 1's save into slot 2 through the paste box (two taps on Load save)
+    await page.evaluate(async () => {
+      CG.play.openMenu(); await new Promise(r => setTimeout(r, 50));
+      const box = document.getElementById('saveIn'); box.value = localStorage.getItem('cg-save'); box.dispatchEvent(new Event('input'));
+      document.getElementById('loadSave').click(); setTimeout(() => document.getElementById('loadSave').click(), 50);
+    }).catch(() => {});
+    await sleep(800);
+    if (!await inGame()) bad.push('the loaded save did not start');
+    const s3 = await page.evaluate(() => ({ slot: localStorage.getItem('cg-slot'), coins: CG.game.town.coins }));
+    if (s3.slot !== '2' || s3.coins < 12000) bad.push('the pasted save did not load into slot 2 (' + JSON.stringify(s3) + ')');
+    const junk = await page.evaluate(async () => {
+      CG.play.openMenu(); await new Promise(r => setTimeout(r, 50));
+      const box = document.getElementById('saveIn'); box.value = 'not a save'; document.getElementById('loadSave').click();
+      const m = box.parentElement.querySelector('.warn'); return !!m && !m.hidden && /not a Copper Gulch save/.test(m.textContent);
+    });
+    if (!junk) bad.push('a bad save gave no plain message');
+    await page.evaluate(() => { CG.game.town.coins = 777; });
+    await tap('#sheet [data-slot="1"]'); await sleep(500);
+    if (!await inGame()) bad.push('slot 1 did not start again');
+    const s1 = await page.evaluate(() => ({ slot: localStorage.getItem('cg-slot'), coins: CG.game.town.coins, two: JSON.parse(localStorage.getItem('cg-save-2')).game.towns.gulch.coins }));
+    if (s1.slot !== '1' || s1.coins < 12000 || Math.abs(s1.two - 777) > 200) bad.push('switching back lost a game (' + JSON.stringify(s1) + ')');
+    bad.push(...(await check(page)).map(b => 'slots: ' + b));
+    await page.evaluate(() => { CG.play.openMenu(); setTimeout(() => document.getElementById('toTitle').click(), 50); }).catch(() => {});
+    await sleep(800); await waitFor(page, () => window.CG && CG.ready && document.getElementById('play'));
+    const title = await page.evaluate(() => ({ play: document.getElementById('play').textContent, line: !document.getElementById('slotLine').hidden, game: !!CG.game }));
+    if (title.play !== 'Continue' || !title.line || title.game) bad.push('the title did not offer Continue (' + JSON.stringify(title) + ')');
+    bad.push(...errs);
+    console.log('slots', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await b4.close(); srv4.close(); }
 
   // the explainers: a fresh game opens with the welcome card and a spotlight; the game waits; Got it dismisses it for good
   const srv3 = await start(0), b3 = await chromium.launch();

@@ -3,10 +3,11 @@ import { drawText } from '../art/pixfont.js';
 import { GAME_VERSION } from '../version.js';
 import { APP, checkUpdates } from './update.js';
 import { installButton } from './install.js';
+import { fmt, ago } from './format.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
-export function mountTitle(root, { onPlay = () => {} } = {}) {
+export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } = {}) {
   const t = el('section', 'title'); t.id = 'title';
   const logo = el('div', 'logo'); logo.setAttribute('role', 'img'); logo.setAttribute('aria-label', 'Copper Gulch');
   for (const word of ['COPPER', 'GULCH']) {
@@ -15,14 +16,17 @@ export function mountTitle(root, { onPlay = () => {} } = {}) {
   }
   const tag = el('p', 'tagline', 'A frontier tycoon. Hold the road.');
   const sign = el('div', 'sign');
-  const play = el('button', 'btn primary', 'Play'); play.id = 'play';
+  const has = slot && !slot.empty && !slot.damaged;
+  const play = el('button', 'btn primary', has ? 'Continue' : 'Play'); play.id = 'play';
+  const saved = el('p', 'note slotline', has ? 'Slot ' + slotNo + ' · wave ' + slot.wave + ' · ' + fmt(slot.coins) + ' coins · ' + ago(Date.now() - slot.at) : '');
+  saved.id = 'slotLine'; saved.hidden = !has;
   play.addEventListener('click', () => { play.disabled = true; onPlay(); });
   const note = el('p', 'note', 'This is an early build. You can build up the town and fight off raiders. Research and more towns are on the way.');
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));
   row.append(installButton(), check);
-  sign.append(play, note, row);
+  sign.append(play, saved, note, row);
   const foot = el('p', 'foot'); foot.id = 'version';
   const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status : '') + ' · Free, no ads'; };
   APP.onChange = paint; paint();

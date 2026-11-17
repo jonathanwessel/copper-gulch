@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { createScene } from './scene.js';
 import { startQuality, autoStep } from './autoquality.js';
+import { saveQuality, deviceTier } from './quality.js';
 import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
@@ -29,6 +30,12 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */
     pause(reason, on) { if (on) api.holds.add(reason); else api.holds.delete(reason); },
     get frames() { return frames; },
+    /* The Graphics setting: 'auto' (the device's tier, stepping down when slow) or a tier kept as picked. */
+    get quality() { return q.auto ? 'auto' : q.tier; },
+    setQuality(choice) {
+      if (choice === 'auto') { q.auto = true; q.tier = deviceTier(); } else { q.auto = false; q.tier = choice; }
+      saveQuality({ tier: q.tier, auto: q.auto }); v.setQuality(q.tier);
+    },
     project: id => project(v.cam, canvas, board.anchor(id, _a)),
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z)),
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z)); },

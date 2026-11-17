@@ -8,20 +8,14 @@ import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
+import { createSheets, goodsSheet, menuSheet } from './sheets.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const SUFFIX = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
-export function fmt(n) {
-  if (!isFinite(n)) return '0';
-  const a = Math.abs(n);
-  if (a < 10) return (Math.round(n * 10) / 10).toString();
-  if (a < 1000) return Math.floor(n).toString();
-  const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(a) / 3)), v = n / 10 ** (i * 3);
-  return (v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.floor(v).toString()) + SUFFIX[i];
-}
+import { fmt } from './format.js';
+export { fmt };
 const rate = n => fmt(n) + '/s';
 
-export function mountPlay(root, game, viewApi) {
+export function mountPlay(root, game, viewApi, shell = {}) {
   const town = game.town, ui = el('section', 'play'); ui.id = 'play-ui';
   // the coin bar
   const hud = el('header', 'hud');
@@ -54,7 +48,13 @@ export function mountPlay(root, game, viewApi) {
   ctl.append(pause, hold);
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
   const left = el('div', 'hudleft'); left.append(name, wave, ctl);
-  hud.append(left, coins);
+  // side buttons under the coins: Goods and Menu open slide-up sheets
+  const side = el('div', 'side');
+  const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn';
+  const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
+  side.append(goodsBtn, menuBtn);
+  const right = el('div', 'hudright'); right.append(coins, side);
+  hud.append(left, right);
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
   for (const id of Object.keys(town.def.board.plots)) { const t = el('button', 'tag'); t.dataset.plot = id; t.addEventListener('click', () => open(id)); tags.append(t); tag[id] = t; }
@@ -64,9 +64,15 @@ export function mountPlay(root, game, viewApi) {
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
   ui.append(tags, hud, card, banner);
   root.append(ui);
+  const sheets = createSheets(ui, { onOpen: () => close() });
+  const openGoods = () => sheets.open('goods', 'Goods', goodsSheet(game, town));
+  const menuCtx = { game, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
+  const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
+  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu);
 
   let openId = null, why = false;
   function open(id) {
+    if (sheets.current) sheets.close();
     openId = id; why = false; card.hidden = false; paintCard();
     viewApi.select(id.startsWith('spot:') ? { spot: +id.slice(5) } : { plot: id }); // highlight it on the board while the card is open
   }
@@ -173,6 +179,7 @@ export function mountPlay(root, game, viewApi) {
   const hist = []; let acc = 0, cardAcc = 0;
   function frame(dt) {
     acc += dt; cardAcc += dt;
+    sheets.frame(dt);
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
@@ -200,7 +207,7 @@ export function mountPlay(root, game, viewApi) {
     call.hidden = ws.phase !== 'break';
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
-  return { frame, open, openSpot, close, el: ui };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu };
 }
 
 export function toast(text, ms = 4000) {
