@@ -1,11 +1,14 @@
 // node tools/audit.js: checks the owner's rules and the release plumbing, and prints "audit ok" or each problem.
-// v0 covers: a pure core, no requests to other hosts, cg-* storage keys only, American spelling, no personal details,
+// It covers: the chain rules from GDD.md, a pure core, no requests to other hosts, cg-* storage keys only, American spelling, no personal details,
 // matching versions, and a service worker list with no missing files. The full audit (chain rules, names, caps) grows
 // with the game; see GDD.md.
 import fs from 'node:fs';
 import path from 'node:path';
 import { root } from './serve.js';
 import { shellFiles } from './bump-version.js';
+import { GOODS } from '../src/data/goods.js';
+import { BUILDINGS } from '../src/data/buildings.js';
+import { TOWNS, TOWN_ORDER } from '../src/data/towns/index.js';
 
 const walk = dir => fs.existsSync(path.join(root, dir))
   ? fs.readdirSync(path.join(root, dir), { recursive: true }).map(f => (dir + '/' + f).replace(/\\/g, '/')).filter(f => fs.statSync(path.join(root, f)).isFile())
@@ -78,7 +81,38 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
+  problems.push(...chainRules());
   return { problems, unlisted };
+}
+
+/* The chain rules (GDD.md): step value 1.3-1.6x, balanced at equal levels, one maker per good, imports from earlier
+   towns only, and every town's top good needs an import (except the first town, which has nothing to import). */
+export function chainRules() {
+  const p = [], maker = {};
+  for (const [id, b] of Object.entries(BUILDINGS)) {
+    if (maker[b.makes]) p.push('two buildings make ' + b.makes); maker[b.makes] = id;
+    if (!GOODS[b.makes]) p.push(id + ' makes an unknown good');
+  }
+  for (const g of Object.keys(GOODS)) if (!maker[g]) p.push('nothing makes ' + g);
+  for (const [id, b] of Object.entries(BUILDINGS)) {
+    const ins = Object.entries(b.inputs);
+    if (!ins.length) continue;
+    const v = ins.reduce((sum, [g, n]) => sum + (GOODS[g] ? GOODS[g].price * n : 0), 0), r = GOODS[b.makes].price / v;
+    if (!(r >= 1.3 - 1e-9 && r <= 1.6 + 1e-9)) p.push(id + ': worth ' + r.toFixed(2) + 'x its inputs (want 1.3-1.6)');
+    for (const [g, n] of ins) {
+      const sup = BUILDINGS[maker[g]];
+      if (sup && sup.town === b.town && sup.rate + 1e-9 < b.rate * n) p.push(maker[g] + ' cannot keep up with ' + id + ' at equal levels');
+      const from = GOODS[g] && GOODS[g].town;
+      if (from && TOWN_ORDER.indexOf(from) > TOWN_ORDER.indexOf(b.town)) p.push(id + ' depends on a later town (' + g + ' from ' + from + ')');
+      if (from && from !== b.town && !TOWNS[b.town].imports.includes(g)) p.push(b.town + ' uses ' + g + ' without listing it as an import');
+    }
+  }
+  TOWN_ORDER.forEach((id, i) => {
+    const t = TOWNS[id];
+    if (i > 0 && !t.imports.length) p.push(id + ': its top good needs no import');
+    for (const b of t.buildings) if (!BUILDINGS[b] || BUILDINGS[b].town !== id) p.push(id + ' lists building ' + b + ' of another town');
+  });
+  return p;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.join(root, 'tools', 'audit.js')) {
