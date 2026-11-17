@@ -18,7 +18,7 @@ const titleScene = import('./render/title-scene.js')
 
 async function startGame() {
   if (CG.game) return;
-  const [{ startTownView }, { mountPlay, toast, fmt }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), titleScene]);
+  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), titleScene]);
   const saved = readSave();
   let game, away = null;
   if (saved) {
@@ -30,10 +30,19 @@ async function startGame() {
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;
   const viewApi = { onTap: () => {}, project: () => null };
-  const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => CG.play && CG.play.frame(dt) });
+  const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
   CG.town = town;
   if (town) viewApi.project = town.project;
   CG.play = mountPlay(document.getElementById('app'), game, viewApi);
+  // the explainer cards; ?coach=off turns them off (the test tools use it)
+  const b = game.town.def.board;
+  CG.coach = startCoach({
+    game, town: game.town, root: document.body, off: new URLSearchParams(location.search).get('coach') === 'off',
+    pause: on => { if (town) town.paused = on; },
+    onSeen: () => writeSave(game),
+    locate: tg => !town ? null : tg.plot ? town.project(tg.plot) : tg.spot !== undefined ? town.projectSpot(tg.spot)
+      : tg.tower !== undefined ? town.projectSpot(tg.tower) : tg.vault ? town.projectPoint(b.vault[0], .6, b.vault[1]) : null,
+  });
   if (!town) { // no 3D: keep the game running and lay the plot tags out as a list
     document.documentElement.classList.add('flat');
     let last = performance.now();

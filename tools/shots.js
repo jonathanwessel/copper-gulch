@@ -23,7 +23,7 @@ const srv = await start(0), b = await chromium.launch(), wrote = [];
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
     const p = await b.newPage({ viewport: { width, height } });
-    await p.goto(srv.url);
+    await p.goto(srv.url + '?coach=off');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
       await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : 1200);

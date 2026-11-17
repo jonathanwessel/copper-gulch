@@ -44,7 +44,7 @@ async function run() {
       const page = await browser.newPage({ viewport: { width, height } }), errs = [];
       page.on('pageerror', e => errs.push(e.message));
       page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-      await page.goto(srv.url);
+      await page.goto(srv.url + '?coach=off');
       await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
       await sleep(300);
       const bad = [...await check(page)];
@@ -77,6 +77,39 @@ async function run() {
       await page.close();
     }
   } finally { await browser.close(); srv.close(); }
+
+  // the explainers: a fresh game opens with the welcome card and a spotlight; the game waits; Got it dismisses it for good
+  const srv3 = await start(0), b3 = await chromium.launch();
+  try {
+    const page = await b3.newPage({ viewport: { width: 400, height: 860 } }), errs = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await page.goto(srv3.url);
+    await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    const shown = await waitFor(page, () => window.CG && CG.coach && CG.coach.current === 'welcome', 10000);
+    const bad = shown ? [] : ['the welcome card did not show'];
+    if (shown) {
+      const st = await page.evaluate(async () => {
+        const t0 = CG.game.town.t; await new Promise(r => setTimeout(r, 1200));
+        const hole = document.querySelector('#coach .hole');
+        return { paused: CG.game.town.t === t0, hole: !hole.hidden && hole.getBoundingClientRect().width > 0 };
+      });
+      if (!st.paused) bad.push('the game ran under the card');
+      if (!st.hole) bad.push('no spotlight on the camp');
+      bad.push(...(await check(page)).map(b => 'coach: ' + b));
+      await page.evaluate(() => document.getElementById('coachOk').click());
+      await sleep(300);
+      const after = await page.evaluate(() => ({ hidden: document.getElementById('coach').hidden, seen: !!CG.game.shared.seen.welcome }));
+      if (!after.hidden || !after.seen) bad.push('Got it did not dismiss the card');
+      await page.reload(); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => document.getElementById('play').click());
+      await waitFor(page, () => CG.town && CG.town.frames > 5); await sleep(2500);
+      if (await page.evaluate(() => CG.coach.current === 'welcome')) bad.push('the welcome card came back after a reload');
+    }
+    bad.push(...errs);
+    console.log('coach', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await b3.close(); srv3.close(); }
 
   // offline: install the service worker, then stop the server and load again
   const srv2 = await start(0), b2 = await chromium.launch();

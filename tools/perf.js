@@ -17,7 +17,7 @@ const srv = await start(0), b = await chromium.launch({ args: ['--use-angle=swif
 let out = null, startTier = null;
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
-  await p.goto(srv.url);
+  await p.goto(srv.url + '?coach=off');
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
   await p.evaluate(t => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); }, TIER);

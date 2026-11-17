@@ -23,6 +23,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     view: v, board, battle, rig, game, paused: false,
     get frames() { return frames; },
     project: id => project(v.cam, canvas, board.anchor(id)),
+    projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z)),
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z)); },
     stop() { cancelAnimationFrame(raf); battle.dispose(); board.dispose(); v.dispose(); },
   };

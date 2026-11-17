@@ -9,6 +9,15 @@ test('the audit finds no problems', () => {
   assert.deepEqual(audit().problems, []);
 });
 
+test('every feature has an explainer, and the audit notices one that is missing', async () => {
+  const { requiredFeatures, explainerRules } = await import('../tools/audit.js');
+  const { EXPLAINERS } = await import('../src/data/explainers.js');
+  assert.ok(requiredFeatures().includes('tower:crossbow'));
+  assert.deepEqual(explainerRules(), []);
+  const keep = EXPLAINERS.splice(EXPLAINERS.findIndex(e => e.id === 'boss'), 1);
+  try { assert.ok(explainerRules().some(p => p.includes('feature boss'))); } finally { EXPLAINERS.push(...keep); }
+});
+
 test('the offline list has the page, the boot module and three.js', () => {
   const s = shellFiles();
   for (const f of ['./index.html', './manifest.webmanifest', './src/main.js', './vendor/three/three.module.min.js']) assert.ok(s.includes(f), f);
