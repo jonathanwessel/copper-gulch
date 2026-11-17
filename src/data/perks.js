@@ -19,8 +19,8 @@ export const PERKS = [
   },
   {
     id: 'guns', need: 2,
-    a: { name: 'Big Guns', about: 'Tower upgrades cost 30% fewer coins.', effects: [{ stat: 'cost:towerUp', mul: .7 }] },
-    b: { name: 'Many Hands', about: 'New towers cost 40% fewer coins.', effects: [{ stat: 'cost:towerNew', mul: .6 }] },
+    a: { name: 'Big Guns', about: 'Tower upgrades cost 30% less.', effects: [{ stat: 'cost:towerUp', mul: .7 }] },
+    b: { name: 'Many Hands', about: 'New towers cost 40% less.', effects: [{ stat: 'cost:towerNew', mul: .6 }] },
   },
   {
     id: 'books', need: 3,

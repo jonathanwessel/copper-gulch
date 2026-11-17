@@ -73,7 +73,7 @@ export const EXPLAINERS = [
     id: 'goods', covers: ['goods'],
     title: 'Goods',
     text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Selling next to a good to keep it instead of selling it.',
-    when: h => h.flags.firstSale && h.t > 60, at: () => ({ el: '#goodsBtn' }),
+    when: h => !!h.tabs.goods, at: () => ({ el: '#goodsBtn' }),
   },
   {
     id: 'reserve', covers: ['reserve'],
@@ -194,6 +194,12 @@ export const EXPLAINERS = [
     title: 'Mortar pit',
     text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. You can build one here at wave 12.',
     when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
+  },
+  {
+    id: 'dots', covers: ['dots'],
+    title: 'Red dots',
+    text: 'A red dot on a button means something new is waiting there. Tap the button to see it.',
+    when: h => !!(h.dots.goods || h.dots.research || h.dots.perks || Object.keys(h.dots.towns).length), at: () => ({ el: '.play .btn.dot' }),
   },
   {
     id: 'townchip', covers: ['townchip'],

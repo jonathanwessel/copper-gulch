@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-7',
+    lines: [
+      'The Goods, Research and Perks buttons now appear as you unlock them.',
+      'A red dot on a button means something new is waiting there.',
+      'A town button gets a red dot when raiders hit that town while you were away.',
+      'Messages at the top now show one at a time.',
+    ],
+  },
+  {
     v: '2026.11.17-6',
     lines: [
       'Waves in Dry Creek now come about a minute apart. Beating all 10 takes about 11 minutes.',

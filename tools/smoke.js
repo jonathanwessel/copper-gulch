@@ -200,6 +200,28 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(mortar)) if (!v) bad.push('Mortar: not ' + k);
+      // buttons that come out when useful (src/core/reveal.js): Pause, Hold waves and Menu always; Goods with a second
+      // good, carrying a dot until the list is opened; toasts one at a time, never the same line twice
+      const reveal = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, btn = document.getElementById('goodsBtn'), out = {};
+        const seen = g.shared.seen || (g.shared.seen = {}), was = seen.goods, kept = { ...t.buildings };
+        delete seen.goods; t.buildings = { camp: Math.max(1, kept.camp || 0) }; await wait(500);
+        out.always = ['pauseBtn', 'holdWaves', 'menuBtn'].every(id => document.getElementById(id).offsetParent !== null);
+        out.hiddenFirst = btn.hidden;
+        for (const k of Object.keys(t.flags)) if (k.startsWith('listed:')) delete t.flags[k];
+        t.buildings.saw = 1; await wait(500);
+        out.shows = !btn.hidden && btn.offsetParent !== null && btn.classList.contains('dot');
+        btn.click(); await wait(300); out.dotGone = !btn.classList.contains('dot');
+        document.getElementById('sheetClose').click();
+        t.buildings = kept; if (was) seen.goods = was;
+        const { toast } = await import(new URL('src/ui/play.js', location.href));
+        for (const n of [1, 2, 3]) toast('Smoke line', 800);
+        toast('Smoke line two', 800); await wait(100);
+        out.oneAtATime = document.querySelectorAll('.toast').length === 1;
+        await wait(1800); out.queued = /Smoke line two/.test(document.querySelector('.toast')?.textContent || '');
+        return out;
+      });
+      for (const [k, v] of Object.entries(reveal)) if (!v) bad.push('buttons and toasts: not ' + k);
       // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
       await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));

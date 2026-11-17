@@ -15,6 +15,7 @@ import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
+import { tabs, dots, look, lookGoods, lookPerks } from '../core/reveal.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt } from './format.js';
@@ -32,12 +33,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const name = el('div', 'townname', town.def.name);
   const chip = el('div', 'townchip'); chip.id = 'townChip'; chip.hidden = true;
   let chipSig = '';
-  const paintChip = () => {
-    const open = Object.keys(TOWNS).filter(id => game.towns[id]), sig = open.join();
+  const paintChip = (away = {}) => {
+    const open = Object.keys(TOWNS).filter(id => game.towns[id]), sig = open.join() + '|' + Object.keys(away).join();
     if (sig === chipSig) return; chipSig = sig;
     const many = open.length > 1; chip.hidden = !many; name.hidden = many;
     chip.replaceChildren(...open.map(id => {
-      const b = el('button', 'btn small' + (id === town.id ? ' on' : ''), TOWNS[id].short || TOWNS[id].name); b.dataset.town = id;
+      const b = el('button', 'btn small' + (id === town.id ? ' on' : '') + (away[id] ? ' dot' : ''), TOWNS[id].short || TOWNS[id].name); b.dataset.town = id;
       b.setAttribute('aria-pressed', String(id === town.id));
       b.addEventListener('click', () => { if (id !== town.id && shell.go) shell.go(id); });
       return b;
@@ -71,7 +72,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl); paintChip();
   // side buttons under the coins: Goods and Menu open slide-up sheets
   const side = el('div', 'side');
-  const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn';
+  const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn'; goodsBtn.hidden = true;
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
@@ -88,11 +89,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   ui.append(tags, hud, card, banner);
   root.append(ui);
   const sheets = createSheets(ui, { onOpen: () => close() });
-  const openGoods = () => sheets.open('goods', 'Goods', goodsSheet(game, town));
+  const openGoods = () => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town)); };
   const menuCtx = { game, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
-  const openPerks = () => sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) }));
+  const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false;
@@ -298,13 +299,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     paintCtl();
     setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
     call.hidden = ws.phase !== 'break';
-    // the Research button shows once research opens, with the time left on the item running
-    labBtn.hidden = !researchOpen(town);
+    // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
+    look(town);
+    const T = tabs(game, town), D = dots(game, town);
+    goodsBtn.hidden = !T.goods; goodsBtn.classList.toggle('dot', D.goods);
+    labBtn.hidden = !T.research; labBtn.classList.toggle('dot', D.research);
+    menuBtn.classList.toggle('dot', !!document.getElementById('updateBar'));
     setText(labBtn, town.lab ? 'Research · ' + Math.ceil(town.lab.left) + 's' : 'Research');
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
-    perksBtn.hidden = !charterOffered(game) || isOutpost(town); // an outpost has no charter
-    paintChip();
+    perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
+    paintChip(D.towns);
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
@@ -313,8 +318,21 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks, destroy };
 }
 
+/* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
+   waiting is not added again. While others wait, each one stays up a little shorter. */
+const toasts = { queue: [], up: null };
 export function toast(text, ms = 4000) {
-  const t = el('div', 'toast', text); t.setAttribute('role', 'status');
+  if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
+  toasts.queue.push({ text, ms });
+  if (toasts.queue.length > 3) toasts.queue.shift();
+  if (!toasts.up) nextToast();
+}
+function nextToast() {
+  const q = toasts.queue.shift();
+  if (!q) { toasts.up = null; return; }
+  const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
   document.body.append(t);
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, ms);
+  toasts.up = q;
+  const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);
 }

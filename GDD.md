@@ -195,11 +195,11 @@ One panel, with three switches per town and one spend share per town. The share 
 - **Tabs appear one by one:**
   - Town at the start (Dry Creek);
   - a town chip at the top when Copper Gulch opens, to switch between Dry Creek and the Gulch;
-  - Market at the first sale;
+  - Goods once the town makes two goods (or once the player has met it in another town);
   - Research at about 5 minutes;
   - Perks at the first charter offer;
   - Empire when Iron Ridge is close.
-- **Alerts**: tab dots, a town chip on the map, and throttled toasts.
+- **Alerts**: a blinking dot on a button when something there wants the player (a new good, research that can start, a perk to pick or more deeds, a town raided while away, an update), and toasts that show one at a time.
 
 ## Pacing targets (proved by the bots)
 | Milestone | Target |

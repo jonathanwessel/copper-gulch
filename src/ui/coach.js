@@ -9,6 +9,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
 import { towerIn } from '../core/defense.js';
+import { tabs, dots } from '../core/reveal.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -18,7 +19,7 @@ export function helper(town, game = null) {
   const top = levels.reduce((a, b) => (b[1] > a[1] ? b : a), ['camp', 0]);
   const outposts = game ? Object.values(game.towns).filter(isOutpost) : [];
   return {
-    id: town.id, outpost: isOutpost(town), won: !!town.won, towns: game ? Object.keys(game.towns).length : 1,
+    id: town.id, outpost: isOutpost(town), tabs: game ? tabs(game, town) : {}, dots: game ? dots(game, town) : { towns: {} }, won: !!town.won, towns: game ? Object.keys(game.towns).length : 1,
     outpostWon: outposts.some(o => o.won), can: kind => towerIn(town, kind),
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],

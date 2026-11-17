@@ -239,7 +239,8 @@ export function perksSheet(ctx) {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
       const t1 = p.total ? 'Sign now to get ' + plural(p.total, (c.deeds ? 'more ' : '') + 'deed') + '.' : 'Earn a deed to sign the charter.';
       if (now.textContent !== t1) now.textContent = t1;
-      const w = 'Best wave ' + town.bestWave + ' · next deed at wave ' + n.wave, k = 'Coins earned ' + fmt(town.ownEarned) + ' · next deed at ' + fmt(n.coins) + ' coins';
+      const w = 'Your best wave is ' + town.bestWave + '.' + (p.wave ? ' That gives ' + plural(p.wave, 'deed') + '.' : '') + ' Next deed at wave ' + n.wave + '.';
+      const k = 'You earned ' + fmt(town.ownEarned) + ' coins.' + (p.coins ? ' That gives ' + plural(p.coins, 'deed') + '.' : '') + ' Next deed at ' + fmt(n.coins) + ' coins.';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;
@@ -251,7 +252,7 @@ export function perksSheet(ctx) {
       sig = s; pairs.replaceChildren();
       for (const pair of PERKS) {
         const st = perkState(game, pair.id), box = el('div', 'pair'); box.dataset.pair = pair.id;
-        if (st === 'locked' || st === 'open') box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : 'Pick one'));
+        box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : st === 'open' ? 'Pick one' : 'You picked one'));
         for (const side of ['a', 'b']) {
           const x = pair[side], row = el('div', 'option'), txt = el('div');
           txt.append(el('b', null, x.name), el('span', null, x.about)); row.append(txt);
@@ -260,8 +261,7 @@ export function perksSheet(ctx) {
             confirmTap(go, 'Tap again', () => { if (pickPerk(game, pair.id, side)) paint(); });
             row.append(go);
           } else if (st === side) { row.classList.add('running'); row.append(el('small', 'picked', 'Picked')); }
-          else if (st !== 'locked') { row.classList.add('off'); row.append(el('small', 'picked', 'Not picked')); }
-          else row.classList.add('off');
+          else row.classList.add('off'); // the side not picked, or a pair still locked, is dimmed
           box.append(row);
         }
         pairs.append(box);
