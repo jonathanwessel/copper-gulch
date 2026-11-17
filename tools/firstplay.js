@@ -7,10 +7,10 @@
 //     raiders get through (the vault bar) or its towers are few for the wave number, and the building that pays best
 //     when they are not;
 //   - it makes a wrong buy 30% of the time: any other thing it can pay for, on any pad, with any path.
-// It never saves up, never calls a wave early, hires no foremen and does not sign a charter.
+// It never saves up, calls a wave early only when the goal strip asks, hires no foremen and does not sign a charter.
 // Targets (GDD.md, Pacing targets; PLAN.md M2): Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
-// it opens, and never stuck for more than 3 min in the first hour. Waves come on a clock, so a newcomer who holds them
-// keeps the careful player's pace; the limits are upper ones (decision, M2 Bots and checks). "Stuck" is a stretch with nothing it can pay for
+// it opens, and never stuck for more than 3 min in the first hour. Skill pays: the careful player of tools/balance.js,
+// who calls waves early, is at least 20% faster on both (medians over the seeds). "Stuck" is a stretch with nothing it can pay for
 // and nothing new on screen (a goal done, a new tower kind, a new town, a new button).
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
@@ -18,12 +18,12 @@ import { Rng } from '../src/core/rng.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
-import { buildTower, upgradeTower, towerAt, towerCost, canPay } from '../src/core/defense.js';
+import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly } from '../src/core/defense.js';
 import { itemsOf, researchBlock, startResearch } from '../src/core/research.js';
 import { PERKS } from '../src/data/perks.js';
 import { perkState, pickPerk } from '../src/core/charter.js';
 import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
-import { options, buildValue } from './balance.js';
+import { options, buildValue, campaign } from './balance.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 60);
@@ -53,6 +53,7 @@ export function goalTap(game, town, rng) {
   if (!g || !g.at) return null;
   const c = goalContext(game, town), at = g.at(c) || {};
   if (at.el && at.el.includes('townChip')) { const id = at.el.match(/data-town="(\w+)"/)[1]; return { what: 'go', label: id, run: () => game.go(id) }; }
+  if (at.el && at.el.includes('callWave')) return town.waves.phase === 'break' ? { what: 'call', label: 'wave ' + town.wave, run: () => callEarly(game, town) >= 0 } : null;
   if (at.el && at.el.includes('research')) {
     if (!tabs(game, town).research || town.lab) return null;
     const items = itemsOf(town).filter(id => researchBlock(town, id) === null);
@@ -117,6 +118,7 @@ export function newcomer(seed, minutes = MINUTES) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
       if (tap.what === 'go') { r.gulchAt = at; news(); }
+      else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
       r.taps.push(at);
       if (r.log.length < 400) r.log.push([Math.round(at), g.active, tap.what, tap.label]);
@@ -126,6 +128,19 @@ export function newcomer(seed, minutes = MINUTES) {
   r.final = Object.fromEntries(Object.entries(g.towns).map(([id, t]) => [id, { wave: t.wave, best: t.bestWave, towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } }]));
   r.game = g;
   return r;
+}
+
+/* Skill pays (PLAN.md M2): the careful player (tools/balance.js, which calls waves early) beats the newcomer by at
+   least SKILL on the median time to win Dry Creek and on the median time to the Gulch's wave 10. Returns the misses. */
+export const SKILL = 1.2;
+export function skillGap(nc, careful) {
+  const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : null; };
+  const out = [], rows = [['Dry Creek won', nc.map(r => r.dcWon), careful.map(c => c.dc.won)], ['Gulch wave 10', nc.map(r => r.wave10), careful.map(c => c.gulch && c.gulch.wave10)]];
+  for (const [what, a, b] of rows) {
+    const n = med(a), c = med(b);
+    out.push({ what, newcomer: n, careful: c, ok: n !== null && c !== null && n >= SKILL * c });
+  }
+  return out;
 }
 
 /* The checks: Dry Creek won within 20 min, the Gulch's wave 10 within 14 min after it opens, never stuck 3 min. */
@@ -139,12 +154,17 @@ export function misses(r) {
 }
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/firstplay.js')) {
-  const all = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
+  const all = [], runs = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | final towers (Dry Creek / Gulch)');
   for (let s = 1; s <= SEEDS; s++) {
     const r = newcomer(s);
     console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')}`);
-    all.push(...misses(r));
+    all.push(...misses(r)); runs.push(r);
+  }
+  const careful = []; for (let s = 1; s <= SEEDS; s++) careful.push(campaign(s, 'active', 15));
+  for (const x of skillGap(runs, careful)) {
+    console.log(`skill: ${x.what}, median newcomer ${mm(x.newcomer)}, careful player ${mm(x.careful)}` + (x.ok ? ' ok' : ''));
+    if (!x.ok) all.push(`skill: ${x.what} takes the newcomer ${mm(x.newcomer)} and the careful player ${mm(x.careful)} (want the newcomer at least 20% slower)`);
   }
   console.log(all.length ? all.map(m => 'FAIL ' + m).join('\n') : 'ok');
   process.exitCode = all.length ? 1 : 0;

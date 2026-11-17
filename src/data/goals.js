@@ -15,6 +15,7 @@ export const GOALS = [
   { id: 'dc-mine', town: 'drycreek', text: 'Tap Build to build the Mining Camp', done: c => c.lv('dmine') >= 1, ready: early(c => c.unlocked('dmine')), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-three', town: 'drycreek', text: 'Build Crossbows on 3 stone pads', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }) },
   { id: 'dc-up', town: 'drycreek', text: 'Tap a Crossbow, then tap Upgrade', done: c => c.topLevel() >= 2, ready: early(), at: c => ({ tower: c.lowTower() }) },
+  { id: 'dc-call', town: 'drycreek', text: 'Tap Call now for bonus coins and an early wave', done: c => c.called(), ready: early(c => c.towers.length >= 3 && c.bestWave >= 2), at: () => ({ el: '#callWave' }) },
   { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Mining Camp and upgrade it to level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-path', town: 'drycreek', text: 'Upgrade a Crossbow to level 5 and pick a path', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', done: c => c.won },

@@ -18,6 +18,7 @@ export function goalContext(game, town) {
     lv: id => town.level(id), unlocked: id => unlocked(town, id), open: kind => towerOpen(town, kind),
     built: kind => towers.some(t => t.kind === kind), pathed: () => towers.some(t => t.path),
     topLevel: () => towers.reduce((a, t) => Math.max(a, t.level), 0),
+    called: () => !!(town.flags && town.flags.called),
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
     visited: id => !!sh.visited[id] || game.active === id,
     freeSpot: () => free(false), freePit: () => free(true),

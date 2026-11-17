@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, roadOf, planWave, towerReserve, setHold } from '../src/core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, CALL_OPEN, roadOf, planWave, towerReserve, setHold } from '../src/core/defense.js';
 import { pointAt, makePath } from '../src/core/path.js';
 import { TOWERS, PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { WAVE, FOES } from '../src/data/foes.js';
@@ -167,6 +167,8 @@ test('after a long wave the rest is still at least WAVE.rest, and Call now skips
   Object.assign(t.waves, { phase: 'wave', queue: [], foes: [], age: 5 });
   g.step(.25);
   assert.ok(Math.abs(t.waves.timer - (WAVE.pace - 5.25)) < 1e-9, 'waits out the pace: ' + t.waves.timer);
+  assert.equal(callEarly(g, t), -1, 'Call now waits until about half the wait is gone');
+  t.waves.timer = WAVE.pace * CALL_OPEN;
   assert.ok(callEarly(g, t) > 0); assert.equal(t.waves.phase, 'wave');
 });
 

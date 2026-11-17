@@ -132,12 +132,20 @@ export function setHold(game, town, on) {
   game.bus.emit('waves:hold', { town: town.id, hold: !!on });
 }
 
-/* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 if not in a break. */
+/* Call now opens once the wait for the next wave is down to CALL_OPEN of the wave pace, so a strong defense can go
+   up to about twice as fast as the clock and no faster: the strategies stay close (CLAUDE.md), and a careful player
+   still beats one who never calls by a fifth or more (PLAN.md M2, Skill pays). The wait before the first wave can
+   always be cut short. */
+export const CALL_OPEN = .52;
+export const canCall = town => town.waves.phase === 'break' && ((town.wave === 1 && !town.bestWave) || town.waves.timer <= wavesOf(town).pace * CALL_OPEN + 1e-9);
+/* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 if it can't be called
+   yet (not in a break, or the wait is still long). town.flags.called counts the calls (the goal strip asks for one). */
 export function callEarly(game, town) {
   const ws = town.waves;
-  if (ws.phase !== 'break') return -1;
+  if (!canCall(town)) return -1;
   const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4);
   town.earn(bonus, false, 'call');
+  town.flags.called = (town.flags.called || 0) + 1;
   startWave(game, town);
   return bonus;
 }

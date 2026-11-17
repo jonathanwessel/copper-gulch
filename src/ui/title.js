@@ -18,7 +18,7 @@ export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } 
   const sign = el('div', 'sign');
   const has = slot && !slot.empty && !slot.damaged;
   const play = el('button', 'btn primary', has ? 'Continue' : 'Play'); play.id = 'play';
-  const saved = el('p', 'note slotline', has ? 'Slot ' + slotNo + ' · wave ' + slot.wave + ' · ' + fmt(slot.coins) + ' coins · ' + ago(Date.now() - slot.at) : '');
+  const saved = el('p', 'note slotline', has ? 'Slot ' + slotNo + ' · Wave ' + slot.wave + ' · ' + fmt(slot.coins) + ' coins · ' + ago(Date.now() - slot.at) : '');
   saved.id = 'slotLine'; saved.hidden = !has;
   play.addEventListener('click', () => { play.disabled = true; onPlay(); });
   const row = el('div', 'row');

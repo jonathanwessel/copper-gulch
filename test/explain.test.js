@@ -7,7 +7,7 @@ import { newGame } from '../src/core/setup.js';
 import { explainOutput, explainPrice, explainTower, explainVault, explainIncome, paysEach, modRows } from '../src/core/explain.js';
 import { output } from '../src/core/economy.js';
 import { quote, sell } from '../src/core/market.js';
-import { towerStats, vaultMax, callEarly, buildTower } from '../src/core/defense.js';
+import { towerStats, vaultMax, callEarly, canCall, buildTower } from '../src/core/defense.js';
 import { startResearch } from '../src/core/research.js';
 import { pickPerk, applyAll } from '../src/core/charter.js';
 import { encode, decode } from '../src/core/save.js';
@@ -93,7 +93,7 @@ test('income: every coin is filed by where it came from, and the parts add up to
   const before = { ...t.tally }, l0 = t.lifetime;
   run(g, 90); // sales, and the first waves' bounties
   let sec = 90;
-  while (!(t.waves.phase === 'break' && t.waves.timer > 3)) { g.step(.25); sec += .25; }
+  while (!(canCall(t) && t.waves.timer > 3)) { g.step(.25); sec += .25; }
   assert.ok(callEarly(g, t) > 0);
   const ex = explainIncome(t, before, t.tally, sec);
   assert.ok(near(ex.value * sec, t.lifetime - l0), ex.value * sec + ' vs ' + (t.lifetime - l0));

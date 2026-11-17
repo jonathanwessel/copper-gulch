@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-12',
+    lines: [
+      'Waves now wait longer before they come.',
+      'Tap Call now when your towers win easily. The next wave comes right away and you get bonus coins.',
+      'You can tap Call now once half the wait is over.',
+    ],
+  },
+  {
     v: '2026.11.17-11',
     lines: [
       'When a goal says to tap a building, its tag shows the building name.',

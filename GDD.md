@@ -29,7 +29,7 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
   - One tower: the Crossbow, paid with coins plus stone.
   - The road comes in through a dry wash in a gap of a rock ridge (a broken windmill at its mouth), loops once around the camp and leaves the same way. Raiders who finish the loop raid the camp's stockpile, which is the outpost's small vault.
   - About 6 stone pads, inside and outside the loop. No mortar pits: outposts never have a Mortar, so the pit rule does not apply to them.
-  - Waves 1 to 10, at least 65 seconds apart (the bots win it in about 11 minutes), and wave 10 is a bandit wagon (a small boss). Beating wave 10 wins the outpost and opens Copper Gulch, the first town.
+  - Waves 1 to 10, at least 80 seconds apart unless the player calls them early (a careful player who calls wins it in about 9 minutes, a newcomer in about 13), and wave 10 is a bandit wagon (a small boss). Beating wave 10 wins the outpost and opens Copper Gulch, the first town.
 - **Each new town opens one more outpost**, so there are outposts between the towns for the whole game. There is no outpost between Dry Creek and Copper Gulch, and none with the Capital. Each one's two raw goods fit the era it opens in:
 
 | # | Outpost | Opens with | Raw goods | Entrance |
@@ -116,7 +116,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Copper Gulch opens it at wave 12, for coins plus copper and bricks. Later towns pay with their own goods (Iron Ridge: pig iron).
   - In the background battle its damage counts only for the share of the lane inside its ring; Auto-towers treats it like any tower.
 - **Waves** come in types (mixed, rush, swarm, heavy), with weather, and a boss every 10th wave.
-  - The wave pace: the next wave comes a short rest after the last one is cleared, and never sooner than a set time after the last one started (Copper Gulch: 7 s and 40 s). A strong defense does not race through the waves, and Call now skips the wait for bonus coins.
+  - The wave pace: the next wave comes a short rest after the last one is cleared, and never sooner than a set time after the last one started (Copper Gulch: 7 s and 58 s; Dry Creek: 80 s). Call now starts the next wave at once and pays bonus coins for the time skipped. It opens once about half the wait is gone (`CALL_OPEN`), so a strong defense can go up to about twice as fast as the clock and no faster: skill pays, and the strategies stay close. The wait before the first wave can always be cut short.
 - **Each lane has its own threats**: boats on the river, airships in the sky (only Tesla and drones reach them), and jamming in Radium Springs.
 - **The vault** is each town's health. When it falls, the town loses 10% of its coins and drops back 2 waves.
 - **Background towns** fight through an analytic battle based on their tower strength. A fallen vault, or a town looping at its boss gate, raises an alert.
@@ -191,7 +191,7 @@ One panel, with three switches per town and one spend share per town. The share 
 
 ## Onboarding
 - **Tutorial**: spotlight steps through the first 30 minutes. It starts in Dry Creek Outpost, the smallest map (one camp, one tower, one loop), and carries on into Copper Gulch.
-  - **The goal strip** (`src/data/goals.js`): one short order at a time under Pause and Hold waves, with a pulsing gold frame on the pad, building tag or button it means. Dry Creek: build a Crossbow, the Stone Camp to 2, the Mining Camp, 3 Crossbows, an upgrade, the Mining Camp to 5, a path, beat wave 10, go to Copper Gulch. Copper Gulch: a Crossbow, the Lumber Camp to 3, the Copper Mine, a Cannon, the Lumber Camp to 5, the Sawmill, a research, the Clay Pit, a Frost Lens, the Copper Mine to 5, the Smelter, a path, the war wagon, a Mortar.
+  - **The goal strip** (`src/data/goals.js`): one short order at a time under Pause and Hold waves, with a pulsing gold frame on the pad, building tag or button it means. Dry Creek: build a Crossbow, the Stone Camp to 2, the Mining Camp, 3 Crossbows, an upgrade, Call now (the next wave early), the Mining Camp to 5, a path, beat wave 10, go to Copper Gulch. Copper Gulch: a Crossbow, the Lumber Camp to 3, the Copper Mine, a Cannon, the Lumber Camp to 5, the Sawmill, a research, the Clay Pit, a Frost Lens, the Copper Mine to 5, the Smelter, a path, the war wagon, a Mortar.
   - A goal counts the first time it is true, in any order, and a goal that can't be done yet is passed over. Finished goals stay finished in the save. A finished goal shows Done for a moment, then the next one comes in. When a town's goals are all done the strip goes away.
   - The careful bot finishes them all by about 25 minutes into a new game; `tools/balance.js` fails if any goal takes longer than 40 minutes.
 - **Coach cards** appear once each, when a system unlocks.
@@ -208,8 +208,8 @@ One panel, with three switches per town and one spend share per town. The share 
 | Milestone | Target |
 |---|---|
 | First tower (in Dry Creek) | under 1 min |
-| Dry Creek won, Copper Gulch opens | 10-15 min active, within 20 min for the newcomer bot |
-| Copper Gulch wave 10 | 7-9 min after the Gulch opens (balance bot), within 14 min for the newcomer bot |
+| Dry Creek won, Copper Gulch opens | 8-12 min active (calls waves early), within 20 min for the newcomer bot, which must be at least 20% slower |
+| Copper Gulch wave 10 | 7-9 min after the Gulch opens (active, calls waves early), within 14 min for the newcomer bot, which must be at least 20% slower |
 | First charter offered | 35-45 min after the Gulch opens (about 45-60 min of play) |
 | Iron Ridge | 55-80 min active, under 2 h 15 min for the newcomer bot |
 | Capital | 2.5-4 h |
@@ -220,7 +220,7 @@ One panel, with three switches per town and one spend share per town. The share 
 | Second life back to the first life's peak | under 30% of the time |
 | Longest stretch with nothing to do in the first hour | under 3 min (newcomer bot) |
 
-Waves come on a clock, so a newcomer who holds them keeps the careful player's pace. The newcomer limits are upper ones: `tools/firstplay.js` (slow taps, 30% wrong buys, only the buttons that are out) must win Dry Creek and reach the Gulch's wave 10 no later than these.
+Skill pays. Waves come on a clock, and Call now lets a strong defense beat it. The active bot (and every strategy bot) calls the next wave once the last one was over within 45% of the wave pace, nothing got through in the last two waves and the vault is above 60%, and never calls a boss wave early. The newcomer bot never calls on its own, only once when the goal strip asks. `tools/firstplay.js` (slow taps, 30% wrong buys, only the buttons that are out) must win Dry Creek and reach the Gulch's wave 10 within the newcomer limits, and its median times must be at least 20% slower than the active bot's on both.
 
 ## Look and sound
 - **Models.** Low-poly 3D built in code, on vendored three.js.

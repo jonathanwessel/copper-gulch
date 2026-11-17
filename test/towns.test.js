@@ -110,10 +110,10 @@ test('coins from an outpost sale reach the town in play but do not count toward 
   assert.equal(migrate(old).game.towns.gulch.fromOutposts, 0);
 });
 
-test('Dry Creek is paced to be won in 10-15 minutes: waves at least 65 s apart', async () => {
+test('Dry Creek is paced so a player who never calls a wave wins in 12-15 minutes: waves at least 80 s apart', async () => {
   const { wavesOf } = await import('../src/core/defense.js');
   const g = newGame('t10'), w = wavesOf(g.town);
-  assert.equal(w.pace, 65);
+  assert.equal(w.pace, 80);
   const earliest = w.first + (TOWNS.drycreek.goal - 1) * w.pace;
-  assert.ok(earliest >= 9.5 * 60 && earliest <= 13 * 60, 'wave 10 starts at ' + earliest + ' s at the soonest');
+  assert.ok(earliest >= 12 * 60 && earliest <= 13 * 60, 'wave 10 starts at ' + earliest + ' s at the soonest without Call now');
 });

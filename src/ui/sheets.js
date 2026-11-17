@@ -171,7 +171,7 @@ export function menuSheet(ctx) {
     for (let n = 1; n <= SLOTS; n++) {
       const s = slotSummary(n), row = el('div', 'option slot'), txt = el('div');
       txt.append(el('b', null, 'Slot ' + n + (n === mine ? ' · playing' : '')),
-        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · wave ' + s.wave + ' · ' + fmt(s.coins) + ' coins · ' + ago(Date.now() - s.at)));
+        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmt(s.coins) + ' coins · ' + ago(Date.now() - s.at)));
       row.append(txt);
       if (n !== mine) {
         const go = btn(s.empty ? 'New game' : 'Play'); go.dataset.slot = n; go.classList.add('slotgo');

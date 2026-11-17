@@ -28,11 +28,12 @@ test('min-max keeps few towers high, swarm spreads many low', () => {
   assert.ok(Math.max(...pads) - Math.min(...pads) <= 1, 'swarm levels are uneven: ' + pads);
 });
 
-test('the bots play Dry Creek first: the active player wins it in 10-15 min, then plays the Gulch with Dry Creek running', async () => {
+test('the bots play Dry Creek first: the active player calls waves early and wins it in 8-12 min, then plays the Gulch with Dry Creek running', async () => {
   const { campaign } = await import('../tools/balance.js');
   const { dc, gulch, game } = campaign(1, 'active', 10);
   assert.ok(dc.firstTower !== null && dc.firstTower < 60);
-  assert.ok(dc.won >= 600 && dc.won <= 900, 'won at ' + dc.won);
+  assert.ok(dc.won >= 480 && dc.won <= 720, 'won at ' + dc.won);
+  assert.ok(dc.calls > 0, 'it called a wave early');
   assert.ok(gulch && game.active === 'gulch');
   assert.ok(game.towns.drycreek.won);
   assert.ok(gulch.firstTower !== null);

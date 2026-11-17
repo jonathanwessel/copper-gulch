@@ -68,6 +68,18 @@ async function run() {
         return { built, wave: t.waves.phase === 'wave' };
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      // Call now is grayed while the wait for the next wave is long, and works once half of it is gone
+      const callGate = await page.evaluate(async () => {
+        const t = CG.game.town, ws = t.waves, keep = JSON.stringify(ws), bw = t.bestWave, b = document.getElementById('callWave');
+        CG.town.pause('smoke', true); t.bestWave = Math.max(1, bw); Object.assign(ws, { phase: 'break', timer: 50, queue: [], foes: [] });
+        await new Promise(r => setTimeout(r, 400));
+        const early = !b.hidden && b.disabled; b.click(); const stayed = ws.phase === 'break';
+        ws.timer = 10; await new Promise(r => setTimeout(r, 400));
+        const open = !b.disabled; b.click(); const went = ws.phase === 'wave';
+        Object.assign(t.waves, JSON.parse(keep)); t.bestWave = bw; CG.town.pause('smoke', false);
+        return { early, stayed, open, went };
+      });
+      if (!callGate.early || !callGate.stayed || !callGate.open || !callGate.went) bad.push('Call now did not wait for half the wave wait: ' + JSON.stringify(callGate));
       // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
       // names the good, the amount and the building that makes it
       const reserve = await page.evaluate(async () => {
