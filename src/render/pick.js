@@ -1,0 +1,29 @@
+/* Picking: which plot is under a screen point. Models are tested first (a tall roof hides the ground behind it), then
+   the ground, then the flat plane y = 0. */
+import * as THREE from 'three';
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+
+export function groundPoint(cam, el, clientX, clientY) {
+  const r = el.getBoundingClientRect();
+  ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, cam);
+  return ray;
+}
+
+export function pickPlot(cam, el, board, clientX, clientY) {
+  const r = groundPoint(cam, el, clientX, clientY);
+  const m = r.intersectObjects(board.pickables, false)[0];
+  if (m && m.object.userData.plot) return m.object.userData.plot;
+  const g = r.intersectObject(board.ground, false)[0];
+  if (g) return board.plotAt(g.point.x, g.point.z);
+  if (r.ray.intersectPlane(plane, hit)) return board.plotAt(hit.x, hit.z);
+  return null;
+}
+
+/* Where a world point lands on screen, in CSS pixels; null when behind the camera. */
+export function project(cam, el, v) {
+  const p = v.clone().project(cam);
+  if (p.z > 1) return null;
+  return { x: (p.x + 1) / 2 * el.clientWidth, y: (1 - p.y) / 2 * el.clientHeight };
+}

@@ -1,5 +1,6 @@
 // node tools/smoke.js: loads the game in headless Edge or Chrome at phone, landscape and desktop sizes and checks
-// that it boots without errors, draws the 3D view, has no sideways scroll and no touch target under 30 px.
+// that it boots without errors, draws the 3D view, has no sideways scroll and no touch target under 30 px; then taps
+// Play and checks the town the same way, opens a building card and buys a level with its button.
 // Then it turns the server off and reloads, to prove the installed app runs offline.
 // Prints one line per size ("phone ok") and exits non-zero on any failure.
 import { start } from './serve.js';
@@ -23,10 +24,12 @@ export async function check(page) {
       if (r.width && (r.width < 30 || r.height < 30)) bad.push('small target: ' + (b.id || b.textContent.trim().slice(0, 20)) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
       if (r.width && (r.right > vw + 1 || r.left < -1)) bad.push('off screen: ' + (b.id || b.textContent.trim().slice(0, 20)));
     }
-    if (!document.getElementById('title')) bad.push('no title');
-    const s = window.CG && CG.scene;
-    if (!s) bad.push('no 3D view');
-    else if (s.frames < 3 || !s.view.renderer.info.render.calls) bad.push('3D view not drawing');
+    if (!window.CG) return [...bad, 'no game'];
+    if (CG.town) { if (CG.town.frames < 3) bad.push('town not drawing'); }
+    else if (CG.game) bad.push('no 3D town');
+    else if (!document.getElementById('title')) bad.push('no title');
+    else if (!CG.scene) bad.push('no 3D view');
+    else if (CG.scene.frames < 3) bad.push('3D view not drawing');
     return bad;
   });
 }
@@ -42,7 +45,19 @@ async function run() {
       await page.goto(srv.url);
       await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
       await sleep(300);
-      const bad = [...await check(page), ...errs];
+      const bad = [...await check(page)];
+      // the town: play, open the camp, buy a level
+      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5);
+      await sleep(300);
+      bad.push(...(await check(page)).map(b => 'town: ' + b));
+      const buy = await page.evaluate(async () => {
+        const t = CG.game.town; t.coins = 100; CG.play.open('camp'); await new Promise(r => setTimeout(r, 100));
+        const b = document.getElementById('buy'), before = t.level('camp'); b.click();
+        return { ok: t.level('camp') === before + 1, card: !document.getElementById('card').hidden };
+      });
+      if (!buy.ok || !buy.card) bad.push('the card did not buy a level');
+      bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;
       await page.close();

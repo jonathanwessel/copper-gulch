@@ -10,6 +10,9 @@ const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
 // each screen: a name and a function run in the page to reach it (screens grow with the game)
 const SCREENS = [
   ['title', () => true],
+  ['town', () => { localStorage.clear(); document.getElementById('play').click(); }],
+  ['card', () => { const t = CG.game.town; t.coins = 400; CG.play.open('camp'); }],
+  ['built', () => { const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -21,7 +24,7 @@ try {
     await p.goto(srv.url);
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); await sleep(900);
+      await p.evaluate(go); await sleep(name === 'town' ? 3000 : 1200);
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();

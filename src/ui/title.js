@@ -5,7 +5,7 @@ import { APP, checkUpdates } from './update.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
-export function mountTitle(root) {
+export function mountTitle(root, { onPlay = () => {} } = {}) {
   const t = el('section', 'title'); t.id = 'title';
   const logo = el('div', 'logo'); logo.setAttribute('role', 'img'); logo.setAttribute('aria-label', 'Copper Gulch');
   for (const word of ['COPPER', 'GULCH']) {
@@ -14,8 +14,9 @@ export function mountTitle(root) {
   }
   const tag = el('p', 'tagline', 'A frontier tycoon. Hold the road.');
   const sign = el('div', 'sign');
-  const play = el('button', 'btn primary', 'Play'); play.id = 'play'; play.disabled = true;
-  const note = el('p', 'note', 'The town is being rebuilt. The first playable build is on its way.');
+  const play = el('button', 'btn primary', 'Play'); play.id = 'play';
+  play.addEventListener('click', () => { play.disabled = true; onPlay(); });
+  const note = el('p', 'note', 'Early days: the Gulch has its buildings and its market. Raiders, research and more towns are coming.');
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));

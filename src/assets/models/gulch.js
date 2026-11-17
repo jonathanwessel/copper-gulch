@@ -124,6 +124,60 @@ const R = {
     const fl = part(k2 => k2.box(.13, 0, 0, .26, .15, .015, 'paintR')); k.box(.55, 1.42, .3, .025, .55, .025, 'woodD'); add('flag', fl, new THREE.Vector3(.56, 1.78, .3));
     return 1.6;
   },
+  claypit(k, add) {
+    // a terraced pit of red clay with a puddle at the bottom, a lean-to and a barrow on a plank ramp
+    k.cyl(-.15, -.02, -.1, .72, .05, '#a8603e', { seg: 10, jit: .06 }); k.cyl(-.15, .0, -.1, .56, .06, '#bf6d45', { seg: 10 });
+    k.cyl(-.15, .02, -.1, .4, .06, '#9c5434', { seg: 9 }); k.cyl(-.15, .05, -.1, .24, .02, 'water', { seg: 8, mat: 'metal' });
+    for (let i = 0; i < 5; i++) k.box(-.15 + Math.cos(i * 1.3) * .62, .03, -.1 + Math.sin(i * 1.3) * .62, .16, .1, .14, i % 2 ? '#c97a4f' : '#a8603e', { ry: i });
+    k.box(.42, .02, .5, .5, .04, .12, 'plank', { rz: -.12 });
+    const bar = part(k2 => { k2.box(0, .08, 0, .2, .1, .14, 'iron', { mat: 'metal' }); k2.cyl(.12, .04, 0, .04, .02, 'black', { rx: Math.PI / 2, seg: 8 }); k2.box(-.18, .12, 0, .2, .02, .1, 'woodD'); k2.dode(0, .17, 0, .06, '#bf6d45', { sy: .6 }); });
+    add('cart', bar, new THREE.Vector3(.48, .03, .5));
+    // a lean-to with stacked clay blocks
+    for (const sx of [-.2, .2]) k.box(.6 + sx, 0, -.55, .05, .5, .05, 'wood');
+    k.box(.6, .48, -.5, .56, .04, .42, 'roofS', { rx: .25 });
+    for (let i = 0; i < 3; i++) k.box(.6, i * .07, -.6, .3, .06, .16, '#bf6d45', { jit: .1 });
+    return .7;
+  },
+  kiln(k, add) {
+    // a brick beehive kiln with a glowing mouth, a tall stack, and stacks of finished bricks
+    k.cyl(-.15, 0, -.1, .55, .45, 'brick', { r2: .5, seg: 12, jit: .08 });
+    k.ball(-.15, .42, -.1, .5, 'brickD', { det: 1, sy: .62, jit: .06 });
+    k.box(-.15, 0, .38, .3, .3, .12, 'brickD'); k.box(-.15, .02, .43, .2, .2, .05, 'black');
+    const hot = part(k2 => k2.box(0, 0, 0, .18, .17, .03, 'glowO', { mat: 'fire' })); add('hot', hot, new THREE.Vector3(-.15, .03, .46));
+    const sm = stack(k, .5, 0, -.45, 1.35, .09, 'brickD'); add('smoke', null, sm);
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 3 - r; i++) k.box(.48 + (i - (2 - r) / 2) * .13, r * .07, .4, .12, .065, .2, r % 2 ? 'brick' : '#c46a4e', { jit: .08 });
+    k.box(-.7, 0, .5, .3, .06, .3, 'woodD'); k.box(-.7, .06, .5, .26, .06, .26, '#bf6d45');
+    return 1.4;
+  },
+  toolsmith(k, add) {
+    // a smithy: stone forge with a hood, an open front, an anvil, and a rack of tools
+    const top = shed(k, 0, -.25, 1.3, .7, .6, 'wood', 'roofS', { trim: 'woodD' });
+    k.box(-.35, 0, .2, .5, .36, .4, 'stone', { jit: .1 }); k.box(-.35, .36, .2, .54, .04, .44, 'stoneD');
+    const hot = part(k2 => k2.box(0, 0, 0, .3, .05, .26, 'glowO', { mat: 'fire' })); add('hot', hot, new THREE.Vector3(-.35, .37, .2));
+    k.cyl(-.35, .45, .2, .22, .3, 'iron', { r2: .06, seg: 4, mat: 'metal', ry: Math.PI / 4 }); const sm = stack(k, -.35, .75, .2, .55, .06); add('smoke', null, sm);
+    // the anvil on its stump, and a hammer that rises and falls
+    k.cyl(.25, 0, .35, .1, .2, 'woodL', { seg: 8 }); k.box(.25, .2, .35, .26, .08, .1, 'iron', { mat: 'metal' }); k.cone(.42, .22, .35, .04, .1, 'iron', { rz: -Math.PI / 2, seg: 4, mat: 'metal' });
+    const ham = part(k2 => { k2.box(0, 0, 0, .025, .22, .025, 'woodD'); k2.box(0, .2, 0, .09, .05, .05, 'steel', { mat: 'metal' }); });
+    add('hammer', ham, new THREE.Vector3(.2, .3, .35));
+    // a tool rack on the wall
+    k.box(.35, .25, .1, .5, .04, .03, 'woodD'); for (let i = 0; i < 4; i++) k.box(.18 + i * .11, .12, .12, .02, .2, .02, i % 2 ? 'steel' : 'woodL', { mat: i % 2 ? 'metal' : 'solid' });
+    barrel(k, .72, .55); crate(k, .7, .2, .18);
+    return top;
+  },
+  wagonworks(k, add) {
+    // a big red barn with open doors, a wagon on blocks being built, and spare wheels
+    k.box(0, 0, -.3, 1.4, .72, .9, 'paintR', { jit: .07 }); k.gable(0, .72, -.3, 1.52, 1.06, .45, 'woodD', { jit: .06 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.box(sx * .69, 0, -.3 + sz * .44, .07, .72, .07, 'white');
+    k.box(0, 0, .16, .62, .56, .03, 'black'); for (const sx of [-1, 1]) k.box(sx * .5, 0, .2, .3, .56, .04, 'paintR', { ry: sx * .5 });
+    k.box(0, .6, .16, .5, .14, .03, 'white');
+    // the wagon in the yard: a bed, a canvas hoop, wheels
+    const wy = .12; k.box(.15, 0, .58, .12, wy, .12, 'woodD'); k.box(.75, 0, .58, .12, wy, .12, 'woodD');
+    k.box(.45, wy, .58, .78, .1, .36, 'wood');
+    for (let i = 0; i < 3; i++) k.torus(.18 + i * .26, wy + .1, .58, .2, .015, 'white', { ry: Math.PI / 2, ts: 8, arc: Math.PI });
+    for (const [x, z] of [[.13, .4], [.13, .76], [.77, .4], [.77, .76]]) { k.torus(x, .17, z, .14, .025, 'woodD', { ts: 10 }); }
+    for (let i = 0; i < 2; i++) k.torus(-.62, .02 + i * .06, .55, .16, .025, 'woodL', { rx: Math.PI / 2, ts: 10 });
+    return 1.2;
+  },
 };
 
 
