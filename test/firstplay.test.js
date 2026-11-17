@@ -31,9 +31,10 @@ test('the newcomer uses only the buttons that are out', () => {
 });
 
 test('the newcomer misses are reported in plain lines', () => {
-  assert.deepEqual(misses({ ...r, wave10: 600, dcWon: 700, stuck: { longest: 60, at: 0 } }), []);
-  assert.equal(misses({ ...r, wave10: 600, dcWon: 21 * 60, stuck: { longest: 60, at: 0 } }).length, 1);
-  assert.match(misses({ ...r, wave10: 600, dcWon: 700, stuck: { longest: 200, at: 300 } })[0], /stuck/);
+  assert.deepEqual(misses({ ...r, wave10: 600, dcWon: 700, stuck: { longest: 60, at: 0 }, ridgeAt: 3600 }), []);
+  assert.equal(misses({ ...r, wave10: 600, dcWon: 21 * 60, stuck: { longest: 60, at: 0 }, ridgeAt: 3600 }).length, 1);
+  assert.match(misses({ ...r, wave10: 600, dcWon: 700, stuck: { longest: 200, at: 300 }, ridgeAt: 3600 })[0], /stuck/);
+  assert.match(misses({ ...r, wave10: 600, dcWon: 700, stuck: { longest: 60, at: 0 }, ridgeAt: null })[0], /Iron Ridge founded at never/);
 });
 
 test('the audit notices two things with one name', () => {

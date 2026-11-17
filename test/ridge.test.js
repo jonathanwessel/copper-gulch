@@ -19,9 +19,9 @@ function gulch(seed, wave = 20, coins = 2e5) {
   return g;
 }
 
-test('Iron Ridge shows as a locked town at Gulch wave 15 and can be founded at wave 20 with 150K coins', () => {
+test('Iron Ridge shows as a locked town at Gulch wave 15 and can be founded at wave 20 with 15K coins', () => {
   const f = TOWNS.ridge.found;
-  assert.deepEqual([f.from, f.wave, f.coins], ['gulch', 20, 150000]);
+  assert.deepEqual([f.from, f.wave, f.coins], ['gulch', 20, 15000]);
   let g = gulch('r1', 14);
   assert.deepEqual(nextTowns(g), []);
   assert.equal(tabs(g, g.town).chip, false);
@@ -29,9 +29,9 @@ test('Iron Ridge shows as a locked town at Gulch wave 15 and can be founded at w
   assert.deepEqual(nextTowns(g).map(n => [n.id, n.ready]), [['ridge', false]]);
   assert.equal(tabs(g, g.town).chip, true, 'the town buttons come out to show it');
   assert.equal(canFound(g, 'ridge'), false);
-  g = gulch('r1', 20, 149999);
+  g = gulch('r1', 20, 14999);
   assert.equal(canFound(g, 'ridge'), false, 'short of the coins');
-  g.town.coins = 150000;
+  g.town.coins = 15000;
   assert.equal(canFound(g, 'ridge'), true);
 });
 
@@ -40,11 +40,11 @@ test('founding Iron Ridge pays from the Gulch and opens the Ridge and Pine Hollo
   g.bus.on('town:found', e => seen.push(e));
   const r = foundTown(g, 'ridge');
   assert.ok(r);
-  assert.equal(g.towns.gulch.coins, 2e5 - 150000);
+  assert.equal(g.towns.gulch.coins, 2e5 - 15000);
   assert.deepEqual(Object.keys(g.towns).sort(), ['gulch', 'pinehollow', 'ridge']);
   assert.equal(g.active, 'gulch', 'founding does not move the player; the screen takes them there');
   assert.ok(isOutpost(g.towns.pinehollow));
-  assert.deepEqual(seen.map(e => [e.town, e.from, e.coins]), [['ridge', 'gulch', 150000]]);
+  assert.deepEqual(seen.map(e => [e.town, e.from, e.coins]), [['ridge', 'gulch', 15000]]);
   assert.equal(foundTown(g, 'ridge'), null);
   assert.deepEqual(nextTowns(g), []);
 });

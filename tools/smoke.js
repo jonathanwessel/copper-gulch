@@ -465,7 +465,7 @@ async function run() {
       await page.evaluate(() => document.getElementById('foundTown').click());
       if (!await waitFor(page, () => CG.game.active === 'ridge' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:ridge', 10000)) bad.push('Start did not open Iron Ridge');
       if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ridge-welcome', 6000)) bad.push('no Iron Ridge welcome card');
-      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 5e4 + 1, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
+      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 2e5 - CG.game.towns.ridge.def.found.coins + 1, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
       if (!ridge.paid || ridge.towns !== 'gulch,ridge,pinehollow' || ridge.on !== 'ridge' || ridge.canvases !== 1) bad.push('Iron Ridge opened wrong (' + JSON.stringify(ridge) + ')');
       await page.evaluate(() => { CG.coach.dismiss(); CG.coach.skipAll(); delete CG.game.shared.seen['ph-welcome']; });
       await sleep(400);

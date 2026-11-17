@@ -1,4 +1,4 @@
-// node tools/firstplay.js [--seeds 6] [--minutes 60]: the newcomer bot (CLAUDE.md, Bots with different play styles).
+// node tools/firstplay.js [--seeds 6] [--minutes 140]: the newcomer bot (CLAUDE.md, Bots with different play styles).
 // It plays a new game the way someone on their first try does, straight on the simulation core:
 //   - it is slow: after each tap it waits 3-8 seconds before the next one;
 //   - it uses only what is on screen: the board, the goal strip, and the side buttons src/core/reveal.js puts out
@@ -7,7 +7,8 @@
 //     raiders get through (the vault bar) or its towers are few for the wave number, and the building that pays best
 //     when they are not;
 //   - it makes a wrong buy 30% of the time: any other thing it can pay for, on any pad, with any path.
-// It never saves up, calls a wave early only when the goal strip asks, hires no foremen and does not sign a charter.
+// It saves up and holds the waves only when the goal strip asks (for Iron Ridge), calls a wave early only when the
+// strip asks, hires no foremen and does not sign a charter.
 // Targets (GDD.md, Pacing targets; PLAN.md M2): Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
 // it opens, and never stuck for more than 3 min in the first hour. Skill pays: the careful player of tools/balance.js,
 // who calls waves early, is at least 20% faster on both (medians over the seeds). "Stuck" is a stretch with nothing it can pay for
@@ -18,15 +19,16 @@ import { Rng } from '../src/core/rng.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
-import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly } from '../src/core/defense.js';
+import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
 import { itemsOf, researchBlock, startResearch } from '../src/core/research.js';
 import { PERKS } from '../src/data/perks.js';
 import { perkState, pickPerk } from '../src/core/charter.js';
 import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { options, buildValue, campaign } from './balance.js';
+import { nextTowns, foundTown, canFound } from '../src/core/empire.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 60);
+const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 140); // long enough to found Iron Ridge
 export const WAIT = [3, 8], WRONG = .3, FOLLOW = .7;
 export const STUCK_LIMIT = 180;
 /* The newcomer cannot see how strong the next wave is. It adds a tower when it has none, when a raider reached the
@@ -52,7 +54,13 @@ export function goalTap(game, town, rng) {
   const g = goalNow(game);
   if (!g || !g.at) return null;
   const c = goalContext(game, town), at = g.at(c) || {};
-  if (at.el && at.el.includes('townChip')) { const id = at.el.match(/data-town="(\w+)"/)[1]; return { what: 'go', label: id, run: () => game.go(id) }; }
+  if (at.el && at.el.includes('townChip')) {
+    const id = at.el.match(/data-town="(\w+)"/)[1];
+    // a town not founded yet: its button opens the sheet, and Start founds it and goes there
+    if (!game.towns[id]) return canFound(game, id) ? { what: 'go', label: id, run: () => !!foundTown(game, id) && game.go(id) } : null;
+    return { what: 'go', label: id, run: () => game.go(id) };
+  }
+  if (at.el && at.el.includes('holdWaves')) return town.waves.hold ? null : { what: 'hold', label: 'waves', run: () => { setHold(game, town, true); return true; } };
   if (at.el && at.el.includes('callWave')) return town.waves.phase === 'break' ? { what: 'call', label: 'wave ' + town.wave, run: () => callEarly(game, town) >= 0 } : null;
   if (at.el && at.el.includes('research')) {
     if (!tabs(game, town).research || town.lab) return null;
@@ -73,7 +81,7 @@ export function goalTap(game, town, rng) {
 /* One newcomer's first session: a new game in Dry Creek, then the Gulch once it opens, for `minutes` of play. */
 export function newcomer(seed, minutes = MINUTES) {
   const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
-  const r = { seed, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
+  const r = { seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
   let next = rng.range(...WAIT), lastNews = 0, lastLeak = { drycreek: -99, gulch: -99 }, lastGap = 0;
   const now = () => g.stats.steps * .25;
   const news = () => { lastNews = now(); };
@@ -102,22 +110,30 @@ export function newcomer(seed, minutes = MINUTES) {
     // a perk waiting: it picks a side at random
     if (tb.perks) for (const p of PERKS) if (perkState(g, p.id) === 'open') pickPerk(g, p.id, rng.pick(['a', 'b']));
     let tap = null;
+    // the Iron Ridge button: once its card says the wave is done, the newcomer saves for it (towers only when the
+    // raiders get through), and taps Start the moment it can pay
+    const nt = nextTowns(g).find(n => n.from === t.id && n.waveOk);
+    const saving = !!nt && !!t.waves.hold; // it saves once it holds the waves, as the goal strip says
+    if (saving) r.savedFrom ??= at;
     const goal = goalTap(g, t, rng);
     if (goal && (goal.what === 'go' || rng.chance(FOLLOW))) { tap = goal; r.goalTaps++; }
     if (!tap) {
-      const all = choices(g, t, rng);
+      const all = choices(g, t, rng).filter(c => !saving || c.what === 'tower' || c.what === 'upgrade');
       if (!all.length) { next = at + 1; continue; } // nothing it can pay for: it looks again in a second
-      const weak = short(t, lastLeak[t.id]);
+      // while it holds the waves no raider comes, so only too few towers for the wave number makes it buy one
+      const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : short(t, lastLeak[t.id]);
       const pool = weak ? all.filter(c => c.what === 'tower' || c.what === 'upgrade') : all.filter(c => c.what === 'building' || c.what === 'research');
       const best = (pool.length ? pool : all).slice().sort((a, b) => b.value - a.value)[0];
       if (weak && !pool.length) { next = at + 1; continue; } // it wants a tower and waits for the coins
+      if (saving && !weak) { next = at + 1; continue; } // saving: it buys nothing it does not need
       if (rng.chance(WRONG)) { tap = rng.pick(all); if (tap !== best) r.wrong++; }
       else tap = best;
     }
     if (tap.run()) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
-      if (tap.what === 'go') { r.gulchAt = at; news(); }
+      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt = at; else if (tap.label === 'ridge') r.ridgeAt = at; news(); }
+      else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
       r.taps.push(at);
@@ -144,21 +160,22 @@ export function skillGap(nc, careful) {
 }
 
 /* The checks: Dry Creek won within 20 min, the Gulch's wave 10 within 14 min after it opens, never stuck 3 min. */
-export const DC_WON = 20 * 60, GULCH_WAVE10 = 14 * 60;
+export const DC_WON = 20 * 60, GULCH_WAVE10 = 14 * 60, RIDGE_AT = 135 * 60; // Iron Ridge founded within 2 h 15 min of play
 export function misses(r) {
   const m = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   if (r.dcWon === null || r.dcWon > DC_WON) m.push(`seed ${r.seed}: Dry Creek won at ${mm(r.dcWon)} (want within 20 min)`);
   if (r.wave10 === null || r.wave10 > GULCH_WAVE10) m.push(`seed ${r.seed}: Copper Gulch wave 10 at ${mm(r.wave10)} after it opened (want within 14 min)`);
   if (r.stuck.longest > STUCK_LIMIT) m.push(`seed ${r.seed}: stuck for ${mm(r.stuck.longest)} from minute ${(r.stuck.at / 60).toFixed(1)} (want under 3 min)`);
+  if (r.ridgeAt === null || r.ridgeAt > RIDGE_AT) m.push(`seed ${r.seed}: Iron Ridge founded at ${mm(r.ridgeAt)} of play (want within 2 h 15 min)`);
   return m;
 }
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/firstplay.js')) {
   const all = [], runs = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
-  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | final towers (Dry Creek / Gulch)');
+  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch)');
   for (let s = 1; s <= SEEDS; s++) {
     const r = newcomer(s);
-    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')}`);
+    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')}`);
     all.push(...misses(r)); runs.push(r);
   }
   const careful = []; for (let s = 1; s <= SEEDS; s++) careful.push(campaign(s, 'active', 15));

@@ -112,7 +112,7 @@ export function foundSheet(game, id, go) {
     const out = d.outpost && TOWNS[d.outpost];
     const wave = el('p', 'uses'), coins = el('p', 'uses');
     body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, coins);
-    const row = el('div', 'row'), b = btn('Start ' + d.name + ' · ' + fmt(f.coins) + ' coins', 'btn primary buy', 'foundTown');
+    const row = el('div', 'row'), b = btn('Start ' + d.name, 'btn primary buy', 'foundTown');
     b.addEventListener('click', () => { if (foundTown(game, id)) go(id); });
     row.append(b); body.append(row);
     const paint = () => {

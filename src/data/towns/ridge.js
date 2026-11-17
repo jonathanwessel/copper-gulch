@@ -17,7 +17,7 @@ export const RIDGE = {
   research: ['drills', 'hotblast', 'plating', 'rifling', 'rewards', 'depot', 'bessemer'], // src/data/research.js
   researchOpens: 'furnace',
   // founding it (src/core/empire.js): the Gulch's best wave and the coins the Gulch pays
-  found: { from: 'gulch', wave: 20, coins: 150000, shows: 15 },
+  found: { from: 'gulch', wave: 20, coins: 15000, shows: 15 },
   // The board: the line comes out of a railway tunnel in the north-east and switches back across the town four times
   // (west, east, west, east), so raiders pass every row of workshops twice. Workshops stand in three rows between the
   // passes; tower pads sit in the gaps between them, where one tower reaches two passes, and outside the bends.

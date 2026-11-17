@@ -20,9 +20,9 @@ export const BUILDINGS = {
   ironmine: { name: 'Iron Mine', town: 'ridge', makes: 'iron', inputs: {}, rate: .8, cost: 60, growth: 1.15, needs: { rquarry: 3 }, model: 'ironmine' },
   colliery: { name: 'Coal Pit', town: 'ridge', makes: 'coal', inputs: {}, rate: 1, cost: 180, growth: 1.15, needs: { rquarry: 5 }, model: 'colliery' },
   furnace: { name: 'Blast Furnace', town: 'ridge', makes: 'pigiron', inputs: { iron: 2, coal: 1 }, rate: .4, cost: 700, growth: 1.17, needs: { ironmine: 5, colliery: 3 }, model: 'furnace' },
-  steelmill: { name: 'Steel Mill', town: 'ridge', makes: 'steel', inputs: { pigiron: 1, coal: 1 }, rate: .35, cost: 2500, growth: 1.17, needs: { furnace: 5 }, model: 'steelmill' },
+  steelmill: { name: 'Steel Mill', town: 'ridge', makes: 'steel', inputs: { pigiron: 1, coal: 1 }, rate: .35, cost: 1200, growth: 1.17, needs: { furnace: 3 }, model: 'steelmill' },
   rolling: { name: 'Rolling Mill', town: 'ridge', makes: 'rails', inputs: { steel: 2 }, rate: .15, cost: 12000, growth: 1.2, needs: { steelmill: 5 }, model: 'rolling' },
-  boilershop: { name: 'Boiler Shop', town: 'ridge', makes: 'boilers', inputs: { steel: 1, bricks: 2 }, rate: .2, cost: 15000, growth: 1.2, needs: { steelmill: 5 }, model: 'boilershop' },
+  boilershop: { name: 'Boiler Shop', town: 'ridge', makes: 'boilers', inputs: { steel: 1, bricks: 2 }, rate: .2, cost: 4000, growth: 1.2, needs: { steelmill: 3 }, model: 'boilershop' },
   loco:    { name: 'Locomotive Works', town: 'ridge', makes: 'locos', inputs: { boilers: 1, rails: 2, tools: 1 }, rate: .05, cost: 80000, growth: 1.2, needs: { rolling: 10, boilershop: 5 }, model: 'loco' },
   // Pine Hollow: the second outpost, opened with Iron Ridge. Timber and clay, so the Gulch makes more bricks.
   logcamp: { name: 'Logging Camp', town: 'pinehollow', makes: 'timber', inputs: {}, rate: .9, cost: 12, growth: 1.15, model: 'logcamp' },

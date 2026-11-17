@@ -13,7 +13,7 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 |---|---|---|---|---|---|
 | O1 | Dry Creek Outpost | Frontier camp: ore and stone | one loop round the camp | Bandit wagon | at the start (the first stage) |
 | 1 | Copper Gulch | Frontier: wood, clay, copper | road | War wagon | Dry Creek's wave 10 won (about 10-15 min) |
-| 2 | Iron Ridge | Iron and rail | switchback road | Armored train | Gulch wave 20 + 150K, first life, no charter needed |
+| 2 | Iron Ridge | Iron and rail | switchback road | Armored train | Gulch wave 20 + 15K coins, first life, no charter needed |
 | C | The Capital | Government | none | none | Ridge wave 15 + 2M |
 | 3 | Silver Falls | Electricity | road + river | Ironclad steamer | Ridge wave 25 + **5 deeds** + 50M (realistically 1 or 2 charters) |
 | 4 | Thunder Mesa | Oil and flight | road + sky | Sky pirate airship | Transport node 3 + 1B |
@@ -21,7 +21,7 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 
 The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or 2 charters". Without the deed bonus, its coin price is out of reach.
 
-**Founding a town** (set 2026-11-17, M3). Each later town names what founding it takes (`town.def.found`, `src/core/empire.js`): the town that pays, the best wave it must have reached, and the coins it pays. Iron Ridge: Copper Gulch's best wave 20 (any life) and 150K of the Gulch's coins. Once the paying town's best wave is 5 short of the mark, the next town shows as a locked button in the town row at the top, with a red dot once it can be founded; tapping it opens a sheet with what it takes and a Start button. Founding opens the town and its outpost, and takes the player there.
+**Founding a town** (set 2026-11-17, M3). Each later town names what founding it takes (`town.def.found`, `src/core/empire.js`): the town that pays, the best wave it must have reached, and the coins it pays. Iron Ridge: Copper Gulch's best wave 20 (any life) and 15K of the Gulch's coins (was 150K in the first pass; the bots never held that much, see Pacing targets). Once the paying town's best wave is 5 short of the mark, the next town shows as a locked button in the town row at the top, with a red dot once it can be founded; tapping it opens a sheet with what it takes and a Start button. Founding opens the town and its outpost, and takes the player there.
 
 ## Outposts (owner request, 2026-11-17)
 The game starts in a tiny outpost, not a town. Outposts are small raw-goods camps: two raw buildings, a short road, a few stone pads, nothing else. They feed raw goods into the empire-wide market for the rest of the game.
@@ -48,7 +48,7 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
   - **Switching.** Once a second town is open, a row of town buttons sits at the top of the screen (Dry Creek, Copper Gulch); tapping one puts that town in play. The outpost's win card has a Go to Copper Gulch button. A town out of play (not an outpost) waits for the player: the wave on its road finishes, but the clock to its next wave stops until the player comes back, so nothing breaks while they are away. A won outpost keeps its raids. The empire map in M3 grows out of the town buttons.
   - Its goods go first to the town in play: when a town's workshop is short of a raw good an outpost makes, it draws it from the outposts, up to the workshops' 10-second buffer. Then the other towns' workshops draw the same way (so Pine Hollow's clay reaches the Gulch's Kiln while the player is in Iron Ridge). The rest sells on the shared market, so every outpost adds to the empire's supply of raw goods. While an outpost is out of play, the coins from its sales go to the town in play (it keeps only the bounties its towers earn), so the town feels it at once.
   - Its town chip (and later its camp on the empire map, a small camp around the edge) takes you there to build and upgrade.
-- **Pine Hollow numbers (first pass, the Ridge bot box tunes them).** The Logging Camp (timber, 0.9 a second per level, 12 coins, built at the start) and the Clay Bank (clay, 0.8 a second, 35 coins, opens at Logging Camp level 2). The Crossbow costs 20 coins and 6 timber, the Cannon 100 coins and 12 timber. Waves 1 to 15, at least 75 seconds apart, the bandit wagon at 10 and 15 (`waves.bosses`).
+- **Pine Hollow numbers (tuned by the Ridge bots, 2026-11-17).** The Logging Camp (timber, 0.9 a second per level, 12 coins, built at the start) and the Clay Bank (clay, 0.8 a second, 35 coins, opens at Logging Camp level 2). It starts with 150 coins. The Crossbow costs 20 coins and 6 timber, the Cannon 100 coins and 12 timber. Waves 1 to 15, at least 60 seconds apart, the bandit wagon at 10 and 15 (`waves.bosses`). By the time it opens the Gulch floods the market with timber (about 0.02 coins a unit), so Pine Hollow lives on its bounties: its raiders pay three times the usual bounty, and its waves have 70% of the usual health. Won in 12-20 minutes from getting there, by few strong Crossbows and by many cheap ones.
 - **Dry Creek numbers (first pass, the bot box tunes them).** The Stone Camp (stone, 0.8 a second per level, 10 coins, built at the start) and the Mining Camp (copper ore, 0.6 a second per level, 30 coins, opens at Stone Camp level 2). The Crossbow costs 20 coins and 6 stone. Raiders ride a little slower than in the Gulch (the road is short). The bandit wagon has half the war wagon's health. Light raids come every 120 seconds, and a breach takes a quarter of each good in the stockpile.
 - **Saves.** A save already in Copper Gulch when outposts arrive gets Dry Creek as won and running, with its two buildings at level 5 and two Crossbows.
 
@@ -69,8 +69,8 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Raw: timber (Lumber Camp), copper ore (Copper Mine), clay (Clay Pit).
   - Intermediate: planks (Sawmill, 2 timber), copper (Smelter, 2 ore + 1 timber as fuel), bricks (Kiln, 2 clay + 1 timber).
   - Finished: tools (Toolsmith, planks + copper), wagons (Wagon Works, 2 planks + tools + copper).
-- **Iron Ridge** (first pass, set 2026-11-17; the Ridge bot box tunes it)
-  - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 5), Rolling Mill and Boiler Shop (Steel Mill 5), Locomotive Works (Rolling Mill 10, Boiler Shop 5).
+- **Iron Ridge** (set 2026-11-17, tuned by the Ridge bots)
+  - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 3, 1200 coins), Boiler Shop (Steel Mill 3, 4000 coins), Rolling Mill (Steel Mill 5), Locomotive Works (Rolling Mill 10, Boiler Shop 5). The Boiler Shop comes early so the bricks route from the Gulch matters in the Ridge's first hour (it was Steel Mill 5 and 15K, and the bots never reached it).
   - Towers pay with Ridge goods: Crossbow stone, Cannon iron ore, Frost Lens coal and stone, Still iron ore and coal, Mortar pig iron and stone.
   - Research: Steam Drills, Hot Blast, Iron Plating, Rifled Barrels, Railroad Rewards, Freight Depot, and Bessemer Converter (Steel Mill +60%, one more coal per steel: the trade-off). It opens with the Blast Furnace.
   - Raw: iron ore, coal, stone.
@@ -224,7 +224,10 @@ One panel, with three switches per town and one spend share per town. The share 
 | First charter offered | 35-45 min after the Gulch opens (about 45-60 min of play) |
 | Back to the old best wave after the first charter | half the first climb or less (median), no seed over two thirds |
 | Something new between minute 23 and the first charter offer | Powder Kegs research (best wave 26) |
-| Iron Ridge | 55-80 min active, under 2 h 15 min for the newcomer bot |
+| Iron Ridge founded | 55-80 min of play active (signs the Gulch charter first, then holds the waves to save), under 2 h 15 min for the newcomer bot |
+| Pine Hollow won | within 20 min of getting there, every strategy within 25% |
+| Iron Ridge wave 10 (the armored train) | 7-10 min after getting there, no breach in waves 1-3 |
+| Boiler Shop | built in the Ridge's first hour, running on Gulch bricks at least 90% of the time |
 | Capital | 2.5-4 h |
 | Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |
 | Thunder Mesa | 20-30 h |
@@ -234,6 +237,8 @@ One panel, with three switches per town and one spend share per town. The share 
 | Longest stretch with nothing to do in the first hour | under 3 min (newcomer bot) |
 
 Skill pays. Waves come on a clock, and Call now lets a strong defense beat it. The active bot (and every strategy bot) calls the next wave once the last one was over within 45% of the wave pace, nothing got through in the last two waves and the vault is above 60%, and never calls a boss wave early. The newcomer bot never calls on its own, only once when the goal strip asks. `tools/firstplay.js` (slow taps, 30% wrong buys, only the buttons that are out) must win Dry Creek and reach the Gulch's wave 10 within the newcomer limits, and its median times must be at least 20% slower than the active bot's on both.
+
+**Saving for a town.** Founding a town is the one big purchase the player saves toward. Once the Gulch has beaten wave 20, the goal strip says "Tap Hold waves and save 15K coins for Iron Ridge", then "Tap Iron Ridge, then tap Start Iron Ridge". The careful bots (`tools/balance.js`, `empire`) sign the Gulch's first charter when it pays a deed, climb back, and once the price is no more than 6 minutes of the Gulch's income they hold the waves, switch the foremen off and buy only buildings that pay back within 2 minutes until they can found it (about 6-10 minutes held). Then they win Pine Hollow and play the Ridge for an hour, raising the Gulch's Kiln (or what feeds it) when the Ridge runs short of bricks. The newcomer bot (`tools/firstplay.js`) follows the strip: it holds the waves when the strip says so and taps Start; it never signs a charter, so it gets there sooner (about 49-58 min). Decision: a player who skips the charter reaches the Ridge first, and one who signs it gets the deeds; both are fine.
 
 ## Look and sound
 - **Models.** Low-poly 3D built in code, on vendored three.js.

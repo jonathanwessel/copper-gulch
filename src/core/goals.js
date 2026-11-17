@@ -8,6 +8,7 @@ import { unlocked } from './economy.js';
 import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
 import { GOODS } from '../data/goods.js';
 import { researchOpen } from './research.js';
+import { canFound } from './empire.js';
 
 /* What a goal reads: a small view of one town. */
 export function goalContext(game, town) {
@@ -20,6 +21,7 @@ export function goalContext(game, town) {
     built: kind => towers.some(t => t.kind === kind), pathed: () => towers.some(t => t.path),
     topLevel: () => towers.reduce((a, t) => Math.max(a, t.level), 0),
     called: () => !!(town.flags && town.flags.called),
+    founded: id => !!game.towns[id], canFound: id => canFound(game, id), held: () => !!(town.waves && town.waves.hold),
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
     visited: id => !!sh.visited[id] || game.active === id,
     freeSpot: () => free(false), freePit: () => free(true),

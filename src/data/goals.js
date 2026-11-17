@@ -1,3 +1,5 @@
+import { RIDGE } from './towns/ridge.js';
+
 /* The goal strip (GDD.md, Onboarding): one short goal at a time through the first 30 minutes, from the first Crossbow
    in Dry Creek into Copper Gulch. A goal counts as done the first time its done(c) is true, in any order, and stays
    done (src/core/goals.js keeps them in the save). The strip shows the first goal of the town in play that is not done
@@ -8,6 +10,10 @@
      kind: the tower to build. Once the card of the spotlit pad or building is open, the spotlight moves to its button. */
 /* Dry Creek's goals before the win: once it is won, only Go to Copper Gulch is left to show. */
 const early = (f = null) => c => !c.won && (!f || f(c));
+/* Founding Iron Ridge (M3): once the Gulch has beaten the Ridge's wave, the strip says to hold the waves and save its
+   price, then to tap the Iron Ridge button and Start. */
+const ridgePrice = RIDGE.found.coins / 1000 + 'K';
+const ridgeWave = c => c.bestWave >= RIDGE.found.wave && !c.founded('ridge');
 
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
@@ -36,4 +42,7 @@ export const GOALS = [
   { id: 'g-path', town: 'gulch', text: 'Upgrade a tower to level 5 and pick a path', done: c => c.pathed(), at: c => ({ tower: c.topTower() }) },
   { id: 'g-wave10', town: 'gulch', text: 'Stop the war wagon at wave 10', done: c => c.bestWave >= 10 },
   { id: 'g-mortar', town: 'gulch', text: 'Tap a Mortar pit and build a Mortar', kind: 'mortar', done: c => c.built('mortar'), ready: c => c.open('mortar'), at: c => ({ spot: c.freePit() }) },
+  // later goals: within (minutes from a new game) is how soon the careful bot must do them (tools/balance.js)
+  { id: 'g-save', town: 'gulch', text: 'Tap Hold waves and save ' + ridgePrice + ' coins for Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
+  { id: 'g-found', town: 'gulch', text: 'Tap Iron Ridge, then tap Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: () => ({ el: '#townChip [data-town="ridge"]' }), within: 85 },
 ];

@@ -85,6 +85,13 @@ const RIDGE = [
     for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await new Promise(r => setTimeout(r, 100));
     const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5;
   }],
+  // the goal strip once wave 20 is beaten and the coins are short: hold the waves and save
+  ['ridge-save', async () => {
+    const t = CG.game.town, d = CG.game.shared.goals.done;
+    for (const id of ['g-tower', 'g-camp3', 'g-mine', 'g-cannon', 'g-camp5', 'g-saw', 'g-research', 'g-pit', 'g-frost', 'g-mine5', 'g-smelter', 'g-path', 'g-wave10', 'g-mortar']) d[id] = true;
+    t.coins = 4000;
+  }],
+  ['ridge-ready', () => { CG.game.town.coins = 2e5; }],
   ['found', () => { document.querySelector('#townChip .locked').click(); }],
   ['ridge', async () => { document.getElementById('foundTown').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
   ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 3, yaw: 0, pitch: .32, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
@@ -145,7 +152,7 @@ try {
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
-        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge' || name === 'pinehollow' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
+        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge' || name === 'pinehollow' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
         const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
       }
       await r.close();

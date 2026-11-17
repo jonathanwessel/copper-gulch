@@ -18,19 +18,21 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
+import { setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
-import { canHire, hireCost, hireForeman } from '../src/core/foremen.js';
+import { canHire, hireCost, hireForeman, setForeman } from '../src/core/foremen.js';
 import { deedsFor, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
+import { TOWNS } from '../src/data/towns/index.js';
+import { canFound, foundTown } from '../src/core/empire.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1);
+const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
 let CALL = !process.argv.includes('--no-call');
 export const setCall = on => { CALL = on; };
 const SPACING = 1.1; // about how far apart raiders ride, in world units
@@ -142,6 +144,9 @@ export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, def
    vault is above 60%. It never calls a boss wave early. The newcomer never calls (tools/firstplay.js) except once,
    when the goal strip asks. --no-call turns calling off, to see what it is worth. */
 export const CALL_AGE = .45;
+/* While saving for a new town the player holds the waves and buys only a building that pays for itself within
+   SAVE_PAYBACK seconds. */
+export const SAVE_PAYBACK = 120;
 /* Once the first boss is down, it follows a goal that asks for a new tower kind when that tower is worth at least this
    share of its best pick (before that it plays for the boss: an early Cannon on seed 1 cost two calls and 1.4 min). */
 export const GOAL_PICK = .6;
@@ -151,7 +156,7 @@ export const GOAL_PICK = .6;
    next building), then (after the first boss) a foreman for a building at level 10 once it can pay for one, then the
    best-paying building. The economy player buys its next building before defending unless a raider got through in
    the last two waves. */
-export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null } = {}) {
+export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null, save = null, sign = true, tick = null } = {}) {
   const S = STRATEGIES[strategy], g = game || newGame('balance-' + seed, 'gulch'), t = g.town, mine = e => e.town === t.id, offs = [];
   const on = (name, fn) => offs.push(g.bus.on(name, fn));
   const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0, reach: {}, news: [] };
@@ -241,18 +246,32 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
     if (until && until(t)) { r.until = t.t; break; }
-    if (CALL && ahead() && callEarly(g, t) >= 0) r.calls++;
+    if (CALL && !r.savingNow && ahead() && callEarly(g, t) >= 0) r.calls++;
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
     if (watch && s % 240 === 0) watch(g, t, r);
     if (s % 4) continue;
+    if (tick) tick(g, t, r);
+    if (s % 240 === 0) { r.rate = Math.max(0, t.lifetime - (r.lastLife ?? t.lifetime)); r.lastLife = t.lifetime; } // coins earned in the last minute
     // the first charter: signed once it pays SIGN_AT deeds; then pick the first side of each open perk pair
-    if (!r.signed && deedsFor(t) >= SIGN_AT) {
+    if (sign && !r.signed && deedsFor(t) >= SIGN_AT) {
       r.signed = { at: t.t, wave: t.bestWave, coins: Math.round(t.lifetime), deeds: signCharter(g, t) };
       r.leakAt = -99; r.lastAge = 1; r.bump = 0; // a new start: the old leaks are forgotten
       for (const p of PERKS) if (perkState(g, p.id) === 'open') pickPerk(g, p.id, 'a');
       continue;
     }
     if (r.signed && r.regain === null && t.bestWave >= r.signed.wave) r.regain = t.t - r.signed.at;
+    // saving for something (founding the next town): only the defense buys, and only when it is short
+    r.savingNow = !!(save && save(t, r));
+    if (r.savingNow) {
+      r.saving ??= t.t;
+      for (const id of Object.keys(t.foremen)) setForeman(t, id, false); // foremen would spend the savings
+      if (!t.waves.hold) setHold(g, t, true);
+      pickBuilding();
+      if (best && bv * SAVE_PAYBACK > 1 && t.coins >= cost(t, best)) build(g, t, best); // a building that pays for itself fast still helps the saving
+      continue;
+    }
+    if (save && t.waves.hold) setHold(g, t, false);
+    if (r.saving && !r.savingNow) for (const id of Object.keys(t.foremen)) setForeman(t, id, true);
     // a building that pays for itself within the strategy's payback time comes before the towers
     pickBuilding();
     const safe = t.towers.length > 0 && t.wave - r.leakAt > 2;
@@ -284,18 +303,124 @@ export function campaign(seed, strategy = 'active', minutes = MINUTES) {
   return { dc, gulch, game: g, goals };
 }
 
+/* M3, the empire run: the start of the game as in campaign(), then on into Iron Ridge. In the Gulch the player signs
+   the first charter when it pays a deed (as above) and climbs back. Once the Gulch's best wave reaches the Ridge's mark
+   and the price is no more than SAVE_MINUTES of the Gulch's income, it saves: it holds the Gulch's waves, switches its
+   foremen off and buys only a building that pays for itself within SAVE_PAYBACK, until it can found the Ridge (at most
+   GULCH_MINUTES). Then it plays Pine Hollow until it is won (at most OUTPOST_MINUTES) and the Ridge for RIDGE_MINUTES,
+   with Dry Creek, Pine Hollow and the Gulch working in the background. Once a minute in the Ridge it looks at the
+   Gulch for the goods it ships (tendImports). It never signs the Ridge's charter here.
+   Times: found is play time from the new game; Pine Hollow's and the Ridge's times count from when the player gets
+   there. Returns { dc, gulch, found, ph, ridge, game, goals, imports }. */
+export const SAVE_MINUTES = 6, GULCH_MINUTES = 100, RIDGE_MINUTES = 60;
+export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES } = {}) {
+  const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
+  const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
+  const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null };
+  out.dc = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won });
+  out.dc.won = g.town.won ? out.dc.until : null;
+  if (!g.town.won) { off(); return out; }
+  g.go(g.town.def.opens);
+  const R = TOWNS.ridge, price = R.found.coins;
+  const save = (t, r) => !!r.savingNow || (!!r.signed && t.bestWave >= R.found.wave && price <= SAVE_MINUTES * (r.rate || 0));
+  out.gulch = play(seed, gulchMinutes, strategy, null, { game: g, save, until: () => canFound(g, 'ridge') });
+  const gt = g.towns.gulch;
+  out.gulch.outpost = { wave: g.towns.drycreek.wave, breaches: g.towns.drycreek.breaches || 0, coins: Math.round(g.towns.drycreek.lifetime) };
+  if (!canFound(g, 'ridge')) { off(); return out; }
+  out.found = now(); out.held = out.gulch.saving === undefined ? 0 : out.gulch.until - out.gulch.saving;
+  foundTown(g, 'ridge');
+  setHold(g, gt, false); for (const id of Object.keys(gt.foremen)) setForeman(gt, id, true);
+  g.go('pinehollow');
+  const pt = g.towns.pinehollow; out.phFrom = pt.t;
+  out.ph = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won, sign: false });
+  out.ph.won = pt.won ? out.ph.until - out.phFrom : null;
+  g.go('ridge');
+  const rt = g.towns.ridge, imp = out.imports = { run: {}, built: {}, raised: [], at: {} };
+  out.ridgeFrom = rt.t;
+  const offB = g.bus.on('build', e => { if (e.town === 'ridge' && e.level === 1) imp.at[e.id] = rt.t - out.ridgeFrom; });
+  out.ridge = play(seed, ridgeMinutes, strategy, null, { game: g, sign: false, tick: (g2, t, r) => {
+    // the share of seconds each importing workshop runs at full speed, from when it is built
+    for (const id of t.def.buildings) if (t.level(id) && Object.keys(BUILDINGS[id].inputs).some(x => (t.def.imports || []).includes(x))) {
+      imp.built[id] = (imp.built[id] || 0) + 1; if (!t.starved[id]) imp.run[id] = (imp.run[id] || 0) + 1;
+    }
+    if (Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
+  } });
+  offB(); off();
+  out.ridge.w10 = out.ridge.wave10 === null ? null : out.ridge.wave10 - out.ridgeFrom;
+  return out;
+}
+/* A careful player raises the Gulch's makers when the Ridge runs short of what they ship: for each import a Ridge
+   workshop is starved of, one level of the Gulch building that makes it, or of the building that feeds that one when it
+   is itself short, if the Gulch can pay. */
+export function tendImports(game, town, imp) {
+  for (const good of town.def.imports || []) {
+    const users = town.def.buildings.filter(id => town.level(id) && BUILDINGS[id].inputs[good]);
+    if (!users.some(id => town.starved[id]) || (town.goods[good] || 0) >= 1) continue;
+    const from = game.towns[GOODS[good].town];
+    if (!from) continue;
+    let id = from.def.buildings.find(b => BUILDINGS[b].makes === good);
+    for (let k = 0; k < 3 && id && from.level(id) && from.starved[id]; k++) {
+      const short = Object.keys(BUILDINGS[id].inputs).sort((a, b) => (from.goods[a] || 0) - (from.goods[b] || 0))[0];
+      const feeder = from.def.buildings.find(b => BUILDINGS[b].makes === short);
+      if (!feeder) break;
+      id = feeder;
+    }
+    if (id && unlocked(from, id) && from.coins >= cost(from, id) && build(game, from, id)) imp.raised.push(id + ' ' + (town.t / 60).toFixed(0));
+  }
+}
+
 /* The goal strip check (M2, The first 30 minutes): the careful player finishes every goal within GOAL_MINUTES of a
    new game on every seed. Returns { rows: [{ id, text, times }], misses }. */
 export const GOAL_MINUTES = 40;
-export function goalCheck(camps) {
-  const rows = GOALS.map(x => ({ id: x.id, text: x.text, times: camps.map(c => c.goals[x.id] ?? null) }));
+export function goalCheck(camps, later = false) {
+  const rows = GOALS.filter(x => !!x.within === later).map(x => ({ id: x.id, text: x.text, within: x.within || GOAL_MINUTES, times: camps.map(c => c.goals[x.id] ?? null) }));
   const misses = [];
   for (const r of rows) {
-    const late = r.times.map((t, i) => [t, camps[i].dc.seed]).filter(([t]) => t === null || t > GOAL_MINUTES * 60);
-    if (late.length) misses.push('goal ' + r.id + ' not done within ' + GOAL_MINUTES + ' min on seed(s) ' + late.map(([, s]) => s).join(','));
+    const late = r.times.map((t, i) => [t, camps[i].dc.seed]).filter(([t]) => t === null || t > r.within * 60);
+    if (late.length) misses.push('goal ' + r.id + ' not done within ' + r.within + ' min on seed(s) ' + late.map(([, s]) => s).join(','));
   }
   return { rows, misses };
 }
+
+/* The Iron Ridge checks (M3, Bots for Iron Ridge and Pine Hollow) on empire runs: the active bot on every seed founds the
+   Ridge at FOUND_MIN-FOUND_MAX minutes of play, wins Pine Hollow within PH_MAX minutes of getting there, clears the
+   Ridge's wave 10 (the armored train) within RIDGE_W10 minutes of getting there with no breach in waves 1-3, and builds
+   the Boiler Shop, which runs on Gulch bricks at least BOILER_RUN of the time. Every strategy's median founding time,
+   Pine Hollow win and Ridge wave 10 is within 25% of the best one. Returns { rows, misses }. */
+export const FOUND_MIN = 55, FOUND_MAX = 80, PH_MAX = 20, RIDGE_W10 = [7, 10], BOILER_RUN = .9;
+export function empireCheck(runs) {
+  const misses = [], med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
+  const share = e => e.imports && e.imports.built.boilershop ? e.imports.run.boilershop / e.imports.built.boilershop : null;
+  const phOf = e => e.ph ? e.game.towns.pinehollow.towers : null;
+  const rows = Object.keys(STRATEGIES).map(k => {
+    const rs = runs.filter(e => e.strategy === k);
+    return {
+      strategy: k, n: rs.length, found: med(rs.map(e => e.found)), held: med(rs.map(e => e.found === null ? null : e.held)),
+      ph: med(rs.map(e => e.ph && e.ph.won)), w10: med(rs.map(e => e.ridge && e.ridge.w10)),
+      boiler: med(rs.map(e => e.imports && e.imports.at.boilershop)), run: med(rs.map(share)),
+      phTowers: med(rs.map(e => phOf(e) && phOf(e).length)),
+      phLevel: med(rs.map(e => phOf(e) && phOf(e).reduce((a, x) => a + x.level, 0) / Math.max(1, phOf(e).length))),
+    };
+  });
+  const m = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';
+  for (const e of runs.filter(e => e.strategy === 'active')) {
+    const s = e.dc.seed;
+    if (e.found === null || e.found < FOUND_MIN * 60 || e.found > FOUND_MAX * 60) misses.push(`seed ${s}: Iron Ridge founded at ${m(e.found)} of play (want ${FOUND_MIN}-${FOUND_MAX} min)`);
+    if (!e.ph || e.ph.won === null || e.ph.won > PH_MAX * 60) misses.push(`seed ${s}: Pine Hollow won at ${m(e.ph && e.ph.won)} after getting there (want within ${PH_MAX} min)`);
+    if (!e.ridge || e.ridge.w10 === null || e.ridge.w10 < RIDGE_W10[0] * 60 || e.ridge.w10 > RIDGE_W10[1] * 60) misses.push(`seed ${s}: Iron Ridge wave 10 at ${m(e.ridge && e.ridge.w10)} after getting there (want ${RIDGE_W10[0]}-${RIDGE_W10[1]} min)`);
+    if (e.ridge && e.ridge.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in Iron Ridge's waves 1-3`);
+    const b = e.imports && e.imports.built.boilershop;
+    if (!b) misses.push(`seed ${s}: the Boiler Shop was never built in Iron Ridge`);
+    else if (e.imports.run.boilershop / b < BOILER_RUN) misses.push(`seed ${s}: the Boiler Shop ran ${Math.round(100 * e.imports.run.boilershop / b)}% of the time (want ${Math.round(100 * BOILER_RUN)}%)`);
+  }
+  const names = { found: 'Iron Ridge founded', ph: 'Pine Hollow won', w10: 'Ridge wave 10' };
+  for (const key of ['found', 'ph', 'w10']) {
+    const best = Math.min(...rows.map(x => x[key] ?? Infinity));
+    for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${names[key]} at ${m(x[key])}, more than 25% behind the best (${m(best)})`);
+  }
+  return { rows, misses };
+}
+
 
 /* The strategy check (CLAUDE.md, Strategies must stay close): every strategy over the seeds, the median time to
    clear waves 10 and 20, and a miss when a strategy is more than 25% slower than the best one or breaches in waves
@@ -388,6 +513,21 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('goals (minutes from a new game, per seed):');
   for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...gc.misses);
+  const emp = [];
+  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k); e.strategy = k; emp.push(e); }
+  const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true);
+  for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
+  misses.push(...lg.misses);
+  const mm = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';
+  console.log('Iron Ridge (active): seed | charter signed | Ridge founded (play time) | waves held to save | Pine Hollow won (from getting there), breaches, towers | Ridge wave 10 (from getting there), breaches | Ridge wave at the end | Boiler Shop built, share of time running | Gulch levels raised for the Ridge');
+  for (const e of actives) {
+    const ph = e.game.towns.pinehollow, rt = e.game.towns.ridge, im = e.imports;
+    console.log(`${e.dc.seed} | ${e.gulch && e.gulch.signed ? mm(e.gulch.signed.at + e.dc.won) : 'no'} | ${mm(e.found)} | ${mm(e.held)} | ${mm(e.ph && e.ph.won)}, ${e.ph ? e.ph.breaches.join(',') || 'none' : '-'}, ${ph ? ph.towers.map(x => x.kind + x.level).join(' ') : '-'} | ${mm(e.ridge && e.ridge.w10)}, ${e.ridge ? e.ridge.breaches.join(',') || 'none' : '-'} | ${rt ? rt.wave : '-'} | ${im ? mm(im.at.boilershop) + ', ' + (im.built.boilershop ? Math.round(100 * im.run.boilershop / im.built.boilershop) + '%' : '-') : '-'} | ${im ? im.raised.join(', ') || 'none' : '-'}`);
+  }
+  const ec = empireCheck(emp);
+  console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);
+  for (const x of ec.rows) console.log(`  ${x.strategy} | ${mm(x.found)} | ${mm(x.held)} | ${mm(x.ph)} | ${x.phTowers ?? '-'}, ${x.phLevel == null ? '-' : x.phLevel.toFixed(1)} | ${mm(x.w10)} | ${mm(x.boiler)} | ${x.run == null ? '-' : Math.round(100 * x.run) + '%'}`);
+  misses.push(...ec.misses);
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));

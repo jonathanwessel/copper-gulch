@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-16',
+    lines: [
+      'Iron Ridge now costs 15K coins, not 150K.',
+      'After wave 20 in Copper Gulch, tap Hold waves and save coins for Iron Ridge.',
+      'Raiders in Pine Hollow drop three times as many coins. Pine Hollow waves are a little easier.',
+      'The Boiler Shop in Iron Ridge opens sooner, at Steel Mill level 3.',
+    ],
+  },
+  {
     v: '2026.11.17-15',
     lines: [
       'Iron Ridge, the second town, is here. Beat wave 20 in Copper Gulch, then tap Iron Ridge at the top.',

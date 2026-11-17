@@ -12,14 +12,16 @@ export const PINEHOLLOW = {
   goods: ['timber', 'clay'],
   buildings: ['logcamp', 'claybank'],
   top: 'timber',
-  start: { coins: 25, buildings: { logcamp: 1 } },
+  start: { coins: 150, buildings: { logcamp: 1 } }, // founding the Ridge pays in a little, so the first towers come quickly
   imports: [],
   towers: ['crossbow', 'cannon'],
   boss: 'bandits',
   goal: 15,
   opens: null,
   raid: 120,
-  waves: { speed: .9, first: 30, pace: 75, bosses: [10, 15] },
+  // By the time it opens the Gulch floods the market with timber, so its raiders pay three times the usual bounty, and
+  // its waves are a little softer than the Gulch's (the Ridge bot box, 2026-11-17).
+  waves: { speed: .9, first: 30, pace: 60, bosses: [10, 15], bounty: w => 4.5 * 1.13 ** (w - 1), hp: w => 5.6 * 1.2 ** (w - 1) * (1 + w * .04) },
   // The road comes down a logging chute from the north, loops once counterclockwise round the two camps and ends at
   // the stockpile beside where the loop began.
   board: {
