@@ -89,17 +89,18 @@ test('the town chip and the outpost cards show in the Gulch once both towns are 
   for (const id of TOWN_ORDER) assert.ok(TOWNS[id].short, id + ' has a short name for the chip');
 });
 
-test('coins from an outpost sale reach the town in play but do not count toward its deeds; save v9 adds the count', async () => {
+test('an outpost\'s sales go into the purse and count as the outpost\'s, never toward a town\'s deeds; save v9 adds the old count', async () => {
   const { deedParts } = await import('../src/core/charter.js');
   const { migrate, SAVE_VERSION } = await import('../src/core/save.js');
   const g = newGame('t9');
   winOutpost(g, g.town); g.go('gulch');
   const gulch = g.towns.gulch, dc = g.towns.drycreek;
   dc.buildings.quarry = 15; dc.sell = {};
-  const before = gulch.coins;
+  const before = gulch.coins, life = dc.lifetime;
   run(g, 60);
-  assert.ok(gulch.fromOutposts > 0, 'Dry Creek paid in');
-  assert.ok(gulch.coins - before >= gulch.fromOutposts * .5);
+  assert.equal(gulch.fromOutposts, 0, 'nothing is filed under the Gulch');
+  assert.ok(dc.lifetime - life > 5, 'Dry Creek earned its own sales');
+  assert.ok(gulch.coins - before >= (dc.lifetime - life) * .5, 'and they reach the purse the Gulch spends');
   assert.equal(gulch.ownEarned, gulch.lifetime - gulch.fromOutposts);
   gulch.lifetime = 1e6; gulch.fromOutposts = 1e6;
   assert.equal(deedParts(gulch).coins, 0, 'outpost coins earn no deed');

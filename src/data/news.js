@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-19',
+    lines: [
+      'All your towns and outposts now use the same coins.',
+      'Tap your coins at the top to see what each town earns.',
+      'Signing a charter keeps your coins.',
+      'If a vault breaks, you lose at most the coins that town made in the last few minutes.',
+    ],
+  },
+  {
     v: '2026.11.17-18',
     lines: [
       'Your towns keep earning when you switch to another app. Come back to see what they made.',

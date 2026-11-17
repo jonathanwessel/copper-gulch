@@ -23,7 +23,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-stockpile', town: 'drycreek', covers: ['stockpile'],
     title: 'The stockpile',
-    text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it breaks, you lose a tenth of your coins and go back two waves.',
+    text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it breaks, you lose some coins and go back two waves.',
     when: h => h.t > 12 && !h.won, at: () => ({ vault: true }),
   },
   {
@@ -114,7 +114,7 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through damages the vault. If it breaks, you lose a tenth of your coins and go back two waves. Build more towers or upgrade the ones you have.',
+    text: 'Every raider that gets through damages the vault. If it breaks, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
   },
   {
@@ -186,7 +186,7 @@ export const EXPLAINERS = [
   {
     id: 'charter', covers: ['system:charter'],
     title: 'Your charter',
-    text: 'Tap Perks, then Sign the charter. Your town starts over at wave 1. You get deeds you keep forever. Each deed gives you more coins.',
+    text: 'Tap Perks, then Sign the charter. Your town starts over at wave 1, but your coins stay. You get deeds you keep forever. Each deed gives you more coins.',
     when: h => h.offered && !h.outpost, at: () => ({ el: '#perksBtn' }),
   },
   {
@@ -222,7 +222,7 @@ export const EXPLAINERS = [
   {
     id: 'outposts', town: 'gulch', covers: ['system:outpost'],
     title: 'Dry Creek keeps working',
-    text: 'Raiders still come to Dry Creek while you are here. Its Crossbows fight them off. The coins from its stone and ore come to this town.',
+    text: 'Raiders still come to Dry Creek while you are here. Its Crossbows fight them off. Its stone and ore still sell, and you can spend those coins here.',
     when: h => h.outpostWon && !h.outpost && h.t > 50, at: () => ({ el: '#coins' }),
   },
   {

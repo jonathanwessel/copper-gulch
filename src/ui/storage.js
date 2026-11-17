@@ -40,7 +40,7 @@ export function slotSummary(n, store = ls()) {
   let s;
   try { s = decode(raw); } catch (e) { return { n, empty: false, damaged: true }; }
   const g = s.game || {}, t = (g.towns || {})[g.active] || Object.values(g.towns || {})[0] || {};
-  return { n, empty: false, town: t.id || '', wave: t.wave || 0, best: t.bestWave || 0, coins: t.coins || 0, at: s.at || 0 };
+  return { n, empty: false, town: t.id || '', wave: t.wave || 0, best: t.bestWave || 0, coins: (g.shared && g.shared.purse && g.shared.purse.coins) || 0, at: s.at || 0 };
 }
 
 /* Export: the game as one line of text to copy or keep in a file. */

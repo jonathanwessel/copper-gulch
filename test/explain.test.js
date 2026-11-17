@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
-import { explainOutput, explainPrice, explainTower, explainVault, explainIncome, paysEach, modRows } from '../src/core/explain.js';
+import { explainOutput, explainPrice, explainTower, explainVault, explainIncome, explainEmpireIncome, incomeSnap, paysEach, modRows } from '../src/core/explain.js';
 import { output } from '../src/core/economy.js';
 import { quote, sell } from '../src/core/market.js';
 import { towerStats, vaultMax, callEarly, canCall, buildTower } from '../src/core/defense.js';
@@ -107,14 +107,20 @@ test('income: every coin is filed by where it came from, and the parts add up to
   assert.deepEqual(loadGame(decode(encode(g, 0)).game).town.tally, {});
 });
 
-test('an outpost\'s sales show as its own line in the town in play, with the bonuses listed', () => {
+test('the purse\'s income: the town in play by source, then a line for each other town and outpost, with the bonuses listed', () => {
   const g = newGame('o'), dc = g.towns.drycreek;
   dc.won = true; g.addTown('gulch'); g.go('gulch');
   const t = g.town; g.shared.charter.deeds = 2; applyAll(g);
-  dc.goods.stone = 50; sell(g, dc, 'stone', 10, 0, t);
-  const ex = explainIncome(t, {}, t.tally, 1);
-  assert.equal(ex.rows[0].label, 'Dry Creek goods');
+  const before = incomeSnap(g), purse = t.coins;
+  dc.goods.stone = 50; const paid = sell(g, dc, 'stone', 10);
+  t.goods.timber = 50; const own = sell(g, t, 'timber', 10);
+  const ex = explainEmpireIncome(g, before, incomeSnap(g), 1);
+  assert.deepEqual(ex.rows.map(r => r.label).sort(), [g.defs.drycreek.name, 'Selling timber'].sort());
+  assert.ok(near(ex.value, paid + own) && near(t.coins - purse, paid + own), 'both went into the one purse');
   assert.deepEqual(ex.bonuses.map(b => [b.label, b.on]), [['Deeds', 'all']]);
+  // a town switch between snapshots: the town in play starts from now, the others still count
+  g.go('drycreek');
+  assert.ok(explainEmpireIncome(g, before, incomeSnap(g), 1).value >= 0);
 });
 
 test('a capped stat shows the cap as its own row', () => {

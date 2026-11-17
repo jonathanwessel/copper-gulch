@@ -120,7 +120,7 @@ export function foundSheet(game, id, go) {
     const paint = () => {
       const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
       const a = 'Beat wave ' + f.wave + ' in ' + from + (w >= f.wave ? ' · Done' : ' · Best so far ' + w);
-      const m = fmt(f.coins) + ' coins in ' + from + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c));
+      const m = fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c));
       if (wave.textContent !== a) wave.textContent = a;
       if (coins.textContent !== m) coins.textContent = m;
       b.disabled = !canFound(game, id);
@@ -275,7 +275,7 @@ export function perksSheet(ctx) {
     const prog = el('div', 'option charterline'), pt = el('div'); pt.append(wave, coins); prog.append(pt);
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, el('p', 'warn', 'Signing starts ' + town.def.name + ' over at wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again.'), r);
+    sec('Charter', now, prog, el('p', 'warn', 'Signing starts ' + town.def.name + ' over at wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again. Your coins stay.'), r);
     // the deeds held
     const held = el('p', 'uses'); held.id = 'deedsHeld';
     sec('Deeds', held);

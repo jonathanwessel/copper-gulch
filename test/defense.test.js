@@ -85,14 +85,20 @@ test('splash, frost and poison each work', () => {
   assert.ok(chilled, 'frost chills');
 });
 
-test('the vault falls: the town loses a tenth of its coins and drops back two waves', () => {
+test('the vault falls: the town loses a tenth of the purse, never more than it earned lately, and drops back two waves', () => {
   const g = newGame('b', 'gulch'), t = g.town, ev = g.bus.record();
   let after = null; g.bus.on('breach', () => { after = { wave: t.wave, hp: t.vault.hp }; });
-  t.wave = 5; t.coins = 1000; t.vault.hp = 1; t.buildings = {}; // no income, so the loss is exact
+  t.wave = 5; t.coins = 1000; t.recent = 5000; t.vault.hp = 1; t.buildings = {}; // no income, so the loss is exact
   run(g, WAVE.first + 60);
   const b = ev.find(([n]) => n === 'breach');
   assert.ok(b, 'breach');
   assert.equal(b[1].lost, 100);
+  // a town that earned little lately loses at most that much of the purse
+  const g2 = newGame('b2', 'gulch'), t2 = g2.town, ev2 = g2.bus.record();
+  t2.wave = 5; t2.coins = 1e6; t2.recent = 40; t2.vault.hp = 1; t2.buildings = {};
+  run(g2, WAVE.first + 60);
+  const b2 = ev2.find(([n]) => n === 'breach');
+  assert.ok(b2 && b2[1].lost <= 40 && b2[1].lost > 0, 'lost ' + (b2 && b2[1].lost));
   assert.equal(after.wave, 3);
   assert.equal(after.hp, t.vault.max);
 });

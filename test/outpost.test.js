@@ -99,7 +99,7 @@ test('a breach in a won outpost takes part of its stockpile and never drops its 
   assert.equal(t.waves.phase, 'break');
 });
 
-test('the Gulch draws copper ore from Dry Creek before the market, and the rest sells for the Gulch', () => {
+test('the Gulch draws copper ore from Dry Creek before the market, and the outpost sells the rest into the purse', () => {
   const g = newGame('o7'), d = g.town, ev = g.bus.record();
   d.buildings.dmine = 8; d.buildings.quarry = 8;
   winOutpost(g, d);
@@ -108,14 +108,14 @@ test('the Gulch draws copper ore from Dry Creek before the market, and the rest 
   g.go('gulch');
   setHold(g, gu, true); gu.waves.timer = 999;
   Object.assign(gu.buildings, { camp: 10, mine: 0, smelter: 3 }); // a Smelter and no mine of its own
-  const dCoins = d.coins, life = gu.lifetime;
+  const dLife = d.lifetime;
   run(g, 20);
   assert.ok(gu.drawn.ore > 5, 'the Smelter drew ore: ' + gu.drawn.ore);
   assert.ok((gu.made.copper || 0) > 1, 'and made copper with it');
   assert.ok(gu.flags['drew:drycreek']);
   assert.ok(ev.some(([n, e]) => n === 'outpost:draw' && e.town === 'gulch' && e.from === 'drycreek'));
-  assert.equal(d.coins, dCoins, 'the outpost keeps no sale coins');
-  assert.ok(gu.lifetime > life + 20, 'the Gulch is paid for the stone and the ore it does not need');
+  assert.ok(d.lifetime > dLife + 20 && (d.tally['sale:stone'] || 0) > 0, 'the outpost earns for the stone and the ore no town needs');
+  assert.equal(gu.fromOutposts, 0, 'nothing is counted as the Gulch\'s');
   assert.ok(d.goods.stone <= (d.keep.stone || 0) + 1 && d.goods.ore < 1, 'the outpost keeps only its tower stone');
 });
 

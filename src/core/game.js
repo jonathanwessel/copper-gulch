@@ -19,13 +19,14 @@ export class Game {
     this.towns = {};
     this.active = null;
     this.stats = { steps: 0 };
-    this.shared = {};            // empire-wide state owned by systems, e.g. shared.market
+    this.shared = { purse: { coins: 0 } }; // empire-wide state: the coin purse, and what systems own (shared.market...)
     for (const s of systems) if (s.setup) s.setup(this);
   }
   /* Open a town (first time: runs every system's init). */
   addTown(id) {
     if (this.towns[id]) return this.towns[id];
     const t = this.towns[id] = new Town(id, { seed: this.seed, def: this.defs[id] || null });
+    t.purse = this.shared.purse;
     for (const s of this.systems) if (s.init) s.init(t, this);
     if (!this.active) this.active = id;
     this.bus.emit('town:open', { town: id });
@@ -58,6 +59,8 @@ export class Game {
       for (const s of this.systems) (s.coarse || s.step)?.call(s, t, dt, this);
     }
   }
+  /* Coins earned by every town in this charter, added up (the empire's income on screen). */
+  get earned() { let n = 0; for (const id in this.towns) n += this.towns[id].lifetime; return n; }
   /* Run `seconds` of time away. Returns { fine, coarse, seconds, earned: { town: coins } }. */
   catchUp(seconds) {
     const before = Object.fromEntries(Object.entries(this.towns).map(([id, t]) => [id, t.lifetime]));
@@ -78,7 +81,8 @@ export class Game {
     const g = new Game({ seed: o.seed, systems, defs });
     g.clock = new Clock(o.clock); g.stats = { ...g.stats, ...o.stats }; g.active = o.active;
     for (const [k, v] of Object.entries(o.shared || {})) g.shared[k] = { ...(g.shared[k] || {}), ...JSON.parse(JSON.stringify(v)) };
-    for (const [id, t] of Object.entries(o.towns || {})) g.towns[id] = Town.fromJSON(t, defs[id] || null);
+    g.shared.purse = { coins: 0, ...(g.shared.purse || {}) };
+    for (const [id, t] of Object.entries(o.towns || {})) { g.towns[id] = Town.fromJSON(t, defs[id] || null); g.towns[id].purse = g.shared.purse; }
     for (const s of systems) if (s.load) for (const t of Object.values(g.towns)) s.load(t, g);
     return g;
   }

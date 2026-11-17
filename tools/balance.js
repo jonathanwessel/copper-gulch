@@ -122,14 +122,15 @@ export function options(town) {
 /* The strategies (CLAUDE.md: more than one way to win). Each says how many towers it wants for the coming wave, the
    level it keeps them at, which defense buys it takes first, and whether the town or the defense gets the coins first.
      active: the steady player the pacing targets are set for.
-     minmax: a few towers on the best pads, pushed to high levels and their paths.
+     minmax: a few towers on the best pads, pushed to high levels and their paths, at most two of a kind (with one
+       purse, small differences in coins at the Gulch's start sent it into three Crossbows and no Still, stuck at wave 20).
      swarm: towers on every pad it can (a new one every wave or two), kept at low levels and raised evenly.
      economy: the town first while no raider got through in the last two waves, with the fewest towers that hold
        (each wave that lets a raider through raises its towers half a level for good).
      defense: towers first, the town gets what is left. */
 export const STRATEGIES = {
   active: { want: w => 1 + Math.ceil(w / 3), level: w => 1.3 + w / 3 },
-  minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true },
+  minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true, most: 2 },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
   economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1 + w / 3.3 + r.bump, eco: true },
   defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
@@ -185,6 +186,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (urgent && t.towers.length >= want && !t.towers.some(x => x.level < lv - 1.5) && t.vault.hp >= .6 * t.vault.max) return false;
     let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
+    if (S.most) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < S.most); // a few strong towers, but no more than two of a kind
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     let pick = opts[0];
     // when it adds a tower and the goal strip asks for a kind it has not built yet, it builds that kind (if it can pay)

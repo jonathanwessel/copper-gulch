@@ -504,7 +504,7 @@ async function run() {
       await page.evaluate(() => document.getElementById('foundTown').click());
       if (!await waitFor(page, () => CG.game.active === 'ridge' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:ridge', 10000)) bad.push('Start did not open Iron Ridge');
       if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ridge-welcome', 6000)) bad.push('no Iron Ridge welcome card');
-      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 2e5 - CG.game.towns.ridge.def.found.coins + 1, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
+      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 2e5 - CG.game.towns.ridge.def.found.coins + CG.game.towns.ridge.def.start.coins + CG.game.towns.pinehollow.def.start.coins + 200, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
       if (!ridge.paid || ridge.towns !== 'gulch,ridge,pinehollow' || ridge.on !== 'ridge' || ridge.canvases !== 1) bad.push('Iron Ridge opened wrong (' + JSON.stringify(ridge) + ')');
       await page.evaluate(() => { CG.coach.dismiss(); CG.coach.skipAll(); delete CG.game.shared.seen['ph-welcome']; });
       await sleep(400);
@@ -587,7 +587,7 @@ async function run() {
     await sleep(800);
     if (!await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5, 15000)) bad.push('the game did not come back after signing');
     const after = await page.evaluate(() => { const g = CG.game, t = g.town; return { deeds: g.shared.charter.deeds, wave: t.wave, saw: t.level('saw'), coins: t.coins, perks: !document.getElementById('perksBtn').hidden, on: document.getElementById('perksBtn').classList.contains('on') }; });
-    if (after.deeds !== 2 || after.wave !== 1 || after.saw || after.coins > 100) bad.push('signing did not start the town over with 2 deeds (' + JSON.stringify(after) + ')');
+    if (after.deeds !== 2 || after.wave !== 1 || after.saw || after.coins < 4e4) bad.push('signing did not start the town over with 2 deeds and the purse kept (' + JSON.stringify(after) + ')');
     if (!after.perks || !after.on) bad.push('the Perks button is not waiting for a pick');
     const pick = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game;

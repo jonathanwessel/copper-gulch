@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -82,6 +82,14 @@ export const MIGRATIONS = {
     const g = s.game || {}, last = ((g.shared || {}).charter || {}).last;
     for (const [id, t] of Object.entries(g.towns || {})) if (t.record === undefined) t.record = last && last.town === id && t.charters ? last.wave || 0 : 0;
     return { ...s, v: 11, game: g };
+  },
+  // v12: one coin purse for the whole empire (game.shared.purse): every town's coins added up; recent earnings start at 0
+  11: s => {
+    const g = s.game || {}, sh = g.shared = g.shared || {};
+    let n = (sh.purse && sh.purse.coins) || 0;
+    for (const t of Object.values(g.towns || {})) { n += t.coins || 0; delete t.coins; if (t.recent === undefined) t.recent = 0; }
+    sh.purse = { coins: n };
+    return { ...s, v: 12, game: g };
   },
 };
 

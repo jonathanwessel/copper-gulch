@@ -4,7 +4,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses } from '../core/economy.js';
-import { explainOutput, explainTower, explainIncome, paysEach } from '../core/explain.js';
+import { explainOutput, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
@@ -176,7 +176,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
     if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '. This town pays for each load.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
-    if (town.starved[id] && L && shortImp.length) card.append(el('p', 'warn', 'Not enough ' + GOODS[shortImp[0]].name.toLowerCase() + '. ' + (town.coins < 100 ? 'This town needs coins to pay for them.' : 'Upgrade the ' + (makerOf(shortImp[0]) || { name: 'workshop' }).name + ' in ' + fromName(shortImp[0]) + '.')));
+    if (town.starved[id] && L && shortImp.length) card.append(el('p', 'warn', 'Not enough ' + GOODS[shortImp[0]].name.toLowerCase() + '. ' + 'Upgrade the ' + (makerOf(shortImp[0]) || { name: 'workshop' }).name + ' in ' + fromName(shortImp[0]) + '.'));
     else if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
@@ -398,7 +398,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
   // the Income sheet explains the same few seconds as the number at the top
-  const income = () => { const h = hist[0]; return h ? explainIncome(town, h[2], town.tally, town.t - h[0]) : explainIncome(town, town.tally, town.tally, 0); };
+  const income = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0); };
   function frame(dt) {
     acc += dt; cardAcc += dt;
     sheets.frame(dt);
@@ -421,8 +421,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     });
     if (acc < .2) return;
     acc = 0;
-    hist.push([town.t, town.lifetime, { ...town.tally }]); while (hist.length > 25) hist.shift();
-    const [t0, l0] = hist[0], per = town.t > t0 ? (town.lifetime - l0) / (town.t - t0) : 0;
+    hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
+    const per = income().value; // every town and outpost pays into the one purse
     setText(coinNum, fmt(town.coins)); setText(inc, '+' + rate(per));
     paintStrip();
     const ws = town.waves;

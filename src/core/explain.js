@@ -83,14 +83,15 @@ export function explainVault(town) {
   return ex;
 }
 
-/* Income. Town.earn files every coin under a key (town.tally, not saved): 'sale:<good>', 'from:<town>' (an outpost's
-   sales paid in), 'ship:<town>' (goods shipped to that town), 'bounty', 'call'. Given two snapshots of the tally and the seconds between them, the coins a second
-   from each, biggest first, and the bonuses already in those numbers. */
+/* Income. Town.earn files every coin under a key (town.tally, not saved): 'sale:<good>', 'bounty', 'call'. Given two
+   snapshots of the tally and the seconds between them, the coins a second from each, biggest first, and the bonuses
+   already in those numbers. explainEmpireIncome adds a row for every other town and outpost ('town:<id>'), since all
+   their coins go into the same purse. */
+const townName = id => (TOWNS[id] ? TOWNS[id].name : id);
 export function incomeLabel(key) {
   const [kind, id] = key.split(':');
   if (kind === 'sale') return 'Selling ' + (GOODS[id] ? GOODS[id].name.toLowerCase() : id);
-  if (kind === 'from') return (TOWNS[id] ? TOWNS[id].short || TOWNS[id].name : id) + ' goods';
-  if (kind === 'ship') return 'Goods sent to ' + (TOWNS[id] ? TOWNS[id].short || TOWNS[id].name : id);
+  if (kind === 'town') return townName(id);
   if (kind === 'bounty') return 'Raiders beaten';
   if (kind === 'call') return 'Waves called early';
   return 'Other';
@@ -105,5 +106,22 @@ export function explainIncome(town, before, now, seconds) {
   const on = (stat, what) => modRows(town.mods, stat).map(r => ({ ...r, on: what }));
   const bonuses = [...on('income', 'all'), ...on('price', 'sales'), ...on('bounty', 'raiders')];
   return { unit: 'rate', rows, value: rows.reduce((s, r) => s + r.value, 0), bonuses };
+}
+/* A snapshot for explainEmpireIncome: the town in play's tally and what every town has earned. */
+export function incomeSnap(game) {
+  return { active: game.active, tally: { ...game.town.tally }, life: Object.fromEntries(Object.entries(game.towns).map(([id, t]) => [id, t.lifetime])) };
+}
+/* The purse's income: the town in play by source, then one row for each other town and outpost. A town that signed its
+   charter between the snapshots starts again from 0, so it shows nothing until the next snapshot. */
+export function explainEmpireIncome(game, before, now, seconds) {
+  const ex = explainIncome(game.town, before.active === now.active ? before.tally : now.tally, now.tally, before.active === now.active ? seconds : 0);
+  for (const [id, n] of Object.entries(now.life)) {
+    if (id === now.active) continue;
+    const d = n - ((before.life && before.life[id]) || 0);
+    if (d > 1e-9 && seconds > 0) ex.rows.push({ key: 'town:' + id, label: townName(id), value: d / seconds });
+  }
+  ex.rows.sort((a, b) => b.value - a.value);
+  ex.value = ex.rows.reduce((s, r) => s + r.value, 0);
+  return ex;
 }
 

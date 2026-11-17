@@ -21,7 +21,9 @@ export function winOutpost(game, town) {
 /* An outpost as a player who already won it would leave it (the save migration for games already past it): its
    buildings at `level`, a Crossbow on each of its first `towers` pads, won and running. */
 export function grantOutpost(game, id, { level = 5, towers = 2 } = {}) {
+  const had = !!game.towns[id], purse = game.shared.purse.coins;
   const t = game.towns[id] || game.addTown(id);
+  if (!had) t.coins = purse; // a granted outpost brings no start coins
   for (const b of t.def.buildings) t.buildings[b] = Math.max(t.level(b), level);
   const kind = (t.def.towers || ['crossbow'])[0];
   for (let i = 0; i < towers && i < t.def.board.spots.length; i++) {

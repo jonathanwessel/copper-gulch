@@ -29,13 +29,13 @@ test('each slot keeps its own game', () => {
   const s = fakeStore(), a = newGame('a', 'gulch'), b = newGame('b', 'gulch');
   a.town.coins = 111; b.town.coins = 222; b.town.wave = 7;
   writeSave(a, 1, s, 1000); writeSave(b, 2, s, 2000);
-  assert.equal(readSave(1, s).game.towns.gulch.coins, 111);
-  assert.equal(readSave(2, s).game.towns.gulch.coins, 222);
+  assert.equal(readSave(1, s).game.shared.purse.coins, 111);
+  assert.equal(readSave(2, s).game.shared.purse.coins, 222);
   assert.equal(readSave(3, s), null);
   const sum = slotSummary(2, s);
   assert.deepEqual([sum.empty, sum.town, sum.wave, sum.coins, sum.at], [false, 'gulch', 7, 222, 2000]);
   assert.deepEqual(slotSummary(3, s), { n: 3, empty: true });
-  clearSave(1, s); assert.equal(readSave(1, s), null); assert.equal(readSave(2, s).game.towns.gulch.coins, 222);
+  clearSave(1, s); assert.equal(readSave(1, s), null); assert.equal(readSave(2, s).game.shared.purse.coins, 222);
   s.setItem(slotKey(3), '{broken'); assert.equal(slotSummary(3, s).damaged, true); assert.equal(readSave(3, s), null);
 });
 
@@ -46,7 +46,7 @@ test('export and import round-trip a game, and import stamps the time as now', (
   assert.equal(game.town.coins, 4321); assert.equal(game.town.level('camp'), 9);
   const s = decode(out); assert.equal(s.at, 9999); assert.equal(s.v, SAVE_VERSION);
   const st = fakeStore(); writeText(out, 2, st);
-  assert.equal(readSave(2, st).game.towns.gulch.coins, 4321);
+  assert.equal(readSave(2, st).game.shared.purse.coins, 4321);
 });
 
 test('import explains what is wrong in plain words', () => {

@@ -286,7 +286,8 @@ export function fight(game, town, dt) {
     return;
   }
   if (town.vault.hp <= 0) {
-    const lost = Math.floor(town.coins * wavesOf(town).breachLoss);
+    // a share of the shared purse, but never more than this town earned in about the last 5 minutes (GDD.md, Vault)
+    const lost = Math.floor(Math.min(town.coins * wavesOf(town).breachLoss, town.recent || 0));
     town.coins -= lost;
     const from = town.wave;
     town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);

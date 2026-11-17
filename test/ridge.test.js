@@ -40,7 +40,8 @@ test('founding Iron Ridge pays from the Gulch and opens the Ridge and Pine Hollo
   g.bus.on('town:found', e => seen.push(e));
   const r = foundTown(g, 'ridge');
   assert.ok(r);
-  assert.equal(g.towns.gulch.coins, 2e5 - 15000);
+  assert.equal(g.towns.gulch.coins, 2e5 - 15000 + g.defs.ridge.start.coins + g.defs.pinehollow.start.coins, 'paid from the purse; the new towns bring their start coins');
+  assert.equal(g.towns.ridge.coins, g.towns.gulch.coins, 'one purse');
   assert.deepEqual(Object.keys(g.towns).sort(), ['gulch', 'pinehollow', 'ridge']);
   assert.equal(g.active, 'gulch', 'founding does not move the player; the screen takes them there');
   assert.ok(isOutpost(g.towns.pinehollow));
@@ -90,31 +91,30 @@ function linked(seed) {
   return { g, G, r };
 }
 
-test('routes: the Gulch ships bricks and tools to the Ridge, up to its workshops\' buffer, and the Ridge pays for them', () => {
+test('routes: the Gulch ships bricks and tools to the Ridge, up to its workshops\' buffer, and no coins change hands', () => {
   const { g, G, r } = linked('r5'), seen = [];
   g.bus.on('route:open', e => seen.push(e.good));
-  const before = G.lifetime, coins = r.coins, earned = r.lifetime;
   run(g, 60);
   assert.ok(r.shipped.bricks > 5, 'bricks came in');
   assert.ok(r.shipped.tools > 1, 'tools came in');
   assert.deepEqual(seen.sort(), ['bricks', 'tools'], 'each route opens once');
-  assert.ok(r.coins < coins + (r.lifetime - earned) - 1, 'the Ridge paid');
-  assert.ok(G.lifetime > before && (G.tally['ship:ridge'] || 0) > 0, 'the Gulch earned it as shipping');
+  assert.ok(G.sent.bricks > 5 && Math.abs(G.sent.bricks - r.shipped.bricks) < 1e-6, 'the Gulch counts what it sent');
+  assert.ok(!Object.keys(G.tally).some(k => k.startsWith('ship:')), 'shipping earns no coins');
   const want = demand(r);
   assert.ok((r.goods.bricks || 0) <= want.bricks * KEEP_SECONDS + 1e-6, 'never more than the buffer');
   assert.ok(r.made.boilers > 0, 'the Boiler Shop ran on shipped bricks');
 });
 
-test('routes: the Ridge never sells shipped goods, gets nothing without coins, and the Gulch\'s Sell switch does not stop it', () => {
+test('routes: the Ridge never sells shipped goods, needs no coins for them, and the Gulch\'s Sell switch does not stop it', () => {
   const { g, G, r } = linked('r6');
   G.sell.bricks = false; G.sell.tools = false;
   run(g, 20);
   assert.ok(r.shipped.bricks > 0, 'Sell Off in the Gulch only stops market sales');
   assert.equal(g.shared.market.sold.bricks || 0, 0, 'the Ridge sells none of its bricks');
   const { g: g2, r: r2 } = linked('r7');
-  r2.coins = 0; r2.buildings.rquarry = 0; g2.towns.pinehollow.buildings.logcamp = 0; // nothing sells, so no coins come in
+  r2.coins = 0;
   run(g2, 20);
-  assert.equal(r2.shipped.bricks || 0, 0, 'no coins, no loads');
+  assert.ok(r2.shipped.bricks > 0, 'an empty purse still gets loads');
 });
 
 test('routes: the Gulch keeps its own workshops\' buffer before it ships', () => {

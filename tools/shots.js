@@ -117,6 +117,7 @@ const RIDGE = [
     for (let i = 0; i < 300; i++) { f = t.waves.foes.find(x => x.kind === 'train'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.4) break; } await w(50); }
   }],
   ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
+  ['ridge-income', () => { CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
   ['pinehollow', async () => { CG.play.sheets.close(); CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
   ['pinehollow-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['pinehollow-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.timber = 500; t.buildings.logcamp = 6; t.buildings.claybank = 3; for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
@@ -153,7 +154,7 @@ try {
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
-        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge' || name === 'pinehollow' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
+        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
         const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
       }
       await r.close();

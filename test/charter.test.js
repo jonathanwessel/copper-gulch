@@ -52,7 +52,7 @@ test('signing pays the deeds and starts the town over, keeping the explainers se
   assert.equal(g.town, t, 'the same town object (the screen keeps its reference)');
   assert.equal(deedsHeld(g), 3); assert.equal(g.shared.charter.signed, 1);
   assert.deepEqual(g.shared.charter.last, { town: 'gulch', deeds: 3, wave: DEEDS.wave + DEEDS.waveStep, coins: DEEDS.coins });
-  assert.equal(t.coins, t.def.start.coins);
+  assert.equal(t.coins, 5e4, 'the shared purse is kept');
   assert.deepEqual(t.buildings, t.def.start.buildings);
   assert.deepEqual(t.towers, []); assert.equal(t.wave, 1); assert.equal(t.bestWave, 0); assert.equal(t.lifetime, 0);
   assert.deepEqual(t.research, {}); assert.equal(t.lab, null); assert.deepEqual(t.foremen, {});

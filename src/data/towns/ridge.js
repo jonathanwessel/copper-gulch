@@ -13,6 +13,9 @@ export const RIDGE = {
   start: { coins: 60, buildings: { rquarry: 1 } },
   imports: ['bricks', 'tools'],   // shipped in from Copper Gulch
   outpost: 'pinehollow',          // founding the Ridge opens this outpost too
+  // waves a little further apart than the Gulch's 58 s: with one purse the Ridge spends what every town earns, and its
+  // wave 10 came at 6.7 min (target 7-10, set 2026-11-17)
+  waves: { pace: 64 },
   boss: 'train',                  // wave 10, 20... bring the armored train
   research: ['drills', 'hotblast', 'plating', 'rifling', 'rewards', 'depot', 'bessemer'], // src/data/research.js
   researchOpens: 'furnace',

@@ -54,7 +54,7 @@ test('the newcomer follows those lines: it taps Hold waves, then founds the Ridg
   assert.deepEqual([go.what, go.label], ['go', 'ridge']);
   assert.ok(go.run());
   assert.equal(g.active, 'ridge');
-  assert.equal(g.towns.gulch.coins, 1000);
+  assert.equal(g.towns.gulch.coins, 1000 + g.defs.ridge.start.coins + g.defs.pinehollow.start.coins);
 });
 
 test('Pine Hollow: raiders pay three times the usual bounty and its waves are softer, since timber sells for little by then', () => {

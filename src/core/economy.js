@@ -3,7 +3,7 @@
    Buildings are leveled with coins; reaching each milestone level doubles a building's output. */
 import { BUILDINGS, MILESTONES } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { sell, price } from './market.js';
+import { sell } from './market.js';
 
 export const KEEP_SECONDS = 10; // a workshop's inputs are kept for this many seconds of its use, never sold
 
@@ -89,8 +89,9 @@ export function produce(town, dt) {
 
 /* Outposts (GDD.md, Outposts): an outpost that is not in play sends its goods to the towns. The town in play draws
    what its workshops are short of first, up to their KEEP_SECONDS buffer, then the other towns' workshops, and the rest
-   of the outpost's surplus sells with the coins going to the town in play. feedTarget returns the town that is paid
-   (the town in play), or null; feedTowns the towns it feeds, the one in play first. */
+   of the outpost's surplus sells into the shared purse, at the prices of the town in play (its research and perks on
+   prices), as the outpost's own earnings. feedTarget returns that town, or null; feedTowns the towns it feeds, the one
+   in play first. */
 export const isOutpost = town => !!(town && town.def && town.def.kind === 'outpost');
 export function feedTarget(game, town) {
   const a = game.town;
@@ -115,9 +116,8 @@ export function feed(game, from, to, extra) {
 
 /* Routes (GDD.md, Supply chains): a town ships the goods it makes to every later town that imports them, as much as
    that town's workshops are short of (up to their KEEP_SECONDS buffer), from what it has above its own buffer and
-   tower reserve. The importing town pays the maker today's market price for them, as far as its coins reach, so the
-   maker earns as from a sale (income key 'ship:<town>'). Shipping goes on in every town, in play or not, and before
-   the maker sells anything. to.shipped[good] counts what came in; the first load of a good emits 'route:open'.
+   tower reserve. No coins change hands: every town shares one purse, so a route only moves goods (from.sent counts
+   them). Shipping goes on in every town, in play or not, and before the maker sells anything. to.shipped[good] counts what came in; the first load of a good emits 'route:open'.
    Routes ignore the Sell switch: it only stops sales on the market. */
 export function importers(game, town) {
   return Object.values(game.towns).filter(t => t !== town && !isOutpost(t) && t.def && (t.def.imports || []).some(g => GOODS[g].town === town.id));
@@ -131,13 +131,10 @@ export function ship(game, from, dt) {
     for (const g of to.def.imports) {
       if (GOODS[g].town !== from.id) continue;
       const spare = (from.goods[g] || 0) - (need[g] || 0) * KEEP_SECONDS - (keep[g] || 0);
-      const p = price(game, from, g);
-      let n = Math.min(spare, (want[g] || 0) * KEEP_SECONDS - (to.goods[g] || 0));
-      if (p > 0) n = Math.min(n, to.coins / p);
+      const n = Math.min(spare, (want[g] || 0) * KEEP_SECONDS - (to.goods[g] || 0));
       if (!(n > 1e-9)) continue;
-      const coins = n * p;
-      to.coins -= coins; from.goods[g] -= n; to.addGood(g, n);
-      from.earn(coins, false, 'ship:' + to.id);
+      from.goods[g] -= n; to.addGood(g, n);
+      from.sent = from.sent || {}; from.sent[g] = (from.sent[g] || 0) + n;
       to.shipped = to.shipped || {}; to.shipped[g] = (to.shipped[g] || 0) + n;
       if (!to.flags['route:' + g]) { to.flags['route:' + g] = true; game.bus.emit('route:open', { town: to.id, from: from.id, good: g }); }
     }
@@ -146,7 +143,7 @@ export function ship(game, from, dt) {
 
 /* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer
    and what the town keeps for its next tower (town.keep, set by the defense). Imported goods are never sold. An outpost
-   out of play first feeds the towns and pays the town in play for the rest. */
+   out of play first feeds the towns and sells the rest. */
 export function sellSurplus(game, town, dt) {
   ship(game, town, dt);
   const need = demand(town), keep = town.keep || {}, extra = {}, imports = (town.def && town.def.imports) || [];
@@ -156,17 +153,21 @@ export function sellSurplus(game, town, dt) {
     if (n > 1e-9) extra[g] = n;
   }
   for (const to of feedTowns(game, town)) feed(game, town, to, extra);
-  const payee = feedTarget(game, town);
-  for (const [g, n] of Object.entries(extra)) if (n > 1e-9) sell(game, town, g, n, dt, payee || town);
+  const prices = feedTarget(game, town) || town;
+  for (const [g, n] of Object.entries(extra)) if (n > 1e-9) sell(game, town, g, n, dt, prices);
 }
+
+/* How long coins count as earned lately (town.recent): a fallen vault loses at most that much (src/core/defense.js). */
+export const RECENT_SECONDS = 300;
 
 export const economy = {
   id: 'economy',
   init(town) {
     const s = town.def && town.def.start;
     town.made = {}; town.sell = {}; town.starved = {}; town.drawn = {}; town.shipped = {};
-    if (s) { town.coins = s.coins || 0; Object.assign(town.buildings, s.buildings || {}); }
+    // a new town's start coins go into the purse once; a charter starts the town over but never touches the purse
+    if (s) { if (!town.charters) town.coins += s.coins || 0; Object.assign(town.buildings, s.buildings || {}); }
   },
   load(town) { town.made ||= {}; town.sell ||= {}; town.starved ||= {}; town.drawn ||= {}; town.shipped ||= {}; },
-  step(town, dt, game) { produce(town, dt); sellSurplus(game, town, dt); },
+  step(town, dt, game) { produce(town, dt); sellSurplus(game, town, dt); town.recent = (town.recent || 0) * Math.exp(-dt / RECENT_SECONDS); },
 };
