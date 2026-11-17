@@ -85,9 +85,27 @@ async function run() {
       for (const [k, v] of Object.entries(ctl)) if (!v) bad.push('Pause and Hold waves: not ' + k);
       await page.evaluate(() => CG.play.openSpot(4)); await sleep(350);
       bad.push(...(await check(page)).map(b => 'spot card: ' + b));
+      // effects: cannon blasts and poison clouds fade and go back to the pool (none are left lying on the road).
+      // Effect meshes are the only meshes placed straight in the battle group; once quiet, none may still show.
+      const fx = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, b = CG.town.battle;
+        const effects = () => b.group.children.filter(o => o.isMesh);
+        t.coins = 1e6; Object.assign(t.goods, { copper: 200, bricks: 200, tools: 200 }); t.sell = { copper: false, bricks: false, tools: false };
+        for (const [s, k] of [[0, 'cannon'], [1, 'still'], [8, 'cannon']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
+        CG.play.close();
+        Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); await wait(9000); // a wave rides past them
+        const made = effects().length;
+        Object.assign(t.waves, { phase: 'break', timer: 99, hold: true, queue: [], foes: [] }); await wait(2000); // quiet for 2 s
+        const showing = effects().filter(o => o.visible).length;
+        t.waves.hold = false;
+        return { made, showing };
+      });
+      if (!fx.made) bad.push('no cannon or still shots to check');
+      if (fx.showing) bad.push(fx.showing + ' blasts or clouds still showing 2 s after the shooting stopped');
       // the selected thing is highlighted on the board while its card is open, and only then
       const sel = await page.evaluate(async () => {
-        const g = CG.town.selection.group, open = g.visible; CG.play.close(); await new Promise(r => setTimeout(r, 100));
+        const g = CG.town.selection.group; CG.play.openSpot(4); await new Promise(r => setTimeout(r, 100));
+        const open = g.visible; CG.play.close(); await new Promise(r => setTimeout(r, 100));
         const closed = !g.visible; CG.play.open('camp'); await new Promise(r => setTimeout(r, 100));
         const plot = g.visible && CG.town.selection.square.visible; CG.play.close();
         return open && closed && plot;

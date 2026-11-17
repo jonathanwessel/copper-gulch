@@ -81,17 +81,17 @@ export class Battle {
     else if (e.kind === 'still') this.add('flask', { from, to, life: .5, arc: 1.1, then: 'cloud' });
     else if (e.kind === 'frost') { const f = this.add('ring', { life: .5, ring: 2.1 }); f.mesh.position.set(fx, .12, fz); }
   }
-  /* An effect from the pool. */
-  add(kind, f) {
+  /* An effect from the pool, put on a list of live effects (this.fx unless given). */
+  add(kind, f, list = this.fx) {
     const free = this.pool[kind] || (this.pool[kind] = []);
     let mesh = free.pop();
     if (!mesh) {
       const [g, m, own] = KINDS[kind];
       mesh = new THREE.Mesh(GEO[g], own ? FX[m].clone() : FX[m]); // a fading kind gets its own material, once
-      this.group.add(mesh);
+      this.group.add(mesh); this.made = (this.made || 0) + 1;
     }
     mesh.visible = true; mesh.scale.set(1, 1, 1); mesh.rotation.set(0, 0, 0);
-    f.kind = kind; f.mesh = mesh; f.age = 0; this.fx.push(f);
+    f.kind = kind; f.mesh = mesh; f.age = 0; list.push(f);
     return f;
   }
   release(f) { f.mesh.visible = false; this.pool[f.kind].push(f.mesh); }
@@ -131,7 +131,9 @@ export class Battle {
       h.rotation.y += da * Math.min(1, dt * 12);
       if (tw.obj.userData.float) tw.obj.userData.bar.position.y = Math.sin(t * 2 + tw.obj.position.x) * .05;
     }
-    // shots and their effects
+    // shots and their effects; what a finished shot sets off (a blast, a cloud) joins the list after this pass,
+    // since adding to the list being filtered would lose it (it would never fade or go back to the pool)
+    const after = [];
     this.fx = this.fx.filter(f => {
       f.age += dt; const k = Math.min(1, f.age / f.life);
       if (f.from) {
@@ -141,10 +143,11 @@ export class Battle {
       else if (f.grow) { const s = f.grow * (.4 + k * .6); f.mesh.scale.set(s, f.flat ? s * .5 : s, s); f.mesh.material.opacity = f.op * (1 - k); }
       if (k < 1) return true;
       this.release(f);
-      if (f.then === 'boom') this.add('boom', { life: .3, grow: .55, op: .85 }).mesh.position.copy(f.to);
-      if (f.then === 'cloud') this.add('cloud', { life: 1.4, grow: .7, op: .45, flat: true }).mesh.position.copy(f.to);
+      if (f.then === 'boom') this.add('boom', { life: .3, grow: .55, op: .85 }, after).mesh.position.copy(f.to);
+      if (f.then === 'cloud') this.add('cloud', { life: 1.4, grow: .7, op: .45, flat: true }, after).mesh.position.copy(f.to);
       return false;
     });
+    for (const f of after) { f.mesh.scale.setScalar(.01); this.fx.push(f); } // start small: they grow from the next frame
     // the vault shudders when raiders reach it
     if (this.shake > 0) { this.shake -= dt; const v = this.board.vault; v.position.x = this.town.def.board.vault[0] + Math.sin(t * 60) * .04 * this.shake; }
   }

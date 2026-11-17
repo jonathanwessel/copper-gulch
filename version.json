@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.16-11",
-  "notes": "Plain, clear help cards, a bright highlight on whatever you select, and smoother tags"
+  "version": "2026.11.16-12",
+  "notes": "Fix: cannon blasts and poison clouds no longer stay on the road"
 }
