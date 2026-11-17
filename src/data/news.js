@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-11',
+    lines: [
+      'When a goal says to tap a building, its tag shows the building name.',
+      'The switch on a building card now says Sell timber On or Off.',
+      'Short messages show under the buttons at the top, so they never cover Call now.',
+      'The Perks sheet says how many deeds you get and how many you will have.',
+    ],
+  },
+  {
     v: '2026.11.17-10',
     lines: [
       'The bandit wagon at wave 10 in Dry Creek now has a canvas top and a horse.',

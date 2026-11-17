@@ -66,13 +66,13 @@ export const EXPLAINERS = [
   {
     id: 'market', covers: ['system:market'],
     title: 'Selling',
-    text: 'Everything you make is sold right away. Sell too much of one good and its price drops for a while, so making several goods earns more. To keep a good instead, tap its building and switch Selling to Holding.',
+    text: 'Everything you make is sold right away. Sell too much of one good and its price drops for a while, so making several goods earns more. To keep a good instead, tap its building and switch Sell to Off.',
     when: h => h.flags.firstSale && h.t > 20, at: () => ({ el: '#coins' }),
   },
   {
     id: 'goods', covers: ['goods'],
     title: 'Goods',
-    text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Selling next to a good to keep it instead of selling it.',
+    text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Sell next to a good to keep it instead of selling it.',
     when: h => !!h.tabs.goods, at: () => ({ el: '#goodsBtn' }),
   },
   {
@@ -132,7 +132,7 @@ export const EXPLAINERS = [
   {
     id: 'foremen', covers: ['system:foremen'],
     title: 'Foremen',
-    text: "Tap Hire foreman on this building's card. The foreman buys the next level for you when it costs half your coins or less.",
+    text: "Tap Hire foreman on this building's card. The foreman buys the next level for you whenever you have twice its price.",
     when: h => h.foremanPlot !== null, at: h => ({ plot: h.foremanPlot }),
   },
   {

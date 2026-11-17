@@ -137,7 +137,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     card.append(head);
     const out = output(town, id) || b.rate;
     const line = el('button', 'stat');
-    line.append(el('span', null, 'Makes ' + g.name.toLowerCase()), el('b', null, rate(out) + (L ? '' : ' at level 1')));
+    line.append(el('span', null, 'Makes ' + g.name.toLowerCase()), el('b', null, fmt(out) + ' a second' + (L ? '' : ' at level 1')));
     line.addEventListener('click', () => { why = !why; paintCard(); });
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
@@ -153,17 +153,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', selling ? 'Selling' : 'Holding');
-    sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling));
+    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off'));
+    sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
     sell.title = 'Sells for ' + fmt(paysEach(game, town, b.makes)) + ' coins each';
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     row.append(sell);
     card.append(row);
     // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
-    if (L) {
+    if (L && selling) {
       const kr = el('div', 'row keeprow');
-      kr.append(el('span', 'uses', keepOn ? (kept ? 'Saving ' + kept + ' ' + g.name.toLowerCase() + ' for towers' : 'No towers need ' + g.name.toLowerCase() + ' yet') : ''));
-      const ks = el('button', 'btn small', keepOn ? 'Keep for towers · On' : 'Keep for towers · Off');
+      const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
       ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks); card.append(kr);
@@ -172,14 +171,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
       const fr = el('div', 'row keeprow');
       if (!hasForeman(town, id)) {
-        fr.append(el('span', 'uses', 'Buys the next level when it costs half your coins or less'));
+        fr.append(el('span', 'uses', 'Buys the next level when you have twice what it costs'));
         const h = el('button', 'btn small', 'Hire foreman · ' + fmt(hireCost(town, id)) + ' coins'); h.id = 'hireForeman';
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
         fr.append(h);
       } else {
         const on = foremanOn(town, id);
-        fr.append(el('span', 'uses', on ? 'Buys the next level when it costs half your coins or less' : ''));
+        fr.append(el('span', 'uses', on ? 'Buys the next level when you have twice what it costs' : ''));
         const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
         sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
@@ -195,7 +194,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const time = s => { const n = s < 90 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 90 ? ' second' : ' minute') + (n === 1 ? '' : 's'); };
   const shortText = c => shortfall(town, c).map(s => {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker], amt = name + ' ' + Math.floor(s.have) + ' of ' + s.need;
-    if (!b || !town.level(s.maker)) return amt + '. Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
+    if (!b || !town.level(s.maker)) return (s.have >= 1 ? amt + '. ' : '') + 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return amt + '. Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
     return amt + ', ready in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.';
   });
@@ -327,7 +326,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     let r = null;
     if (!tg || (tg.plot && openId === tg.plot)) r = null; // its card is open: the selection shows it
     else if (tg.el) r = markBox;
-    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) r = { x: p.x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } // the tag sits above its point
+    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) { const x = Math.min(Math.max(p.x, markW / 2), innerWidth - markW / 2); r = { x: x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } } // the tag sits above its point, kept on screen
     else if (openId !== 'spot:' + (tg.spot ?? tg.tower)) {
       const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
       if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
@@ -353,8 +352,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
       if ((!p && !flat) || (!L && !un)) { t.hidden = true; continue; }
-      t.hidden = false; if (p) t.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
-      const txt = (flat ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
+      const px = p && markTg && markTg.plot === id && markW ? Math.min(Math.max(p.x, markW / 2), innerWidth - markW / 2) : p && p.x;
+      t.hidden = false; if (p) t.style.transform = `translate(${px.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
+      const txt = (flat || (markTg && markTg.plot === id) ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
       if (t.textContent !== txt) t.textContent = txt;
       t.classList.toggle('short', !!(L && town.starved[id]));
       t.classList.toggle('can', town.coins >= cost(town, id));
@@ -404,10 +404,17 @@ export function toast(text, ms = 4000) {
   if (toasts.queue.length > 3) toasts.queue.shift();
   if (!toasts.up) nextToast();
 }
+/* The lowest edge of the top bar's two columns (one read per toast), or null to keep the place in the stylesheet. */
+function underHud() {
+  let y = 0;
+  for (const n of document.querySelectorAll('.hud .hudleft, .hud .hudright')) { const b = n.getBoundingClientRect(); if (b.height) y = Math.max(y, b.bottom); }
+  return y && y + 8 < innerHeight * .6 ? Math.round(y + 8) : null;
+}
 function nextToast() {
   const q = toasts.queue.shift();
   if (!q) { toasts.up = null; return; }
   const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
+  const below = underHud(); if (below) t.style.top = below + 'px';
   document.body.append(t);
   toasts.up = q;
   const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;

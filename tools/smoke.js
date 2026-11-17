@@ -73,7 +73,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Saving \d+ timber for towers/.test(document.getElementById('card').textContent);
+        out.says = /Keep \d+ for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -257,7 +257,7 @@ async function run() {
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
-        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now to get 1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign the charter to get 1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
         out.pairs = document.querySelectorAll('#sheet .pair').length >= 3 && /Needs 1 deed/.test(sheet.textContent);
         t.lifetime = life;
         return out;
@@ -476,7 +476,7 @@ async function run() {
       document.getElementById('perksBtn').click(); await wait(300);
       const go = document.querySelector('#sheet [data-perk="trade:a"]'); go.click(); await wait(100);
       const once = g.shared.charter.perks.trade; document.querySelector('#sheet [data-perk="trade:a"]').click(); await wait(400);
-      return { once: once === undefined, picked: g.shared.charter.perks.trade === 'a', counts: g.town.mods.factor('prod') > 1.19, shown: /Picked/.test(document.getElementById('sheet').textContent), held: /You hold 2 deeds/.test(document.getElementById('deedsHeld').textContent) };
+      return { once: once === undefined, picked: g.shared.charter.perks.trade === 'a', counts: g.town.mods.factor('prod') > 1.19, shown: /You picked one/.test(document.getElementById('sheet').textContent), held: /You have 2 deeds/.test(document.getElementById('deedsHeld').textContent) };
     });
     for (const [k, v] of Object.entries(pick)) if (!v) bad.push('perk pick: not ' + k);
     bad.push(...(await check(page)).map(b => 'charter: ' + b), ...errs);

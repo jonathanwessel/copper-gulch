@@ -1,5 +1,5 @@
 /* Slide-up sheets over the town: one at a time, with a dimmed backdrop that closes it when tapped.
-     Goods: what the town has in stock, what each good sells for now, and a Selling or Holding switch per good.
+     Goods: what the town has in stock, what each good sells for now, and a Sell On or Off switch per good.
      Research: the town's research items, their next level's price and wait, and the one running.
      Perks: the town's charter (deeds it would pay now, what earns the next one, Sign), the deeds held, the perk pairs.
      Menu: Graphics, Install, save slots, copying the save out and loading one in, the help cards, the title screen.
@@ -84,8 +84,8 @@ export function goodsSheet(game, town) {
         const ws = open[g] ? JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(open[g] ? [explainBox(ex, { total: 'You get' })] : [])); }
         const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
-        const s = selling ? 'Selling' : 'Holding'; if (r.sw.textContent !== s) r.sw.textContent = s;
-        r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', !selling);
+        const s = selling ? 'Sell · On' : 'Sell · Off'; if (r.sw.textContent !== s) r.sw.textContent = s;
+        r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', selling);
       }
     };
     build();
@@ -121,11 +121,11 @@ export function researchSheet(game, town) {
         const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
         const info = lab ? 'Level ' + (L + 1) + ' ready in ' + wait(lab.left)
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : ['Next level ' + (L + 1) + ' of ' + r.max, fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
+          : ['Level ' + (L + 1) + ' of ' + r.max, fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
-        const label = lab ? 'Working' : block === 'max' ? 'Done' : block === 'busy' ? 'Busy' : 'Research';
+        const label = lab ? 'Working' : block === 'max' ? 'Done' : 'Research';
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
       }
@@ -238,7 +238,7 @@ export function perksSheet(ctx) {
     const prog = el('div', 'option charterline'), pt = el('div'); pt.append(wave, coins); prog.append(pt);
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, el('p', 'warn', 'Signing starts this town over from wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again.'), r);
+    sec('Charter', now, prog, el('p', 'warn', 'Signing starts ' + town.def.name + ' over at wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again.'), r);
     // the deeds held
     const held = el('p', 'uses'); held.id = 'deedsHeld';
     sec('Deeds', held);
@@ -247,14 +247,14 @@ export function perksSheet(ctx) {
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
-      const t1 = p.total ? 'Sign now to get ' + plural(p.total, (c.deeds ? 'more ' : '') + 'deed') + '.' : 'Earn a deed to sign the charter.';
+      const t1 = p.total ? 'Sign the charter to get ' + plural(p.total, 'deed') + '.' + (c.deeds ? ' Then you will have ' + (c.deeds + p.total) + '.' : '') : 'Earn a deed to sign the charter.';
       if (now.textContent !== t1) now.textContent = t1;
-      const w = 'Your best wave is ' + town.bestWave + '.' + (p.wave ? ' That gives ' + plural(p.wave, 'deed') + '.' : '') + ' Next deed at wave ' + n.wave + '.';
-      const k = 'You earned ' + fmt(town.ownEarned) + ' coins.' + (p.coins ? ' That gives ' + plural(p.coins, 'deed') + '.' : '') + ' Next deed at ' + fmt(n.coins) + ' coins.';
+      const w = 'Best wave ' + town.bestWave + (p.wave ? ', worth ' + plural(p.wave, 'deed') : '') + '. Next deed at wave ' + n.wave + '.';
+      const k = 'You earned ' + fmt(town.ownEarned) + ' coins here' + (p.coins ? ', worth ' + plural(p.coins, 'deed') : '') + '. Next deed at ' + fmt(n.coins) + ' coins.';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;
-      const h = c.deeds ? 'You hold ' + plural(c.deeds, 'deed') + '. They add ' + Math.round(c.deeds * DEEDS.income * 100) + '% to all the coins you earn.'
+      const h = c.deeds ? 'You have ' + plural(c.deeds, 'deed') + '. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.'
         : 'Deeds stay with you for good. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.';
       if (held.textContent !== h) held.textContent = h;
       const s = c.deeds + JSON.stringify(c.perks);
@@ -270,7 +270,7 @@ export function perksSheet(ctx) {
             const go = btn('Pick', 'btn small build'); go.dataset.perk = pair.id + ':' + side;
             confirmTap(go, 'Tap again', () => { if (pickPerk(game, pair.id, side)) paint(); });
             row.append(go);
-          } else if (st === side) { row.classList.add('running'); row.append(el('small', 'picked', 'Picked')); }
+          } else if (st === side) row.classList.add('running'); // the heading says You picked one
           else row.classList.add('off'); // the side not picked, or a pair still locked, is dimmed
           box.append(row);
         }

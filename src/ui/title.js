@@ -21,12 +21,11 @@ export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } 
   const saved = el('p', 'note slotline', has ? 'Slot ' + slotNo + ' · wave ' + slot.wave + ' · ' + fmt(slot.coins) + ' coins · ' + ago(Date.now() - slot.at) : '');
   saved.id = 'slotLine'; saved.hidden = !has;
   play.addEventListener('click', () => { play.disabled = true; onPlay(); });
-  const note = el('p', 'note', 'Build your town and fight off raiders. Research and more towns come later.');
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));
   row.append(installButton(), check);
-  sign.append(play, saved, note, row);
+  sign.append(play, saved, row);
   const foot = el('p', 'foot'); foot.id = 'version';
   const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status.replace(/\.$/, '') : '') + ' · Free, no ads'; };
   APP.onChange = paint; paint();
