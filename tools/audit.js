@@ -124,6 +124,10 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
   for (const id of order) {
     const b = towns[id].board;
     if (!b) continue;
+    // every lane has a real entrance, with a builder in the entrance models
+    const builders = read('src/assets/models/entrances.js');
+    if (!b.entrance || !b.entrance.kind) p.push(id + ': the road has no entrance (board.entrance)');
+    else if (!new RegExp('^\\s+' + b.entrance.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + b.entrance.kind + '"');
     const far = b.far ?? b.spots.length, n = b.spots.length - far;
     if (n < 3 || n > 5) { p.push(id + ' has ' + n + ' mortar pits (want 3 to 5)'); continue; }
     const road = makePath([...b.road, b.vault]), pts = [];

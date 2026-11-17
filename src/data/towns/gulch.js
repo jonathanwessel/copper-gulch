@@ -24,6 +24,8 @@ export const GULCH = {
       [8.6, 10.8],                                                            // down the east side to the vault
     ],
     vault: [8.6, 11.8],
+    // where raiders come from: a slot canyon with a mine portal; they stay hidden until `hide` units along the road
+    entrance: { kind: 'canyon', mouth: [.4, -1.8], portal: [.4, -5.6], width: 2.6, hide: .6 },
     spots: [
       [2.5, 3], [2.5, 6], [2.5, 9], [6.5, 3], [6.5, 6], [6.5, 9],  // between the plots: each reaches two passes
       [2.45, 12.25], [6.55, -.25],                                 // inside the bends

@@ -47,6 +47,7 @@ export class Battle {
     this.board = board; this.town = board.town; this.game = game;
     this.group = new THREE.Group(); this.group.name = 'battle'; board.group.add(this.group);
     this.road = roadOf(this.town);
+    this.hideS = (this.town.def.board.entrance && this.town.def.board.entrance.hide) || 0; // raiders stay hidden inside the entrance
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
     const B = this.town.def.board, far = B.far ?? B.spots.length;
@@ -136,7 +137,7 @@ export class Battle {
       if (moved) { u.s0 = u.s1; u.s1 = f.s; }
       const s = u.s0 + (u.s1 - u.s0) * alpha;
       const [x, z] = pointAt(this.road, s), [x2, z2] = pointAt(this.road, s + .3);
-      u.obj.position.set(x, 0, z); u.obj.rotation.y = Math.atan2(x2 - x, z2 - z);
+      u.obj.position.set(x, 0, z); u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= this.hideS;
       const walk = f.frozenT > 0 ? 0 : (f.slowT > 0 ? .5 : 1), d = u.obj.userData;
       u.phase += dt * 9 * walk * FOES[f.kind].speed;
       if (d.legs) d.legs.forEach((l, i) => { l.rotation.x = Math.sin(u.phase + i * Math.PI) * .6 * walk; });

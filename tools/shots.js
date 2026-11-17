@@ -11,7 +11,10 @@ const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
 const SCREENS = [
   ['title', () => true],
   ['town', () => { localStorage.clear(); document.getElementById('play').click(); }],
-  ['card', () => { const t = CG.game.town; t.coins = 400; CG.play.open('camp'); }],
+  // looking along the road toward where raiders come in, a few seconds before a wave (the dust plume) and as it starts
+  ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 3, yaw: 0, pitch: .3, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['entry2', () => {}],
+  ['card', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 400; CG.play.open('camp'); }],
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
   ['fight', () => { const t = CG.game.town; CG.play.close(); t.coins = 1e6; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false }; for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   ['selected', () => { CG.play.openSpot(3); }],
@@ -38,7 +41,7 @@ try {
     await p.goto(srv.url + '?coach=off');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : 1200);
+      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : 1200);
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();

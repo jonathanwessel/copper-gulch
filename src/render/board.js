@@ -8,6 +8,7 @@ import { rng, mergeStatic } from './kit.js';
 import { makeBuilding, makeVault, PROPS } from '../assets/models/gulch.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
+import { Entrance } from './entrance.js';
 
 // scratch objects reused every frame (no garbage for the collector to stutter on)
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();
@@ -45,12 +46,13 @@ export class Board {
     this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color });
     this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, new THREE.Color('#a57a52')]));
     const cx = B.cols / 2, cz = B.rows / 2;
-    const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 4, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];
+    const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 11, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];
     // scenery outside the yard, never on the road or a plot
     const R = rng(town.id.length * 31 + 5), n = lod === 'low' ? 14 : 46;
     for (let i = 0, placed = 0; i < n * 4 && placed < n; i++) {
       const x = -4 + R() * (B.cols + 8), z = -3 + R() * (B.rows + 6);
-      if (polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
+      const inGate = B.entrance && Math.abs(x - B.entrance.mouth[0]) < B.entrance.width / 2 + 3.2 && z < B.entrance.mouth[1] + 1.4; // the canyon and its walls
+      if (inGate || polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
       const kind = R() < .4 ? 'cactus' : R() < .55 ? 'rock' : R() < .7 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 13);
       o.position.set(x, Math.max(0, height(x, z)), z); o.rotation.y = R() * 6; o.scale.setScalar(.7 + R() * .6);
       scenery.push(o); placed++;
@@ -59,6 +61,8 @@ export class Board {
     this.group.add(mergeStatic(scenery));
     scenery.forEach(disposeTree);
     this.vault = makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
+    // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
+    if (B.entrance) this.entrance = new Entrance(this);
     // smoke puffs: one instanced mesh for the whole board
     this.puffs = []; this.smokeT = 0;
     this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.09, 0), new THREE.MeshStandardMaterial({ color: '#ece6de', flatShading: true, roughness: 1, transparent: true, opacity: .75, depthWrite: false }), MAXPUFF);
@@ -110,6 +114,7 @@ export class Board {
 
   /* Animate: t is seconds; working(id) says whether a building is producing right now. */
   update(dt, t, working = () => true) {
+    if (this.entrance) this.entrance.update(dt);
     for (const [id, b] of Object.entries(this.bld)) {
       const on = b.level > 0 && working(id);
       for (const m of b.movers) {
