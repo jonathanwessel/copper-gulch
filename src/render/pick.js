@@ -11,14 +11,19 @@ export function groundPoint(cam, el, clientX, clientY) {
   return ray;
 }
 
-export function pickPlot(cam, el, board, clientX, clientY) {
+/* What is under a screen point: { plot: id }, { spot: index } (a tower spot), or null. */
+export function pickTarget(cam, el, board, clientX, clientY) {
   const r = groundPoint(cam, el, clientX, clientY);
   const m = r.intersectObjects(board.pickables, false)[0];
-  if (m && m.object.userData.plot) return m.object.userData.plot;
+  if (m && m.object.userData.spot !== undefined) return { spot: m.object.userData.spot };
+  if (m && m.object.userData.plot) return { plot: m.object.userData.plot };
   const g = r.intersectObject(board.ground, false)[0];
-  if (g) return board.plotAt(g.point.x, g.point.z);
-  if (r.ray.intersectPlane(plane, hit)) return board.plotAt(hit.x, hit.z);
-  return null;
+  const p = g ? g.point : r.ray.intersectPlane(plane, hit);
+  if (!p) return null;
+  const plot = board.plotAt(p.x, p.z);
+  if (plot) return { plot };
+  const spot = board.spotAt(p.x, p.z);
+  return spot === null ? null : { spot };
 }
 
 /* Where a world point lands on screen, in CSS pixels; null when behind the camera. */

@@ -24,6 +24,8 @@ export async function check(page) {
       if (r.width && (r.width < 30 || r.height < 30)) bad.push('small target: ' + (b.id || b.textContent.trim().slice(0, 20)) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
       if (r.width && (r.right > vw + 1 || r.left < -1)) bad.push('off screen: ' + (b.id || b.textContent.trim().slice(0, 20)));
     }
+    const card = document.getElementById('card');
+    if (card && !card.hidden) { const r = card.getBoundingClientRect(); if (r.top < -1 || r.bottom > innerHeight + 1) bad.push('card taller than the screen'); }
     if (!window.CG) return [...bad, 'no game'];
     if (CG.town) { if (CG.town.frames < 3) bad.push('town not drawing'); }
     else if (CG.game) bad.push('no 3D town');
@@ -57,6 +59,18 @@ async function run() {
         return { ok: t.level('camp') === before + 1, card: !document.getElementById('card').hidden };
       });
       if (!buy.ok || !buy.card) bad.push('the card did not buy a level');
+      // a tower: build a crossbow on a spot through its card, then call the wave
+      const tower = await page.evaluate(async () => {
+        const t = CG.game.town; t.coins = 500; t.goods.timber = 50; CG.play.openSpot(3); await new Promise(r => setTimeout(r, 100));
+        document.querySelector('#card .build[data-kind="crossbow"]').click();
+        const built = t.towers.some(x => x.spot === 3 && x.kind === 'crossbow');
+        document.getElementById('callWave').click();
+        return { built, wave: t.waves.phase === 'wave' };
+      });
+      if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      await page.evaluate(() => CG.play.openSpot(4)); await sleep(350);
+      bad.push(...(await check(page)).map(b => 'spot card: ' + b));
+      await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

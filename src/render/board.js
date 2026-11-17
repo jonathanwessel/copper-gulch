@@ -45,7 +45,7 @@ export class Board {
     const R = rng(town.id.length * 31 + 5), n = lod === 'low' ? 14 : 46;
     for (let i = 0, placed = 0; i < n * 4 && placed < n; i++) {
       const x = -4 + R() * (B.cols + 8), z = -3 + R() * (B.rows + 6);
-      if (polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4) continue;
+      if (polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
       const kind = R() < .4 ? 'cactus' : R() < .55 ? 'rock' : R() < .7 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 13);
       o.position.set(x, Math.max(0, height(x, z)), z); o.rotation.y = R() * 6; o.scale.setScalar(.7 + R() * .6);
       this.group.add(o); placed++;
@@ -81,12 +81,20 @@ export class Board {
     if (!xs.length) { xs.push(this.center.x); zs.push(this.center.z); }
     let x0 = Math.min(...xs) - 1, x1 = Math.max(...xs) + 1;
     if (x1 - x0 < 8) { const c = (x0 + x1) / 2; x0 = Math.max(0, c - 4); x1 = x0 + 8; }
-    return { x: (x0 + x1) / 2, z: this.center.z - .4, w: x1 - x0 + .6 };
+    // from the top of the yard down past the road and its far-side tower spots
+    const z0 = Math.min(...zs) - 1, z1 = Math.max(...this.def.spots.map(s => s[1])) + .6;
+    return { x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0 + .6, d: z1 - z0 };
   }
   /* The plot under a ground point, or null. */
   plotAt(x, z) {
     for (const [id, [px, pz]] of Object.entries(this.def.plots)) if (Math.abs(x - px) <= 1 && Math.abs(z - pz) <= 1) return id;
     return null;
+  }
+  /* The tower spot within reach of a ground point, or null. */
+  spotAt(x, z, reach = .6) {
+    let best = null, bd = reach;
+    this.def.spots.forEach(([sx, sz], i) => { const d = Math.hypot(x - sx, z - sz); if (d < bd) { bd = d; best = i; } });
+    return best;
   }
   /* A point above a plot's model, for labels. */
   anchor(id) { const [x, z] = this.def.plots[id], b = this.bld[id]; return new THREE.Vector3(x, (b ? b.top : 1) + .3, z); }

@@ -54,7 +54,9 @@ export class Game {
   /* Run `seconds` of time away. Returns { fine, coarse, seconds, earned: { town: coins } }. */
   catchUp(seconds) {
     const before = Object.fromEntries(Object.entries(this.towns).map(([id, t]) => [id, t.lifetime]));
+    this.catching = true; // systems may rest while time away is caught up (defense does, until M4)
     const r = this.clock.catchUp(seconds, dt => this.step(dt), dt => this.coarse(dt));
+    this.catching = false;
     r.earned = Object.fromEntries(Object.entries(this.towns).map(([id, t]) => [id, t.lifetime - (before[id] || 0)]));
     this.bus.emit('offline', r);
     return r;

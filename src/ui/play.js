@@ -5,6 +5,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, explainOutput, missing, unlocked } from '../core/economy.js';
 import { price } from '../core/market.js';
+import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly } from '../core/defense.js';
+import { WAVE_TYPES } from '../data/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const SUFFIX = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
@@ -26,10 +29,20 @@ export function mountPlay(root, game, viewApi) {
   const coinIcon = el('span', 'coin'), coinNum = el('b'), inc = el('span', 'inc');
   coins.append(coinIcon, coinNum, inc);
   const name = el('div', 'townname', town.def.name);
-  hud.append(name, coins);
+  // the wave: its number, the vault's strength, and the countdown with a button to call it early
+  const wave = el('div', 'wave'); wave.id = 'wave';
+  const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
+  vault.append(vaultFill); vault.title = 'Vault strength';
+  const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
+  call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Called early: +' + fmt(b) + ' coins.', 2500); });
+  wave.append(waveNum, vault, waveInfo, call);
+  const left = el('div', 'hudleft'); left.append(name, wave);
+  hud.append(left, coins);
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
   for (const id of Object.keys(town.def.board.plots)) { const t = el('button', 'tag'); t.dataset.plot = id; t.addEventListener('click', () => open(id)); tags.append(t); tag[id] = t; }
+  // tower spots get tags only in the list view (no 3D); on the board their stone pads are tapped
+  const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
   ui.append(tags, hud, card);
@@ -37,13 +50,15 @@ export function mountPlay(root, game, viewApi) {
 
   let openId = null, why = false;
   function open(id) { openId = id; why = false; card.hidden = false; paintCard(); }
+  function openSpot(i) { open('spot:' + i); }
   function close() { openId = null; card.hidden = true; }
-  viewApi.onTap = id => { if (id) open(id); else close(); };
+  viewApi.onTap = hit => { if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
   let sig = '';
   function paintCard(force = true) {
     if (!openId) return;
+    if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
     const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes]].join();
     if (!force && now === sig) return;
@@ -82,6 +97,58 @@ export function mountPlay(root, game, viewApi) {
     card.append(row);
   }
 
+  const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
+  function paintSpot(i, force) {
+    const t = towerAt(town, i), kinds = Object.keys(TOWERS);
+    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0))))].join();
+    if (!force && now === sig) return;
+    sig = now;
+    card.replaceChildren();
+    const head = el('div', 'cardhead');
+    const x = el('button', 'btn small close', 'Close'); x.addEventListener('click', close);
+    if (!t) {
+      head.append(el('h2', null, 'Tower spot'), x); card.append(head);
+      for (const k of kinds) {
+        const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option');
+        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, costText(c)));
+        const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = !canPay(town, c);
+        go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
+        row.append(txt, go); card.append(row);
+      }
+      return;
+    }
+    const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
+    head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), x); card.append(head);
+    const stats = el('div', 'explain');
+    const line = (a, b) => { const r = el('div'); r.append(el('span', null, a), el('b', null, b)); stats.append(r); };
+    line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''));
+    line('Shots', fmt(st.rate) + '/s'); line('Reach', fmt(st.range));
+    if (st.splash) line('Blast', fmt(st.splash));
+    if (st.slow) line('Chill', Math.round(st.slow * 100) + '% slower');
+    card.append(stats);
+    const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
+    if (t.level + 1 === PATH_LEVEL) {
+      card.append(el('p', 'uses', 'Level ' + PATH_LEVEL + ' picks a path for good. ' + costText(c) + '.'));
+      for (const [key, P] of Object.entries(PATHS[t.kind])) {
+        const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
+        const go = el('button', 'btn small build', 'Choose'); go.dataset.path = key; go.disabled = !canPay(town, c);
+        go.addEventListener('click', () => { if (upgradeTower(game, town, i, key)) paintCard(); });
+        opt.append(txt, go); card.append(opt);
+      }
+    } else {
+      const up = el('button', 'btn primary buy', 'Upgrade · ' + costText(c)); up.id = 'buy'; up.disabled = !canPay(town, c);
+      up.addEventListener('click', () => { if (upgradeTower(game, town, i)) paintCard(); });
+      row.append(up);
+    }
+    const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK))); sell.id = 'sellTower';
+    sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
+    row.append(sell); card.append(row);
+  }
+
+  // news from the road
+  game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + ': the war wagon is coming. Stop it before the vault.', 4000); });
+  game.bus.on('breach', e => { if (e.town === town.id) toast('The vault fell. Raiders took ' + fmt(e.lost) + ' coins, and the town falls back two waves.', 5000); });
+
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
   function frame(dt) {
@@ -96,14 +163,23 @@ export function mountPlay(root, game, viewApi) {
       t.classList.toggle('short', !!(L && town.starved[id]));
       t.classList.toggle('can', town.coins >= cost(town, id));
     }
+    if (document.documentElement.classList.contains('flat')) spotTags.forEach((t, i) => {
+      const tw = towerAt(town, i), txt = 'Spot ' + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
+      t.hidden = false; if (t.textContent !== txt) t.textContent = txt;
+    });
     if (acc < .2) return;
     acc = 0;
     hist.push([town.t, town.lifetime]); while (hist.length > 25) hist.shift();
     const [t0, l0] = hist[0], per = town.t > t0 ? (town.lifetime - l0) / (town.t - t0) : 0;
     coinNum.textContent = fmt(town.coins); inc.textContent = '+' + rate(per);
+    const ws = town.waves;
+    waveNum.textContent = 'Wave ' + town.wave;
+    vaultFill.style.width = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%';
+    waveInfo.textContent = ws.phase === 'break' ? 'in ' + Math.ceil(ws.timer) + 's' : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left';
+    call.hidden = ws.phase !== 'break';
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
-  return { frame, open, close, el: ui };
+  return { frame, open, openSpot, close, el: ui };
 }
 
 export function toast(text, ms = 4000) {

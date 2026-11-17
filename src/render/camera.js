@@ -16,10 +16,10 @@ export class CameraRig {
   }
   reset() { Object.assign(this.t, this.home); this.v.x = this.v.z = 0; }
   /* What the home view should show: a center and a width in world units. When it grows, the camera eases out to it. */
-  frame(x, z, w) {
-    if (this.fw === w && this.home.x === x && this.home.z === z) return;
+  frame(x, z, w, d) {
+    if (this.fw === w && this.fd === d && this.home.x === x && this.home.z === z) return;
     const first = this.fw === undefined;
-    this.home.x = x; this.home.z = z; this.fw = w; this.aspect = 0;
+    this.home.x = x; this.home.z = z; this.fw = w; this.fd = d; this.aspect = 0;
     this.t.x = x; this.t.z = z;
     if (first) { this.c.x = x; this.c.z = z; this.fitted = false; } // the opening view starts framed, without a glide
   }
@@ -31,7 +31,7 @@ export class CameraRig {
     const tall = aspect < .8, fov = tall ? 50 : 36;
     if (this.cam.fov !== fov) { this.cam.fov = fov; this.cam.updateProjectionMatrix(); }
     const v = THREE.MathUtils.degToRad(fov), h = 2 * Math.atan(Math.tan(v / 2) * aspect);
-    const w = this.fw || this.size - .5, d = Math.min(this.size * .75, w * .9);
+    const w = this.fw || this.size - .5, d = this.fd || this.size * .75;
     const dist = Math.max((w / 2) / Math.tan(h / 2), (d / 2) / Math.tan(v / 2) * 1.2);
     this.home.pitch = tall ? .95 : .8;
     this.home.dist = Math.min(this.max, Math.max(this.min, dist));

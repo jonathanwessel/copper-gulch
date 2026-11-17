@@ -83,12 +83,13 @@ export function produce(town, dt) {
   }
 }
 
-/* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer. */
+/* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer
+   and what the town keeps for its next tower (town.keep, set by the defense). */
 export function sellSurplus(game, town, dt) {
-  const need = demand(town);
+  const need = demand(town), keep = town.keep || {};
   for (const g of Object.keys(town.goods)) {
     if (town.sell[g] === false) continue;
-    const extra = town.goods[g] - (need[g] || 0) * KEEP_SECONDS;
+    const extra = town.goods[g] - (need[g] || 0) * KEEP_SECONDS - (keep[g] || 0);
     if (extra > 1e-9) sell(game, town, g, extra, dt);
   }
 }

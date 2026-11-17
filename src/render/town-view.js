@@ -4,22 +4,25 @@ import * as THREE from 'three';
 import { createScene } from './scene.js';
 import { Board } from './board.js';
 import { CameraRig } from './camera.js';
-import { pickPlot, project } from './pick.js';
+import { Battle } from './battle.js';
+import { pickTarget, project } from './pick.js';
 
 export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {} } = {}) {
   const v = createScene(canvas);
   if (!v) return null;
   const town = game.town, board = new Board(town);
   v.scene.add(board.group);
+  const battle = new Battle(board, game);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
-  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), onTap: (x, y) => onTap(pickPlot(v.cam, canvas, board, x, y), x, y) });
-  let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '';
+  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
+  let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '';
   const api = {
-    view: v, board, rig, game, paused: false,
+    view: v, board, battle, rig, game, paused: false,
     get frames() { return frames; },
     project: id => project(v.cam, canvas, board.anchor(id)),
-    stop() { cancelAnimationFrame(raf); board.dispose(); v.dispose(); },
+    projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z)); },
+    stop() { cancelAnimationFrame(raf); battle.dispose(); board.dispose(); v.dispose(); },
   };
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -30,9 +33,12 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
     v.resize(w, h); rig.fit(w / h);
     const levels = JSON.stringify(town.buildings);
-    if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w); }
+    if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w, f.d); }
     board.update(dt, t, id => !town.starved[id]);
+    const towers = town.towers.map(x => x.spot + x.kind + x.level + x.path).join();
+    if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);
+    battle.update(dt, t, v.cam);
     v.render(); frames++;
     onFrame(dt);
   }

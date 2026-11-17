@@ -48,7 +48,9 @@ test('the camp makes timber, which sells, and coins come in', () => {
   const g = newGame('t');
   for (let i = 0; i < 40; i++) g.step(.25); // 10 s
   assert.ok(g.town.made.timber > 9.9 && g.town.made.timber < 10.1);
-  assert.ok(g.town.lifetime > 5, String(g.town.lifetime));
+  const kept = g.town.keep.timber; // timber held back for the first crossbow
+  assert.ok(kept > 0 && Math.abs(g.town.goods.timber - kept) < 1e-6, 'keeps ' + kept);
+  assert.ok(g.town.lifetime > 1, String(g.town.lifetime));
   assert.ok(g.town.flags.firstSale);
 });
 
@@ -83,7 +85,8 @@ test('the town keeps its workshops inputs and sells the rest', () => {
   const g = newGame('t'), t = g.town;
   t.buildings = { camp: 4, saw: 1 }; t.goods = {};
   for (let i = 0; i < 400; i++) g.step(.25);
-  assert.ok(t.goods.timber > 9 && t.goods.timber < 11, 'keeps about 10 s of the sawmill timber: ' + t.goods.timber);
+  const want = 10 + t.keep.timber; // 10 s of the sawmill's timber, plus what the next tower needs
+  assert.ok(Math.abs(t.goods.timber - want) < 1, 'keeps ' + want + ', has ' + t.goods.timber);
   assert.ok((t.goods.planks || 0) < 1e-6, 'planks sell');
 });
 
