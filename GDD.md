@@ -20,6 +20,11 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 
 The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or 2 charters". Without the deed bonus, its coin price is out of reach.
 
+## Town maps
+- **The lane winds through the town.** Every town's road (and river or sky lane) doubles back, even triples back, in switchbacks between the workshops, so raiders pass the same towers several times and the town is something to defend, not a yard off to one side.
+- Workshop plots sit beside the lane; tower spots sit in the bends, where one tower covers two or three passes.
+- The vault sits at the lane's end, in the heart of the town.
+
 ## Supply chains
 Goods go from raw to intermediate to finished. "<-" marks a good shipped in from another town.
 

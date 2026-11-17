@@ -19,13 +19,15 @@ The design is in `GDD.md`. This file is the roadmap the hourly scheduled task wo
 - American spelling.
 - Saves: bump `v` and add a migration for any change to the save's shape. Use only `cg-*` storage keys. The old game's key `copper-gulch-save-v1` may be read, never written.
 - Publish working releases often; the owner plays the installed app between sessions.
+- Smooth on phones: 60 fps on a mid-range Android is the aim. `tools/perf.js` (headless Edge, phone size, CPU throttled 4x) must give a median frame under 33 ms for every release; it reports draw calls and triangles.
+- Every feature teaches itself: no feature box is done without its explainer card (a short card with a spotlight on the thing, shown once when the feature first appears, remembered in the save). `tools/audit.js` fails when a feature has no explainer.
 - Always installable as an app (PWA), above all in Chrome on Android, where the browser must offer "Install app". `tools/install-test.js` must print ok for every release, locally and against the live site.
 
 ## Release checklist (every release; stop and fix on any failure)
 1. `node --test test/*.test.js` passes (Node 24 does not take a bare folder).
 2. `node tools/audit.js` prints `audit ok`.
 3. Run the bots that the current milestone's target names. From M1 on that is `tools/balance.js`; from M2, `tools/firstplay.js`; from M4, `tools/idle.js`. Write their numbers in the notes.
-4. `node tools/smoke.js` ends with phone, land and desk `ok`.
+4. `node tools/smoke.js` ends with phone, land and desk `ok`, and `node tools/perf.js` prints ok (median frame under 33 ms; write the numbers in the notes).
 5. `node tools/shots.js <scratch dir>`: look at every screenshot and fix anything ugly or broken.
 6. `node tools/bump-version.js "note, no apostrophes"`, then `node tools/update-test.js` and `node tools/install-test.js` print ok.
 7. Commit, push `main`, wait for the Pages build, and confirm the live `version.json` shows the new version. Then `node tools/install-test.js https://jonathanwessel.github.io/copper-gulch/` prints ok (the live manifest and icons).
@@ -63,6 +65,18 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
   - The road, crossbow, cannon, frost lens and snake oil still, the vault, foes, waves and the war wagon.
   - Paths at level 5.
   - Notes: shipped 2026.11.16-5. `src/core/defense.js` with `data/towers.js` and `data/foes.js`. Towers stand on 12 fixed stone-pad spots beside the road (data in `towns/gulch.js`); tap a pad for its card. Costs: crossbow timber (so the first tower comes in under a minute), cannon copper, frost lens bricks and copper, still bricks and tools; the town holds back the goods its next tower needs instead of selling them. Paths at level 5: Repeater or Longbow, Mortar or Grapeshot, Deep Freeze or Brittle Ice, Plague Cloud or Spreading Fever. Raiders: bandit, rider (wave 3+), armored brute (wave 6+), the war wagon every 10th wave; wave kinds mixed, rush, swarm, heavy. 30 s before wave 1, 12 s rests, and Call now pays for the time skipped. The vault holds 20; when it falls the town loses 10% of its coins and drops back two waves. Hits land at once in the core and the renderer draws the flight. Defense rests during offline catch-up until M4 brings background battles. The home view now frames the yard down to the far-side spots. A scratch greedy bot gave: first tower at 17 s, wave 10 at 6.5 min, no breach in waves 1-3, first breach at wave 15; the M1 target box tunes this with `tools/balance.js`. Pinch and twist are still untried on a real phone.
+- [ ] **Performance (owner feedback: "looks awesome but runs at like 0.5 frames per second" on the phone).**
+  - Profile first, then fix properly: capped pixel ratio and a render scale, merged static geometry and shared materials, instancing for repeats, cheap or no shadows on Low, no idle lights, quality tiers with an automatic step-down when frames stay slow, and the fixed-step sim with a cap on steps per frame.
+  - `tools/perf.js`: frame time in headless Edge at phone size with CPU throttling 4x, failing above 33 ms median, reporting draw calls and triangles. It joins the release checklist.
+  - Note: this box and the next two jump the queue at the owner's request (2026-11-16), ahead of the Phone shell.
+- [ ] **The Gulch map: a road that winds through town.**
+  - The raiders' road doubles back, even triples back, through the town, with the yard plots beside it, so raiders pass the towers several times. This is the pattern for every later town (GDD.md).
+  - Retune the waves so wave 10 still lands in 7-9 minutes.
+  - Note: owner feedback, ahead of the Phone shell.
+- [ ] **Explainers that grow with the game.**
+  - The coach-card system, pulled forward from M2: when a feature first appears (first tower, first workshop, selling, upgrades, paths at level 5, the boss, the vault, and later research, foremen, charters...), a short card with a spotlight on it, shown once and remembered in the save.
+  - Every feature declares its explainer in data; `tools/audit.js` fails when one is missing. From here on, no feature box is done without its explainer.
+  - Note: owner feedback, ahead of the Phone shell. M2's Onboarding box keeps the tabs revealed one at a time, alerts and the 30-minute tutorial.
 - [ ] **Phone shell.** The HUD, slide-up sheets, cards, side buttons, the title, settings, save slots, and export and import.
   - Settings includes the Install entry: `installButton()` from `src/ui/install.js` (button while Chrome offers it, the iOS hint on iPhone and iPad).
 - [ ] **Town layer.** Town research, foremen, charter and deeds, and the Perks screen.
