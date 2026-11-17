@@ -77,8 +77,9 @@ export class Board {
     this.group.add(b.obj);
     this.bld[id] = { ...b, key, level, born: cur ? 0 : 1 };
   }
-  /* The part of the yard worth framing: every plot that is built or can be built, at least three plots wide. */
+  /* What the camera frames at home: the town's frame from its data, or else every plot that is built or can be built. */
   focus() {
+    if (this.def.frame) return this.def.frame;
     const xs = [], zs = [];
     for (const [id, [x, z]] of Object.entries(this.def.plots)) if (this.town.level(id) > 0 || unlocked(this.town, id)) { xs.push(x); zs.push(z); }
     if (!xs.length) { xs.push(this.center.x); zs.push(this.center.z); }

@@ -79,9 +79,10 @@ test('splash, frost and poison each work', () => {
     assert.ok(kills.length > 0, kind + ' downs raiders');
   }
   const g = newGame('slow'), t = rich(g);
-  buildTower(g, t, 3, 'frost');
-  run(g, WAVE.first + 12);
-  assert.ok(t.waves.foes.some(f => f.slowT > 0), 'frost chills');
+  buildTower(g, t, 8, 'frost'); // beside the first pass, near where raiders come in
+  let chilled = false;
+  for (let i = 0; i < (WAVE.first + 30) * 4 && !chilled; i++) { g.step(.25); chilled = t.waves.foes.some(f => f.slowT > 0); }
+  assert.ok(chilled, 'frost chills');
 });
 
 test('the vault falls: the town loses a tenth of its coins and drops back two waves', () => {

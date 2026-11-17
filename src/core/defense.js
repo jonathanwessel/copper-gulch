@@ -139,7 +139,7 @@ export function fight(game, town, dt) {
     if (f.poisonT > 0) { f.hp -= f.poison * Math.min(dt, f.poisonT); f.poisonT -= dt; }
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
-    f.s += FOES[f.kind].speed * (1 - slow) * dt;
+    f.s += FOES[f.kind].speed * WAVE.speed * (1 - slow) * dt;
     if (f.s >= road.length && f.hp > 0) {
       const hp = FOES[f.kind].leak;
       town.vault.hp -= hp; f.hp = 0; f.leaked = true;

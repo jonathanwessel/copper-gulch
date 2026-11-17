@@ -31,12 +31,16 @@ export class CameraRig {
     const tall = aspect < .8, fov = tall ? 50 : 36;
     if (this.cam.fov !== fov) { this.cam.fov = fov; this.cam.updateProjectionMatrix(); }
     const v = THREE.MathUtils.degToRad(fov), h = 2 * Math.atan(Math.tan(v / 2) * aspect);
-    const w = this.fw || this.size - .5, d = this.fd || this.size * .75;
+    let w = this.fw || this.size - .5, d = this.fd || this.size * .75;
+    // a wide screen and a tall town: look from the west, so the town's length runs left to right
+    const turn = aspect > 1.2 && d > w * 1.15;
+    this.home.yaw = turn ? -Math.PI / 2 : 0;
+    if (turn) [w, d] = [d, w];
     const dist = Math.max((w / 2) / Math.tan(h / 2), (d / 2) / Math.tan(v / 2) * 1.2);
     this.home.pitch = tall ? .95 : .8;
     this.home.dist = Math.min(this.max, Math.max(this.min, dist));
     if (!this.fitted) { Object.assign(this.t, this.home); Object.assign(this.c, this.home); this.fitted = true; }
-    else { this.t.pitch = this.home.pitch; this.t.dist = this.home.dist; }
+    else { this.t.pitch = this.home.pitch; this.t.dist = this.home.dist; this.t.yaw = this.home.yaw; }
   }
   clamp() {
     const s = this.size * .6;
