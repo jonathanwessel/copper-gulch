@@ -8,7 +8,8 @@ import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet } from './sheets.js';
+import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
@@ -56,7 +57,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn';
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
-  side.append(goodsBtn, labBtn, menuBtn);
+  const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
+  side.append(goodsBtn, labBtn, perksBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // tags over the plots
@@ -73,7 +75,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const menuCtx = { game, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
-  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch);
+  const openPerks = () => sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) }));
+  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false;
   function open(id) {
@@ -237,6 +240,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // news from the road
   game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The war wagon is coming. Stop it before it reaches the vault.', 4000); });
+  game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); });
   game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); });
   game.bus.on('breach', e => { if (e.town === town.id) toast('Your vault broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000); });
 
@@ -275,9 +279,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     labBtn.hidden = !researchOpen(town);
     setText(labBtn, town.lab ? 'Research · ' + Math.ceil(town.lab.left) + 's' : 'Research');
     labBtn.classList.toggle('on', !!town.lab);
+    // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
+    perksBtn.hidden = !charterOffered(game);
+    perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
-  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks };
 }
 
 export function toast(text, ms = 4000) {

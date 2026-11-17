@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-1',
+    lines: [
+      'When your town reaches wave 30 or earns 60K coins, a Perks button shows up.',
+      'Tap Perks, then Sign the charter. Your town starts over at wave 1 and you get deeds.',
+      'You keep deeds forever. Each one adds 25% to all the coins you earn.',
+      'Deeds open perks. Pick one of each two, like more goods or stronger towers.',
+    ],
+  },
+  {
     v: '2026.11.16-19',
     lines: [
       "Once a building reaches level 10, tap it and tap Hire foreman.",

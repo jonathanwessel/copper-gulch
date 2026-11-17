@@ -227,6 +227,22 @@ async function run() {
       });
       for (const [k, v] of Object.entries(gfx)) if (!v) bad.push('Menu and Graphics: not ' + k);
       // research: the button shows once research opens; its sheet starts an item, the others wait, and it finishes
+      // the Perks button: hidden until the charter would pay a deed, then its sheet says what signing pays
+      const perks = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, btn = document.getElementById('perksBtn'), out = {};
+        out.hiddenFirst = btn.hidden;
+        const life = t.lifetime; t.lifetime = 6e4; await wait(600);
+        out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
+        btn.click(); await wait(300);
+        const sheet = document.getElementById('sheet');
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now to get 1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.pairs = document.querySelectorAll('#sheet .pair').length >= 3 && /Needs 1 deed/.test(sheet.textContent);
+        t.lifetime = life;
+        return out;
+      });
+      for (const [k, v] of Object.entries(perks)) if (!v) bad.push('Perks: not ' + k);
+      bad.push(...(await check(page)).map(b => 'perks sheet: ' + b));
+      await page.evaluate(() => document.getElementById('sheetClose').click());
       const lab = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, btn = document.getElementById('researchBtn'), out = {};
         delete t.flags['open:research']; t.buildings.saw = 0; await wait(400); out.hiddenFirst = btn.hidden;
@@ -302,6 +318,39 @@ async function run() {
     console.log('slots', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
     failed += bad.length ? 1 : 0;
   } finally { await b4.close(); srv4.close(); }
+
+  // the charter: two taps on Sign the charter start the town over (the page reloads into it) with the deed kept; a
+  // perk is picked with two taps and counts
+  const srv6 = await start(0), b6 = await chromium.launch();
+  try {
+    const page = await b6.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await page.goto(srv6.url + '?coach=off'); await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    await waitFor(page, () => CG.town && CG.town.frames > 5);
+    await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town;
+      t.buildings.saw = 8; t.bestWave = 31; t.wave = 31; t.coins = 5e4; t.lifetime = 7e4; await wait(600);
+      document.getElementById('perksBtn').click(); await wait(200);
+      const s = document.getElementById('signCharter'); s.click(); await wait(100); s.click();
+    }).catch(() => {});
+    await sleep(800);
+    if (!await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5, 15000)) bad.push('the game did not come back after signing');
+    const after = await page.evaluate(() => { const g = CG.game, t = g.town; return { deeds: g.shared.charter.deeds, wave: t.wave, saw: t.level('saw'), coins: t.coins, perks: !document.getElementById('perksBtn').hidden, on: document.getElementById('perksBtn').classList.contains('on') }; });
+    if (after.deeds !== 2 || after.wave !== 1 || after.saw || after.coins > 100) bad.push('signing did not start the town over with 2 deeds (' + JSON.stringify(after) + ')');
+    if (!after.perks || !after.on) bad.push('the Perks button is not waiting for a pick');
+    const pick = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game;
+      document.getElementById('perksBtn').click(); await wait(300);
+      const go = document.querySelector('#sheet [data-perk="trade:a"]'); go.click(); await wait(100);
+      const once = g.shared.charter.perks.trade; document.querySelector('#sheet [data-perk="trade:a"]').click(); await wait(400);
+      return { once: once === undefined, picked: g.shared.charter.perks.trade === 'a', counts: g.town.mods.factor('prod') > 1.19, shown: /Picked/.test(document.getElementById('sheet').textContent), held: /You hold 2 deeds/.test(document.getElementById('deedsHeld').textContent) };
+    });
+    for (const [k, v] of Object.entries(pick)) if (!v) bad.push('perk pick: not ' + k);
+    bad.push(...(await check(page)).map(b => 'charter: ' + b), ...errs);
+    console.log('charter', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await b6.close(); srv6.close(); }
 
   // What's new: a device with a save that last saw an older version gets the card on the title; Got it closes it for
   // good; a brand-new player never sees it

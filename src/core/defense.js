@@ -39,7 +39,7 @@ export function towerStats(town, t) {
 export function towerCost(town, kind, L = 0) {
   const d = TOWERS[kind], goods = {};
   for (const [g, n] of Object.entries(d.goods[town.id] || {})) goods[g] = Math.ceil(n * PER_LEVEL.goods ** L);
-  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** L * town.mods.factor('cost')), goods };
+  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** L * town.mods.factor('cost') * town.mods.factor(L ? 'cost:towerUp' : 'cost:towerNew')), goods };
 }
 export function canPay(town, c) { return town.coins + 1e-9 >= c.coins && Object.entries(c.goods).every(([g, n]) => town.has(g, n)); }
 function pay(town, c) { town.coins -= c.coins; for (const [g, n] of Object.entries(c.goods)) town.goods[g] -= n; }

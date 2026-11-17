@@ -133,6 +133,18 @@ export const EXPLAINERS = [
     when: h => h.wave % 10 === 0 && h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {
+    id: 'charter', covers: ['system:charter'],
+    title: 'Your charter',
+    text: 'Tap Perks, then Sign the charter. Your town starts over at wave 1. You get deeds you keep forever. Each deed gives you more coins.',
+    when: h => h.offered, at: () => ({ el: '#perksBtn' }),
+  },
+  {
+    id: 'perks', covers: ['perks', 'deeds'],
+    title: 'Pick a perk',
+    text: 'Tap Perks and pick one of two perks. More deeds open more perks. Each time you sign the charter, you pick again.',
+    when: h => h.toPick > 0, at: () => ({ el: '#perksBtn' }),
+  },
+  {
     id: 'pit', covers: ['pit'],
     title: 'Mortar pit',
     text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. Opens at wave 12.',

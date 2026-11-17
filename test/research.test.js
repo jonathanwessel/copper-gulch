@@ -126,7 +126,7 @@ test('research keeps going while the game catches up time away', () => {
 });
 
 test('save v5: research and the running item survive a save, and an older save gets research open with its Sawmill', () => {
-  assert.equal(SAVE_VERSION, 5);
+  assert.ok(SAVE_VERSION >= 5);
   const { g, t } = ready('r7');
   finish(g, t, 'saws'); assert.ok(startResearch(g, t, 'walls')); run(g, 3);
   const back = loadGame(decode(encode(g, 0)).game), b = back.town;
@@ -134,7 +134,7 @@ test('save v5: research and the running item survive a save, and an older save g
   assert.equal(b.lab.id, 'walls'); assert.ok(Math.abs(b.lab.left - t.lab.left) < 1e-9);
   assert.equal(output(b, 'camp'), output(t, 'camp'));
   const old = migrate({ v: 4, at: 0, game: { towns: { gulch: { buildings: { camp: 6, saw: 2 }, flags: {} }, other: { buildings: { camp: 2 } } } } });
-  assert.equal(old.v, 5);
+  assert.equal(old.v, SAVE_VERSION);
   assert.equal(old.game.towns.gulch.flags['open:research'], true);
   assert.equal(old.game.towns.gulch.lab, null);
   assert.ok(!old.game.towns.other.flags['open:research']);

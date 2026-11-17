@@ -1,6 +1,9 @@
 // node tools/balance.js [--seeds 3] [--minutes 60]: plays Copper Gulch with a steady, sensible player (no waiting,
 // no mistakes) straight on the simulation core, and checks the pacing targets that exist so far:
-//   the first tower under 1 minute; wave 10 cleared in 7-9 minutes; no breach in waves 1-3.
+//   the first tower under 1 minute; wave 10 cleared in 7-9 minutes; no breach in waves 1-3; the first charter offered
+//   at 35-45 minutes. The player signs the first charter once it pays a deed (--sign n: once it pays n), picks the
+//   first side of every perk pair it can, and plays on; it reports how long the new charter takes to get back to the
+//   old one's best wave.
 // The player picks towers the way a careful player would: every open tower kind on every empty pad it fits (mortar
 // pits included), and every upgrade, scored by damage per coin over the stretch of road that pad covers. It reports
 // which kinds it bought and which kind did the most damage in each wave.
@@ -16,9 +19,11 @@ import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 import { canHire, hireCost, hireForeman } from '../src/core/foremen.js';
+import { deedsFor, signCharter, pickPerk, perkState } from '../src/core/charter.js';
+import { PERKS } from '../src/data/perks.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 3), MINUTES = arg('minutes', 60);
+const SEEDS = arg('seeds', 3), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1);
 const SPACING = 1.1; // about how far apart raiders ride, in world units
 
 /* Road units inside a ring [lo, hi] around a spot (memoized). */
@@ -77,7 +82,7 @@ export function options(town) {
    building. */
 export function play(seed, minutes = MINUTES) {
   const g = newGame('balance-' + seed), t = g.town;
-  const r = { seed, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [] };
+  const r = { seed, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [] };
   g.bus.on('wave:start', () => { g.dealt = {}; });
   g.bus.on('wave:clear', e => {
     if (e.wave === 10 && r.wave10 === null) r.wave10 = t.t;
@@ -85,10 +90,18 @@ export function play(seed, minutes = MINUTES) {
     if (best && t.t <= 3600) r.top.push([e.wave, best[0], Object.keys(d).length]);
   });
   g.bus.on('breach', e => r.breaches.push(e.wave));
+  g.bus.on('charter:offer', () => { r.offer = t.t; });
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
-    if (s % (60 * 4) === 0 || s === minutes * 240 - 1) r.waveAt[Math.round(s / 240)] = t.wave;
+    if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
     if (s % 4) continue;
+    // the first charter: signed once it pays SIGN_AT deeds; then pick the first side of each open perk pair
+    if (!r.signed && deedsFor(t) >= SIGN_AT) {
+      r.signed = { at: t.t, wave: t.bestWave, coins: Math.round(t.lifetime), deeds: signCharter(g, t) };
+      for (const p of PERKS) if (perkState(g, p.id) === 'open') pickPerk(g, p.id, 'a');
+      continue;
+    }
+    if (r.signed && r.regain === null && t.bestWave >= r.signed.wave) r.regain = t.t - r.signed.at;
     const want = 1 + Math.ceil(t.wave / 3), behind = t.towers.some(x => x.level < 1 + t.wave / 3);
     if (t.towers.length < want || behind) {
       const pick = options(t).filter(o => o.can && (o.up ? o.level < 1 + t.wave / 3 : t.towers.length < want))[0];
@@ -138,7 +151,10 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     if (r.firstTower === null || r.firstTower > 60) misses.push(`seed ${s}: first tower at ${r.firstTower} s (want under 60)`);
     if (r.wave10 === null || r.wave10 < 7 * 60 || r.wave10 > 9 * 60) misses.push(`seed ${s}: wave 10 at ${w10} (want 7-9 min)`);
     if (r.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in waves 1-3`);
+    if (r.offer === null || r.offer < 35 * 60 || r.offer > 45 * 60) misses.push(`seed ${s}: the first charter offered at ${r.offer === null ? 'never' : (r.offer / 60).toFixed(1) + ' min'} (want 35-45 min)`);
   }
+  const m = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
+  console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));
   console.log('towers bought (first minute bought, in the first hour):');

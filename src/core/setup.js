@@ -5,9 +5,10 @@ import { economy } from './economy.js';
 import { defense } from './defense.js';
 import { research } from './research.js';
 import { foremen } from './foremen.js';
+import { charter } from './charter.js';
 import { TOWNS } from '../data/towns/index.js';
 
-export const SYSTEMS = [market, economy, defense, research, foremen];
+export const SYSTEMS = [market, economy, defense, research, foremen, charter];
 
 export function newGame(seed = 'cg') {
   const g = new Game({ seed, systems: SYSTEMS, defs: TOWNS });

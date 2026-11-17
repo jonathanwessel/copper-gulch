@@ -3,7 +3,7 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -35,6 +35,13 @@ export const MIGRATIONS = {
       if ((t.buildings || {}).saw > 0) t.flags['open:research'] = true;
     }
     return { ...s, v: 5, game: g };
+  },
+  // v6: charters and deeds (game.shared.charter); no deeds yet, the charter not yet offered, no perks picked
+  5: s => {
+    const g = s.game || {};
+    g.shared = g.shared || {};
+    g.shared.charter = { deeds: 0, signed: 0, offered: false, perks: {}, last: null, ...(g.shared.charter || {}) };
+    return { ...s, v: 6, game: g };
   },
 };
 

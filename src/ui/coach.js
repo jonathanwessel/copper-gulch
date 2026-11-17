@@ -4,11 +4,12 @@
 import { EXPLAINERS } from '../data/explainers.js';
 import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { charterOffered, perksToPick } from '../core/charter.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
 /* What explainers read: a small view of the town. */
-export function helper(town) {
+export function helper(town, game = null) {
   const ws = town.waves || {}, levels = Object.entries(town.buildings);
   const top = levels.reduce((a, b) => (b[1] > a[1] ? b : a), ['camp', 0]);
   return {
@@ -21,6 +22,7 @@ export function helper(town) {
     keptPlot: Object.keys(town.buildings).find(id => town.level(id) > 0 && town.def && town.def.board && town.def.board.plots[id] && BUILDINGS[id] && ((town.keep || {})[BUILDINGS[id].makes] || 0) > 0 && (town.goods[BUILDINGS[id].makes] || 0) >= town.keep[BUILDINGS[id].makes] - 1e-6 && town.sell[BUILDINGS[id].makes] !== false) || null,
     // a building on the board that can get a foreman, while the town has none yet
     foremanPlot: Object.keys(town.foremen || {}).length ? null : Object.keys(town.buildings).find(id => town.level(id) >= 10 && town.def && town.def.board && town.def.board.plots[id]) || null,
+    offered: !!(game && game.shared.charter && charterOffered(game)), toPick: game && game.shared.charter ? perksToPick(game) : 0,
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
   };
 }
@@ -39,7 +41,7 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     pause(true); place();
   }
   function place() {
-    const h = helper(town), target = cur.e.at ? cur.e.at(h) : null;
+    const h = helper(town, game), target = cur.e.at ? cur.e.at(h) : null;
     let r = null;
     if (target && target.el) { const n = document.querySelector(target.el); if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); r = { x: b.left - 6, y: b.top - 6, w: b.width + 12, h: b.height + 12 }; } }
     else if (target) { const p = locate(target); if (p) r = { x: p.x - 48, y: p.y - 48, w: 96, h: 96 }; }
@@ -56,7 +58,7 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
       if (cur) { place(); return; }
       if ((wait -= dt) > 0 || (acc += dt) < .25) return;
       acc = 0;
-      const h = helper(town), next = EXPLAINERS.find(e => !seen[e.id] && e.when(h));
+      const h = helper(town, game), next = EXPLAINERS.find(e => !seen[e.id] && e.when(h));
       if (next) show(next);
     },
     dismiss() {

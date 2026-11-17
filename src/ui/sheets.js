@@ -1,6 +1,7 @@
 /* Slide-up sheets over the town: one at a time, with a dimmed backdrop that closes it when tapped.
      Goods: what the town has in stock, what each good sells for now, and a Selling or Holding switch per good.
      Research: the town's research items, their next level's price and wait, and the one running.
+     Perks: the town's charter (deeds it would pay now, what earns the next one, Sign), the deeds held, the perk pairs.
      Menu: Graphics, Install, save slots, copying the save out and loading one in, the help cards, the title screen.
    Every word here follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 import { GOODS } from '../data/goods.js';
@@ -15,6 +16,8 @@ import { GAME_VERSION } from '../version.js';
 import { fmt, ago } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
+import { PERKS, DEEDS } from '../data/perks.js';
+import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -211,5 +214,61 @@ export function menuSheet(ctx) {
     const home = btn('Title screen', 'btn small', 'toTitle'); home.addEventListener('click', () => leave('title'));
     const r3 = el('div', 'row'); r3.append(installButton(), upd, help, home);
     sec('More', r3, el('p', 'ver', 'Version ' + GAME_VERSION + ' · Free, no ads'));
+  };
+}
+
+/* The Perks sheet. ctx: { game, town, leave } where leave('charter') saves and reloads into the new charter. */
+export function perksSheet(ctx) {
+  const { game, town, leave } = ctx;
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  return body => {
+    const sec = (name, ...kids) => { const s = el('div', 'sec'); s.append(el('h3', null, name), ...kids); body.append(s); return s; };
+    // the charter (the perk pairs follow the deeds without a heading of their own: the sheet is called Perks)
+    const now = el('p', 'uses'), wave = el('span'), coins = el('span'), sign = btn('Sign the charter', 'btn primary', 'signCharter');
+    const prog = el('div', 'option charterline'), pt = el('div'); pt.append(wave, coins); prog.append(pt);
+    confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
+    const r = el('div', 'row'); r.append(sign);
+    sec('Charter', now, prog, el('p', 'warn', 'Signing starts this town over from wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again.'), r);
+    // the deeds held
+    const held = el('p', 'uses'); held.id = 'deedsHeld';
+    sec('Deeds', held);
+    // the perk pairs
+    const pairs = el('div', 'goods perks'); body.append(pairs);
+    let sig = '';
+    const paint = () => {
+      const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
+      const t1 = p.total ? 'Sign now to get ' + plural(p.total, (c.deeds ? 'more ' : '') + 'deed') + '.' : 'Earn a deed to sign the charter.';
+      if (now.textContent !== t1) now.textContent = t1;
+      const w = 'Best wave ' + town.bestWave + ' · next deed at wave ' + n.wave, k = 'Coins earned ' + fmt(town.lifetime) + ' · next deed at ' + fmt(n.coins) + ' coins';
+      if (wave.textContent !== w) wave.textContent = w;
+      if (coins.textContent !== k) coins.textContent = k;
+      sign.disabled = !p.total;
+      const h = c.deeds ? 'You hold ' + plural(c.deeds, 'deed') + '. They add ' + Math.round(c.deeds * DEEDS.income * 100) + '% to all the coins you earn.'
+        : 'Deeds stay with you for good. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.';
+      if (held.textContent !== h) held.textContent = h;
+      const s = c.deeds + JSON.stringify(c.perks);
+      if (s === sig) return;
+      sig = s; pairs.replaceChildren();
+      for (const pair of PERKS) {
+        const st = perkState(game, pair.id), box = el('div', 'pair'); box.dataset.pair = pair.id;
+        if (st === 'locked' || st === 'open') box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : 'Pick one'));
+        for (const side of ['a', 'b']) {
+          const x = pair[side], row = el('div', 'option'), txt = el('div');
+          txt.append(el('b', null, x.name), el('span', null, x.about)); row.append(txt);
+          if (st === 'open') {
+            const go = btn('Pick', 'btn small build'); go.dataset.perk = pair.id + ':' + side;
+            confirmTap(go, 'Tap again', () => { if (pickPerk(game, pair.id, side)) paint(); });
+            row.append(go);
+          } else if (st === side) { row.classList.add('running'); row.append(el('small', 'picked', 'Picked')); }
+          else if (st !== 'locked') { row.classList.add('off'); row.append(el('small', 'picked', 'Not picked')); }
+          else row.classList.add('off');
+          box.append(row);
+        }
+        pairs.append(box);
+      }
+    };
+    paint();
+    let acc = 0;
+    return dt => { if ((acc += dt) < .3) return; acc = 0; paint(); };
   };
 }
