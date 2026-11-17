@@ -3,7 +3,7 @@
    defense events. Reads the town; never changes it. */
 import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
-import { part } from './kit.js';
+import { part, mergeStatic } from './kit.js';
 import { roadOf } from '../core/defense.js';
 import { pointAt } from '../core/path.js';
 import { FOES } from '../data/foes.js';
@@ -32,12 +32,12 @@ export class Battle {
     this.group = new THREE.Group(); this.group.name = 'battle'; board.group.add(this.group);
     this.road = roadOf(this.town);
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = [];
-    // a stone pad on every spot (pickable): towers stand on them
-    this.town.def.board.spots.forEach(([x, z], i) => {
+    // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
+    const pads = this.town.def.board.spots.map(([x, z]) => {
       const pad = part(k => { k.cyl(0, 0, 0, .42, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .34, .015, 'stone', { seg: 8 }); });
-      pad.position.set(x, 0, z); pad.traverse(o => { o.userData.spot = i; if (o.isMesh) board.pickables.push(o); });
-      this.group.add(pad); this.pads.push(pad);
+      pad.position.set(x, 0, z); return pad;
     });
+    this.group.add(mergeStatic(pads, { cast: false })); pads.forEach(disposeTree);
     this.off = [
       game.bus.on('shot', e => { if (e.town === this.town.id) this.shot(e); }),
       game.bus.on('leak', e => { if (e.town === this.town.id) this.shake = .4; }),

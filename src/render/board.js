@@ -4,7 +4,7 @@
    The board reads the town; it never changes it. */
 import * as THREE from 'three';
 import { makeGround, makeMesas, polyDist, fbm, sstep, lerp } from './terrain.js';
-import { rng } from './kit.js';
+import { rng, mergeStatic } from './kit.js';
 import { makeBuilding, makeVault, PROPS } from '../assets/models/gulch.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
@@ -37,10 +37,10 @@ export class Board {
       const r = polyDist(x, z, B.road);
       if (r.d < 1.1) c.lerp(dirt, (1 - sstep(.6, 1.1, r.d)) * .5); // trampled verges; the road itself is a ribbon
     };
-    this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 176, height, color });
+    this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color });
     this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, new THREE.Color('#a57a52')]));
     const cx = B.cols / 2, cz = B.rows / 2;
-    this.group.add(makeMesas([[cx - 16, cz - 17, 4.5], [cx - 4, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa));
+    const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 4, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];
     // scenery outside the yard, never on the road or a plot
     const R = rng(town.id.length * 31 + 5), n = lod === 'low' ? 14 : 46;
     for (let i = 0, placed = 0; i < n * 4 && placed < n; i++) {
@@ -48,8 +48,11 @@ export class Board {
       if (polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
       const kind = R() < .4 ? 'cactus' : R() < .55 ? 'rock' : R() < .7 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 13);
       o.position.set(x, Math.max(0, height(x, z)), z); o.rotation.y = R() * 6; o.scale.setScalar(.7 + R() * .6);
-      this.group.add(o); placed++;
+      scenery.push(o); placed++;
     }
+    // all of it is static: one mesh per material instead of a draw call (and a shadow draw) per rock and cactus
+    this.group.add(mergeStatic(scenery));
+    scenery.forEach(disposeTree);
     this.vault = makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // smoke puffs: one instanced mesh for the whole board
     this.puffs = []; this.smokeT = 0;

@@ -38,12 +38,12 @@ function connect(url) {
   });
 }
 
-async function launch() {
+async function launch(opts = {}) {
   const exe = findBrowser();
   if (!exe) throw new Error('No Edge or Chrome found. Install one, or set CHROME_PATH to its executable.');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-'));
   const proc = spawn(exe, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + dir, '--no-first-run', '--no-default-browser-check',
-    '--enable-unsafe-swiftshader', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-extensions', 'about:blank'], { stdio: 'ignore' }); // swiftshader: WebGL even without a GPU
+    '--enable-unsafe-swiftshader', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-extensions', ...(opts.args || []), 'about:blank'], { stdio: 'ignore' }); // swiftshader: WebGL even without a GPU
   process.on("exit", () => { try { proc.kill(); } catch (e) {} }); // never leave a headless browser behind
   let port, wsPath;
   for (let i = 0; i < 150 && !port; i++) {
@@ -61,7 +61,10 @@ async function launch() {
       let loaded = null; s.on('Page.loadEventFired', () => { if (loaded) { loaded(); loaded = null; } });
       const waitLoad = () => new Promise(r => { loaded = r; setTimeout(r, 15000); });
       const page = {
-        async setViewportSize({ width, height }) { await s.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: opts.deviceScaleFactor || 1, mobile: false }); },
+        async setViewportSize({ width, height }) {
+          await s.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: opts.deviceScaleFactor || 1, mobile: !!opts.mobile });
+          if (opts.mobile) await s.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); // a phone: coarse pointer, touch
+        },
         async addInitScript(fn) { await s.send('Page.addScriptToEvaluateOnNewDocument', { source: typeof fn === 'function' ? `(${fn})()` : String(fn) }); },
         async goto(url) { const w = waitLoad(); await s.send('Page.navigate', { url }); await w; },
         async reload() { const w = waitLoad(); await s.send('Page.reload'); await w; },

@@ -5,6 +5,7 @@
 
 export const STEP = 0.25;            // seconds per simulation step
 export const MAX_FRAME = 1;          // a frame never feeds more than this (a hitch or a tab in the background)
+export const MAX_STEPS = 8;          // and never runs more steps than this, so a slow device cannot spiral
 export const OFFLINE_FINE = 10 * 60; // the first 10 minutes away are stepped normally
 export const OFFLINE_MAX = 24 * 3600; // at most a day is caught up
 
@@ -19,7 +20,8 @@ export class Clock {
   advance(realSeconds, step) {
     this.bank += Math.min(MAX_FRAME, Math.max(0, realSeconds)) * this.speed;
     let n = 0;
-    while (this.bank >= STEP - 1e-9) { this.bank -= STEP; this.t += STEP; step(STEP); n++; }
+    while (this.bank >= STEP - 1e-9 && n < MAX_STEPS) { this.bank -= STEP; this.t += STEP; step(STEP); n++; }
+    if (n === MAX_STEPS) this.bank = Math.min(this.bank, STEP); // drop what a slow frame could not run
     return n;
   }
   /* Catch up `seconds` of time away. Fine steps first (step(STEP)), then coarse chunks (coarse(dt), each at most

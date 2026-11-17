@@ -94,3 +94,29 @@ export class Kit {
 const CACHE = new Map();
 export function cached(key, make) { if (!CACHE.has(key)) CACHE.set(key, make()); return CACHE.get(key); }
 export function part(make, opt) { const k = new Kit(opt); make(k); return k.build(opt); }
+
+/* Merge many static objects (already placed) into one mesh per material: the scenery of a board becomes a handful of
+   draw calls instead of hundreds. The objects themselves are left untouched; dispose of them if they are not used. */
+export function mergeStatic(objects, { cast = true } = {}) {
+  const byMat = new Map();
+  for (const root of objects) {
+    root.updateMatrixWorld(true);
+    root.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh) return;
+      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+      if (g.attributes.uv) g.deleteAttribute('uv');
+      if (!byMat.has(o.material)) byMat.set(o.material, []);
+      byMat.get(o.material).push(g);
+    });
+  }
+  const grp = new THREE.Group();
+  for (const [mat, list] of byMat) {
+    const g = mergeGeometries(list); list.forEach(x => x.dispose());
+    if (!g) continue;
+    g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, mat);
+    m.castShadow = cast && mat !== MAT.glow && mat !== MAT.fire; m.receiveShadow = mat !== MAT.fire;
+    grp.add(m);
+  }
+  return grp;
+}

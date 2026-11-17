@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Rng, hashSeed } from '../src/core/rng.js';
-import { Clock, STEP, OFFLINE_FINE, OFFLINE_MAX } from '../src/core/clock.js';
+import { Clock, STEP, OFFLINE_FINE, OFFLINE_MAX, MAX_STEPS } from '../src/core/clock.js';
 import { Bus } from '../src/core/events.js';
 import { Mods, CAPS } from '../src/core/mods.js';
 import { Town } from '../src/core/town.js';
@@ -43,6 +43,12 @@ test('clock: whole fixed steps, the remainder kept, long frames clamped', () => 
   c.advance(0.15, () => n++); assert.equal(n, 3);
   c.advance(30, () => n++); assert.equal(n, 3 + 4); // one frame feeds at most a second
   assert.ok(Math.abs(c.t - 7 * STEP) < 1e-9);
+});
+
+test('clock: a frame never runs more than MAX_STEPS steps, even sped up', () => {
+  const c = new Clock({ speed: 8 }); let n = 0;
+  assert.equal(c.advance(1, () => n++), MAX_STEPS);
+  assert.ok(c.bank <= STEP + 1e-9, 'the backlog is dropped, not carried into the next frame');
 });
 
 test('clock: catch-up steps the first stretch finely, then in coarse chunks, up to a day', () => {

@@ -2,14 +2,16 @@
    game, animates the board and draws. Returns an api the interface uses (tap handler, labels, stop). */
 import * as THREE from 'three';
 import { createScene } from './scene.js';
+import { startQuality, autoStep } from './autoquality.js';
 import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
 import { pickTarget, project } from './pick.js';
 
 export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {} } = {}) {
-  const v = createScene(canvas);
+  const q = startQuality(), v = createScene(canvas, { tier: q.tier });
   if (!v) return null;
+  const step = autoStep(v, q);
   const town = game.town, board = new Board(town);
   v.scene.add(board.group);
   const battle = new Battle(board, game);
@@ -28,6 +30,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     raf = requestAnimationFrame(frame);
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     if (document.hidden || v.lost) return;
+    step(dt);
     if (!api.paused) game.advance(dt);
     t += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;

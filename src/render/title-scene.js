@@ -2,6 +2,7 @@
    road, red mesas behind, and the town's first buildings with their wheels turning and lamps lit. */
 import * as THREE from 'three';
 import { createScene } from './scene.js';
+import { startQuality, autoStep } from './autoquality.js';
 import { Kit, rng } from './kit.js';
 import { makeBuilding, makeVault, PROPS } from '../assets/models/gulch.js';
 
@@ -55,8 +56,9 @@ const LAYOUT = [ // [id, x, z, rotation]
 ];
 
 export function startTitleScene(canvas) {
-  const v = createScene(canvas);
+  const q = startQuality(), v = createScene(canvas, { tier: q.tier, lamps: true });
   if (!v) return null;
+  const step = autoStep(v, q);
   const { scene, cam } = v;
   scene.add(ground(), mesas());
   const movers = [], lamps = [];
@@ -87,7 +89,8 @@ export function startTitleScene(canvas) {
   function frame(now) {
     raf = requestAnimationFrame(frame);
     if (document.hidden || v.lost) return;
-    const aspect = size(), t = (now - t0) / 1000, dt = 1 / 60;
+    const dt = Math.min(.1, (now - (frame.last || now)) / 1000); frame.last = now; step(dt);
+    const aspect = size(), t = (now - t0) / 1000;
     // a slow circle; narrow (portrait) screens step back so the town fits the width
     const p = api.pose || { yaw: -.35 + Math.sin(t * .05) * .5, dist: 12.5 / Math.min(1, Math.max(.6, aspect * 1.15)), pitch: .42, look: [0, .9, .4] };
     cam.position.set(p.look[0] + Math.sin(p.yaw) * Math.cos(p.pitch) * p.dist, p.look[1] + Math.sin(p.pitch) * p.dist + .6, p.look[2] + Math.cos(p.yaw) * Math.cos(p.pitch) * p.dist);

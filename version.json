@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.16-6",
-  "notes": "Install as an app: an Install button on the title, maskable icons, and a checked manifest"
+  "version": "2026.11.16-7",
+  "notes": "Much faster on phones: lighter graphics on phones, merged scenery, and automatic quality"
 }
