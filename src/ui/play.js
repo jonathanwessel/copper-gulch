@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, explainOutput, missing, unlocked } from '../core/economy.js';
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
 import { createSheets, goodsSheet, menuSheet } from './sheets.js';
 
@@ -86,7 +86,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (!openId) return;
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
-    const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes]].join();
+    const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
+    const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -111,7 +112,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
     const row = el('div', 'row');
     const c = cost(town, id), buy = el('button', 'btn primary buy');
-    buy.id = 'buy'; buy.textContent = (L ? 'Upgrade' : 'Build') + ' · ' + fmt(c);
+    buy.id = 'buy'; buy.textContent = (L ? 'Upgrade' : 'Build') + ' · ' + fmt(c) + ' coins';
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
@@ -121,15 +122,35 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     row.append(sell);
     card.append(row);
+    // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
+    if (L) {
+      const kr = el('div', 'row keeprow');
+      kr.append(el('span', 'uses', keepOn ? (kept ? 'Saving ' + kept + ' ' + g.name.toLowerCase() + ' for towers' : 'No towers need ' + g.name.toLowerCase() + ' yet') : ''));
+      const ks = el('button', 'btn small', keepOn ? 'Keep for towers · On' : 'Keep for towers · Off');
+      ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
+      ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
+      kr.append(ks); card.append(kr);
+    }
   }
 
   /* Reach in words a player can compare (the circles on the map show the rest). */
   const reach = st => (st.minRange ? 'Long, not up close' : st.range < 2.3 ? 'Short' : st.range < 3.2 ? 'Medium' : 'Long');
   let armed = null; // a path tapped once, waiting for the second tap
   const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
+  /* What a tower buy is short of, in words: "Copper 6 of 10, about 40 s. Upgrade the Smelter to speed it up." */
+  const time = s => s < 90 ? Math.max(1, Math.round(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
+  const shortText = c => shortfall(town, c).map(s => {
+    const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker], amt = name + ' ' + Math.floor(s.have) + ' of ' + s.need;
+    if (!b || !town.level(s.maker)) return amt + '. Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
+    if (s.seconds === null) return amt + '. Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
+    return amt + ', ready in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.';
+  });
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n.charAt(0) + n.slice(1).toLowerCase() + ' saved for this ' + (pathNext ? 'path' : 'upgrade'); };
+  let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => fitsSpot(town, i, k));
-    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k)))].join();
+    const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
+    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -144,6 +165,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
         const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, shut ? 'Opens at wave ' + d.opens : costText(c)));
+        if (!shut) for (const s of shortText(c)) txt.append(el('small', 'short', s));
         const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
         row.append(txt, go); card.append(row);
@@ -181,6 +203,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       up.addEventListener('click', () => { if (upgradeTower(game, town, i)) paintCard(); });
       row.append(up);
     }
+    const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
+    if (sh.length) for (const s of sh) card.append(el('p', 'warn short', s));
+    else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
     const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK))); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     row.append(sell); card.append(row);

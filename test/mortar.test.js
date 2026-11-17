@@ -7,7 +7,7 @@ import { buildTower, upgradeTower, towerStats, towerAt, roadOf, towerReserve, is
 import { pointAt, dist } from '../src/core/path.js';
 import { TOWERS, PATH_LEVEL, NORMAL_REACH, FIRE } from '../src/data/towers.js';
 import { FOES } from '../src/data/foes.js';
-import { migrate, SAVE_VERSION } from '../src/core/save.js';
+import { migrate, MIGRATIONS, SAVE_VERSION } from '../src/core/save.js';
 import { mapRules } from '../tools/audit.js';
 import { TOWNS } from '../src/data/towns/index.js';
 
@@ -118,9 +118,9 @@ test('the map rule: a town with too few pits, or a pit too near the road, fails 
   assert.ok(mapRules(near, ['x']).some(p => /within a normal tower/.test(p)));
 });
 
-test('save v3: an older save gets empty shell and fire lists', () => {
-  assert.equal(SAVE_VERSION, 3);
-  const s = migrate({ v: 2, at: 0, game: { towns: { gulch: { waves: { phase: 'break', foes: [] } } } } });
+test("save v3: an older save gets empty shell and fire lists", () => {
+  assert.ok(SAVE_VERSION >= 3);
+  const s = MIGRATIONS[2]({ v: 2, at: 0, game: { towns: { gulch: { waves: { phase: "break", foes: [] } } } } });
   assert.deepEqual([s.v, s.game.towns.gulch.waves.shells, s.game.towns.gulch.waves.fires], [3, [], []]);
 });
 

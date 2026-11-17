@@ -3,6 +3,7 @@
    seen is kept in the save (game.shared.seen). startCoach returns { frame(dt), current, dismiss(), skipAll() }. */
 import { EXPLAINERS } from '../data/explainers.js';
 import { unlocked } from '../core/economy.js';
+import { BUILDINGS } from '../data/buildings.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -16,6 +17,8 @@ export function helper(town) {
     unlocked: id => unlocked(town, id),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
+    // a building whose good the town is holding back for towers right now
+    keptPlot: Object.keys(town.buildings).find(id => town.level(id) > 0 && town.def && town.def.board && town.def.board.plots[id] && BUILDINGS[id] && ((town.keep || {})[BUILDINGS[id].makes] || 0) > 0 && (town.goods[BUILDINGS[id].makes] || 0) >= town.keep[BUILDINGS[id].makes] - 1e-6 && town.sell[BUILDINGS[id].makes] !== false) || null,
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
   };
 }

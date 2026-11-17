@@ -27,7 +27,7 @@ export const EXPLAINERS = [
   {
     id: 'market', covers: ['system:market'],
     title: 'Selling',
-    text: 'Everything you make is sold right away. Sell too much of one good and its price drops for a while, so making several goods earns more. To keep a good instead, say copper for a Cannon, tap its building and switch Selling to Holding.',
+    text: 'Everything you make is sold right away. Sell too much of one good and its price drops for a while, so making several goods earns more. To keep a good instead, tap its building and switch Selling to Holding.',
     when: h => h.flags.firstSale && h.t > 20, at: () => ({ el: '#coins' }),
   },
   {
@@ -35,6 +35,12 @@ export const EXPLAINERS = [
     title: 'Goods',
     text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Selling next to a good to keep it instead of selling it.',
     when: h => h.flags.firstSale && h.t > 60, at: () => ({ el: '#goodsBtn' }),
+  },
+  {
+    id: 'reserve', covers: ['reserve'],
+    title: 'Saved for towers',
+    text: "Your town saves goods for every tower's next upgrade and one new tower. To sell everything a building makes, tap it and switch Keep for towers off.",
+    when: h => h.towers.length > 0 && h.keptPlot !== null && h.t > 45, at: h => ({ plot: h.keptPlot }),
   },
   {
     id: 'waves', covers: ['call'],

@@ -18,7 +18,7 @@ export const WAVE_TYPES = {
 
 export const WAVE = {
   first: 30,        // seconds before wave 1
-  rest: 9,          // seconds between a cleared wave and the next
+  rest: 8.5,        // seconds between a cleared wave and the next
   speed: 1.07,      // every raider's pace on the long, winding Gulch road
   hp: w => 8 * 1.2 ** (w - 1) * (1 + w * .04),
   bounty: w => 1.5 * 1.13 ** (w - 1),

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.16-17',
+    lines: [
+      'Your town saves the timber, copper and bricks your towers need next, instead of selling them. Building cards show how much.',
+      'To sell it all anyway, tap the building and switch Keep for towers off.',
+      'When a tower is short of goods, its card says how much you have, how long until it is ready, and which building to upgrade.',
+    ],
+  },
+  {
     v: '2026.11.16-16',
     lines: [
       'The map follows your fingers. Drag it, pinch to zoom where your fingers are, and twist two fingers to turn it.',

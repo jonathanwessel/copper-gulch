@@ -68,6 +68,23 @@ async function run() {
         return { built, wave: t.waves.phase === 'wave' };
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
+      // names the good, the amount and the building that makes it
+      const reserve = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
+        CG.play.open('camp'); await wait(100);
+        out.says = /Saving \d+ timber for towers/.test(document.getElementById('card').textContent);
+        document.getElementById('keepTowers').click(); await wait(50);
+        out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
+        document.getElementById('keepTowers').click(); await wait(50);
+        out.on = !t.reserveOff.timber && t.keep.timber > 0;
+        t.goods.timber = 0; CG.play.openSpot(3); await wait(400);
+        const sh = document.querySelector('#card .short');
+        out.short = !!sh && /Timber 0 of \d+/.test(sh.textContent) && /Lumber Camp/.test(sh.textContent);
+        CG.play.close();
+        return out;
+      });
+      for (const [k, v] of Object.entries(reserve)) if (!v) bad.push('tower reserve: not ' + k);
       // Pause stops the whole game and Resume starts it again; Hold waves keeps the next wave back until released
       const ctl = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};

@@ -66,7 +66,8 @@ export function goodsSheet(game, town) {
     };
     const paint = () => {
       for (const [g, r] of Object.entries(rows)) {
-        const selling = town.sell[g] !== false, txt = fmt(town.goods[g] || 0) + ' in stock · sells for ' + fmt(price(game, town, g)) + ' each';
+        const kept = Math.ceil((town.keep || {})[g] || 0);
+        const selling = town.sell[g] !== false, txt = fmt(town.goods[g] || 0) + ' in stock' + (kept && selling ? ' · ' + kept + ' saved for towers' : '') + ' · sells for ' + fmt(price(game, town, g)) + ' coins each';
         if (r.line.textContent !== txt) r.line.textContent = txt;
         const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const s = selling ? 'Selling' : 'Holding'; if (r.sw.textContent !== s) r.sw.textContent = s;

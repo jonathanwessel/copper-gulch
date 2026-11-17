@@ -18,6 +18,8 @@ const SCREENS = [
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
   ['fight', () => { const t = CG.game.town; CG.play.close(); t.coins = 1e6; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false }; for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   ['selected', () => { CG.play.openSpot(3); }],
+  // a tower card short of a good: how much there is, about how long, and which building to upgrade
+  ['short', () => { const t = CG.game.town; t.goods.copper = 2; t.buildings.mine = Math.max(5, t.level('mine')); t.buildings.smelter = Math.max(1, t.level('smelter')); CG.play.close(); CG.play.openSpot(3); }],
   ['pit', () => { CG.play.openSpot(CG.game.town.def.board.far); }],
   ['mortar', async () => { // a shell in flight, and the Mortar selected with both of its circles
     const t = CG.game.town, B = t.def.board, wait = ms => new Promise(r => setTimeout(r, ms));

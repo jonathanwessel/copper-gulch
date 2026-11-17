@@ -68,6 +68,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 - **Booms and busts**: one good at a time, every 3 to 5 minutes.
 - **Town orders** have deadlines and build reputation (0 to 100). Rush orders appear from reputation 60.
 - **Sell modes per good**: off, always, skip busts, booms only. Every mode keeps what towers and orders need.
+- **The tower reserve** (from the first minute): auto-sell never sells a good below what the towers need next, which is the next upgrade of every tower that uses it (the path choice at level 4 is that upgrade), plus the cheapest open tower that uses it with a free pad, and the same for a free mortar pit. Each good has a "Keep for towers" switch, on by default. Building cards and the Goods list say how much is kept; a tower card short of a good says how much there is, about how long it takes, and which building makes it.
 - **Federal contracts** at the Capital pay **Influence** plus coins. They are the main Influence source and the reason to ship goods.
 - **The Stock Exchange** comes late and is optional. Each town has a share, and prices follow its income and news.
   - A 1% spread means no buy-and-sell loop can earn coins.

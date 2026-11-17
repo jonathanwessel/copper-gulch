@@ -10,6 +10,8 @@
 import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
+import { demand, output, buildingsOf } from './economy.js';
+import { BUILDINGS } from '../data/buildings.js';
 
 const PATH_CACHE = new WeakMap();
 /* The town's road as a path that ends at the vault. */
@@ -249,13 +251,50 @@ export function fight(game, town, dt) {
   }
 }
 
-/* Goods the town keeps for its next tower: the most any one build or upgrade it could make next would need. */
+/* The tower reserve: goods that auto-sell never sells, so the towers can be paid for once the coins are there.
+   Per good it adds up the next upgrade of every tower that uses it (at level 4 that upgrade is the path choice), and
+   the cheapest open tower that uses the good and still has a free pad it fits, and likewise for a free mortar pit.
+   A good whose "Keep for towers" switch is off (town.reserveOff[good]) keeps nothing. Coins still gate every buy. */
 export function towerReserve(town) {
   const keep = {};
-  const add = c => { for (const [g, n] of Object.entries(c.goods)) keep[g] = Math.max(keep[g] || 0, n); };
-  for (const kind of Object.keys(TOWERS)) if (towerOpen(town, kind)) add(towerCost(town, kind, 0));
+  const add = c => { for (const [g, n] of Object.entries(c.goods)) keep[g] = (keep[g] || 0) + n; };
   for (const t of town.towers) add(towerCost(town, t.kind, t.level));
+  const spots = town.def && town.def.board ? town.def.board.spots : [];
+  const taken = new Set(town.towers.map(t => t.spot));
+  for (const pit of [false, true]) {
+    const free = spots.some((_, i) => !taken.has(i) && isPit(town, i) === pit);
+    if (!free) continue;
+    const cheapest = {}; // good -> the cheapest build that uses it
+    for (const kind of Object.keys(TOWERS)) {
+      if (!towerOpen(town, kind) || !!TOWERS[kind].long !== pit) continue;
+      const c = towerCost(town, kind, 0);
+      for (const g of Object.keys(c.goods)) if (!cheapest[g] || c.coins < cheapest[g].coins) cheapest[g] = c;
+    }
+    for (const [g, c] of Object.entries(cheapest)) keep[g] = (keep[g] || 0) + c.goods[g];
+  }
+  const off = town.reserveOff || {};
+  for (const g of Object.keys(keep)) if (off[g]) delete keep[g];
   return keep;
+}
+/* Turn "Keep for towers" on or off for one good. */
+export function setReserve(town, good, on) {
+  town.reserveOff = town.reserveOff || {};
+  if (on) delete town.reserveOff[good]; else town.reserveOff[good] = true;
+  town.keep = towerReserve(town);
+}
+/* What a tower buy is still short of: [{ good, have, need, maker, seconds }]. maker is the building that makes the
+   good (null if none); seconds is about how long until the yard has enough at today's rate after the workshops'
+   own use (null when nothing is coming in). */
+export function shortfall(town, c) {
+  const out = [], use = demand(town);
+  for (const [g, need] of Object.entries(c.goods)) {
+    const have = town.goods[g] || 0;
+    if (have + 1e-9 >= need) continue;
+    const maker = buildingsOf(town).find(id => BUILDINGS[id].makes === g) || null;
+    const net = maker ? output(town, maker) - (use[g] || 0) : 0;
+    out.push({ good: g, have, need, maker, seconds: net > 1e-9 ? (need - have) / net : null });
+  }
+  return out;
 }
 
 export const defense = {
@@ -264,9 +303,10 @@ export const defense = {
     town.wave = 1;
     town.vault = { hp: WAVE.vault, max: WAVE.vault };
     town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [] };
+    town.reserveOff = {};
     town.keep = towerReserve(town);
   },
-  load(town) { if (!town.waves) defense.init(town); town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
+  load(town) { if (!town.waves) defense.init(town); town.reserveOff = town.reserveOff || {}; town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
   /* Towers that open at a wave open once the town reaches it, and stay open. */
   opens(game, town) {
     for (const [k, d] of Object.entries(TOWERS)) if (d.opens && town.wave >= d.opens && !town.flags['open:' + k]) {

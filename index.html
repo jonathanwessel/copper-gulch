@@ -169,7 +169,10 @@ html.flat .tag { position: static; transform: none !important; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
 .card .row { justify-content: stretch; }
-.card .buy { flex: 1; font-size: 1.05rem; }
+.card .buy { flex: 1; font-size: 1.05rem; text-wrap: balance; }
+.card .keeprow { align-items: center; justify-content: space-between; gap: 8px; }
+.card .keeprow .uses { flex: 1; font-size: .85rem; }
+.option small.short { color: var(--bad); }
 .toast {
   position: fixed; left: 50%; top: max(64px, calc(env(safe-area-inset-top) + 56px)); transform: translateX(-50%); z-index: 30;
   width: max-content; max-width: calc(100% - 32px); padding: 8px 12px; background: var(--line); color: var(--ink); border: 2px solid var(--copper);
