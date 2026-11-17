@@ -1,0 +1,128 @@
+# Copper Gulch: plan
+
+The design is in `GDD.md`. This file is the roadmap the hourly scheduled task works through.
+
+## How the task works through this roadmap
+1. **Pick the next box.** Take the first unticked box in the first unfinished milestone. Work boxes in order for as long as the run lasts.
+2. **Release.** Run the release checklist below.
+   - Green: publish, tick the boxes you finished, and add a one-line `Notes:` under each.
+   - Red: fix it, or stash the broken part and publish what is green. Never push red.
+3. **Targets.** The last box of each milestone is its target: one measurable line, proved by a bot or a test. The milestone is done when its target passes.
+4. **Target missed.** Add the fix box it needs just above the target and keep going.
+5. **Decisions.** Decide sensibly and write the decision in the box's note. Never stop to ask the owner.
+
+## Rules from the owner
+- Free forever: no ads, no purchases, no tracking, and no requests to other hosts at runtime (no CDNs, no web fonts).
+- The repo is public: no personal details in code, commits or docs (no names, emails, LAN addresses or family stories).
+- The look: a crisp, flat pixel UI with no glossy gradients or glass. Modern motion is welcome.
+- Phone first, then landscape, then desktop. No sideways scroll at 400 px wide. Touch targets at least 30 px.
+- American spelling.
+- Saves: bump `v` and add a migration for any change to the save's shape. Use only `cg-*` storage keys. The old game's key `copper-gulch-save-v1` may be read, never written.
+- Publish working releases often; the owner plays the installed app between sessions.
+
+## Release checklist (every release; stop and fix on any failure)
+1. `node --test test/` passes.
+2. `node tools/audit.js` prints `audit ok`.
+3. Run the bots that the current milestone's target names. From M1 on that is `tools/balance.js`; from M2, `tools/firstplay.js`; from M4, `tools/idle.js`. Write their numbers in the notes.
+4. `node tools/smoke.js` ends with phone, land and desk `ok`.
+5. `node tools/shots.js <scratch dir>`: look at every screenshot and fix anything ugly or broken.
+6. `node tools/bump-version.js "note, no apostrophes"`, then `node tools/update-test.js` prints ok.
+7. Commit, push `main`, wait for the Pages build, and confirm the live `version.json` shows the new version.
+
+Until a tool exists, the box that creates it is the first to use it; skip the steps for tools that don't exist yet.
+
+## Roadmap
+
+### M1. Copper Gulch, playable
+- [ ] **Bootstrap.**
+  - `index.html` with an import map, `sw.js`, `manifest.webmanifest`, icons, and `package.json` set to `{"type":"module"}` with no dependencies.
+  - Vendored three.js, copied from `../tycoon/vendor/three`.
+  - Tools copied from `../tycoon/scripts`: `cdp`, `serve`, `update-test`, `bump-version`, `make-icons`.
+  - `audit` v0, and a test harness.
+  - Shipped when the live site shows a title over a Gulch model and works offline.
+- [ ] **Core.**
+  - `src/core/`: `rng` (a seeded stream per town), `clock` (fixed 0.25 s steps and offline catch-up), `events` (the bus), `mods` (named sources with caps), `town` (`class Town`, with no global state), `save` (v1 with migrations), `game`.
+  - Must be deterministic: no DOM, no three.js, no `Math.random`.
+- [ ] **Economy.** The Gulch chain and the market with saturation, as data in `src/data/`.
+- [ ] **Board.**
+  - `src/render/`: `scene`, `board` (`new Board(town, {lod})`), `camera` (pan, pinch, twist), `pick`.
+  - The Gulch models in `src/assets/models/gulch.js`, with `kit` and `units` adapted from `../tycoon/src/r3d`.
+  - The interface to build, sell and upgrade.
+- [ ] **Defense.**
+  - The road, crossbow, cannon, frost lens and snake oil still, the vault, foes, waves and the war wagon.
+  - Paths at level 5.
+- [ ] **Phone shell.** The HUD, slide-up sheets, cards, side buttons, the title, settings, save slots, and export and import.
+- [ ] **Town layer.** Town research, foremen, charter and deeds, and the Perks screen.
+- [ ] **Target:** `tools/balance.js` gives wave 10 in 7-9 min, the first charter offered at 35-45 min, and no breach in waves 1-3.
+
+### M2. Onboarding, then Evaluation 1
+- [ ] **Onboarding.**
+  - Tabs revealed one at a time; coach cards; alerts (tab dots and toasts).
+  - A tutorial through the first 30 minutes.
+  - Tap to explain on every number.
+- [ ] **Bots and checks.**
+  - `tools/firstplay.js`, the newcomer bot: it waits 3-8 s before acting, makes a wrong buy 30% of the time, and uses only the tabs it can see.
+  - The full `tools/audit.js` (the list is in GDD.md and in Notes).
+- [ ] **Fresh-eyes review.** Give a subagent only the screenshots and the bot tables; it writes `REVIEW.md` with at most 8 ranked issues. Fix the top ones here.
+- [ ] **Target:** the newcomer bot is never stuck for more than 3 min in the first hour, and the audit is clean.
+
+### M3. Iron Ridge and the empire map
+- [ ] **Iron Ridge.** Data, models, the armored train, routes with wagons, and switching between towns.
+- [ ] **The empire map.** Town dioramas, route splines with moving wagons, badges, and fly-in.
+- [ ] **Target:** imports keep the Ridge workshops running, and a phone frame stays under 20 ms with 2 boards (fewer than 300 draw calls).
+
+### M4. The Capital and Automation
+- [ ] **The Capital.**
+  - The treasury; institutions founded with coins; the Empire tree in Influence; federal contracts.
+  - The Capital city scene.
+- [ ] **Automation.**
+  - The Automation panel (Auto-build, Auto-towers, Auto-research).
+  - Background defense and offline catch-up.
+  - `tools/idle.js`.
+- [ ] **Target:** over 12 idle hours income rises every hour, spending never passes its cap, and the Capital opens at 2.5-4 h.
+
+### M5. Silver Falls, pacing, then Evaluation 2
+- [ ] **Silver Falls.** The power grid, the river and its boats, the steamer, models, and the 5-deed gate shown on the map.
+- [ ] **Pacing and Evaluation 2.**
+  - Tune pacing from the Gulch to the Falls.
+  - A 24 h idle run, a 2 h newcomer run, and phone performance with 4 boards.
+  - A fresh-eyes review, and its fixes.
+- [ ] **Target:** Silver Falls opens at 6-10 h with charters, and at least 2.5 times later without them. Every earlier target still holds.
+
+### M6. Market depth, Thunder Mesa and Radium Springs
+- [ ] **Market depth.** Booms and busts, orders with deadlines and reputation, sell modes, and the Stock Exchange.
+- [ ] **Thunder Mesa.** The sky lane and the airship.
+- [ ] **Radium Springs.** Jamming and the Iron Colossus.
+- [ ] **Target:**
+  - no buy-and-sell loop earns coins (a test);
+  - Thunder Mesa opens at 20-30 h and Radium Springs at 50-80 h;
+  - the audit says every town is complete.
+
+### M7. The top layer and polish
+- [ ] **The top layer.** Laws, the Convention, Legacy and the Legacy perks.
+- [ ] **Juice and extras.**
+  - Builds rise in scaffolding; the boss gets an entrance; coins burst out.
+  - Procedural music; gamepad support.
+  - Every mission and badge.
+- [ ] **Old-save bonus.** Read the old game's save once and grant deeds = min(15, floor(log10 of its lifetime coins)), plus a Pioneer badge. Never write the old key.
+- [ ] **Target:** a second life reaches the first life's peak in under 30% of the time, and a bot completes every mission.
+
+### M8. 1.0
+- [ ] **Evaluation 3.** Every bot, a fresh-eyes review at phone, landscape and desktop sizes, the model contact sheet, and the fixes.
+- [ ] **Release.**
+  - Release 1.0.
+  - In `../tycoon`, add a "Copper Gulch moved" card linking to the new site; the old game stays playable.
+  - Push it with that repo's own checklist.
+- [ ] **Target:** 1.0 is live and the old site links to it. After this the task stops and waits for the owner.
+
+## Layout
+- **`src/core/`:** pure, deterministic simulation.
+- **`src/data/`:** goods, buildings, towers, foes, waves, the tree, laws, perks, badges and `towns/*.js`.
+- **`src/render/`:** three.js scene, boards, camera, picking, the Capital, the empire map, effects and icons.
+- **`src/assets/models/`:** the code-built models.
+- **`src/ui/`:** DOM interface.
+- **`src/art/`:** pixel sprites.
+- **`src/audio/`:** music and sound.
+- **`tools/`:** dev server, headless browser driver, smoke test, screenshots, contact sheet, bots, audit, version bump, update test.
+- **`test/`:** `node --test` suites that import the core directly.
+- **Reference:** the old game lives in `../tycoon` (frozen). It has good parts to adapt: `src/r3d/kit.js`, `units.js`, `capital3d.js`, `icons.js`, `music.js`, the grading shader, and the economy and combat formulas.
