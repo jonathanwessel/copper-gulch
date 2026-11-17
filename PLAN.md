@@ -21,7 +21,8 @@ The rules for every game in this folder (free forever, no personal details, Amer
   - every lane has a real entrance, and raiders stay hidden until they come out of it (`tools/audit.js` fails a lane without an entrance model);
   - every map has 3 to 5 mortar pits, too far from the lane for normal towers (`tools/audit.js`, `mapRules`).
 - Auto-sell keeps a tower reserve from the start of the game: goods the next tower builds, upgrades and path choices need are never sold.
-- Pacing numbers (GDD.md, Pacing targets): the first tower under 1 minute, wave 10 at 7-9 minutes for the active bot, no breach in waves 1-3, the first charter offered at 35-45 minutes, and the rest of the table. `tools/balance.js` proves them.
+- Outposts (GDD.md, Outposts): the game starts in Dry Creek Outpost (ore and stone, Crossbow only, one loop road, a small boss at wave 10), and winning it opens Copper Gulch. Each later town opens one more outpost with two raw goods for its era. Outposts keep working in the background and feed raw goods to the towns and the market. They have an entrance but no mortar pits, and the chain rules exempt them.
+- Pacing numbers (GDD.md, Pacing targets): the first tower under 1 minute, Dry Creek won in 10-15 minutes, Copper Gulch wave 10 at 7-9 minutes after it opens for the active bot, no breach in waves 1-3, the first charter offered at 35-45 minutes, and the rest of the table. `tools/balance.js` proves them.
 - Range and blast read Short, Medium or Long and Small or Wide; a Mortar's range reads "Long, not up close".
 
 **How this repo enforces the shared rules**
@@ -126,22 +127,42 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
   - `tools/balance.js` runs named strategies over several seeds: active (the current bot), min-max (few towers pushed to high levels and paths), swarm (many cheap towers at low levels), economy-first (buildings first, the fewest towers that hold) and defense-first.
   - Each reaches wave 10 and wave 20 within about 25% of the best strategy's time, and none breaches in waves 1-3. Per strategy it reports what it bought and the damage by tower kind.
   - Tune until min-max and swarm both work (swarm needs level-1 towers that are worth their price, min-max needs upgrades that scale).
-- [ ] **Target:** `tools/balance.js` gives wave 10 in 7-9 min, the first charter offered at 35-45 min, and no breach in waves 1-3. Tower variety (owner): with the bot choosing among every open tower and pad by damage per coin, every tower kind is its best buy at some point in the first hour, and no single kind does the most damage in every wave. Every strategy bot (active, min-max, swarm, economy-first, defense-first) reaches waves 10 and 20 within about 25% of the best, with no breach in waves 1-3. Once the variety check passes, it becomes a release gate.
+- [ ] **Target:** `tools/balance.js` gives wave 10 in 7-9 min, the first charter offered at 35-45 min (both counted from when Copper Gulch opens; until M1b it opens at the start), and no breach in waves 1-3. Tower variety (owner): with the bot choosing among every open tower and pad by damage per coin, every tower kind is its best buy at some point in the first hour, and no single kind does the most damage in every wave. Every strategy bot (active, min-max, swarm, economy-first, defense-first) reaches waves 10 and 20 within about 25% of the best, with no breach in waves 1-3. Once the variety check passes, it becomes a release gate.
   - Notes (before the target box, 2026.11.16-15): `tools/balance.js` now plays every open tower kind on every pad it fits (pits included) and every upgrade and path, ranked by damage per coin over the road that pad covers (splash counts the raiders it catches, poison counts past armor, slow counts its help to nearby towers, a build is charged half the average spend per tower for using up a pad). It reports what it bought, which kind did the most damage each wave (from `game.dealt`, a damage tally by kind that is not saved) and the variety check, which is not a release gate yet. First readings showed the Crossbow winning every buy by far (per coin at level 1: Crossbow 1.30, Cannon 0.74, Mortar 0.41, Frost 0.10, Still 0.05). First pass: Frost 220 coins + 4 bricks + 1 copper (was 600 + 6 + 2), damage 5 (was 3); Still 450 coins + 3 bricks + 2 tools (was 2000 + 4 + 3), damage 5 and poison 10 (were 4 and 6); the Mortar now goes only in mortar pits (in the middle of town it covered twice the road and made pits pointless); the war wagon has 25 health (was 30) and waves rest 9 s (was 10), because the new bot's pads let the wagon through on one seed and wave 10 drifted to 9.6 min. Now, over 6 seeds: wave 10 at 7.2-8.9 min, Cannons bought from minute 12-26 in 5 of 6 seeds, Frost from minute 39-58 in 4, the Still and the Mortar never in the first hour (the bot's economy has no tools and too few bricks by then), and the Crossbow or the Cannon tops each wave. So the variety target still misses on the Still and the Mortar: the target box tunes the economy and those two.
+
+### M1b. Outpost 1, the start of the game (owner request, 2026-11-17)
+Decisions (written when the milestone was added): there is only one outpost before Copper Gulch (the owner's correction); each later town opens one more (Pine Hollow with Iron Ridge, Sandy Bend with Silver Falls, Tar Seep with Thunder Mesa, Glowrock Camp with Radium Springs, none with the Capital). Pine Hollow makes timber and clay, as the owner suggested, so the Gulch makes more bricks for the Ridge's boilers. Outposts have no mortar pits. The Gulch's own targets (wave 10, first charter) count from when it opens. Iron Ridge moves from 45-70 to 55-80 min of play to make room for Dry Creek; the hour-scale targets from the Capital on stay as they are, since the outposts' extra raw goods make up the time. M1b comes after the M1 target as asked, so the Town layer and the strategy bots come first.
+- [ ] **Outposts in the core.**
+  - Town data gets `kind: 'outpost'`. Dry Creek Outpost (`src/data/towns/drycreek.js`): a Mining Camp (copper ore) and a Stone Camp (stone, a new raw good with its price and market depth), the Crossbow only, paid with coins plus stone.
+  - Its board: the road enters through a dry wash, loops once around the camp and leaves; about 6 stone pads; the stockpile is its vault, where the loop closes. No mortar pits.
+  - Waves 1 to 10 with a bandit wagon (a smaller boss) at 10. Winning wave 10 marks it won and opens Copper Gulch (`game.addTown('gulch')`, and a 'town:open' event).
+  - After it is won, its raids stay at wave-10 strength, one every 2 minutes or so, and its towers fight them in the background. A breach there takes part of its stockpile and never drops its waves back.
+  - Its goods sell on the shared market. A town in play draws the raw goods its workshops are short of from the outposts first, up to the 10-second buffer, then the rest sells.
+  - The audit: outposts are exempt from mortar pits and from the chain rules on imports; `mapRules` checks an outpost's loop and entrance. Every later town names its outpost in data (GDD.md, Outposts) and the audit fails a town past the Gulch without one.
+  - Save v5: a save already in Copper Gulch gets Dry Creek as won and running (both buildings at level 5, two Crossbows). A new game starts in Dry Creek.
+  - Tests: the outpost's chain, Crossbow only, the wave-10 win opening the Gulch, the light background raids, the Gulch drawing ore from Dry Creek before the market, the save migration.
+- [ ] **The outpost on screen, and switching towns.**
+  - Models: the Mining Camp, the Stone Camp, the stockpile, the loop road and the dry-wash entrance with a broken windmill (merged geometry, the same perf budget).
+  - A new game opens on Dry Creek. When it is won, a card says Copper Gulch is open, with a button to go there.
+  - A town chip at the top of the HUD switches between Dry Creek and Copper Gulch (the empire map in M3 grows out of it).
+  - Explainers: the outpost welcome, the Stone Camp, the stockpile, the outpost won, outposts keep working, the Gulch drawing from the outpost, the town chip.
+  - Smoke: a new game starts in Dry Creek, the win card opens the Gulch, the chip switches both ways, at every size. Shots: the outpost, its entrance, the win card.
+- [ ] **Bots for the outpost.** `tools/balance.js` plays Dry Creek first, then Copper Gulch with Dry Creek running. The strategy bots (active, min-max, swarm, economy-first, defense-first) play it too: with the Crossbow alone, few strong Crossbows against many cheap ones must both work.
+- [ ] **Target:** in Dry Creek the first tower comes under 1 min and the outpost is won in 10-15 min (active bot), with no breach in waves 1-3, and every strategy bot within about 25% of the best. Copper Gulch, counted from when it opens, still meets the M1 target (wave 10 in 7-9 min, the first charter at 35-45 min). The newcomer bot's numbers (15-20 min for Dry Creek) join in M2.
 
 ### M2. Onboarding, then Evaluation 1
 - [ ] **Onboarding.**
   - Tabs revealed one at a time; coach cards; alerts (tab dots and toasts).
-  - A tutorial through the first 30 minutes.
+  - A tutorial through the first 30 minutes. It starts in Dry Creek Outpost, the smallest map, and carries on into Copper Gulch.
   - Tap to explain on every number.
 - [ ] **Bots and checks.**
   - `tools/firstplay.js`, the newcomer bot: it waits 3-8 s before acting, makes a wrong buy 30% of the time, and uses only the tabs it can see.
   - The full `tools/audit.js` (the list is in GDD.md and in Notes).
 - [ ] **Fresh-eyes review.** Give a subagent only the screenshots and the bot tables; it writes `REVIEW.md` with at most 8 ranked issues. Fix the top ones here.
-- [ ] **Target:** the newcomer bot is never stuck for more than 3 min in the first hour, and the audit is clean.
+- [ ] **Target:** the newcomer bot wins Dry Creek in 15-20 min, is never stuck for more than 3 min in the first hour, and the audit is clean.
 
 ### M3. Iron Ridge and the empire map
-- [ ] **Iron Ridge.** Data, models, the armored train, routes with wagons, and switching between towns.
+- [ ] **Iron Ridge.** Data, models, the armored train, routes with wagons, and switching between towns. It opens Outpost 2, Pine Hollow (timber and clay, GDD.md Outposts), built in this box.
 - [ ] **The empire map.** Town dioramas, route splines with moving wagons, badges, and fly-in.
 - [ ] **Target:** imports keep the Ridge workshops running, and a phone frame stays under 20 ms with 2 boards (fewer than 300 draw calls).
 
@@ -156,7 +177,7 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
 - [ ] **Target:** over 12 idle hours income rises every hour, spending never passes its cap, and the Capital opens at 2.5-4 h.
 
 ### M5. Silver Falls, pacing, then Evaluation 2
-- [ ] **Silver Falls.** The power grid, the river and its boats, the steamer, models, and the 5-deed gate shown on the map.
+- [ ] **Silver Falls.** The power grid, the river and its boats, the steamer, models, and the 5-deed gate shown on the map. It opens Outpost 3, Sandy Bend (sand and quartz).
 - [ ] **Pacing and Evaluation 2.**
   - Tune pacing from the Gulch to the Falls.
   - A 24 h idle run, a 2 h newcomer run, and phone performance with 4 boards.
@@ -165,8 +186,8 @@ Until a tool exists, the box that creates it is the first to use it; skip the st
 
 ### M6. Market depth, Thunder Mesa and Radium Springs
 - [ ] **Market depth.** Booms and busts, orders with deadlines and reputation, sell modes, and the Stock Exchange.
-- [ ] **Thunder Mesa.** The sky lane and the airship.
-- [ ] **Radium Springs.** Jamming and the Iron Colossus.
+- [ ] **Thunder Mesa.** The sky lane and the airship. It opens Outpost 4, Tar Seep (crude oil and rubber).
+- [ ] **Radium Springs.** Jamming and the Iron Colossus. It opens Outpost 5, Glowrock Camp (bauxite and pitchblende).
 - [ ] **Target:**
   - no buy-and-sell loop earns coins (a test);
   - Thunder Mesa opens at 20-30 h and Radium Springs at 50-80 h;

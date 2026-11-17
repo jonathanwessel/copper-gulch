@@ -11,7 +11,8 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 ## Towns and eras
 | # | Town | Era | Lanes | Boss | Opens when |
 |---|---|---|---|---|---|
-| 1 | Copper Gulch | Frontier: wood, clay, copper | road | War wagon | at the start |
+| O1 | Dry Creek Outpost | Frontier camp: ore and stone | one loop round the camp | Bandit wagon | at the start (the first stage) |
+| 1 | Copper Gulch | Frontier: wood, clay, copper | road | War wagon | Dry Creek's wave 10 won (about 10-15 min) |
 | 2 | Iron Ridge | Iron and rail | switchback road | Armored train | Gulch wave 20 + 150K, first life, no charter needed |
 | C | The Capital | Government | none | none | Ridge wave 15 + 2M |
 | 3 | Silver Falls | Electricity | road + river | Ironclad steamer | Ridge wave 25 + **5 deeds** + 50M (realistically 1 or 2 charters) |
@@ -20,6 +21,31 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 
 The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or 2 charters". Without the deed bonus, its coin price is out of reach.
 
+## Outposts (owner request, 2026-11-17)
+The game starts in a tiny outpost, not a town. Outposts are small raw-goods camps: two raw buildings, a short road, a few stone pads, nothing else. They feed raw goods into the empire-wide market for the rest of the game.
+
+- **Outpost 1, Dry Creek Outpost: the start of the game.**
+  - Two buildings: a Mining Camp (copper ore) and a Stone Camp (stone, a new raw good). No workshops, no research, no other menus.
+  - One tower: the Crossbow, paid with coins plus stone.
+  - The road comes in through a dry wash in a gap of a rock ridge (a broken windmill at its mouth), loops once around the camp and leaves the same way. Raiders who finish the loop raid the camp's stockpile, which is the outpost's small vault.
+  - About 6 stone pads, inside and outside the loop. No mortar pits: outposts never have a Mortar, so the pit rule does not apply to them.
+  - Waves 1 to 10, and wave 10 is a bandit wagon (a small boss). Beating wave 10 wins the outpost and opens Copper Gulch, the first town.
+- **Each new town opens one more outpost**, so there are outposts between the towns for the whole game. There is no outpost between Dry Creek and Copper Gulch, and none with the Capital. Each one's two raw goods fit the era it opens in:
+
+| # | Outpost | Opens with | Raw goods | Entrance |
+|---|---|---|---|---|
+| O1 | Dry Creek Outpost | the start | copper ore, stone | a dry wash through a gap in a rock ridge |
+| O2 | Pine Hollow | Iron Ridge | timber, clay (more bricks in the Gulch for the Ridge's boilers) | a logging chute down a wooded slope |
+| O3 | Sandy Bend | Silver Falls | sand, quartz | a dry riverbed under a fallen water tower |
+| O4 | Tar Seep | Thunder Mesa | crude oil, rubber | a gully under a leaning oil derrick |
+| O5 | Glowrock Camp | Radium Springs | bauxite, pitchblende | a cracked rock face that glows faintly |
+
+- **Later outposts** play like Dry Creek but a little bigger: the Crossbow and the Cannon, both paid with coins and the outpost's own first raw good, and waves 1 to 15 with a small boss at 10 and 15. Winning wave 15 is the outpost's goal. The bots set the exact numbers in each town's box.
+- **They stay useful.** Once won, an outpost keeps working in the background. Its raids stop growing (wave-10 strength, one every 2 minutes or so), and the towers it has fight them on their own. A breach there only takes part of its stockpile and never sets its waves back.
+  - Its goods go first to the town in play: when a town's workshop is short of a raw good an outpost makes, it draws it from the outposts, up to the workshops' 10-second buffer. The rest sells on the shared market, so every outpost adds to the empire's supply of raw goods.
+  - Its town chip (and later its camp on the empire map, a small camp around the edge) takes you there to build and upgrade.
+- **Saves.** A save already in Copper Gulch when outposts arrive gets Dry Creek as won and running, with its two buildings at level 5 and two Crossbows.
+
 ## Town maps
 - **The lane winds through the town.** Every town's road (and river or sky lane) doubles back, even triples back, in switchbacks between the workshops, so raiders pass the same towers several times and the town is something to defend, not a yard off to one side.
 - Workshop plots sit beside the lane; tower spots sit in the bends, where one tower covers two or three passes.
@@ -27,7 +53,8 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 - **Every lane has a real entrance**, never a bare start. Raiders come out of it, hidden until they are clear of it, and a dust plume (or that lane's own sign) rises behind it a few seconds before each wave, bigger for a boss. `tools/audit.js` fails a lane without an entrance model.
   - Copper Gulch: a narrow slot canyon between tall layered rock walls that run off the board, with an old timber mine portal in a rockfall, a collapsed trestle at the mouth and a signpost with a wanted poster.
   - Iron Ridge: a railway tunnel portal through the mountain. Silver Falls: boats round a misty river bend under a broken bridge. Thunder Mesa: airships come out of a cloud bank. Radium Springs: out of a glowing fissure.
-- **Mortar pits.** Every map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them, and long-range towers go only there. `tools/audit.js` fails a town without them.
+- **Outpost maps** are smaller: the road enters, loops once around the camp and leaves, past the camp's few pads, with the stockpile (the vault) where the loop closes. They have a real entrance like every lane, and no mortar pits.
+- **Mortar pits.** Every town map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them, and long-range towers go only there. `tools/audit.js` fails a town without them (outposts are exempt).
 
 ## Supply chains
 Goods go from raw to intermediate to finished. "<-" marks a good shipped in from another town.
@@ -53,12 +80,13 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Intermediate: radium salts, vacuum tubes (glass + wire <- Falls).
   - Finished: radios (tubes + quartz <- Falls + aluminum <- Mesa), rockets (motor + fuel <- Mesa + radio).
 - **The Capital** makes nothing. It posts federal contracts for finished goods from every town.
+- **Outposts** make only raw goods (see Outposts). They add supply of goods a town may also make (ore, stone, timber, clay...), and towns draw from them before the market.
 
 **Chain rules** (checked by `tools/audit.js`):
 - each step is worth 1.3 to 1.6 times its inputs at base price;
 - workshops are balanced at equal levels;
-- every imported good has exactly one producing town;
-- every town's top good needs at least one import;
+- every imported good has exactly one producing town (outposts do not count, they only add raw supply);
+- every town's top good needs at least one import (outposts are exempt, they make only raw goods);
 - no town depends on a later town.
 
 ## Market
@@ -124,10 +152,11 @@ One panel, with three switches per town and one spend share per town. The share 
 - Locked towns show as surveyed land with their unlock rule.
 
 ## Onboarding
-- **Tutorial**: spotlight steps through the first 30 minutes.
+- **Tutorial**: spotlight steps through the first 30 minutes. It starts in Dry Creek Outpost, the smallest map (one camp, one tower, one loop), and carries on into Copper Gulch.
 - **Coach cards** appear once each, when a system unlocks.
 - **Tabs appear one by one:**
-  - Town at the start;
+  - Town at the start (Dry Creek);
+  - a town chip at the top when Copper Gulch opens, to switch between Dry Creek and the Gulch;
   - Market at the first sale;
   - Research at about 5 minutes;
   - Perks at the first charter offer;
@@ -137,10 +166,11 @@ One panel, with three switches per town and one spend share per town. The share 
 ## Pacing targets (proved by the bots)
 | Milestone | Target |
 |---|---|
-| First tower | under 1 min |
-| Wave 10 | 7-9 min active (balance bot), 10-14 min for the newcomer bot |
-| First charter offered | about 40 min |
-| Iron Ridge | 45-70 min active, under 2 h for the newcomer bot |
+| First tower (in Dry Creek) | under 1 min |
+| Dry Creek won, Copper Gulch opens | 10-15 min active, 15-20 min for the newcomer bot |
+| Copper Gulch wave 10 | 7-9 min after the Gulch opens (balance bot), 10-14 min for the newcomer bot |
+| First charter offered | 35-45 min after the Gulch opens (about 45-60 min of play) |
+| Iron Ridge | 55-80 min active, under 2 h 15 min for the newcomer bot |
 | Capital | 2.5-4 h |
 | Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |
 | Thunder Mesa | 20-30 h |
