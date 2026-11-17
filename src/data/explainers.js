@@ -108,4 +108,16 @@ export const EXPLAINERS = [
     text: 'Every 10th wave brings the war wagon. It\'s slow and heavily armored. If it reaches the vault, it does a lot of damage.',
     when: h => h.wave % 10 === 0 && h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
+  {
+    id: 'pit', covers: ['pit'],
+    title: 'Mortar pit',
+    text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. Opens at wave 12.',
+    when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
+  },
+  {
+    id: 'mortar', covers: ['tower:mortar'],
+    title: 'The Mortar is open',
+    text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. It can\'t hit raiders close to it.',
+    when: h => !!h.flags['open:mortar'] && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
+  },
 ];

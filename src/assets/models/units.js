@@ -76,6 +76,8 @@ export function makeTower(type, br, lvl) {
   const gold = lvl >= 3, R2 = rng(type.length * 7 + (br || '').length);
   const base = part(k => {
     if (type === 'crossbow') { for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.box(sx * .26, 0, sz * .26, .07, .5, .07, 'wood', { rz: -sx * .06, rx: sz * .06 }); k.box(0, .2, 0, .58, .04, .04, 'woodD', { rz: .4 }); k.box(0, .5, 0, .66, .07, .66, 'woodL'); for (let i = 0; i < 6; i++) k.box(-.28 + i * .112, .57, .3, .05, .12, .05, 'woodD'); }
+    else if (type === 'mortar') { k.cyl(0, 0, 0, .36, .08, 'woodD', { seg: 10 }); for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283; k.ball(Math.cos(a) * .36, .1, Math.sin(a) * .36, .1, 'sand', { sy: .55, ry: -a }); }
+      k.box(-.06, .08, 0, .22, .12, .3, 'woodD'); if (br === 'b') k.box(.18, .08, .18, .1, .1, .1, 'paintR'); }
     else if (type === 'cannon') { k.cyl(0, 0, 0, .36, .3, 'stone', { r2: .32, seg: 10, jit: .1 }); for (let i = 0; i < 8; i++) k.box(Math.cos(i * .785) * .3, .3, Math.sin(i * .785) * .3, .12, .1, .12, 'stoneL', { ry: -i * .785 }); }
     else if (type === 'frost') { k.cyl(0, 0, 0, .3, .12, 'stoneL', { seg: 6 }); k.cyl(0, .12, 0, .14, .42, 'stone', { r2: .1, seg: 6 }); k.cyl(0, .54, 0, .2, .05, 'glowI', { seg: 6, mat: 'glow' }); }
     else if (type === 'still') { k.cyl(0, 0, 0, .32, .1, 'stoneD', { seg: 8 }); for (let i = 0; i < 5; i++) k.log(Math.cos(i * 1.26) * .12, .1, Math.sin(i * 1.26) * .12, .22, .03, 'log', { ry: i * 1.26 }); k.ball(0, .14, 0, .07, 'glowO', { mat: 'fire' });
@@ -88,7 +90,7 @@ export function makeTower(type, br, lvl) {
     if (lvl >= 6) for (let i = 0; i < 3; i++) k.box(-.2 + i * .2, 0, .42, .06, .06, .06, 'gold', { mat: 'metal' });
   });
   root.add(base);
-  const hy = type === 'still' ? .9 : type === 'crossbow' ? .62 : type === 'cannon' ? .4 : type === 'frost' ? .85 : type === 'tesla' ? .95 : .42;
+  const hy = type === 'mortar' ? .26 : type === 'still' ? .9 : type === 'crossbow' ? .62 : type === 'cannon' ? .4 : type === 'frost' ? .85 : type === 'tesla' ? .95 : .42;
   head.position.y = hy;
   if (type === 'crossbow') bar.add(part(k => {
     k.box(.05, 0, 0, .5, .06, .07, 'woodL'); k.box(.27, -.02, 0, .04, .05, .52, 'woodD', { ry: 0 });
@@ -101,6 +103,11 @@ export function makeTower(type, br, lvl) {
     if (br === 'a') { k.cyl(0, -.04, 0, .14, .3, 'black', { rz: -.6, seg: 10, mat: 'metal' }); }
     else { k.cyl(-.08, 0, 0, .1, .5, 'black', { rz: -Math.PI / 2, r2: br === 'b' ? .13 : .07, seg: 10, mat: 'metal' }); k.ball(-.12, 0, 0, .1, 'black', { mat: 'metal' }); }
     if (gold) k.cyl(.2, 0, 0, .085, .03, 'gold', { rz: -Math.PI / 2, seg: 10, mat: 'metal' });
+  }));
+  else if (type === 'mortar') bar.add(part(k => { // a short, wide barrel tipped steeply up
+    const r = br === 'a' ? .17 : .14; k.cyl(0, 0, 0, r, .42, 'black', { r2: r * 1.1, rz: -.5, seg: 12, mat: 'metal' }); k.cyl(0, 0, 0, r * 1.25, .06, 'iron', { rz: -.5, seg: 12, mat: 'metal' });
+    for (const sz of [-1, 1]) k.cyl(-.04, -.02, sz * .15, .05, .03, 'iron', { rx: Math.PI / 2, seg: 8 });
+    if (gold) k.cyl(.17, .3, 0, r * 1.18, .04, 'gold', { rz: -.5, seg: 12, mat: 'metal' });
   }));
   else if (type === 'frost') {
     const cr = part(k => { k.cone(0, 0, 0, .14, .28, br === 'b' ? 'paintP' : 'glowI', { seg: 5, mat: 'glow' }); k.cone(0, 0, 0, .14, .16, br === 'b' ? 'paintP' : 'glowI', { seg: 5, mat: 'glow', rx: Math.PI }); if (br === 'a') for (let i = 0; i < 3; i++) k.cone(Math.cos(i * 2.1) * .2, -.05, Math.sin(i * 2.1) * .2, .05, .14, 'glowI', { seg: 4, mat: 'glow' }); }, { cast: false });

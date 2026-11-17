@@ -15,6 +15,15 @@ const SCREENS = [
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
   ['fight', () => { const t = CG.game.town; CG.play.close(); t.coins = 1e6; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false }; for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   ['selected', () => { CG.play.openSpot(3); }],
+  ['pit', () => { CG.play.openSpot(CG.game.town.def.board.far); }],
+  ['mortar', async () => { // a shell in flight, and the Mortar selected with both of its circles
+    const t = CG.game.town, B = t.def.board, wait = ms => new Promise(r => setTimeout(r, ms));
+    CG.play.close(); t.flags['open:mortar'] = true; t.coins = 1e7; Object.assign(t.goods, { copper: 900, bricks: 900 });
+    for (const s of [B.far, B.far + 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="mortar"]'); if (b) b.click(); }
+    CG.play.openSpot(B.far);
+    Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] });
+    for (let i = 0; i < 150; i++) { await wait(100); const sh = t.waves.shells || []; if (sh.some(x => x.t > .9)) break; }
+  }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
   ['menu', () => { CG.play.openMenu(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
@@ -29,7 +38,7 @@ try {
     await p.goto(srv.url + '?coach=off');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : 1200);
+      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : 1200);
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();

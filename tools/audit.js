@@ -9,7 +9,8 @@ import { shellFiles } from './bump-version.js';
 import { GOODS } from '../src/data/goods.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { TOWNS, TOWN_ORDER } from '../src/data/towns/index.js';
-import { TOWERS, PATHS } from '../src/data/towers.js';
+import { TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
+import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { SYSTEMS } from '../src/core/setup.js';
@@ -85,13 +86,13 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules());
   return { problems, unlisted };
 }
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export'];
+export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
@@ -112,6 +113,28 @@ export function explainerRules() {
   }
   for (const f of requiredFeatures()) if (!covered.has(f)) p.push('feature ' + f + ' has no explainer (src/data/explainers.js)');
   for (const [k, t] of Object.entries(TOWERS)) for (const x of [t.name, t.about, ...Object.values(PATHS[k] || {}).flatMap(q => [q.name, q.about])]) if (/[:;]/.test(x || '')) p.push('tower text for ' + k + ' uses a colon or semicolon (writing rule)');
+  return p;
+}
+
+/* The map rules (GDD.md, Town maps): every town has 3 to 5 mortar pits, each farther than a normal tower's reach from
+   the road, with at least PIT_COVER units of road inside the longest-range tower's ring. */
+export const PIT_COVER = 5;
+export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
+  const p = [], long = Object.values(TOWERS).filter(t => t.long).sort((a, b) => b.range - a.range)[0];
+  for (const id of order) {
+    const b = towns[id].board;
+    if (!b) continue;
+    const far = b.far ?? b.spots.length, n = b.spots.length - far;
+    if (n < 3 || n > 5) { p.push(id + ' has ' + n + ' mortar pits (want 3 to 5)'); continue; }
+    const road = makePath([...b.road, b.vault]), pts = [];
+    for (let s = 0; s <= road.length; s += .1) pts.push(pointAt(road, s));
+    for (let i = far; i < b.spots.length; i++) {
+      let min = Infinity, cover = 0;
+      for (const q of pts) { const d = dist(b.spots[i], q); min = Math.min(min, d); if (long && d >= (long.minRange || 0) && d <= long.range) cover += .1; }
+      if (min <= NORMAL_REACH) p.push(id + ' mortar pit ' + i + ' is within a normal tower\'s reach of the road (' + min.toFixed(2) + ')');
+      if (cover < PIT_COVER) p.push(id + ' mortar pit ' + i + ' has only ' + cover.toFixed(1) + ' units of road in the Mortar\'s ring');
+    }
+  }
   return p;
 }
 

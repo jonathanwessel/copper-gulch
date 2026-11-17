@@ -24,6 +24,7 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 - **The lane winds through the town.** Every town's road (and river or sky lane) doubles back, even triples back, in switchbacks between the workshops, so raiders pass the same towers several times and the town is something to defend, not a yard off to one side.
 - Workshop plots sit beside the lane; tower spots sit in the bends, where one tower covers two or three passes.
 - The vault sits at the lane's end, in the heart of the town.
+- **Mortar pits.** Every map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them. `tools/audit.js` fails a town without them.
 
 ## Supply chains
 Goods go from raw to intermediate to finished. "<-" marks a good shipped in from another town.
@@ -70,9 +71,16 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Holding a majority gives +25% income in that town.
 
 ## Defense
-- **Towers.** Eight, unlocked by era: crossbow, cannon, frost lens, snake oil still, tesla coil, gatling, barracks, drone helipad.
+- **Towers.** Nine, unlocked by era: crossbow, cannon, frost lens, snake oil still, mortar, tesla coil, gatling, barracks, drone helipad.
   - Each costs coins plus that town's own goods, so the chain feeds the defense.
   - Paths open at level 5.
+- **The Mortar** is the long-range tower. If a normal tower reaches from 0 to R, the Mortar reaches from 0.5R to 2R: it cannot fire at raiders inside 0.5R (its dead zone).
+  - Slow fire. A high, arcing shell with a visible flight time, a marker on the ground where it will land, and splash damage on landing.
+  - It lobs, so it cannot hit airships. It can hit boats.
+  - Its card and the selection highlight draw both circles, with the dead zone shaded.
+  - Paths at level 5: Siege Mortar (a bigger blast, reach 2.4R) or Shrapnel (a smaller blast that leaves burning ground, which slows and hurts for a few seconds).
+  - Copper Gulch opens it at wave 12, for coins plus copper and bricks. Later towns pay with their own goods (Iron Ridge: pig iron).
+  - In the background battle its damage counts only for the share of the lane inside its ring; Auto-towers treats it like any tower.
 - **Waves** come in types (mixed, rush, swarm, heavy), with weather, and a boss every 10th wave.
 - **Each lane has its own threats**: boats on the river, airships in the sky (only Tesla and drones reach them), and jamming in Radium Springs.
 - **The vault** is each town's health. When it falls, the town loses 10% of its coins and drops back 2 waves.

@@ -30,6 +30,9 @@ export class Board {
       const r = polyDist(x, z, B.road);
       if (r.d < .8) h = lerp(-.05, h, sstep(.5, .8, r.d));
       if (onPlot(x, z, 1.15)) h = Math.min(h, 0); // plots are level
+      // so are the pads, and a wider floor round each mortar pit (its dead zone lies on it)
+      const far = B.far ?? (B.spots || []).length;
+      (B.spots || []).forEach(([sx, sz], i) => { const d = Math.hypot(x - sx, z - sz), a = i >= far ? 1.7 : .8, b = i >= far ? 2.8 : 1.4; if (d < b) h = lerp(Math.min(h, 0), h, sstep(a, b, d)); });
       return h;
     };
     const sand = new THREE.Color(look.sand), sandD = new THREE.Color(look.sandD), dirt = new THREE.Color(look.dirt), rut = new THREE.Color(look.rut), pad = new THREE.Color('#c79b6b');

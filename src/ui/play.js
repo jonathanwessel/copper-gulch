@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, explainOutput, missing, unlocked } from '../core/economy.js';
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold, isPit, fitsSpot, towerOpen } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
 import { createSheets, goodsSheet, menuSheet } from './sheets.js';
 
@@ -125,19 +125,24 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
   function paintSpot(i, force) {
-    const t = towerAt(town, i), kinds = Object.keys(TOWERS);
-    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0))))].join();
+    const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => fitsSpot(town, i, k));
+    const now = ['spot', i, t ? [t.kind, t.level, t.path] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k)))].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
     const head = el('div', 'cardhead');
     const x = el('button', 'btn small close', 'Close'); x.addEventListener('click', close);
     if (!t) {
-      head.append(el('h2', null, 'Stone pad'), x); card.append(head);
+      head.append(el('h2', null, pit ? 'Mortar pit' : 'Stone pad'), x); card.append(head);
+      if (pit && !kinds.some(k => towerOpen(town, k))) {
+        card.append(el('p', 'uses', 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. It opens at wave ' + TOWERS.mortar.opens + '.'));
+        return;
+      }
+      if (pit) card.append(el('p', 'uses', 'Too far from the road for most towers. Only a Mortar fits here.'));
       for (const k of kinds) {
-        const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option');
-        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, costText(c)));
-        const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = !canPay(town, c);
+        const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
+        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, shut ? 'Opens at wave ' + d.opens : costText(c)));
+        const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
         row.append(txt, go); card.append(row);
       }
@@ -148,10 +153,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const stats = el('div', 'explain');
     const line = (a, b) => { const r = el('div'); r.append(el('span', null, a), el('b', null, b)); stats.append(r); };
     line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''));
-    line('Shots', fmt(st.rate) + ' a second'); line('Range', fmt(st.range));
+    line('Shots', fmt(st.rate) + ' a second'); line('Range', st.minRange ? fmt(st.minRange) + ' to ' + fmt(st.range) : fmt(st.range));
     if (st.splash) line('Blast', fmt(st.splash));
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
+    if (st.fire) line('Burning ground', 'slows and hurts');
     card.append(stats);
+    if (st.minRange) card.append(el('p', 'uses', 'It can\'t hit raiders closer than ' + fmt(st.minRange) + '. Raiders inside the red circle are safe from it.'));
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     if (t.level + 1 === PATH_LEVEL) {
       card.append(el('p', 'uses', 'This upgrade makes you pick one of two paths. You can\'t switch later. It costs ' + costText(c) + '.'));
@@ -191,7 +198,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       t.classList.toggle('can', town.coins >= cost(town, id));
     }
     if (document.documentElement.classList.contains('flat')) spotTags.forEach((t, i) => {
-      const tw = towerAt(town, i), txt = 'Spot ' + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
+      const tw = towerAt(town, i), txt = (isPit(town, i) ? 'Mortar pit ' : 'Spot ') + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
       t.hidden = false; if (t.textContent !== txt) t.textContent = txt;
     });
     if (acc < .2) return;

@@ -3,13 +3,17 @@
    defense events. Reads the town; never changes it.
    Smooth motion: the simulation moves in 0.25 s steps, so each raider is drawn between its last two simulated
    places by the clock's alpha (how far into the next step it is) instead of jumping four times a second.
-   Effects come from pools: meshes and their materials are made once and reused, never made per hit. */
+   Effects come from pools: meshes and their materials are made once and reused, never made per hit.
+   Mortar pits (the far pads) get a ring of sandbags instead of a stone pad. A Mortar's shell flies a high arc for its
+   flight time while a red ring on the ground closes in on where it will land; Shrapnel's burning ground is drawn from
+   the town's fires, one pooled disc each. */
 import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
 import { part, mergeStatic } from './kit.js';
 import { roadOf } from '../core/defense.js';
 import { pointAt } from '../core/path.js';
 import { FOES } from '../data/foes.js';
+import { FIRE } from '../data/towers.js';
 import { disposeTree } from './board.js';
 
 const towerKey = t => t.kind + (t.path || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
@@ -23,15 +27,19 @@ const FX = {
   frost: new THREE.MeshBasicMaterial({ color: '#b8ecff', transparent: true, depthWrite: false, side: THREE.DoubleSide }),
   flask: new THREE.MeshStandardMaterial({ color: '#7ad36a', emissive: '#1e4a10' }),
   cloud: new THREE.MeshBasicMaterial({ color: '#8fd57a', transparent: true, depthWrite: false }),
+  mark: new THREE.MeshBasicMaterial({ color: '#ff5a3a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false }),
+  fire: new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, fog: false }),
 };
 // which geometry and material each kind of effect uses; fading kinds get their own material per pooled mesh
 const KINDS = {
   bolt: ['bolt', 'bolt', false], ball: ['ball', 'ball', false], flask: ['flask', 'flask', false],
   ring: ['ring', 'frost', true], boom: ['boom', 'boom', true], cloud: ['cloud', 'cloud', true],
+  shell: ['shell', 'ball', false], mark: ['mark', 'mark', true],
 };
 const GEO = {
   bolt: new THREE.BoxGeometry(.32, .03, .03), ball: new THREE.IcosahedronGeometry(.08, 1), boom: new THREE.IcosahedronGeometry(1, 1),
   ring: new THREE.RingGeometry(.9, 1, 32).rotateX(-Math.PI / 2), flask: new THREE.IcosahedronGeometry(.07, 0), cloud: new THREE.IcosahedronGeometry(1, 1),
+  shell: new THREE.IcosahedronGeometry(.19, 1), mark: new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), fire: new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2),
 };
 
 export class Battle {
@@ -41,11 +49,19 @@ export class Battle {
     this.road = roadOf(this.town);
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
-    const pads = this.town.def.board.spots.map(([x, z]) => {
-      const pad = part(k => { k.cyl(0, 0, 0, .42, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .34, .015, 'stone', { seg: 8 }); });
+    const B = this.town.def.board, far = B.far ?? B.spots.length;
+    const pads = B.spots.map(([x, z], i) => {
+      const pad = i < far
+        ? part(k => { k.cyl(0, 0, 0, .42, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .34, .015, 'stone', { seg: 8 }); })
+        : part(k => { // a mortar pit: a dug-out floor in a ring of sandbags
+          k.cyl(0, 0, 0, .5, .03, 'stoneD', { seg: 12 });
+          for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; k.ball(Math.cos(a) * .52, .07, Math.sin(a) * .52, .12, 'sand', { sy: .55, ry: -a }); }
+          for (let i = 0; i < 6; i++) { const a = (i + .5) / 6 * 6.283; k.ball(Math.cos(a) * .52, .16, Math.sin(a) * .52, .11, 'sand', { sy: .5, ry: -a }); }
+        });
       pad.position.set(x, 0, z); return pad;
     });
     this.group.add(mergeStatic(pads, { cast: false })); pads.forEach(disposeTree);
+    this.fires = []; // pooled discs for burning ground
     this.off = [
       game.bus.on('shot', e => { if (e.town === this.town.id) this.shot(e); }),
       game.bus.on('leak', e => { if (e.town === this.town.id) this.shake = .4; }),
@@ -76,6 +92,12 @@ export class Battle {
     const u = this.foes.get(e.foe), y0 = e.kind === 'still' ? .9 : e.kind === 'cannon' ? .5 : .7;
     const from = new THREE.Vector3(fx, y0, fz), to = u ? new THREE.Vector3(u.obj.position.x, .35, u.obj.position.z) : new THREE.Vector3(tx, .35, tz);
     if (this.fx.length > 120) return;
+    if (e.flight) { // a lobbed shell: a high arc to where it will land, and a closing ring on the ground there
+      const land = new THREE.Vector3(tx, .05, tz), muzzle = new THREE.Vector3(fx, .75, fz);
+      this.add('shell', { from: muzzle, to: land, life: e.flight + .1, arc: 3.2, then: 'bigboom', splash: e.splash || 1.3 });
+      const m = this.add('mark', { life: e.flight + .1, mark: e.splash || 1.3 }); m.mesh.position.set(tx, .04, tz);
+      return;
+    }
     if (e.kind === 'crossbow') this.add('bolt', { from, to, life: .18, arc: 0, aim: true });
     else if (e.kind === 'cannon') this.add('ball', { from, to, life: .45, arc: .9, then: 'boom' });
     else if (e.kind === 'still') this.add('flask', { from, to, life: .5, arc: 1.1, then: 'cloud' });
@@ -140,14 +162,25 @@ export class Battle {
         f.mesh.position.lerpVectors(f.from, f.to, k); f.mesh.position.y += Math.sin(k * Math.PI) * f.arc;
         if (f.aim) f.mesh.rotation.y = Math.atan2(-(f.to.z - f.from.z), f.to.x - f.from.x);
       } else if (f.ring) { const s = .3 + k * f.ring; f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .7 * (1 - k); }
+      else if (f.mark) { const s = f.mark * (1.6 - k * .6); f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .35 + .55 * k; }
       else if (f.grow) { const s = f.grow * (.4 + k * .6); f.mesh.scale.set(s, f.flat ? s * .5 : s, s); f.mesh.material.opacity = f.op * (1 - k); }
       if (k < 1) return true;
       this.release(f);
       if (f.then === 'boom') this.add('boom', { life: .3, grow: .55, op: .85 }, after).mesh.position.copy(f.to);
+      if (f.then === 'bigboom') this.add('boom', { life: .4, grow: (f.splash || 1.3) * .75, op: .9 }, after).mesh.position.copy(f.to);
       if (f.then === 'cloud') this.add('cloud', { life: 1.4, grow: .7, op: .45, flat: true }, after).mesh.position.copy(f.to);
       return false;
     });
     for (const f of after) { f.mesh.scale.setScalar(.01); this.fx.push(f); } // start small: they grow from the next frame
+    // burning ground: one pooled disc per fire, flickering, fading as it burns out
+    const fires = ws.fires || [];
+    while (this.fires.length < fires.length) { const m = new THREE.Mesh(GEO.fire, FX.fire.clone()); m.renderOrder = 2; this.group.add(m); this.fires.push(m); }
+    this.fires.forEach((m, i) => {
+      const fi = fires[i]; m.visible = !!fi;
+      if (!fi) return;
+      const k = Math.max(0, Math.min(1, fi.t / FIRE.seconds)), fl = .85 + .15 * Math.sin(t * 23 + i * 1.7);
+      m.position.set(fi.at[0], .03, fi.at[1]); m.scale.set(fi.r * fl, 1, fi.r * fl); m.material.opacity = .55 * k * fl;
+    });
     // the vault shudders when raiders reach it
     if (this.shake > 0) { this.shake -= dt; const v = this.board.vault; v.position.x = this.town.def.board.vault[0] + Math.sin(t * 60) * .04 * this.shake; }
   }

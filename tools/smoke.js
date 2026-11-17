@@ -111,6 +111,26 @@ async function run() {
         return open && closed && plot;
       });
       if (!sel) bad.push('the selection highlight did not follow the card');
+      // mortar pits: a closed pit's card says what it is for; once open, a Mortar is built there through the card,
+      // fires a shell, and its selection shows the dead zone
+      const mortar = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, pit = t.def.board.far, out = {};
+        delete t.flags['open:mortar']; CG.play.openSpot(pit); await wait(100);
+        out.closedText = /too far from the road/.test(document.getElementById('card').textContent) && !document.querySelector('#card .build');
+        t.flags['open:mortar'] = true; t.coins = 1e6; Object.assign(t.goods, { copper: 500, bricks: 500 }); CG.play.close(); CG.play.openSpot(pit); await wait(100);
+        const kinds = [...document.querySelectorAll('#card .build')].map(b => b.dataset.kind);
+        out.onlyMortar = kinds.length === 1 && kinds[0] === 'mortar';
+        document.querySelector('#card .build[data-kind="mortar"]').click();
+        out.built = t.towers.some(x => x.spot === pit && x.kind === 'mortar');
+        await wait(150); const S = CG.town.selection; out.deadZone = S.dead.visible && S.inner.visible && S.range.visible;
+        CG.play.close();
+        Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] });
+        const ev = []; const off = CG.game.bus.on('land', e => ev.push(e));
+        for (let i = 0; i < 100 && !ev.length; i++) await wait(200);
+        off(); out.landed = ev.length > 0;
+        return out;
+      });
+      for (const [k, v] of Object.entries(mortar)) if (!v) bad.push('Mortar: not ' + k);
       // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
       await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));

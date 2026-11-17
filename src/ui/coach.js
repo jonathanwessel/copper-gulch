@@ -15,6 +15,7 @@ export function helper(town) {
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
     unlocked: id => unlocked(town, id),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
+    firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
   };
 }

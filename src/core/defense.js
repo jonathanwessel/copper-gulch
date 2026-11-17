@@ -1,11 +1,13 @@
 /* Defense: raiders ride the road toward the vault in waves; towers on the spots beside the road shoot them.
    Everything is deterministic (the town's own random stream picks wave types and raiders) and hits land at once;
    the renderer draws the bolts, balls and clouds from the events this module emits:
-     'shot' { town, tower, foe, kind, from, to }   'kill' { town, foe, coins }   'leak' { town, foe, hp }
+     'shot' { town, tower, foe, kind, from, to, flight? }   'kill' { town, foe, coins }   'leak' { town, foe, hp }
+     'land' { town, spot, at, splash, fire }       'tower:open' { town, kind }
      'wave:start' { town, wave, type, boss }       'wave:clear' { town, wave }   'breach' { town, wave, lost }
-   A town's waves: town.wave is the wave running or coming next; town.waves holds the phase, timer, queue and foes.
+   A town's waves: town.wave is the wave running or coming next; town.waves holds the phase, timer, queue and foes,
+   the lobbed shells still in the air (shells) and the burning ground Shrapnel leaves (fires).
    While the game catches up time away, defense rests (background battles arrive with Automation, M4). */
-import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 
@@ -27,6 +29,7 @@ export function towerStats(town, t) {
     splash: (d.splash || 0) * (p.splash || 1), slow: d.slow || 0, pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.dmg ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
+    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire,
   };
   return s;
 }
@@ -40,9 +43,17 @@ export function canPay(town, c) { return town.coins + 1e-9 >= c.coins && Object.
 function pay(town, c) { town.coins -= c.coins; for (const [g, n] of Object.entries(c.goods)) town.goods[g] -= n; }
 export const towerAt = (town, spot) => town.towers.find(t => t.spot === spot) || null;
 
+/* Mortar pits: the far pads. board.spots lists the near pads first; from board.far on they are pits. */
+export const isPit = (town, spot) => spot >= (town.def.board.far ?? town.def.board.spots.length);
+export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i => isPit(town, i));
+/* Has the town opened this tower kind? (Most are open from the start; some open at a wave.) */
+export const towerOpen = (town, kind) => !TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]);
+/* Can this kind stand on this spot? Pits take only long-range towers. */
+export const fitsSpot = (town, spot, kind) => !isPit(town, spot) || !!TOWERS[kind].long;
+
 /* Build a tower on an empty spot. Returns true when built. */
 export function buildTower(game, town, spot, kind) {
-  if (!TOWERS[kind] || towerAt(town, spot) || !town.def.board.spots[spot]) return false;
+  if (!TOWERS[kind] || towerAt(town, spot) || !town.def.board.spots[spot] || !towerOpen(town, kind) || !fitsSpot(town, spot, kind)) return false;
   const c = towerCost(town, kind, 0);
   if (!canPay(town, c)) return false;
   pay(town, c);
@@ -152,17 +163,42 @@ export function fight(game, town, dt) {
       game.bus.emit('leak', { town: town.id, foe: f.id, hp });
     }
   }
-  // towers
   const pos = new Map(ws.foes.map(f => [f, pointAt(road, f.s)]));
+  // lobbed shells land: splash where they come down, and Shrapnel leaves the ground burning
+  const shells = ws.shells || (ws.shells = []), fires = ws.fires || (ws.fires = []);
+  for (const sh of shells) {
+    sh.t -= dt;
+    if (sh.t > 1e-9) continue;
+    for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg);
+    if (sh.fire) fires.push({ at: sh.at, r: sh.splash, t: FIRE.seconds, dps: sh.dmg * FIRE.dps });
+    game.bus.emit('land', { town: town.id, spot: sh.spot, at: sh.at, splash: sh.splash, fire: !!sh.fire });
+  }
+  ws.shells = shells.filter(sh => sh.t > 1e-9);
+  for (const fi of fires) {
+    const k = Math.min(dt, fi.t); fi.t -= dt;
+    for (const f of ws.foes) if (f.hp > 0 && dist(fi.at, pos.get(f)) <= fi.r) {
+      hurt(game, town, f, fi.dps * k);
+      f.slow = Math.max(f.slowT > 0 ? f.slow : 0, FIRE.slow); f.slowT = Math.max(f.slowT, .5);
+    }
+  }
+  ws.fires = ws.fires.filter(fi => fi.t > 1e-9);
+  // towers
   for (const t of town.towers) {
     const st = towerStats(town, t), at = town.def.board.spots[t.spot];
     t.cd -= dt;
     while (t.cd <= 0) {
-      const inReach = ws.foes.filter(f => f.hp > 0 && dist(at, pos.get(f)) <= st.range);
+      const inReach = ws.foes.filter(f => { if (f.hp <= 0 || (st.lob && FOES[f.kind].air)) return false; const d = dist(at, pos.get(f)); return d <= st.range && d >= st.minRange; });
       if (!inReach.length) { t.cd = 0; break; }
       t.cd += 1 / st.rate;
       const target = inReach.reduce((a, b) => (b.s > a.s ? b : a)); // the one closest to the vault
-      const to = pos.get(target);
+      let to = pos.get(target);
+      if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
+        const lead = FOES[target.kind].speed * WAVE.speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
+        to = pointAt(road, Math.min(road.length, target.s + (target.frozenT > 0 ? 0 : lead)));
+        ws.shells.push({ spot: t.spot, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
+        game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, flight: st.flight });
+        continue;
+      }
       if (st.pulse) { // frost: chills everything in reach
         t.pulses = (t.pulses || 0) + 1;
         for (const f of inReach) {
@@ -191,7 +227,7 @@ export function fight(game, town, dt) {
     town.coins -= lost;
     const from = town.wave;
     town.wave = Math.max(1, town.wave - WAVE.breachBack);
-    Object.assign(ws, { phase: 'break', timer: WAVE.rest * 2, queue: [], foes: [] });
+    Object.assign(ws, { phase: 'break', timer: WAVE.rest * 2, queue: [], foes: [], shells: [], fires: [] });
     town.vault.hp = town.vault.max;
     town.breaches = (town.breaches || 0) + 1;
     game.bus.emit('breach', { town: town.id, wave: from, lost });
@@ -209,7 +245,7 @@ export function fight(game, town, dt) {
 export function towerReserve(town) {
   const keep = {};
   const add = c => { for (const [g, n] of Object.entries(c.goods)) keep[g] = Math.max(keep[g] || 0, n); };
-  for (const kind of Object.keys(TOWERS)) add(towerCost(town, kind, 0));
+  for (const kind of Object.keys(TOWERS)) if (towerOpen(town, kind)) add(towerCost(town, kind, 0));
   for (const t of town.towers) add(towerCost(town, t.kind, t.level));
   return keep;
 }
@@ -219,12 +255,19 @@ export const defense = {
   init(town) {
     town.wave = 1;
     town.vault = { hp: WAVE.vault, max: WAVE.vault };
-    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false };
+    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [] };
     town.keep = towerReserve(town);
   },
-  load(town) { if (!town.waves) defense.init(town); },
+  load(town) { if (!town.waves) defense.init(town); town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
+  /* Towers that open at a wave open once the town reaches it, and stay open. */
+  opens(game, town) {
+    for (const [k, d] of Object.entries(TOWERS)) if (d.opens && town.wave >= d.opens && !town.flags['open:' + k]) {
+      town.flags['open:' + k] = true; game.bus.emit('tower:open', { town: town.id, kind: k });
+    }
+  },
   step(town, dt, game) {
     if (!town.def || !town.def.board) return;
+    defense.opens(game, town);
     town.keep = towerReserve(town);
     if (game.catching) return;
     fight(game, town, dt);
