@@ -34,16 +34,20 @@ export function mountPlay(root, game, viewApi) {
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
   vault.append(vaultFill); vault.title = 'Vault strength';
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
-  call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Called early: +' + fmt(b) + ' coins.', 2500); });
+  call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
   wave.append(waveNum, vault, waveInfo, call);
   // Pause stops the whole game; Hold waves keeps the town working but the next wave waits
   const ctl = el('div', 'hudrow');
   const pause = el('button', 'btn small', 'Pause'); pause.id = 'pauseBtn';
   const hold = el('button', 'btn small', 'Hold waves'); hold.id = 'holdWaves';
+  // only touch the page when something changed (rewriting the same text still costs a layout)
+  const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
+  let ctlSig = '';
   const paintCtl = () => {
-    const p = viewApi.paused(), h = !!town.waves.hold;
-    pause.textContent = p ? 'Resume' : 'Pause'; pause.setAttribute('aria-pressed', String(p)); banner.hidden = !p;
-    hold.textContent = h ? 'Waves held' : 'Hold waves'; hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
+    const p = viewApi.paused(), h = !!town.waves.hold, sig = p + ',' + h;
+    if (sig === ctlSig) return; ctlSig = sig;
+    setText(pause, p ? 'Resume' : 'Pause'); pause.setAttribute('aria-pressed', String(p)); banner.hidden = !p;
+    setText(hold, h ? 'Waves held' : 'Hold waves'); hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
   };
   pause.addEventListener('click', () => { viewApi.pause(!viewApi.paused()); paintCtl(); });
   hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
@@ -62,9 +66,12 @@ export function mountPlay(root, game, viewApi) {
   root.append(ui);
 
   let openId = null, why = false;
-  function open(id) { openId = id; why = false; card.hidden = false; paintCard(); }
+  function open(id) {
+    openId = id; why = false; card.hidden = false; paintCard();
+    viewApi.select(id.startsWith('spot:') ? { spot: +id.slice(5) } : { plot: id }); // highlight it on the board while the card is open
+  }
   function openSpot(i) { open('spot:' + i); }
-  function close() { openId = null; card.hidden = true; }
+  function close() { openId = null; card.hidden = true; viewApi.select(null); }
   viewApi.onTap = hit => { if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
@@ -92,10 +99,10 @@ export function mountPlay(root, game, viewApi) {
       card.append(ex);
     }
     const ins = Object.entries(b.inputs);
-    if (ins.length) card.append(el('p', 'uses', 'Uses ' + ins.map(([k, n]) => n + ' ' + GOODS[k].name.toLowerCase()).join(' + ') + ' for each.'));
-    if (town.starved[id] && L) card.append(el('p', 'warn', 'Running short: build up its suppliers.'));
+    if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k, n]) => n + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
-    if (miss.length) card.append(el('p', 'warn', 'Needs ' + miss.map(m => BUILDINGS[m.id].name + ' level ' + m.level).join(' and ') + '.'));
+    if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
     const row = el('div', 'row');
     const c = cost(town, id), buy = el('button', 'btn primary buy');
     buy.id = 'buy'; buy.textContent = (L ? 'Upgrade' : 'Build') + ' · ' + fmt(c);
@@ -120,7 +127,7 @@ export function mountPlay(root, game, viewApi) {
     const head = el('div', 'cardhead');
     const x = el('button', 'btn small close', 'Close'); x.addEventListener('click', close);
     if (!t) {
-      head.append(el('h2', null, 'Tower spot'), x); card.append(head);
+      head.append(el('h2', null, 'Stone pad'), x); card.append(head);
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option');
         const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, costText(c)));
@@ -135,13 +142,13 @@ export function mountPlay(root, game, viewApi) {
     const stats = el('div', 'explain');
     const line = (a, b) => { const r = el('div'); r.append(el('span', null, a), el('b', null, b)); stats.append(r); };
     line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''));
-    line('Shots', fmt(st.rate) + '/s'); line('Reach', fmt(st.range));
+    line('Shots', fmt(st.rate) + ' a second'); line('Range', fmt(st.range));
     if (st.splash) line('Blast', fmt(st.splash));
-    if (st.slow) line('Chill', Math.round(st.slow * 100) + '% slower');
+    if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     card.append(stats);
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     if (t.level + 1 === PATH_LEVEL) {
-      card.append(el('p', 'uses', 'Level ' + PATH_LEVEL + ' picks a path for good. ' + costText(c) + '.'));
+      card.append(el('p', 'uses', 'This upgrade makes you pick one of two paths. You can\'t switch later. It costs ' + costText(c) + '.'));
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const go = el('button', 'btn small build', 'Choose'); go.dataset.path = key; go.disabled = !canPay(town, c);
@@ -159,8 +166,8 @@ export function mountPlay(root, game, viewApi) {
   }
 
   // news from the road
-  game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + ': the war wagon is coming. Stop it before the vault.', 4000); });
-  game.bus.on('breach', e => { if (e.town === town.id) toast('The vault fell. Raiders took ' + fmt(e.lost) + ' coins, and the town falls back two waves.', 5000); });
+  game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The war wagon is coming. Stop it before it reaches the vault.', 4000); });
+  game.bus.on('breach', e => { if (e.town === town.id) toast('Your vault broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000); });
 
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
@@ -170,7 +177,7 @@ export function mountPlay(root, game, viewApi) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
       if ((!p && !flat) || (!L && !un)) { t.hidden = true; continue; }
-      t.hidden = false; if (p) t.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+      t.hidden = false; if (p) t.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
       const txt = (flat ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
       if (t.textContent !== txt) t.textContent = txt;
       t.classList.toggle('short', !!(L && town.starved[id]));
@@ -184,12 +191,12 @@ export function mountPlay(root, game, viewApi) {
     acc = 0;
     hist.push([town.t, town.lifetime]); while (hist.length > 25) hist.shift();
     const [t0, l0] = hist[0], per = town.t > t0 ? (town.lifetime - l0) / (town.t - t0) : 0;
-    coinNum.textContent = fmt(town.coins); inc.textContent = '+' + rate(per);
+    setText(coinNum, fmt(town.coins)); setText(inc, '+' + rate(per));
     const ws = town.waves;
-    waveNum.textContent = 'Wave ' + town.wave;
-    vaultFill.style.width = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%';
+    setText(waveNum, 'Wave ' + town.wave);
+    const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
-    waveInfo.textContent = ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left';
+    setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left');
     call.hidden = ws.phase !== 'break';
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }

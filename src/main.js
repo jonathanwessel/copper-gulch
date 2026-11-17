@@ -29,10 +29,10 @@ async function startGame() {
   CG.game = game;
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;
-  const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false };
+  const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false, select: () => {} };
   const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
   CG.town = town;
-  if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); }
+  if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; }
   CG.play = mountPlay(document.getElementById('app'), game, viewApi);
   // the explainer cards; ?coach=off turns them off (the test tools use it)
   const b = game.town.def.board;

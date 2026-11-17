@@ -27,8 +27,9 @@ export function pickTarget(cam, el, board, clientX, clientY) {
 }
 
 /* Where a world point lands on screen, in CSS pixels; null when behind the camera. */
+const _p = new THREE.Vector3();
 export function project(cam, el, v) {
-  const p = v.clone().project(cam);
+  const p = _p.copy(v).project(cam);
   if (p.z > 1) return null;
   return { x: (p.x + 1) / 2 * el.clientWidth, y: (1 - p.y) / 2 * el.clientHeight };
 }

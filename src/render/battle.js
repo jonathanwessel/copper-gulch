@@ -125,7 +125,8 @@ export class Battle {
     }
     for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); disposeTree(u.obj); this.foes.delete(id); }
     // towers turn toward their last target
-    for (const tw of this.towers.values()) {
+    for (const [spot, tw] of this.towers) {
+      const up = spot === this.lift ? .14 : 0; tw.obj.position.y += (.06 + up - tw.obj.position.y) * Math.min(1, dt * 14);
       const h = tw.obj.userData.head; let da = tw.aim - h.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da));
       h.rotation.y += da * Math.min(1, dt * 12);
       if (tw.obj.userData.float) tw.obj.userData.bar.position.y = Math.sin(t * 2 + tw.obj.position.x) * .05;

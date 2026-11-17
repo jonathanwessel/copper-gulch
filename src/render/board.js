@@ -9,6 +9,8 @@ import { makeBuilding, makeVault, PROPS } from '../assets/models/gulch.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 
+// scratch objects reused every frame (no garbage for the collector to stutter on)
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();
 export const tierOf = level => level >= 100 ? 4 : level >= 50 ? 3 : level >= 25 ? 2 : level >= 10 ? 1 : 0;
 const MAXPUFF = 80;
 
@@ -101,7 +103,7 @@ export class Board {
     return best;
   }
   /* A point above a plot's model, for labels. */
-  anchor(id) { const [x, z] = this.def.plots[id], b = this.bld[id]; return new THREE.Vector3(x, (b ? b.top : 1) + .3, z); }
+  anchor(id, out = new THREE.Vector3()) { const [x, z] = this.def.plots[id], b = this.bld[id]; return out.set(x, (b ? b.top : 1) + .3, z); }
 
   /* Animate: t is seconds; working(id) says whether a building is producing right now. */
   update(dt, t, working = () => true) {
@@ -123,7 +125,7 @@ export class Board {
       }
     }
     // smoke: rises, swells, drifts, and shrinks away
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3();
+    const m = _m, q = _q, sc = _sc, pos = _pos;
     this.puffs = this.puffs.filter(p => (p.age += dt) < 3.2);
     this.puffs.forEach((p, i) => {
       const a = p.age / 3.2, s = (.7 + a * 1.6) * (a > .6 ? (1 - a) / .4 : 1);

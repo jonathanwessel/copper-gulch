@@ -1,0 +1,41 @@
+/* What is selected on the board, made unmistakable while its card is open: a bright pulsing gold frame on the ground
+   (a square around a building's plot, a ring around a pad or tower), the tower's range drawn as a circle on the ground
+   (an empty pad shows the Crossbow's range), and the selected tower lifts a little. Cleared when the card closes. */
+import * as THREE from 'three';
+import { towerAt, towerStats } from '../core/defense.js';
+import { TOWERS } from '../data/towers.js';
+
+const mat = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false });
+
+export class Selection {
+  constructor(board, battle) {
+    this.board = board; this.battle = battle; this.town = board.town; this.target = null;
+    this.group = new THREE.Group(); this.group.name = 'selection'; this.group.visible = false; this.group.renderOrder = 3;
+    const R2 = Math.SQRT2;
+    this.square = new THREE.Mesh(new THREE.RingGeometry(1.08 * R2, 1.2 * R2, 4, 1, Math.PI / 4).rotateX(-Math.PI / 2), mat('#ffd36a', .95));
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(.5, .64, 40).rotateX(-Math.PI / 2), mat('#ffd36a', .95));
+    this.range = new THREE.Mesh(new THREE.RingGeometry(.965, 1, 96).rotateX(-Math.PI / 2), mat('#ffc58f', .7));
+    this.fill = new THREE.Mesh(new THREE.CircleGeometry(1, 96).rotateX(-Math.PI / 2), mat('#ffd36a', .08));
+    for (const m of [this.square, this.ring, this.range, this.fill]) { m.renderOrder = 3; this.group.add(m); }
+    board.group.add(this.group);
+  }
+  /* { plot: id } or { spot: index } or null. */
+  set(target) { this.target = target || null; this.group.visible = !!this.target; this.battle.lift = this.target && this.target.spot !== undefined ? this.target.spot : null; }
+  update(t) {
+    const tg = this.target;
+    if (!tg) return;
+    const pulse = .5 + .5 * Math.sin(t * 6), B = this.town.def.board;
+    const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
+    this.group.position.set(x, .035, z);
+    this.square.visible = !!tg.plot; this.ring.visible = !tg.plot;
+    const s = 1 + pulse * .08;
+    this.square.scale.set(s, 1, s); this.ring.scale.set(s, 1, s);
+    this.square.material.opacity = this.ring.material.opacity = .65 + .35 * pulse;
+    // a tower's reach, or what a Crossbow here would reach
+    const tw = tg.spot !== undefined ? towerAt(this.town, tg.spot) : null;
+    const r = tg.plot ? 0 : tw ? towerStats(this.town, tw).range : TOWERS.crossbow.range;
+    this.range.visible = this.fill.visible = r > 0;
+    if (r > 0) { this.range.scale.set(r, 1, r); this.fill.scale.set(r, 1, r); }
+  }
+  dispose() { this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
+}

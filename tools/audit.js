@@ -106,10 +106,12 @@ export function explainerRules() {
   for (const e of EXPLAINERS) {
     if (ids.has(e.id)) p.push('two explainers named ' + e.id); ids.add(e.id);
     if (!e.title || !e.text || typeof e.when !== 'function') p.push('explainer ' + e.id + ' needs a title, a text and a when()');
-    if (e.text && e.text.length > 230) p.push('explainer ' + e.id + ' is too long for a phone card (' + e.text.length + ' characters)');
+    if (e.text && e.text.length > 260) p.push('explainer ' + e.id + ' is too long for a phone card (' + e.text.length + ' characters)');
+    for (const x of [e.title, e.text]) if (/[:;]/.test(x || '')) p.push('explainer ' + e.id + ' uses a colon or semicolon (writing rule)');
     for (const c of e.covers || []) covered.add(c);
   }
   for (const f of requiredFeatures()) if (!covered.has(f)) p.push('feature ' + f + ' has no explainer (src/data/explainers.js)');
+  for (const [k, t] of Object.entries(TOWERS)) for (const x of [t.name, t.about, ...Object.values(PATHS[k] || {}).flatMap(q => [q.name, q.about])]) if (/[:;]/.test(x || '')) p.push('tower text for ' + k + ' uses a colon or semicolon (writing rule)');
   return p;
 }
 

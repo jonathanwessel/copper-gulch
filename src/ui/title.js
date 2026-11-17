@@ -17,7 +17,7 @@ export function mountTitle(root, { onPlay = () => {} } = {}) {
   const sign = el('div', 'sign');
   const play = el('button', 'btn primary', 'Play'); play.id = 'play';
   play.addEventListener('click', () => { play.disabled = true; onPlay(); });
-  const note = el('p', 'note', 'Early days: the Gulch has its buildings and its market. Raiders, research and more towns are coming.');
+  const note = el('p', 'note', 'This is an early build. You can build up the town and fight off raiders. Research and more towns are on the way.');
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));

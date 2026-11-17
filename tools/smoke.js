@@ -85,6 +85,14 @@ async function run() {
       for (const [k, v] of Object.entries(ctl)) if (!v) bad.push('Pause and Hold waves: not ' + k);
       await page.evaluate(() => CG.play.openSpot(4)); await sleep(350);
       bad.push(...(await check(page)).map(b => 'spot card: ' + b));
+      // the selected thing is highlighted on the board while its card is open, and only then
+      const sel = await page.evaluate(async () => {
+        const g = CG.town.selection.group, open = g.visible; CG.play.close(); await new Promise(r => setTimeout(r, 100));
+        const closed = !g.visible; CG.play.open('camp'); await new Promise(r => setTimeout(r, 100));
+        const plot = g.visible && CG.town.selection.square.visible; CG.play.close();
+        return open && closed && plot;
+      });
+      if (!sel) bad.push('the selection highlight did not follow the card');
       await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

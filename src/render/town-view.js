@@ -6,29 +6,33 @@ import { startQuality, autoStep } from './autoquality.js';
 import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
+import { Selection } from './select.js';
 import { pickTarget, project } from './pick.js';
 
+const _a = new THREE.Vector3();
 export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {} } = {}) {
   const q = startQuality(), v = createScene(canvas, { tier: q.tier });
   if (!v) return null;
   const step = autoStep(v, q);
   const town = game.town, board = new Board(town);
   v.scene.add(board.group);
-  const battle = new Battle(board, game);
+  const battle = new Battle(board, game), selection = new Selection(board, battle);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
   const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
-  let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '';
+  let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   const api = {
-    view: v, board, battle, rig, game, holds: new Set(),
+    view: v, board, battle, rig, game, selection, holds: new Set(),
+    /* Highlight what a card is open for: { plot }, { spot } or null. */
+    select: target => selection.set(target),
     get paused() { return api.holds.size > 0; },
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */
     pause(reason, on) { if (on) api.holds.add(reason); else api.holds.delete(reason); },
     get frames() { return frames; },
-    project: id => project(v.cam, canvas, board.anchor(id)),
+    project: id => project(v.cam, canvas, board.anchor(id, _a)),
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z)),
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z)); },
-    stop() { cancelAnimationFrame(raf); battle.dispose(); board.dispose(); v.dispose(); },
+    stop() { cancelAnimationFrame(raf); selection.dispose(); battle.dispose(); board.dispose(); v.dispose(); },
   };
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -39,13 +43,16 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     t += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
     v.resize(w, h); rig.fit(w / h);
-    const levels = JSON.stringify(town.buildings);
+    // the board only changes when the simulation steps: check then, not every frame
+    const stepped = game.stats.steps !== lastStep; lastStep = game.stats.steps;
+    const levels = stepped || !lastLevels ? JSON.stringify(town.buildings) : lastLevels;
     if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w, f.d); }
     board.update(dt, t, id => !town.starved[id]);
-    const towers = town.towers.map(x => x.spot + x.kind + x.level + x.path).join();
+    const towers = stepped || !lastTowers ? town.towers.map(x => x.spot + x.kind + x.level + x.path).join() : lastTowers;
     if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);
     battle.update(dt, t, v.cam, game.clock.alpha, game.stats.steps);
+    selection.update(t);
     v.render(); frames++;
     onFrame(dt);
   }

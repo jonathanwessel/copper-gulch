@@ -47,7 +47,7 @@ export function installButton(cls = 'btn small') {
   const btn = document.createElement('button'); btn.className = cls; btn.id = 'install'; btn.textContent = 'Install app';
   btn.addEventListener('click', () => install());
   const hint = document.createElement('span'); hint.className = 'hint'; hint.id = 'installHint';
-  hint.textContent = 'To install: tap Share, then Add to Home Screen.';
+  hint.textContent = 'To install, tap Share and then Add to Home Screen.';
   wrap.append(btn, hint);
   const paint = () => { const s = installState(); btn.hidden = s !== 'prompt'; hint.hidden = s !== 'ios'; wrap.hidden = s === 'app' || s === 'none'; };
   INSTALL.listeners.add(paint); paint();
