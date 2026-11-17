@@ -111,12 +111,49 @@ async function run() {
         return open && closed && plot;
       });
       if (!sel) bad.push('the selection highlight did not follow the card');
+      // the camera moves the map under the fingers: after a pan, a twist-and-pinch, a wheel zoom and a Shift-drag turn,
+      // the ground that was grabbed is back under the fingers (within 4 px)
+      const cam = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view'), rig = CG.town.rig, W = innerWidth, H = innerHeight;
+        const ev = (type, id, x, y, o = {}) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, isPrimary: id === 1, pointerType: 'touch', ...o }));
+        const off = (g, x, y) => { const p = CG.town.projectPoint(g.x, 0, g.z); return p ? Math.hypot(p.x - x, p.y - y) : 999; };
+        const out = {}; rig.reset(); await wait(1500);
+        // pan
+        let a = [W * .45, H * .55], A = rig.ground(...a);
+        ev('pointerdown', 1, ...a); for (let i = 1; i <= 6; i++) { ev('pointermove', 1, a[0] + i * 10, a[1] + i * 8); await wait(16); }
+        await wait(50); out.pan = off(A, a[0] + 60, a[1] + 48); ev('pointerup', 1, a[0] + 60, a[1] + 48); await wait(400);
+        // twist and pinch: two fingers turn a quarter of the way round and spread apart
+        a = [W * .38, H * .5]; let b = [W * .62, H * .5]; A = rig.ground(...a); const B = rig.ground(...b);
+        ev('pointerdown', 1, ...a); ev('pointerdown', 2, ...b);
+        const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], r0 = (b[0] - a[0]) / 2; let ea, eb;
+        for (let i = 1; i <= 8; i++) {
+          const ang = i / 8 * .7, r = r0 * (1 + i / 8 * .35);
+          ea = [m[0] - Math.cos(ang) * r, m[1] - Math.sin(ang) * r]; eb = [m[0] + Math.cos(ang) * r, m[1] + Math.sin(ang) * r];
+          ev('pointermove', 1, ...ea); ev('pointermove', 2, ...eb); await wait(16);
+        }
+        await wait(50); out.twistA = off(A, ...ea); out.twistB = off(B, ...eb); out.turned = Math.abs(rig.c.yaw - rig.home.yaw) > .3;
+        ev('pointerup', 2, ...eb); ev('pointerup', 1, ...ea); await wait(400);
+        // wheel zoom toward the pointer
+        a = [W * .3, H * .4]; A = rig.ground(...a); const d0 = rig.c.dist;
+        cv.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: a[0], clientY: a[1], bubbles: true, cancelable: true }));
+        await wait(50); out.wheel = off(A, ...a); out.zoomed = rig.c.dist < d0;
+        // Shift-drag turns the map around the point under the pointer, and dragging right moves what is above it right
+        a = [W * .5, H * .55]; A = rig.ground(...a); const N = rig.ground(a[0], a[1] - H * .12), n0 = CG.town.projectPoint(N.x, 0, N.z);
+        ev('pointerdown', 1, ...a, { shiftKey: true, pointerType: 'mouse' });
+        for (let i = 1; i <= 6; i++) { ev('pointermove', 1, a[0] + i * 12, a[1], { shiftKey: true, pointerType: 'mouse' }); await wait(16); }
+        await wait(50); out.turnPivot = off(A, ...a); const n1 = CG.town.projectPoint(N.x, 0, N.z); out.turnRight = n1.x > n0.x + 5;
+        ev('pointerup', 1, a[0] + 72, a[1], { pointerType: 'mouse' });
+        rig.reset(); await wait(1200);
+        return out;
+      });
+      for (const k of ['pan', 'twistA', 'twistB', 'wheel', 'turnPivot']) if (!(cam[k] <= 4)) bad.push('camera: ' + k + ' off by ' + Math.round(cam[k]) + ' px');
+      for (const k of ['turned', 'zoomed', 'turnRight']) if (!cam[k]) bad.push('camera: not ' + k);
       // mortar pits: a closed pit's card says what it is for; once open, a Mortar is built there through the card,
       // fires a shell, and its selection shows the dead zone
       const mortar = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, pit = t.def.board.far, out = {};
         delete t.flags['open:mortar']; CG.play.openSpot(pit); await wait(100);
-        out.closedText = /too far from the road/.test(document.getElementById('card').textContent) && !document.querySelector('#card .build');
+        out.closedText = /Opens at wave/.test(document.getElementById('card').textContent) && !document.querySelector('#card .build');
         t.flags['open:mortar'] = true; t.coins = 1e6; Object.assign(t.goods, { copper: 500, bricks: 500 }); CG.play.close(); CG.play.openSpot(pit); await wait(100);
         const kinds = [...document.querySelectorAll('#card .build')].map(b => b.dataset.kind);
         out.onlyMortar = kinds.length === 1 && kinds[0] === 'mortar';
@@ -211,6 +248,30 @@ async function run() {
     console.log('slots', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
     failed += bad.length ? 1 : 0;
   } finally { await b4.close(); srv4.close(); }
+
+  // What's new: a device with a save that last saw an older version gets the card on the title; Got it closes it for
+  // good; a brand-new player never sees it
+  const srv5 = await start(0), b5 = await chromium.launch();
+  try {
+    const page = await b5.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await page.goto(srv5.url + '?coach=off'); await waitFor(page, () => window.CG && CG.ready);
+    if (await page.evaluate(() => !!document.getElementById('news'))) bad.push('a new player saw What\'s new');
+    await page.evaluate(() => { document.getElementById('play').click(); });
+    await waitFor(page, () => CG.town && CG.town.frames > 3);
+    await page.evaluate(() => { CG.leave('title'); }).catch(() => {});
+    await sleep(800); await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => localStorage.setItem('cg-news', '2026.11.16-12')); await page.reload(); await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
+    const shown = await page.evaluate(() => { const n = document.getElementById('news'); return n ? n.querySelectorAll('li').length : 0; });
+    if (!shown) bad.push('What\'s new did not show after an update');
+    bad.push(...(await check(page)).map(b => 'news: ' + b));
+    await page.evaluate(() => document.getElementById('newsOk').click()); await sleep(200);
+    await page.reload(); await waitFor(page, () => window.CG && CG.ready);
+    if (await page.evaluate(() => !!document.getElementById('news'))) bad.push('What\'s new came back after Got it');
+    bad.push(...errs);
+    console.log('news', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await b5.close(); srv5.close(); }
 
   // the explainers: a fresh game opens with the welcome card and a spotlight; the game waits; Got it dismisses it for good
   const srv3 = await start(0), b3 = await chromium.launch();

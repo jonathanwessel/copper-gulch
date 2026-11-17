@@ -45,3 +45,21 @@ test('the manifest makes the game installable: relative paths, standalone, any a
   assert.match(html, /rel="apple-touch-icon" href="icons\/apple-touch-icon.png"/);
   assert.match(fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), /addEventListener\('fetch'/);
 });
+
+test('the text guard catches narrator lines, bare decimals and repeated facts', async () => {
+  const { textIssues, textRules } = await import('../tools/audit.js');
+  assert.ok(textIssues('This upgrade makes you pick one of two paths. You can\'t switch later.').length >= 2);
+  assert.ok(textIssues('It can\'t hit raiders closer than 1.4.').some(p => /decimal/.test(p)));
+  assert.ok(textIssues('It can\'t hit raiders closer than this. Raiders closer than this are safe from it.').some(p => /same thing/.test(p)));
+  assert.deepEqual(textIssues('Drag to move the map. Pinch to zoom. Twist two fingers to turn it.'), []);
+  assert.deepEqual(textIssues('Slows raiders 45%'), []);
+  assert.deepEqual(textRules(), []);
+});
+
+test('What\'s new lists every entry since the version a device last saw, newest first', async () => {
+  const { unseen } = await import('../src/ui/news.js');
+  const list = [{ v: '2026.11.17-2', lines: ['b'] }, { v: '2026.11.17-1', lines: ['a'] }, { v: '2026.11.16-9', lines: ['old'] }];
+  assert.deepEqual(unseen('2026.11.16-9', list, '2026.11.17-2').map(n => n.v), ['2026.11.17-2', '2026.11.17-1']);
+  assert.deepEqual(unseen('2026.11.17-2', list, '2026.11.17-2'), []);
+  assert.deepEqual(unseen(null, list, '2026.11.17-1').map(n => n.v), ['2026.11.17-1', '2026.11.16-9'], 'never seen: everything up to this version');
+});

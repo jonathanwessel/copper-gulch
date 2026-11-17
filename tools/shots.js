@@ -9,7 +9,7 @@ const dir = path.resolve(process.argv[2] || 'shots');
 const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
 // each screen: a name and a function run in the page to reach it (screens grow with the game)
 const SCREENS = [
-  ['title', () => true],
+  ['title', () => { const n = document.getElementById('newsOk'); if (n) n.click(); }], // What's new is checked by smoke.js
   ['town', () => { localStorage.clear(); document.getElementById('play').click(); }],
   // looking along the road toward where raiders come in, a few seconds before a wave (the dust plume) and as it starts
   ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 3, yaw: 0, pitch: .3, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
@@ -27,6 +27,7 @@ const SCREENS = [
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] });
     for (let i = 0; i < 150; i++) { await wait(100); const sh = t.waves.shells || []; if (sh.some(x => x.t > .9)) break; }
   }],
+  ['path', () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === CG.game.town.def.board.far); if (tw) tw.level = 4; CG.play.close(); CG.play.openSpot(CG.game.town.def.board.far); }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
   ['menu', () => { CG.play.openMenu(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],

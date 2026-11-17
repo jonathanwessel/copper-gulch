@@ -46,7 +46,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 export function goodsSheet(game, town) {
   return body => {
     const list = el('div', 'goods'), rows = {};
-    body.append(el('p', 'uses', 'Your town sells what it makes right away. Tap Selling to keep a good in stock instead. Prices drop when you sell a lot of one good and come back after a while.'), list);
+    body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
     let sig = '';
     const build = () => {
@@ -106,7 +106,7 @@ export function menuSheet(ctx) {
         row.append(b);
       }
       paint();
-      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best. Auto picks for your device and steps down if the game runs slow.'));
+      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best. Auto picks the best one for your phone.'));
     }
 
     // Save slots
@@ -124,7 +124,7 @@ export function menuSheet(ctx) {
       }
       slots.append(row);
     }
-    sec('Save slots', el('p', 'uses', 'Each slot holds its own game. Your game saves by itself every few seconds.'), slots);
+    sec('Save slots', el('p', 'uses', 'Your game saves by itself every few seconds.'), slots);
 
     // Copy the save out
     const out = el('textarea', 'savetext'); out.readOnly = true; out.hidden = true; out.id = 'saveOut'; out.rows = 3;

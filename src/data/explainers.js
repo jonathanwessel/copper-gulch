@@ -13,6 +13,12 @@ export const EXPLAINERS = [
     when: () => true, at: () => ({ plot: 'camp' }),
   },
   {
+    id: 'camera', covers: ['camera'],
+    title: 'Moving around',
+    text: 'Drag to move the map. Pinch to zoom. Twist two fingers to turn it.',
+    when: h => h.t > 4,
+  },
+  {
     id: 'towers', covers: ['system:defense', 'tower:crossbow'],
     title: 'Raiders are coming',
     text: 'They follow the road to your vault. Tap a stone pad and build a Crossbow. A pad between two bends of the road can shoot at both.',
@@ -99,7 +105,7 @@ export const EXPLAINERS = [
   {
     id: 'paths', covers: ['path'],
     title: 'Choose an upgrade',
-    text: 'This tower\'s next upgrade makes you pick one of two paths, and you can\'t switch later. Both are shown on its card.',
+    text: 'At level 5 this tower turns into one of two kinds. Tap it and pick the one you want. The choice is for good.',
     when: h => h.towerAtLevel(4) !== null, at: h => ({ tower: h.towerAtLevel(4) }),
   },
   {

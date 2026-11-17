@@ -13,6 +13,7 @@ import { TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
 import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
+import { NEWS } from '../src/data/news.js';
 import { SYSTEMS } from '../src/core/setup.js';
 
 const walk = dir => fs.existsSync(path.join(root, dir))
@@ -78,6 +79,7 @@ export function audit() {
   const v1 = (read('src/version.js').match(/GAME_VERSION = '([^']+)'/) || [])[1];
   const v2 = (read('sw.js').match(/const VERSION = '([^']+)'/) || [])[1];
   const v3 = fs.existsSync(path.join(root, 'version.json')) ? JSON.parse(read('version.json')).version : v1;
+  if (NEWS[0] && v1 && NEWS[0].v !== v1) problems.push('src/data/news.js has no entry for ' + v1 + ' (What\'s new)');
   if (!(v1 && v1 === v2 && v2 === v3)) problems.push(`versions differ: version.js ${v1}, sw.js ${v2}, version.json ${v3}`);
   const shell = JSON.parse((read('sw.js').match(/const SHELL = (\[[^\]]*\]);/) || [, '[]'])[1]);
   for (const u of shell) if (u !== './' && !fs.existsSync(path.join(root, u))) problems.push('sw.js caches a missing file: ' + u);
@@ -86,13 +88,13 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules());
   return { problems, unlisted };
 }
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit'];
+export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
@@ -113,6 +115,38 @@ export function explainerRules() {
   }
   for (const f of requiredFeatures()) if (!covered.has(f)) p.push('feature ' + f + ' has no explainer (src/data/explainers.js)');
   for (const [k, t] of Object.entries(TOWERS)) for (const x of [t.name, t.about, ...Object.values(PATHS[k] || {}).flatMap(q => [q.name, q.about])]) if (/[:;]/.test(x || '')) p.push('tower text for ' + k + ' uses a colon or semicolon (writing rule)');
+  return p;
+}
+
+/* Player text (owner rule): no narrator lines about how the interface works, no internal numbers a player cannot
+   read (a bare decimal distance like 1.4), and no card that says the same thing twice. Checks the explainers, the
+   tower and path text, and the quoted sentences in the interface code. */
+export const NARRATOR = [/makes you/i, /both are shown/i, /you can'?t switch/i, /can not switch/i, /this upgrade/i, /is shown (on|in)/i];
+export function textIssues(text) {
+  const p = [];
+  for (const r of NARRATOR) if (r.test(text)) p.push('reads like a narrator (' + r.source + ')');
+  if (/(^|[^\w.])\d+\.\d+(?![\w%]|\.\d)/.test(text)) p.push('a bare decimal number');
+  const words = x => new Set((x.toLowerCase().match(/[a-z']{5,}/g) || []));
+  const sent = text.split(/(?<=[.!?])\s+/).filter(Boolean).map(words);
+  for (let i = 0; i < sent.length; i++) for (let j = i + 1; j < sent.length; j++) {
+    const a = sent[i], b = sent[j], same = [...a].filter(w => b.has(w)).length;
+    if (same >= 2 && same / Math.min(a.size, b.size) >= .5) p.push('two sentences about the same thing');
+  }
+  return p;
+}
+export function textRules(debug) {
+  const p = [], seen = [];
+  for (const e of EXPLAINERS) seen.push(['explainer ' + e.id, e.title], ['explainer ' + e.id, e.text]);
+  for (const n of NEWS) for (const l of n.lines) seen.push(['news ' + n.v, l]);
+  for (const [k, t] of Object.entries(TOWERS)) seen.push(['tower ' + k, t.about], ...Object.values(PATHS[k] || {}).map(q => ['path ' + q.name, q.about]));
+  for (const file of walk('src/ui').filter(x => x.endsWith('.js'))) {
+    for (const m of stripComments(read(file)).matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+      const t = m[1].replace(/\\'/g, "'");
+      if (/[a-z]{3,} [a-z]{3,}/i.test(t) && !/[{}#<>=]|^\./.test(t)) seen.push([file, t]);
+    }
+  }
+  if (debug) return seen;
+  for (const [where, t] of seen) for (const issue of textIssues(t || '')) p.push(where + ': ' + issue + ' in "' + t + '"');
   return p;
 }
 

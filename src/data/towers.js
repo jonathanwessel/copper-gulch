@@ -24,7 +24,7 @@ export const TOWERS = {
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
-    name: 'Mortar', about: 'Lobs shells far over the road. It can\'t hit raiders close to it.',
+    name: 'Mortar', about: 'Lobs shells far over the road, not up close.',
     coins: 1200, goods: { gulch: { copper: 10, bricks: 8 } }, dmg: 34, rate: .3, range: 5.6, minRange: 1.4, splash: 1.3,
     flight: 1.5, lob: true, long: true, opens: 12,
   },
@@ -35,24 +35,24 @@ export const NORMAL_REACH = 2.8;
 /* The two paths each tower can take at level 5: multipliers on its stats, and extra powers. */
 export const PATHS = {
   crossbow: {
-    a: { name: 'Repeater', about: 'Shoots more than twice as fast, but each shot does less damage.', rate: 2.2, dmg: .6 },
-    b: { name: 'Longbow', about: 'Shoots farther and hits much harder, but slowly.', dmg: 2.6, rate: .55, range: 1.45 },
+    a: { name: 'Repeater', about: 'Shoots twice as fast, softer hits.', rate: 2.2, dmg: .6 },
+    b: { name: 'Longbow', about: 'Hits much harder and farther, but slowly.', dmg: 2.6, rate: .55, range: 1.45 },
   },
   cannon: {
-    a: { name: 'Heavy Cannon', about: 'Bigger blasts and longer range.', splash: 1.7, range: 1.3, dmg: 1.15, rate: .85 },
-    b: { name: 'Grapeshot', about: 'Shoots fast, but only at close range.', rate: 1.8, dmg: .75, range: .85 },
+    a: { name: 'Heavy Cannon', about: 'Bigger blast, reaches farther.', splash: 1.7, range: 1.3, dmg: 1.15, rate: .85 },
+    b: { name: 'Grapeshot', about: 'Fires fast, only up close.', rate: 1.8, dmg: .75, range: .85 },
   },
   frost: {
-    a: { name: 'Deep Freeze', about: 'Every third pulse freezes raiders in place for a moment.', freeze: 1 },
-    b: { name: 'Brittle Ice', about: 'Slowed raiders take 30% more damage from every tower.', brittle: .3 },
+    a: { name: 'Deep Freeze', about: 'Now and then freezes raiders in place.', freeze: 1 },
+    b: { name: 'Brittle Ice', about: 'Slowed raiders take more damage.', brittle: .3 },
   },
   still: {
-    a: { name: 'Plague Cloud', about: 'Poison clouds twice as big, and stronger.', cloud: 2, poison: 1.4 },
-    b: { name: 'Spreading Fever', about: 'When a poisoned raider falls, the raiders near it get poisoned too.', spread: 1 },
+    a: { name: 'Plague Cloud', about: 'Bigger, stronger poison clouds.', cloud: 2, poison: 1.4 },
+    b: { name: 'Spreading Fever', about: 'Poison spreads when a raider falls.', spread: 1 },
   },
   mortar: {
-    a: { name: 'Siege Mortar', about: 'A bigger blast, and it reaches even farther.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
-    b: { name: 'Shrapnel', about: 'A smaller blast that sets the ground on fire. Raiders in the fire slow down and get hurt.', splash: .7, rate: 1.15, fire: 1 },
+    a: { name: 'Siege Mortar', about: 'Hits farther, bigger blast.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
+    b: { name: 'Shrapnel', about: 'Smaller blast that sets the ground on fire.', splash: .7, rate: 1.15, fire: 1 },
   },
 };
 

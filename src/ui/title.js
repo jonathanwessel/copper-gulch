@@ -14,14 +14,14 @@ export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } 
     const c = drawText(word);
     c.className = 'pix'; logo.append(c);
   }
-  const tag = el('p', 'tagline', 'A frontier tycoon. Hold the road.');
+  const tag = el('p', 'tagline', 'Build a town. Stop the raiders.');
   const sign = el('div', 'sign');
   const has = slot && !slot.empty && !slot.damaged;
   const play = el('button', 'btn primary', has ? 'Continue' : 'Play'); play.id = 'play';
   const saved = el('p', 'note slotline', has ? 'Slot ' + slotNo + ' · wave ' + slot.wave + ' · ' + fmt(slot.coins) + ' coins · ' + ago(Date.now() - slot.at) : '');
   saved.id = 'slotLine'; saved.hidden = !has;
   play.addEventListener('click', () => { play.disabled = true; onPlay(); });
-  const note = el('p', 'note', 'This is an early build. You can build up the town and fight off raiders. Research and more towns are on the way.');
+  const note = el('p', 'note', 'Build your town and fight off raiders. Research and more towns come later.');
   const row = el('div', 'row');
   const check = el('button', 'btn small', 'Check for updates'); check.id = 'checkUpdates';
   check.addEventListener('click', () => checkUpdates(true));

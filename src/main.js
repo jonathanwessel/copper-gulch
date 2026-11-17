@@ -6,11 +6,14 @@ import { mountTitle } from './ui/title.js';
 import { INSTALL, installState, initInstall } from './ui/install.js';
 import { readSave, writeSave, activeSlot, setActiveSlot, slotSummary, writeText } from './ui/storage.js';
 import { newGame, loadGame } from './core/setup.js';
+import { showNews } from './ui/news.js';
 
 initInstall();
 const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();
+// what changed since this device last opened the game (a new player skips it)
+showNews(document.body, { hasSave: !slotSummary(activeSlot()).empty });
 const titleScene = import('./render/title-scene.js')
   .then(m => { CG.scene = m.startTitleScene(document.getElementById('view')); })
   .catch(e => console.warn('3D view unavailable:', e && e.message))

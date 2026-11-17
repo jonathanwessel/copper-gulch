@@ -132,6 +132,11 @@ html.no3d body { background: var(--bg); }
 .option span { font-size: .85rem; font-weight: 500; }
 .option small { color: var(--gold); font-size: .8rem; }
 .option .build { flex: none; }
+.pathhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pathhead > div { display: grid; }
+.pathhead b { color: var(--copper-hi); }
+.pathhead small { color: var(--muted); font-size: .75rem; }
+.pathhead .cost { color: var(--gold); font-size: .85rem; text-align: right; }
 .tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .tag {
   position: absolute; left: 0; top: 0; min-width: 44px; min-height: 30px; padding: 3px 8px; font-size: .8rem; line-height: 1;
@@ -211,6 +216,18 @@ html.flat .tag { position: static; transform: none !important; }
   .side { grid-auto-flow: column; }
 }
 @keyframes fade { from { opacity: 0; } }
+
+/* --- what's new ----------------------------------------------------------------------------------------------- */
+.newslayer { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: rgba(14, 9, 6, .62); animation: fade .2s both; }
+.newscard {
+  width: min(100%, 400px); max-height: min(86vh, 640px); display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 14px;
+  background: var(--panel); border: 2px solid var(--line); box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 4px 4px 0 rgba(22, 15, 11, .6);
+}
+.newstitle { color: var(--copper-hi); font-size: 1.2rem; }
+.newsbody { overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 10px; }
+.newsver small { color: var(--gold); font-size: .8rem; }
+.newsver ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-weight: 500; }
+.newscard .btn { justify-self: end; min-width: 120px; font-size: 1rem; }
 
 /* --- explainer cards: a dimmed screen, a spotlight, a short card ------------------------------------------- */
 .coach { position: fixed; inset: 0; z-index: 40; }
