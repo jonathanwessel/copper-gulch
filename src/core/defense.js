@@ -48,8 +48,8 @@ export const isPit = (town, spot) => spot >= (town.def.board.far ?? town.def.boa
 export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i => isPit(town, i));
 /* Has the town opened this tower kind? (Most are open from the start; some open at a wave.) */
 export const towerOpen = (town, kind) => !TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]);
-/* Can this kind stand on this spot? Pits take only long-range towers. */
-export const fitsSpot = (town, spot, kind) => !isPit(town, spot) || !!TOWERS[kind].long;
+/* Can this kind stand on this spot? Pits take only long-range towers, and long-range towers go only in pits. */
+export const fitsSpot = (town, spot, kind) => isPit(town, spot) === !!TOWERS[kind].long;
 
 /* Build a tower on an empty spot. Returns true when built. */
 export function buildTower(game, town, spot, kind) {
@@ -129,9 +129,17 @@ function spawn(town, kind) {
   ws.foes.push({ id: ws.nextId++, kind, hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
 }
 
-function hurt(game, town, f, dmg, pierce = false) {
-  const armor = pierce ? 0 : FOES[f.kind].armor;
-  f.hp -= dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0));
+/* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
+   do the work. */
+function tally(game, town, by, n) {
+  if (!by || !(n > 0)) return;
+  const d = game.dealt || (game.dealt = {}), t = d[town.id] || (d[town.id] = {});
+  t[by] = (t[by] || 0) + n;
+}
+function hurt(game, town, f, dmg, pierce = false, by = null) {
+  const armor = pierce ? 0 : FOES[f.kind].armor, n = dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0));
+  tally(game, town, by, Math.min(Math.max(0, f.hp), n));
+  f.hp -= n;
 }
 
 function kill(game, town, f) {
@@ -153,7 +161,7 @@ export function fight(game, town, dt) {
   while (ws.queue.length && ws.timer <= 0) { spawn(town, ws.queue.shift()); ws.timer += ws.gap; }
   // move, poison, leak
   for (const f of ws.foes) {
-    if (f.poisonT > 0) { f.hp -= f.poison * Math.min(dt, f.poisonT); f.poisonT -= dt; }
+    if (f.poisonT > 0) { const n = f.poison * Math.min(dt, f.poisonT); tally(game, town, 'still', Math.min(Math.max(0, f.hp), n)); f.hp -= n; f.poisonT -= dt; }
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
     f.s += FOES[f.kind].speed * WAVE.speed * (1 - slow) * dt;
@@ -169,7 +177,7 @@ export function fight(game, town, dt) {
   for (const sh of shells) {
     sh.t -= dt;
     if (sh.t > 1e-9) continue;
-    for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg);
+    for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg, false, sh.by || 'mortar');
     if (sh.fire) fires.push({ at: sh.at, r: sh.splash, t: FIRE.seconds, dps: sh.dmg * FIRE.dps });
     game.bus.emit('land', { town: town.id, spot: sh.spot, at: sh.at, splash: sh.splash, fire: !!sh.fire });
   }
@@ -177,7 +185,7 @@ export function fight(game, town, dt) {
   for (const fi of fires) {
     const k = Math.min(dt, fi.t); fi.t -= dt;
     for (const f of ws.foes) if (f.hp > 0 && dist(fi.at, pos.get(f)) <= fi.r) {
-      hurt(game, town, f, fi.dps * k);
+      hurt(game, town, f, fi.dps * k, false, 'mortar');
       f.slow = Math.max(f.slowT > 0 ? f.slow : 0, FIRE.slow); f.slowT = Math.max(f.slowT, .5);
     }
   }
@@ -195,23 +203,23 @@ export function fight(game, town, dt) {
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
         const lead = FOES[target.kind].speed * WAVE.speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
         to = pointAt(road, Math.min(road.length, target.s + (target.frozenT > 0 ? 0 : lead)));
-        ws.shells.push({ spot: t.spot, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
+        ws.shells.push({ spot: t.spot, by: t.kind, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
         game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, flight: st.flight });
         continue;
       }
       if (st.pulse) { // frost: chills everything in reach
         t.pulses = (t.pulses || 0) + 1;
         for (const f of inReach) {
-          hurt(game, town, f, st.dmg);
+          hurt(game, town, f, st.dmg, false, t.kind);
           f.slow = Math.max(f.slowT > 0 ? f.slow : 0, st.slow); f.slowT = SLOW_SECONDS; f.brittle = Math.max(f.brittle, st.brittle);
           if (st.freeze && t.pulses % 3 === 0 && !FOES[f.kind].boss) f.frozenT = .8;
         }
       } else if (st.splash) {
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg);
+        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg, false, t.kind);
       } else if (st.poison) {
-        hurt(game, town, target, st.dmg);
+        hurt(game, town, target, st.dmg, false, t.kind);
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison); f.poisonT = POISON_SECONDS; f.spread = f.spread || st.spread; }
-      } else hurt(game, town, target, st.dmg);
+      } else hurt(game, town, target, st.dmg, false, t.kind);
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
     }
   }

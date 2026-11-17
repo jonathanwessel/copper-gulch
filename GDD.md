@@ -24,7 +24,7 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 - **The lane winds through the town.** Every town's road (and river or sky lane) doubles back, even triples back, in switchbacks between the workshops, so raiders pass the same towers several times and the town is something to defend, not a yard off to one side.
 - Workshop plots sit beside the lane; tower spots sit in the bends, where one tower covers two or three passes.
 - The vault sits at the lane's end, in the heart of the town.
-- **Mortar pits.** Every map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them. `tools/audit.js` fails a town without them.
+- **Mortar pits.** Every map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them, and long-range towers go only there. `tools/audit.js` fails a town without them.
 
 ## Supply chains
 Goods go from raw to intermediate to finished. "<-" marks a good shipped in from another town.

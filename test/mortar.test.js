@@ -34,13 +34,13 @@ test('the Mortar opens at wave 12, and only then can it be built or does the tow
   assert.ok(towerReserve(t).bricks >= TOWERS.mortar.goods.gulch.bricks);
 });
 
-test('mortar pits take only long-range towers; the Mortar also fits a normal pad', () => {
+test('mortar pits take only long-range towers, and the Mortar goes only in a pit', () => {
   const g = newGame('m2'), t = rich(g); open(g, t);
   const pits = pitSpots(t);
   assert.ok(pits.length >= 3 && pits.length <= 5 && pits.every(i => isPit(t, i)) && !isPit(t, 0));
   for (const k of ['crossbow', 'cannon', 'frost', 'still']) assert.equal(buildTower(g, t, pits[0], k), false, k);
   assert.ok(buildTower(g, t, pits[0], 'mortar'));
-  assert.ok(buildTower(g, t, 0, 'mortar'));
+  assert.equal(buildTower(g, t, 0, 'mortar'), false);
 });
 
 test('reach: from half to twice a normal tower, and the pits sit beyond a normal tower', () => {
@@ -53,7 +53,8 @@ test('reach: from half to twice a normal tower, and the pits sit beyond a normal
 });
 
 test('the dead zone: a raider too close is never fired at, one in the ring is', () => {
-  const g = newGame('m4'), t = rich(g); open(g, t); buildTower(g, t, 6, 'mortar'); // inside the bottom bend
+  // a test board where the first pit sits inside the bottom bend, so road passes within the dead zone
+  const g = newGame('m4'), t = rich(g); t.def = { ...t.def, board: { ...t.def.board, far: 6 } }; open(g, t); assert.ok(buildTower(g, t, 6, 'mortar'));
   const close = sAt(t, 6, 0, 1.2), far = sAt(t, 6, 3, 5);
   assert.ok(close !== null && far !== null);
   const ev = g.bus.record();
@@ -121,4 +122,12 @@ test('save v3: an older save gets empty shell and fire lists', () => {
   assert.equal(SAVE_VERSION, 3);
   const s = migrate({ v: 2, at: 0, game: { towns: { gulch: { waves: { phase: 'break', foes: [] } } } } });
   assert.deepEqual([s.v, s.game.towns.gulch.waves.shells, s.game.towns.gulch.waves.fires], [3, [], []]);
+});
+
+test('damage is tallied by tower kind (the balance bot reads it)', () => {
+  const g = newGame('m9'), t = rich(g); open(g, t); buildTower(g, t, 12, 'mortar'); buildTower(g, t, 0, 'crossbow');
+  const s = sAt(t, 12, 3, 5); place(t, [['raider', s]]);
+  run(g, TOWERS.mortar.flight + .5);
+  assert.ok(g.dealt.gulch.mortar > 0);
+  assert.ok(!('dealt' in g.toJSON()), 'not saved');
 });

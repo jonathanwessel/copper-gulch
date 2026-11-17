@@ -16,11 +16,11 @@ export const TOWERS = {
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
-    coins: 600, goods: { gulch: { bricks: 6, copper: 2 } }, dmg: 3, rate: 1, range: 2.1, slow: .45, pulse: true,
+    coins: 220, goods: { gulch: { bricks: 4, copper: 1 } }, dmg: 5, rate: 1, range: 2.1, slow: .45, pulse: true,
   },
   still: {
     name: 'Snake Oil Still', about: 'Throws poison that hurts armored raiders too.',
-    coins: 2000, goods: { gulch: { bricks: 4, tools: 3 } }, dmg: 4, rate: .7, range: 2.4, poison: 6, cloud: .9,
+    coins: 450, goods: { gulch: { bricks: 3, tools: 2 } }, dmg: 5, rate: .7, range: 2.4, poison: 10, cloud: .9,
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
