@@ -11,6 +11,26 @@ import { TIERS } from './quality.js';
 
 const NLAMPS = 8;
 
+/* Cheaper shadow edges for the med tier (PCFShadowMap). three's PCF filter reads the shadow map 17 times for every
+   pixel that takes shadows, which was a third of a phone frame in tools/perf.js (2026-11-17: 32 ms with it, 21 ms with
+   no shadows). Four reads in a square round the point keep a soft edge for a quarter of the cost. The high tier's
+   PCFSoftShadowMap is a separate branch and stays as it is. */
+(function cheapPcf() {
+  const c = THREE.ShaderChunk.shadowmap_pars_fragment;
+  const a = c.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'), b = c.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )', a);
+  if (a < 0 || b < 0) return; // a different three.js: keep its filter
+  const four = `#if defined( SHADOWMAP_TYPE_PCF )
+			vec2 d = shadowRadius * .5 / shadowMapSize;
+			shadow = (
+				texture2DCompare( shadowMap, shadowCoord.xy + vec2( -d.x, -d.y ), shadowCoord.z ) +
+				texture2DCompare( shadowMap, shadowCoord.xy + vec2( d.x, -d.y ), shadowCoord.z ) +
+				texture2DCompare( shadowMap, shadowCoord.xy + vec2( -d.x, d.y ), shadowCoord.z ) +
+				texture2DCompare( shadowMap, shadowCoord.xy + vec2( d.x, d.y ), shadowCoord.z )
+			) * .25;
+		`;
+  THREE.ShaderChunk.shadowmap_pars_fragment = c.slice(0, a) + four + c.slice(b);
+})();
+
 /* Grading: saturation, contrast, tint, lift and a vignette, after tone mapping. */
 const GradeShader = {
   uniforms: {

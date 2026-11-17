@@ -5,8 +5,8 @@ export const NEWS = [
   {
     v: '2026.11.17-18',
     lines: [
-      'Your towns keep earning when you switch to another app.',
-      'Come back to see the coins and goods your towns made while you were gone.',
+      'Your towns keep earning when you switch to another app. Come back to see what they made.',
+      'The game moves more smoothly on phones.',
     ],
   },
   {
