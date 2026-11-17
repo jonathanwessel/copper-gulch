@@ -453,12 +453,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
-   waiting is not added again. While others wait, each one stays up a little shorter. */
+   waiting is not added again. While others wait, each one stays up a little shorter. first: it goes to the front of the
+   line (the Welcome back line, which comes after catching up and would wait behind the news of the time away). */
 const toasts = { queue: [], up: null };
-export function toast(text, ms = 4000) {
+export function toast(text, ms = 4000, { first = false } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
-  toasts.queue.push({ text, ms });
-  if (toasts.queue.length > 3) toasts.queue.shift();
+  if (first) toasts.queue.unshift({ text, ms }); else toasts.queue.push({ text, ms });
+  if (toasts.queue.length > 3) { if (first) toasts.queue.pop(); else toasts.queue.shift(); }
   if (!toasts.up) nextToast();
 }
 /* The lowest edge of the top bar's two columns (one read per toast), or null to keep the place in the stylesheet. */

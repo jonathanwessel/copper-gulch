@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-18',
+    lines: [
+      'Your towns keep earning when you switch to another app.',
+      'Come back to see the coins and goods your towns made while you were gone.',
+    ],
+  },
+  {
     v: '2026.11.17-17',
     lines: [
       'A new row at the bottom shows your goods. Tap one to see its price.',

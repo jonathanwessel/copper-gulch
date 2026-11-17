@@ -21,15 +21,20 @@ const titleScene = import('./render/title-scene.js')
   .catch(e => console.warn('3D view unavailable:', e && e.message))
   .finally(() => { CG.ready = true; document.documentElement.classList.toggle('no3d', !CG.scene); });
 
+const AWAY_MIN = 5; // seconds in the background before coming back catches up the time
+
 async function startGame() {
   if (CG.game) return;
   const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), titleScene]);
   const saved = readSave();
   let game, away = null;
+  // time away always counts (owner rule): run it, and note what the market sold meanwhile for the Welcome back line
+  const sold = () => Object.values((game.shared.market || {}).sold || {}).reduce((a, b) => a + b, 0);
+  const catchUp = secs => { const s0 = sold(), r = game.catchUp(secs); r.sold = sold() - s0; return r; };
   if (saved) {
     game = loadGame(saved.game);
     const secs = (Date.now() - (saved.at || Date.now())) / 1000;
-    if (secs > 30) away = game.catchUp(secs);
+    if (secs > 30) away = catchUp(secs);
   } else game = newGame('cg-' + Date.now().toString(36), START); // a new game starts in Dry Creek Outpost
   CG.game = game;
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
@@ -90,14 +95,29 @@ async function startGame() {
   }
   CG.go = go;
   mount();
-  if (away && away.seconds > 60) {
-    const earned = Object.values(away.earned).reduce((a, b) => a + b, 0);
-    toast('Welcome back. While you were away your towns earned ' + fmt(earned) + ' coins.', 6000);
-  }
+  const welcome = r => {
+    if (!r || r.seconds < 60) return;
+    const earned = Object.values(r.earned).reduce((a, b) => a + b, 0), n = Math.floor(r.sold);
+    toast('Welcome back. While you were away, your towns earned ' + fmt(earned) + ' coins' + (n >= 1 ? ' and sold ' + fmt(n) + ' goods.' : '.'), 6000, { first: true });
+  };
+  welcome(away);
   // keep the game: every 10 seconds, and whenever the app goes to the background
   setInterval(keep, 10000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) keep(); });
-  addEventListener('pagehide', keep);
+  // the app in the background: drawing stops, so on coming back the time it was hidden is caught up like a cold start
+  // (an installed app is usually only backgrounded, never closed). Pause is respected: a paused game stays where it was.
+  let hiddenAt = null;
+  const hide = () => { if (hiddenAt === null) hiddenAt = Date.now(); keep(); };
+  const show = () => {
+    if (hiddenAt === null || document.hidden) return;
+    const secs = (Date.now() - hiddenAt) / 1000; hiddenAt = null;
+    if (secs < AWAY_MIN || (CG.town && CG.town.holds.has('player'))) return;
+    const r = catchUp(secs); keep(); welcome(r);
+    return r;
+  };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); else show(); });
+  addEventListener('pagehide', hide);
+  addEventListener('pageshow', show);
+  CG.away = { hide, show, since: t => { hiddenAt = t; } }; // the smoke test hides the app for a pretend ten minutes
   keep();
 }
 CG.startGame = startGame;

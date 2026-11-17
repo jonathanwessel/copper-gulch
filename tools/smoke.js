@@ -114,6 +114,27 @@ async function run() {
         CG.play.sheets.close(); if (selling === undefined) delete t.sell.timber; else t.sell.timber = selling;
         return out;
       });
+      // time away counts when the app was only in the background (owner rule), unless the player pressed Pause
+      const away = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, out = {};
+        const snap = () => ({ coins: t.lifetime, timber: t.made.timber || 0, sold: Object.values(g.shared.market.sold).reduce((a, b) => a + b, 0), steps: g.stats.steps, price: JSON.stringify(g.shared.market.rate) });
+        CG.town.pause('player', true); CG.away.hide(); CG.away.since(Date.now() - 600e3);
+        let a = snap(); CG.away.show(); let b = snap();
+        out.pauseKept = b.steps === a.steps && b.coins === a.coins;
+        CG.town.pause('player', false); await wait(100);
+        CG.away.hide(); CG.away.since(Date.now() - 600e3);
+        a = snap(); const r = CG.away.show(); b = snap();
+        out.caughtUp = !!r && r.seconds >= 599 && b.steps - a.steps >= 600 * 4 * .9;
+        out.coins = b.coins > a.coins;
+        out.goods = b.timber > a.timber;
+        out.market = b.sold > a.sold && b.price !== a.price;
+        // it goes to the front of the toast line: look for it for up to 6 s
+        const re = /^Welcome back\. While you were away, your towns earned [\d.,KM]+ coins and sold [\d.,KM]+ goods\.$/; let seen = [];
+        for (let i = 0; i < 30 && !seen.some(x => re.test(x)); i++) { await wait(200); seen = [...document.querySelectorAll('.toast')].map(n => n.textContent); }
+        out.toast = seen.some(x => re.test(x));
+        return out;
+      });
+      for (const [k, v] of Object.entries(away)) if (!v) bad.push('time in the background: not ' + k);
       for (const [k, v] of Object.entries(strip)) if (!v) bad.push('goods strip: not ' + k + (k === 'counts' ? ' (' + strip.texts + ')' : ''));
       // a foreman: the camp card offers one at level 10, hiring it makes the camp buy levels by itself, and its switch stops that
       const boss = await page.evaluate(async () => {
