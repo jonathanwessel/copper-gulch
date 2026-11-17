@@ -12,7 +12,7 @@ export function helper(town) {
   const top = levels.reduce((a, b) => (b[1] > a[1] ? b : a), ['camp', 0]);
   return {
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
-    breaches: town.breaches || 0, made: town.made || {}, anyLevel: top[1], topBuilding: top[0],
+    breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
     unlocked: id => unlocked(town, id),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },

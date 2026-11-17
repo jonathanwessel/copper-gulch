@@ -96,6 +96,12 @@ export function startWave(game, town) {
   game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: w % WAVE.boss === 0 });
   return true;
 }
+/* Hold the waves: the wave on the road finishes, but the next one does not start until released. */
+export function setHold(game, town, on) {
+  town.waves.hold = !!on;
+  game.bus.emit('waves:hold', { town: town.id, hold: !!on });
+}
+
 /* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 if not in a break. */
 export function callEarly(game, town) {
   const ws = town.waves;
@@ -127,8 +133,8 @@ function kill(game, town, f) {
 export function fight(game, town, dt) {
   const ws = town.waves, road = roadOf(town);
   if (ws.phase === 'break') {
-    ws.timer -= dt;
-    if (ws.timer <= 0) startWave(game, town);
+    ws.timer = Math.max(0, ws.timer - dt);
+    if (ws.timer <= 0 && !ws.hold) startWave(game, town); // held: the town keeps working, the next wave waits
     return;
   }
   // spawn
@@ -213,7 +219,7 @@ export const defense = {
   init(town) {
     town.wave = 1;
     town.vault = { hp: WAVE.vault, max: WAVE.vault };
-    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1 };
+    town.waves = { phase: 'break', timer: WAVE.first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false };
     town.keep = towerReserve(town);
   },
   load(town) { if (!town.waves) defense.init(town); },

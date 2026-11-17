@@ -30,6 +30,18 @@ export const EXPLAINERS = [
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {
+    id: 'pause', covers: ['pause'],
+    title: 'Pause any time',
+    text: 'Pause stops everything: the town, the market and the raiders. The game also waits whenever you leave the app.',
+    when: h => h.towers.length > 0 && h.t > 40, at: () => ({ el: '#pauseBtn' }),
+  },
+  {
+    id: 'hold', covers: ['hold'],
+    title: 'Hold the waves',
+    text: 'Need a breather? Hold waves lets the raid on the road finish, then keeps the next one away while your town keeps working. Tap it again to let them come.',
+    when: h => h.bestWave >= 1 && h.phase === 'break', at: () => ({ el: '#holdWaves' }),
+  },
+  {
     id: 'vault', covers: ['vault', 'breach'],
     title: 'A raider reached the vault',
     text: 'Each one that gets through weakens the vault. If it falls, raiders take a tenth of your coins and the town falls back two waves. Add towers, or raise the ones you have.',

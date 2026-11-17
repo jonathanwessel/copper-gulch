@@ -3,11 +3,18 @@
    in ms (passed in; the core never reads the clock), used for offline catch-up.
    Storage itself (cg-* keys, slots, export and import) belongs to the interface; this module only encodes. */
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
   0: s => ({ v: 1, at: s.at || 0, game: s.game || s }),
+  // v2: waves can be held (town.waves.hold), and the explainers seen are kept (game.shared.seen)
+  1: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t.waves && t.waves.hold === undefined) t.waves.hold = false;
+    g.shared = g.shared || {}; g.shared.seen = g.shared.seen || {};
+    return { ...s, v: 2, game: g };
+  },
 };
 
 export function migrate(save) {

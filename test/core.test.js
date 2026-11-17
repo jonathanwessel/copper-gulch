@@ -45,6 +45,14 @@ test('clock: whole fixed steps, the remainder kept, long frames clamped', () => 
   assert.ok(Math.abs(c.t - 7 * STEP) < 1e-9);
 });
 
+test('clock: alpha is how far the clock is into the next step', () => {
+  const c = new Clock();
+  c.advance(STEP * 1.5, () => {});
+  assert.ok(Math.abs(c.alpha - .5) < 1e-9);
+  c.advance(STEP * .5, () => {});
+  assert.ok(c.alpha < 1e-9);
+});
+
 test('clock: a frame never runs more than MAX_STEPS steps, even sped up', () => {
   const c = new Clock({ speed: 8 }); let n = 0;
   assert.equal(c.advance(1, () => n++), MAX_STEPS);
@@ -141,8 +149,11 @@ test('game: catch-up earns while away and reports it', () => {
 });
 
 test('save: old shapes migrate, newer and damaged saves are refused', () => {
-  const bare = { seed: 'x', towns: {} };
-  assert.deepEqual(migrate(bare), { v: 1, at: 0, game: bare });
+  const bare = { seed: 'x', towns: { gulch: { waves: { phase: 'break' } } } };
+  const m = migrate(JSON.parse(JSON.stringify(bare)));
+  assert.equal(m.v, SAVE_VERSION);
+  assert.equal(m.game.towns.gulch.waves.hold, false, 'v2: waves can be held');
+  assert.deepEqual(m.game.shared.seen, {}, 'v2: explainers seen');
   assert.throws(() => migrate({ v: SAVE_VERSION + 1, game: {} }), /newer version/);
   assert.throws(() => decode('{nope'), /damaged/);
 });

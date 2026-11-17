@@ -20,7 +20,10 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '';
   const api = {
-    view: v, board, battle, rig, game, paused: false,
+    view: v, board, battle, rig, game, holds: new Set(),
+    get paused() { return api.holds.size > 0; },
+    /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */
+    pause(reason, on) { if (on) api.holds.add(reason); else api.holds.delete(reason); },
     get frames() { return frames; },
     project: id => project(v.cam, canvas, board.anchor(id)),
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z)),
@@ -42,7 +45,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     const towers = town.towers.map(x => x.spot + x.kind + x.level + x.path).join();
     if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);
-    battle.update(dt, t, v.cam);
+    battle.update(dt, t, v.cam, game.clock.alpha, game.stats.steps);
     v.render(); frames++;
     onFrame(dt);
   }

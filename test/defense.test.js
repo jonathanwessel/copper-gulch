@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, roadOf, planWave, towerReserve } from '../src/core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, roadOf, planWave, towerReserve, setHold } from '../src/core/defense.js';
 import { pointAt, makePath } from '../src/core/path.js';
 import { TOWERS, PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { WAVE, FOES } from '../src/data/foes.js';
@@ -105,6 +105,19 @@ test('every tenth wave brings the war wagon; waves are the same for the same see
   const a = newGame('same'), b = newGame('same');
   run(a, 120); run(b, 120);
   assert.deepEqual(a.toJSON(), b.toJSON());
+});
+
+test('held waves wait while the town keeps working, and start once released', () => {
+  const g = newGame('h'), t = g.town;
+  setHold(g, t, true);
+  const l0 = t.lifetime;
+  run(g, WAVE.first + 30);
+  assert.equal(t.waves.phase, 'break', 'no wave while held');
+  assert.equal(t.waves.timer, 0);
+  assert.ok(t.lifetime > l0, 'the economy keeps running');
+  setHold(g, t, false); g.step(.25);
+  assert.equal(t.waves.phase, 'wave');
+  assert.equal(loadGame(JSON.parse(JSON.stringify(g.toJSON()))).town.waves.hold, false);
 });
 
 test('calling a wave early pays a bonus; a break is required', () => {

@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, explainOutput, missing, unlocked } from '../core/economy.js';
 import { price } from '../core/market.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, setHold } from '../core/defense.js';
 import { WAVE_TYPES } from '../data/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -36,7 +36,20 @@ export function mountPlay(root, game, viewApi) {
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Called early: +' + fmt(b) + ' coins.', 2500); });
   wave.append(waveNum, vault, waveInfo, call);
-  const left = el('div', 'hudleft'); left.append(name, wave);
+  // Pause stops the whole game; Hold waves keeps the town working but the next wave waits
+  const ctl = el('div', 'hudrow');
+  const pause = el('button', 'btn small', 'Pause'); pause.id = 'pauseBtn';
+  const hold = el('button', 'btn small', 'Hold waves'); hold.id = 'holdWaves';
+  const paintCtl = () => {
+    const p = viewApi.paused(), h = !!town.waves.hold;
+    pause.textContent = p ? 'Resume' : 'Pause'; pause.setAttribute('aria-pressed', String(p)); banner.hidden = !p;
+    hold.textContent = h ? 'Waves held' : 'Hold waves'; hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
+  };
+  pause.addEventListener('click', () => { viewApi.pause(!viewApi.paused()); paintCtl(); });
+  hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
+  ctl.append(pause, hold);
+  const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
+  const left = el('div', 'hudleft'); left.append(name, wave, ctl);
   hud.append(left, coins);
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
@@ -45,7 +58,7 @@ export function mountPlay(root, game, viewApi) {
   const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
-  ui.append(tags, hud, card);
+  ui.append(tags, hud, card, banner);
   root.append(ui);
 
   let openId = null, why = false;
@@ -175,7 +188,8 @@ export function mountPlay(root, game, viewApi) {
     const ws = town.waves;
     waveNum.textContent = 'Wave ' + town.wave;
     vaultFill.style.width = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%';
-    waveInfo.textContent = ws.phase === 'break' ? 'in ' + Math.ceil(ws.timer) + 's' : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left';
+    paintCtl();
+    waveInfo.textContent = ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name + ' · ' + (ws.queue.length + ws.foes.length) + ' left';
     call.hidden = ws.phase !== 'break';
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }

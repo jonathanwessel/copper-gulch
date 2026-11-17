@@ -68,6 +68,21 @@ async function run() {
         return { built, wave: t.waves.phase === 'wave' };
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      // Pause stops the whole game and Resume starts it again; Hold waves keeps the next wave back until released
+      const ctl = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
+        document.getElementById('pauseBtn').click(); const t0 = t.t; await wait(900);
+        out.paused = t.t === t0 && !document.getElementById('pausedBanner').hidden;
+        document.getElementById('pauseBtn').click(); await wait(900);
+        out.resumed = t.t > t0 && document.getElementById('pausedBanner').hidden;
+        Object.assign(t.waves, { phase: 'break', timer: .5, queue: [], foes: [] });
+        document.getElementById('holdWaves').click(); await wait(1500);
+        out.held = t.waves.phase === 'break' && document.getElementById('holdWaves').textContent === 'Waves held';
+        document.getElementById('holdWaves').click(); await wait(900);
+        out.released = t.waves.phase === 'wave';
+        return out;
+      });
+      for (const [k, v] of Object.entries(ctl)) if (!v) bad.push('Pause and Hold waves: not ' + k);
       await page.evaluate(() => CG.play.openSpot(4)); await sleep(350);
       bad.push(...(await check(page)).map(b => 'spot card: ' + b));
       await sleep(400);

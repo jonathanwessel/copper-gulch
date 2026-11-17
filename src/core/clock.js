@@ -16,6 +16,9 @@ export class Clock {
     this.speed = state.speed || 1;
   }
   toJSON() { return { t: this.t, bank: this.bank, speed: this.speed }; }
+  /* How far the clock is into the next step, 0 to 1: the renderer draws moving things this far between their last
+     two simulated positions, so they glide at any frame rate instead of jumping four times a second. */
+  get alpha() { return Math.min(1, Math.max(0, this.bank / STEP)); }
   /* Feed real seconds; calls step(STEP) for each whole step and returns how many ran. */
   advance(realSeconds, step) {
     this.bank += Math.min(MAX_FRAME, Math.max(0, realSeconds)) * this.speed;
