@@ -84,12 +84,13 @@ export function explainVault(town) {
 }
 
 /* Income. Town.earn files every coin under a key (town.tally, not saved): 'sale:<good>', 'from:<town>' (an outpost's
-   sales paid in), 'bounty', 'call'. Given two snapshots of the tally and the seconds between them, the coins a second
+   sales paid in), 'ship:<town>' (goods shipped to that town), 'bounty', 'call'. Given two snapshots of the tally and the seconds between them, the coins a second
    from each, biggest first, and the bonuses already in those numbers. */
 export function incomeLabel(key) {
   const [kind, id] = key.split(':');
   if (kind === 'sale') return 'Selling ' + (GOODS[id] ? GOODS[id].name.toLowerCase() : id);
   if (kind === 'from') return (TOWNS[id] ? TOWNS[id].short || TOWNS[id].name : id) + ' goods';
+  if (kind === 'ship') return 'Goods sent to ' + (TOWNS[id] ? TOWNS[id].short || TOWNS[id].name : id);
   if (kind === 'bounty') return 'Raiders beaten';
   if (kind === 'call') return 'Waves called early';
   return 'Other';

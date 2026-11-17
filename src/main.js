@@ -9,8 +9,8 @@ import { newGame, loadGame } from './core/setup.js';
 import { showNews } from './ui/news.js';
 
 initInstall();
-// the test tools may start a new game in Copper Gulch alone (?start=gulch); players always start in Dry Creek
-const START = new URLSearchParams(location.search).get('start') === 'gulch' ? 'gulch' : 'drycreek';
+// the test tools may start a new game in one later town alone (?start=gulch, ridge or pinehollow); players always start in Dry Creek
+const START = ['gulch', 'ridge', 'pinehollow'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
 const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();

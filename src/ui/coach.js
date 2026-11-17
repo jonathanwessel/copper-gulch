@@ -10,6 +10,7 @@ import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
 import { towerIn } from '../core/defense.js';
 import { tabs, dots } from '../core/reveal.js';
+import { nextTowns } from '../core/empire.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -23,7 +24,8 @@ export function helper(town, game = null) {
     outpostWon: outposts.some(o => o.won), can: kind => towerIn(town, kind),
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
-    unlocked: id => unlocked(town, id),
+    unlocked: id => unlocked(town, id), level: id => town.level(id),
+    next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
     // a building whose good the town is holding back for towers right now

@@ -10,8 +10,9 @@ import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
+import { nextTowns } from '../core/empire.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
@@ -37,13 +38,19 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const chip = el('div', 'townchip'); chip.id = 'townChip'; chip.hidden = true;
   let chipSig = '';
   const paintChip = (away = {}) => {
-    const open = Object.keys(TOWNS).filter(id => game.towns[id]), sig = open.join() + '|' + Object.keys(away).join();
+    // a town not founded yet shows as a locked button once it is in sight; tap it to see what it takes
+    const open = Object.keys(TOWNS).filter(id => game.towns[id]), next = nextTowns(game);
+    const sig = open.join() + '|' + Object.keys(away).join() + '|' + next.map(n => n.id + n.ready).join();
     if (sig === chipSig) return; chipSig = sig;
-    const many = open.length > 1; chip.hidden = !many; name.hidden = many;
+    const many = open.length + next.length > 1; chip.hidden = !many; name.hidden = many; chip.classList.toggle('many', open.length + next.length > 2);
     chip.replaceChildren(...open.map(id => {
       const b = el('button', 'btn small' + (id === town.id ? ' on' : '') + (away[id] ? ' dot' : ''), TOWNS[id].short || TOWNS[id].name); b.dataset.town = id;
       b.setAttribute('aria-pressed', String(id === town.id));
       b.addEventListener('click', () => { if (id !== town.id && shell.go) shell.go(id); });
+      return b;
+    }), ...next.map(n => {
+      const b = el('button', 'btn small locked' + (n.ready ? ' dot' : ''), TOWNS[n.id].short || TOWNS[n.id].name); b.dataset.town = n.id;
+      b.addEventListener('click', () => openFound(n.id));
       return b;
     }));
   };
@@ -105,6 +112,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
+  const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
@@ -144,7 +152,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (why && L) card.append(explainBox(explainOutput(town, id)));
     const ins = Object.entries(b.inputs);
     if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
-    if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
+    // goods shipped in from another town (src/core/economy.js, ship): where they come from, and what to do when short
+    const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
+    const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
+    const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
+    if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '. This town pays for each load.'));
+    const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
+    if (town.starved[id] && L && shortImp.length) card.append(el('p', 'warn', 'Not enough ' + GOODS[shortImp[0]].name.toLowerCase() + '. ' + (town.coins < 100 ? 'This town needs coins to pay for them.' : 'Upgrade the ' + (makerOf(shortImp[0]) || { name: 'workshop' }).name + ' in ' + fromName(shortImp[0]) + '.')));
+    else if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
     const row = el('div', 'row');
@@ -160,7 +175,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     row.append(sell);
     card.append(row);
     // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
-    if (L && selling) {
+    if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
       const kr = el('div', 'row keeprow');
       const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
       ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);

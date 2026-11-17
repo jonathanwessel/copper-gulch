@@ -441,6 +441,48 @@ async function run() {
     }
   } finally { await b7.close(); srv7.close(); }
 
+  // Iron Ridge: at Gulch wave 20 with the coins, the locked Iron Ridge button carries a dot and its card shows; its
+  // sheet starts it; the Ridge opens with its welcome card, Pine Hollow comes with it, and the chip reaches both
+  const srv8 = await start(0), b8 = await chromium.launch();
+  try {
+    for (const [name, [width, height]] of Object.entries(SIZES)) {
+      const page = await b8.newPage({ viewport: { width, height } }), errs = [], bad = [];
+      page.on('pageerror', e => errs.push(e.message));
+      page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+      await page.goto(srv8.url + '?start=gulch'); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5 && CG.coach, 10000);
+      await page.evaluate(() => { CG.coach.skipAll(); for (const id of ['found', 'ridge-welcome', 'ridge-route', 'ridge-boss', 'ph-welcome']) delete CG.game.shared.seen[id]; const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5; });
+      if (!await waitFor(page, () => CG.coach.current === 'found', 8000)) bad.push('the new town card did not show');
+      const lock = await page.evaluate(() => { const b = document.querySelector('#townChip .locked'); return b ? { town: b.dataset.town, dot: b.classList.contains('dot') } : null; });
+      if (!lock || lock.town !== 'ridge' || !lock.dot) bad.push('no locked Iron Ridge button with a dot (' + JSON.stringify(lock) + ')');
+      bad.push(...(await check(page)).map(b => 'found card: ' + b));
+      await page.evaluate(() => { CG.coach.dismiss(); document.querySelector('#townChip .locked').click(); });
+      await sleep(300);
+      const sheet = await page.evaluate(() => ({ id: document.getElementById('sheet').dataset.id, ready: !document.getElementById('foundTown').disabled, text: document.getElementById('sheet').textContent }));
+      if (sheet.id !== 'found' || !sheet.ready || !/Beat wave 20 in Copper Gulch · Done/.test(sheet.text)) bad.push('the Iron Ridge sheet is wrong (' + JSON.stringify(sheet) + ')');
+      bad.push(...(await check(page)).map(b => 'found sheet: ' + b));
+      await page.evaluate(() => document.getElementById('foundTown').click());
+      if (!await waitFor(page, () => CG.game.active === 'ridge' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:ridge', 10000)) bad.push('Start did not open Iron Ridge');
+      if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ridge-welcome', 6000)) bad.push('no Iron Ridge welcome card');
+      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 5e4 + 1, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
+      if (!ridge.paid || ridge.towns !== 'gulch,ridge,pinehollow' || ridge.on !== 'ridge' || ridge.canvases !== 1) bad.push('Iron Ridge opened wrong (' + JSON.stringify(ridge) + ')');
+      await page.evaluate(() => { CG.coach.dismiss(); CG.coach.skipAll(); delete CG.game.shared.seen['ph-welcome']; });
+      await sleep(400);
+      const cut = await page.evaluate(() => { const w = document.querySelector('#wave .winfo'); return w.scrollWidth > w.clientWidth + 1 ? w.textContent : ''; });
+      if (cut) bad.push('the wave countdown is cut off in the Ridge (' + cut + ')');
+      bad.push(...(await check(page)).map(b => 'ridge: ' + b));
+      await page.evaluate(() => document.querySelector('#townChip [data-town="pinehollow"]').click());
+      if (!await waitFor(page, () => CG.game.active === 'pinehollow' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:pinehollow', 10000)) bad.push('the chip did not go to Pine Hollow');
+      if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ph-welcome', 6000)) bad.push('no Pine Hollow welcome card');
+      bad.push(...(await check(page)).map(b => 'pine hollow: ' + b));
+      bad.push(...errs);
+      console.log('ridge ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+      failed += bad.length ? 1 : 0;
+      await page.close();
+    }
+  } finally { await b8.close(); srv8.close(); }
+
   // save slots: a new game in slot 2, a save loaded into it from text, back to slot 1, and the title says Continue
   const srv4 = await start(0), b4 = await chromium.launch();
   try {

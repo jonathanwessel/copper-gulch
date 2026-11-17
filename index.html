@@ -121,6 +121,8 @@ html.no3d body { background: var(--bg); }
 .hudrow { display: flex; gap: 6px; }
 .townchip { display: flex; gap: 6px; flex-wrap: wrap; }
 .townchip .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
+.townchip .btn.locked { border-style: dashed; opacity: .82; }
+.townchip .btn.locked::before { content: ""; display: inline-block; width: 7px; height: 8px; margin-right: 5px; background: currentColor; clip-path: polygon(0 40%, 15% 40%, 15% 15%, 30% 0, 70% 0, 85% 15%, 85% 40%, 100% 40%, 100% 100%, 0 100%); vertical-align: -1px; }
 .townchip[hidden], .townname[hidden] { display: none; }
 .hudrow .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
 .hudrow .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
@@ -185,6 +187,7 @@ html.flat .tag { position: static; transform: none !important; }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
+  .hudleft > .townchip.many { grid-column: 1 / -1; } /* three towns or more: their own row, so the wave keeps its countdown */
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }

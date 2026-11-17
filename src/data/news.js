@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-15',
+    lines: [
+      'Iron Ridge, the second town, is here. Beat wave 20 in Copper Gulch, then tap Iron Ridge at the top.',
+      'Raiders come out of a railway tunnel, and wave 10 brings the armored train.',
+      'Copper Gulch sends bricks and tools to Iron Ridge by wagon.',
+      'Pine Hollow, a new outpost, opens with Iron Ridge and sends timber and clay to your towns.',
+    ],
+  },
+  {
     v: '2026.11.17-14',
     lines: [
       'The town fits the screen better on wide screens, and stone pads are bigger.',

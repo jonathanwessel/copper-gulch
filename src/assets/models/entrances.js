@@ -3,7 +3,8 @@
    A builder returns { obj, plume, shade } built from merged kit parts:
      obj: the static model, merged by material;   plume: [x, y, z] where the wave's dust rises (behind the entrance);
      shade: { x, z0, z1, w } a strip of road to darken (the inside of the entrance), or null.
-   Outposts: wash (Dry Creek). Later towns (GDD.md): tunnel (Iron Ridge), bend (Silver Falls), clouds (Thunder Mesa), fissure (Radium Springs). */
+   Outposts: wash (Dry Creek), chute (Pine Hollow). Towns: canyon (Copper Gulch), tunnel (Iron Ridge). Later (GDD.md): bend (Silver Falls), clouds (Thunder Mesa), fissure (Radium Springs). */
+import * as THREE from 'three';
 import { Kit, rng } from '../../render/kit.js';
 
 export const ENTRANCES = {
@@ -104,5 +105,78 @@ export const ENTRANCES = {
     k.box(wx - .45, 0, wz + .35, .32, .28, .32, 'woodD');                                       // a dry trough
     k.box(wx - .45, .26, wz + .35, .26, .03, .26, 'sand', { ao: false });
     return { obj: k.build({ cast: true }), plume: [mx, 1.8, pz - 2.4], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
+  },
+  /* Iron Ridge: a railway tunnel. A gray mountain shoulder of stacked granite rises across the top of the board; the
+     line runs out of a dressed-stone portal with a keystone and a date board, dark inside, where raiders wait. A
+     signal post with a red arm stands at the mouth and a water tank on legs to the west. e: { mouth, portal, width,
+     mesa } with the tunnel running toward -z. */
+  tunnel: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(41), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const m = new Kit({ aoH: 3 }); // the mountain: it stands off the board, so it casts no shadow (a big shadow pass cost 2 ms on a phone)
+    const tones = e.mesa || ['#6f6a62', '#8a8478', '#5d5850', '#9b9488'];
+    // the mountain: blocks of layered granite, highest round the portal, falling away to both sides
+    // Layers go in top first (as in the canyon): seen from above each upper layer hides the one below, and drawing it
+    // first lets the depth test skip the hidden faces instead of painting every layer over the last (overdraw).
+    const layers = [];
+    m.box(mx, 2.9, pz - 1.8, e.width + .6, .9, 1.8, tones[3], { jit: .12 });           // over the portal, top first
+    m.box(mx, 1.7, pz - 1.4, e.width + 1.6, 1.4, 2.6, tones[1], { jit: .12 });
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const x = mx + side * (half + .55 + i * 1.4 + R() * .3), z = pz - .2 - R() * 1.2 + (i > 1 ? i * .25 : 0);
+      const H = (3 - i * .4) * (.85 + R() * .3), w = 1.5 + R() * .5, d = 2.2 + R() * .8;
+      let y = -.3;
+      for (let l = 0; y < H; l++) { const h = .75 + R() * .35; layers.push([x, y, z - d / 2, w - l * .15, h + .02, d - l * .2, tones[(l + i) % tones.length]]); y += h; }
+      if (R() < .6) k.dode(x + (R() - .5) * .8, .2, z + .3, .3 + R() * .2, R() < .5 ? 'stone' : 'stoneD', { jit: .15 });
+    }
+    for (const [x, y, z, w, h, d, c] of layers.sort((a, b) => b[1] - a[1])) m.box(x, y, z, w, h, d, c, { jit: .1, ao: false });
+    // the portal: dressed stone jambs, an arch of voussoirs with a keystone, dark inside
+    k.box(mx, -.05, pz - .9, e.width * .72, 1.55, 1.7, 'black', { ao: false });
+    for (const sx of [-1, 1]) k.box(mx + sx * (half * .72 + .2), -.05, pz - .05, .42, 1.55, .5, 'stoneL', { jit: .05 });
+    for (let i = 0; i < 7; i++) { const a = Math.PI * i / 6, r = half * .72 + .2; k.box(mx - Math.cos(a) * r, 1.4 + Math.sin(a) * .45, pz - .05, .34, .26, .52, i === 3 ? 'stone' : 'stoneL', { rz: (a - Math.PI / 2) * .7, jit: .04 }); }
+    k.box(mx, 2.0, pz + .22, .7, .2, .04, 'plank');                                    // the date board
+    // rails along the road from inside the tunnel to the mouth
+    for (const o of [-.28, .28]) k.box(mx + o, 0, (mz + pz) / 2 - .4, .05, .05, Math.abs(mz - pz) + 1.4, 'steel', { mat: 'metal' });
+    for (let z = mz + .2; z > pz - .8; z -= .34) k.box(mx, 0, z, .9, .03, .1, 'woodD', { ao: false });
+    // the signal post at the mouth, east of the line
+    const sx0 = mx + half + .35, sz0 = mz + .4;
+    k.box(sx0, 0, sz0, .08, 1.5, .08, 'iron', { mat: 'metal' }); k.box(sx0 - .2, 1.3, sz0, .42, .09, .03, 'paintR', { rz: .35 });
+    k.box(sx0, 1.18, sz0 + .05, .1, .1, .03, 'glowO', { mat: 'glow' });
+    // a water tank on legs to the west
+    const wx = mx - half - 1.1, wz = mz + .3;
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.box(wx + dx * .25, 0, wz + dz * .25, .07, 1.1, .07, 'woodD');
+    k.cyl(wx, 1.1, wz, .42, .55, 'wood', { seg: 10 }); k.cone(wx, 1.65, wz, .46, .25, 'roofS', { seg: 10 });
+    for (const y of [1.2, 1.5]) k.torus(wx, y, wz, .42, .015, 'iron', { rx: Math.PI / 2, ts: 14, mat: 'metal' });
+    k.box(wx + .38, 1.2, wz, .3, .05, .05, 'iron', { rz: -.5, mat: 'metal' });
+    const obj = new THREE.Group(); obj.add(m.build({ cast: false }), k.build({ cast: true }));
+    return { obj, plume: [mx, 2.2, pz - 2.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
+  },
+  /* Pine Hollow: a logging chute down a wooded slope. Dark pines crowd both sides of a gap in the trees; down the
+     middle runs a chute of two log rails on trestles, a pile of logs at its foot, and the road comes out of the
+     shadow under the trees. e: { mouth, portal, width, mesa } with the slope running toward -z. */
+  chute: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(53), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const tones = e.mesa || ['#7d6a4a', '#9a8458', '#6b5a3e', '#a99a6a'];
+    // the slope: earth banks rising toward the back
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const x = mx + side * (half + .8 + i * 1.3), z = pz - .4 - R() * .8;
+      k.box(x, -.3, z, 1.5, 1.1 + (4 - i) * .2 + R() * .3, 2.6, tones[i % tones.length], { jit: .12, ao: false });
+    }
+    k.box(mx, -.3, pz - 2.4, e.width + 3, 2.2, 2.2, tones[2], { jit: .12, ao: false });
+    // pines: dense on both sides and across the back, leaving the gap for the road
+    for (let i = 0; i < 26; i++) {
+      const side = i % 2 ? 1 : -1, back = i >= 20;
+      const x = back ? mx + (R() * 2 - 1) * (half + 2) : mx + side * (half + .5 + R() * 4.5), z = back ? pz - 1.6 - R() * 1.6 : mz - .2 - R() * (mz - pz + 1.2);
+      const y = back ? 1.6 : Math.max(0, (mz - z) * .25), h = .9 + R() * .7;
+      k.cyl(x, y, z, .06, .3, 'bark', { seg: 5 });
+      for (let j = 0; j < 3; j++) k.cone(x, y + .2 + j * h * .28, z, (.42 - j * .1) * (h / 1.2), h * .45, j % 2 ? 'leafD' : '#2f5a34', { seg: 6, jit: .1 });
+    }
+    // the dark gap under the trees, where raiders wait
+    k.box(mx, -.05, pz - .7, e.width * .7, 1.3, 1.2, 'black', { ao: false });
+    // the chute: two log rails on trestles running down the west side of the road, and logs at its foot
+    const cx = mx - half - .25;
+    for (let z = mz; z > pz; z -= 1.1) { const h = (mz - z) * .25 + .25; k.box(cx - .18, 0, z, .06, h, .06, 'woodD'); k.box(cx + .18, 0, z, .06, h, .06, 'woodD'); k.box(cx, h - .05, z, .44, .05, .06, 'wood'); }
+    const dz = mz - pz, len = Math.hypot(dz, dz * .25);
+    for (const o of [-.1, .1]) k.log(cx + o, (dz * .25) / 2 + .2, (mz + pz) / 2, len, .05, 'log', { ry: Math.PI / 2, rx: Math.atan(.25) });
+    for (let i = 0; i < 4; i++) k.log(cx - .2 + (i % 2) * .15, (i > 1 ? .12 : 0), mz + .7 + (i % 2) * .05, .8, .07, i % 2 ? 'log' : 'woodL', { ry: Math.PI / 2 * 0 + .3 });
+    return { obj: k.build({ cast: true }), plume: [mx, 2.2, pz - 2.4], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
 };

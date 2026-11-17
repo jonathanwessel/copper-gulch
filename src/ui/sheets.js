@@ -20,10 +20,12 @@ import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
+import { TOWNS } from '../data/towns/index.js';
+import { canFound, foundTown } from '../core/empire.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
-const TOWN_NAMES = { gulch: 'Copper Gulch' };
+const TOWN_NAMES = Object.fromEntries(Object.entries(TOWNS).map(([id, t]) => [id, t.short || t.name]));
 
 /* A sheet: build(body) fills it; frame(dt) (optional, returned by build) runs while it is open. */
 export function createSheets(root, { onOpen = () => {} } = {}) {
@@ -56,9 +58,11 @@ export function goodsSheet(game, town) {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
+    // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
+    const shipped = () => ((town.def && town.def.imports) || []).filter(g => (town.shipped || {})[g] > 0);
     let sig = '';
     const build = () => {
-      const goods = shown(); sig = goods.join();
+      const goods = shown(); sig = goods.join() + '|' + shipped().join();
       list.replaceChildren();
       if (!goods.length) list.append(el('p', 'uses', 'Build a Lumber Camp to make your first good.'));
       for (const g of goods) {
@@ -71,10 +75,16 @@ export function goodsSheet(game, town) {
         row.append(txt, sw); list.append(row);
         rows[g] = { line, fill, sw, why, txt };
       }
+      for (const g of shipped()) {
+        const row = el('div', 'option good'), txt = el('div'), line = el('span');
+        txt.append(el('b', null, GOODS[g].name), line); row.append(txt); list.append(row);
+        rows['in:' + g] = { line, good: g };
+      }
       paint();
     };
     const paint = () => {
       for (const [g, r] of Object.entries(rows)) {
+        if (r.good) { const t = fmt(Math.floor(town.goods[r.good] || 0)) + ' in stock · sent by ' + (TOWN_NAMES[GOODS[r.good].town] || 'another town'); if (r.line.textContent !== t) r.line.textContent = t; continue; }
         const kept = Math.ceil((town.keep || {})[g] || 0);
         const ex = explainPrice(game, town, g);
         const selling = town.sell[g] !== false, have = town.goods[g] || 0, saved = !kept || !selling ? '' : kept > have + .5 ? ' · towers need ' + kept : ' · ' + kept + ' saved for towers';
@@ -90,7 +100,32 @@ export function goodsSheet(game, town) {
     };
     build();
     let acc = 0;
-    return dt => { if ((acc += dt) < .3) return; acc = 0; if (shown().join() !== sig) build(); else paint(); };
+    return dt => { if ((acc += dt) < .3) return; acc = 0; if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
+  };
+}
+
+/* The sheet for a town not yet founded (src/core/empire.js): what it takes, and Start. go(id) is called after it is
+   founded, to take the player there. */
+export function foundSheet(game, id, go) {
+  return body => {
+    const d = TOWNS[id], f = d.found, from = TOWNS[f.from].short || TOWNS[f.from].name;
+    const out = d.outpost && TOWNS[d.outpost];
+    const wave = el('p', 'uses'), coins = el('p', 'uses');
+    body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, coins);
+    const row = el('div', 'row'), b = btn('Start ' + d.name + ' · ' + fmt(f.coins) + ' coins', 'btn primary buy', 'foundTown');
+    b.addEventListener('click', () => { if (foundTown(game, id)) go(id); });
+    row.append(b); body.append(row);
+    const paint = () => {
+      const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
+      const a = 'Beat wave ' + f.wave + ' in ' + from + (w >= f.wave ? ' · Done' : ' · Best so far ' + w);
+      const m = fmt(f.coins) + ' coins in ' + from + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c));
+      if (wave.textContent !== a) wave.textContent = a;
+      if (coins.textContent !== m) coins.textContent = m;
+      b.disabled = !canFound(game, id);
+    };
+    paint();
+    let acc = 0;
+    return dt => { if ((acc += dt) < .3) return; acc = 0; paint(); };
   };
 }
 

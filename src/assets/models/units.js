@@ -82,11 +82,33 @@ FOE.bandits = () => {
   const hl = [[-.05, .47], [.05, .47], [-.05, .69], [.05, .69]].map(([x, z]) => { const l = part(k => k.box(0, -.3, 0, .04, .3, .04, 'woodD', { ao: false }), { ao: false }); l.position.set(x, .32, z); root.add(l); return l; });
   root.userData.legs = hl; root.userData.gallop = 1; return root;
 };
+FOE.train = () => {
+  // the armored train (Iron Ridge's boss): a riveted, plated engine with a cowcatcher and a gun turret on its tender
+  const root = G(); root.userData = {};
+  root.add(part(k => {
+    k.box(0, .12, -.1, .42, .06, 1.1, 'ink');                                                          // the frame
+    k.box(0, .18, .12, .36, .3, .6, 'iron', { mat: 'metal' });                                         // the plated boiler
+    for (const z of [-.12, .12, .36]) k.box(0, .18, z, .38, .3, .025, 'ironL', { mat: 'metal' });      // armor bands
+    k.cyl(0, .48, .32, .06, .2, 'black', { r2: .09, seg: 8 });                                         // the stack
+    k.box(0, .18, -.3, .4, .42, .3, 'iron', { mat: 'metal' }); k.box(0, .52, -.3, .42, .05, .33, 'ironL', { mat: 'metal' }); // the cab
+    k.box(0, .38, -.15, .3, .06, .02, 'black'); k.box(.15, .3, -.3, .01, .06, .18, 'black');          // slits
+    k.box(0, .18, -.56, .4, .26, .26, 'iron', { mat: 'metal' }); k.cyl(0, .44, -.56, .1, .08, 'ink', { seg: 8 });
+    k.cyl(0, .5, -.48, .035, .26, 'black', { rx: Math.PI / 2, seg: 6 });                               // the turret gun
+    for (const sx of [-1, 1]) k.box(sx * .1, .06, .5, .14, .12, .12, 'steel', { ry: -sx * .5, mat: 'metal' }); // the cowcatcher
+    k.box(0, .28, .44, .08, .08, .03, 'glowW', { mat: 'glow' });                                       // the headlamp
+    k.box(.21, .26, -.05, .01, .1, .2, 'paintR');
+  }));
+  wheels(root, [[-.21, .1, .3], [.21, .1, .3], [-.21, .1, .05], [.21, .1, .05], [-.21, .1, -.3], [.21, .1, -.3], [-.21, .1, -.56], [.21, .1, -.56]], .1, 'iron');
+  return root;
+};
 function barrelBits(k) { k.cyl(-.1, .24, -.42, .06, .12, 'wood', { seg: 8 }); k.box(.1, .24, -.42, .1, .08, .08, 'woodL'); }
 
 export function makeFoe(kind) {
   const f = (FOE[kind] || FOE.raider)();
   f.traverse(o => { if (o.isMesh) { o.castShadow = o.material.type !== 'MeshBasicMaterial'; o.receiveShadow = false; } });
+  // legs and wheels are small moving parts: only the body casts a shadow, which saves a shadow draw call per part
+  // (12 raiders on the road cost about 2 ms on a phone with every part casting)
+  for (const p of [...(f.userData.legs || []), ...(f.userData.wheels || [])]) p.traverse(o => { if (o.isMesh) o.castShadow = false; });
   return f;
 }
 

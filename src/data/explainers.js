@@ -208,19 +208,19 @@ export const EXPLAINERS = [
     when: h => !!(h.dots.goods || h.dots.research || h.dots.perks || Object.keys(h.dots.towns).length), at: () => ({ el: '.play .btn.dot' }),
   },
   {
-    id: 'townchip', covers: ['townchip'],
+    id: 'townchip', town: 'gulch', covers: ['townchip'],
     title: 'Your towns',
     text: 'The buttons at the top show your towns. Tap Dry Creek to go back to the outpost. Tap Copper Gulch to come back here.',
     when: h => h.towns > 1 && !h.outpost && h.t > 20, at: () => ({ el: '#townChip' }),
   },
   {
-    id: 'outposts', covers: ['system:outpost'],
+    id: 'outposts', town: 'gulch', covers: ['system:outpost'],
     title: 'Dry Creek keeps working',
     text: 'Raiders still come to Dry Creek while you are here. Its Crossbows fight them off. The coins from its stone and ore come to this town.',
     when: h => h.outpostWon && !h.outpost && h.t > 50, at: () => ({ el: '#coins' }),
   },
   {
-    id: 'draw', covers: ['outpost:draw'],
+    id: 'draw', town: 'gulch', covers: ['outpost:draw'],
     title: 'Ore from Dry Creek',
     text: 'Your Smelter now takes copper ore from Dry Creek before it runs short.',
     when: h => h.drew && h.t > 30, at: () => ({ plot: 'smelter' }),
@@ -242,5 +242,36 @@ export const EXPLAINERS = [
     title: 'Waves you beat before',
     text: 'You beat these waves before you signed. Until you pass your old best wave, your towers hit 3 times harder and Call now works right away.',
     when: h => h.oldGround && h.phase === 'break' && h.towers.length > 0, at: () => ({ el: '#callWave' }),
+  },
+  // Iron Ridge and Pine Hollow
+  {
+    id: 'found', covers: ['found'],
+    title: 'A new town',
+    text: 'Iron Ridge is in sight. Tap Iron Ridge at the top to see what it takes to start it.',
+    when: h => h.next.includes('ridge'), at: () => ({ el: '#townChip .locked' }),
+  },
+  {
+    id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
+    title: 'Welcome to Iron Ridge',
+    text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',
+    when: () => true, at: () => ({ plot: 'rquarry' }),
+  },
+  {
+    id: 'ridge-route', town: 'ridge', covers: ['route'],
+    title: 'Goods from Copper Gulch',
+    text: 'The Boiler Shop uses bricks and the Locomotive Works uses tools. Copper Gulch sends them by wagon and this town pays for each load. Upgrade the Kiln and the Toolsmith there to send more.',
+    when: h => h.level('boilershop') > 0 || h.level('loco') > 0, at: h => ({ plot: h.level('boilershop') > 0 ? 'boilershop' : 'loco' }),
+  },
+  {
+    id: 'ridge-boss', town: 'ridge', covers: ['boss:train'],
+    title: 'The armored train',
+    text: 'Wave 10 brings the armored train. Its plates stop part of every hit. Mortars and the Still hurt it most.',
+    when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
+  },
+  {
+    id: 'ph-welcome', town: 'pinehollow', covers: ['welcome:pinehollow'],
+    title: 'Welcome to Pine Hollow',
+    text: 'Hold this logging camp for 15 waves. Its timber and clay go to your towns, so the Gulch can make more bricks for Iron Ridge.',
+    when: () => true, at: () => ({ plot: 'logcamp' }),
   },
 ];

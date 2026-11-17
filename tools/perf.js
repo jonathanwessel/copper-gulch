@@ -1,4 +1,4 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek] [--eval "js run in the page first"]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge] [--eval "js run in the page first"]
 // Frame time in headless Edge or Chrome at phone size (400x860), with the CPU throttled (Emulation.setCPUThrottlingRate)
 // to stand in for a mid-range phone. The page is a touch phone, so the game picks its phone tier by itself. It plays a town that is busy (buildings up, towers on the road, a wave running),
 // measures every frame for a few seconds, and prints the median and 90th percentile frame time, the frames per second,
@@ -20,7 +20,7 @@ const srv = await start(0), b = await chromium.launch({ args: ['--use-angle=swif
 let out = null, startTier = null;
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
-  await p.goto(srv.url + '?coach=off' + (TOWN === 'gulch' ? '&start=gulch' : ''));
+  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + TOWN));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
   await p.evaluate(t => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); }, TIER);
@@ -31,6 +31,12 @@ try {
     Object.assign(t.buildings, { quarry: 12, dmine: 8 });
     for (let s = 0; s < t.def.board.spots.length; s++) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="crossbow"]').click(); }
     CG.play.close(); document.getElementById('callWave').click();
+  });
+  else if (TOWN === 'ridge') await p.evaluate(() => {
+    const t = CG.game.town; t.coins = 1e9; Object.assign(t.goods, { stone: 500, iron: 500, coal: 500, pigiron: 500 }); t.sell = { stone: false, iron: false, coal: false, pigiron: false };
+    for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) t.buildings[id] = n;
+    for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
+    CG.play.close(); document.getElementById('callWave').click(); // like the Gulch: wave 1, towers down the line so raiders stay on screen
   });
   else await p.evaluate(() => {
     const t = CG.game.town; t.coins = 1e9; Object.assign(t.goods, { timber: 500, copper: 500, bricks: 500, tools: 500, planks: 500, clay: 500 }); t.sell = { timber: false, copper: false, bricks: false, tools: false, planks: false, clay: false };

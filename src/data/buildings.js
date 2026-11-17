@@ -15,6 +15,18 @@ export const BUILDINGS = {
   // Dry Creek Outpost: raw goods only. An outpost may make a good a town makes too (GDD.md, Outposts).
   quarry:  { name: 'Stone Camp', town: 'drycreek', makes: 'stone', inputs: {}, rate: .8, cost: 10, growth: 1.15, model: 'quarry' },
   dmine:   { name: 'Mining Camp', town: 'drycreek', makes: 'ore', inputs: {}, rate: .6, cost: 30, growth: 1.15, needs: { quarry: 2 }, model: 'dmine' },
+  // Iron Ridge: iron and rail. Its Boiler Shop needs bricks and its Locomotive Works tools, both shipped from the Gulch.
+  rquarry: { name: 'Quarry', town: 'ridge', makes: 'stone', inputs: {}, rate: 1, cost: 15, growth: 1.15, model: 'rquarry' },
+  ironmine: { name: 'Iron Mine', town: 'ridge', makes: 'iron', inputs: {}, rate: .8, cost: 60, growth: 1.15, needs: { rquarry: 3 }, model: 'ironmine' },
+  colliery: { name: 'Coal Pit', town: 'ridge', makes: 'coal', inputs: {}, rate: 1, cost: 180, growth: 1.15, needs: { rquarry: 5 }, model: 'colliery' },
+  furnace: { name: 'Blast Furnace', town: 'ridge', makes: 'pigiron', inputs: { iron: 2, coal: 1 }, rate: .4, cost: 700, growth: 1.17, needs: { ironmine: 5, colliery: 3 }, model: 'furnace' },
+  steelmill: { name: 'Steel Mill', town: 'ridge', makes: 'steel', inputs: { pigiron: 1, coal: 1 }, rate: .35, cost: 2500, growth: 1.17, needs: { furnace: 5 }, model: 'steelmill' },
+  rolling: { name: 'Rolling Mill', town: 'ridge', makes: 'rails', inputs: { steel: 2 }, rate: .15, cost: 12000, growth: 1.2, needs: { steelmill: 5 }, model: 'rolling' },
+  boilershop: { name: 'Boiler Shop', town: 'ridge', makes: 'boilers', inputs: { steel: 1, bricks: 2 }, rate: .2, cost: 15000, growth: 1.2, needs: { steelmill: 5 }, model: 'boilershop' },
+  loco:    { name: 'Locomotive Works', town: 'ridge', makes: 'locos', inputs: { boilers: 1, rails: 2, tools: 1 }, rate: .05, cost: 80000, growth: 1.2, needs: { rolling: 10, boilershop: 5 }, model: 'loco' },
+  // Pine Hollow: the second outpost, opened with Iron Ridge. Timber and clay, so the Gulch makes more bricks.
+  logcamp: { name: 'Logging Camp', town: 'pinehollow', makes: 'timber', inputs: {}, rate: .9, cost: 12, growth: 1.15, model: 'logcamp' },
+  claybank: { name: 'Clay Bank', town: 'pinehollow', makes: 'clay', inputs: {}, rate: .8, cost: 35, growth: 1.15, needs: { logcamp: 2 }, model: 'claybank' },
 };
 
 /* Reaching each of these levels doubles a building's output (the "x2 milestones"). */

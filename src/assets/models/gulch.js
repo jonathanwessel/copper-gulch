@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { Kit, part, rng } from '../../render/kit.js';
 
 // --- shared pieces ---------------------------------------------------------------------------------------------------
-function shed(k, x, z, w, d, h, wall, roof, o = {}) {
+export function shed(k, x, z, w, d, h, wall, roof, o = {}) {
   const y = o.y || 0;
   k.box(x, y, z, w, h, d, wall, { jit: .08 });
   // corner posts and a sill: the trims that make a box read as a building
@@ -22,29 +22,29 @@ function shed(k, x, z, w, d, h, wall, roof, o = {}) {
   return y + h + (o.flat ? .06 : rh);
 }
 // a Western false front: a tall flat board facing +z, with a stepped top and a sign board
-function falseFront(k, x, z, w, h, c, sign) {
+export function falseFront(k, x, z, w, h, c, sign) {
   k.box(x, 0, z, w, h, .07, c, { jit: .06 });
   k.box(x, h, z, w * .55, .14, .07, c);
   k.box(x, h - .04, z + .02, w + .06, .05, .09, 'woodD');
   k.box(x, h * .62, z + .045, w * .78, h * .2, .03, sign || 'cream');
   return h + .14;
 }
-function door(k, x, z, o = {}) { const w = o.w || .26, h = o.h || .42; k.box(x, 0, z, w + .06, h + .04, .03, 'woodD'); k.box(x, 0, z + .012, w, h, .03, o.c || 'bark'); k.box(x - w * .3, 0, z + .035, .12, .05, .14, 'stoneD'); }
-function windows(k, xs, y, z, w = .16, h = .18, o) { for (const x of xs) k.win(x, y, z, w, h, o); }
-function chimney(k, x, y, z, h, c = 'brick', r = .09) { k.box(x, y, z, r * 2, h, r * 2, c, { jit: .1 }); k.box(x, y + h - .05, z, r * 2 + .05, .07, r * 2 + .05, 'stoneD'); return new THREE.Vector3(x, y + h + .04, z); }
-function stack(k, x, y, z, h, r = .07, c = 'iron') { k.cyl(x, y, z, r, h, c, { r2: r * .85, seg: 8 }); k.cyl(x, y + h - .06, z, r * 1.25, .06, 'black', { seg: 8 }); return new THREE.Vector3(x, y + h + .04, z); }
+export function door(k, x, z, o = {}) { const w = o.w || .26, h = o.h || .42; k.box(x, 0, z, w + .06, h + .04, .03, 'woodD'); k.box(x, 0, z + .012, w, h, .03, o.c || 'bark'); k.box(x - w * .3, 0, z + .035, .12, .05, .14, 'stoneD'); }
+export function windows(k, xs, y, z, w = .16, h = .18, o) { for (const x of xs) k.win(x, y, z, w, h, o); }
+export function chimney(k, x, y, z, h, c = 'brick', r = .09) { k.box(x, y, z, r * 2, h, r * 2, c, { jit: .1 }); k.box(x, y + h - .05, z, r * 2 + .05, .07, r * 2 + .05, 'stoneD'); return new THREE.Vector3(x, y + h + .04, z); }
+export function stack(k, x, y, z, h, r = .07, c = 'iron') { k.cyl(x, y, z, r, h, c, { r2: r * .85, seg: 8 }); k.cyl(x, y + h - .06, z, r * 1.25, .06, 'black', { seg: 8 }); return new THREE.Vector3(x, y + h + .04, z); }
 export function barrel(k, x, z, y = 0, c = 'wood') { k.cyl(x, y, z, .085, .22, c, { r2: .075, seg: 8 }); k.cyl(x, y + .045, z, .089, .022, 'iron', { seg: 8, ao: false }); k.cyl(x, y + .155, z, .087, .022, 'iron', { seg: 8, ao: false }); }
 export function crate(k, x, z, s = .2, y = 0, ry = 0) { k.box(x, y, z, s, s, s, 'woodL', { ry }); k.box(x, y + s * .45, z, s + .012, s * .12, s + .012, 'woodD', { ry, ao: false }); }
-function sacks(k, x, z) { for (const [dx, dz, y] of [[0, 0, 0], [.13, .02, 0], [.065, .01, .1]]) k.ball(x + dx, y + .06, z + dz, .075, 'cream', { sy: .75 }); }
-function logpile(k, x, z, n = 3, len = .6, ry = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (let row = 0; row < n; row++) for (let i = 0; i < n - row; i++) { const off = (i - (n - row - 1) / 2) * .13; k.log(x - s * off, row * .11, z + c * off, len, .065, i % 2 ? 'log' : 'woodL', { ry: ry + Math.PI / 2 * 0, seg: 6 }); } }
-function planks(k, x, z, n = 4) { for (let i = 0; i < n; i++) k.box(x, i * .045, z, .5, .04, .2, i % 2 ? 'plank' : 'woodL'); }
-function ingots(k, x, z, c = 'steel') { for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) k.box(x + (i - (2 - row) / 2) * .1, row * .05, z, .08, .05, .16, c, { mat: 'metal' }); }
-function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .1, z + Math.sin(a) * d * .7, .14 + R() * .18, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }
+export function sacks(k, x, z) { for (const [dx, dz, y] of [[0, 0, 0], [.13, .02, 0], [.065, .01, .1]]) k.ball(x + dx, y + .06, z + dz, .075, 'cream', { sy: .75 }); }
+export function logpile(k, x, z, n = 3, len = .6, ry = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (let row = 0; row < n; row++) for (let i = 0; i < n - row; i++) { const off = (i - (n - row - 1) / 2) * .13; k.log(x - s * off, row * .11, z + c * off, len, .065, i % 2 ? 'log' : 'woodL', { ry: ry + Math.PI / 2 * 0, seg: 6 }); } }
+export function planks(k, x, z, n = 4) { for (let i = 0; i < n; i++) k.box(x, i * .045, z, .5, .04, .2, i % 2 ? 'plank' : 'woodL'); }
+export function ingots(k, x, z, c = 'steel') { for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) k.box(x + (i - (2 - row) / 2) * .1, row * .05, z, .08, .05, .16, c, { mat: 'metal' }); }
+export function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .1, z + Math.sin(a) * d * .7, .14 + R() * .18, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }
 let LAMPS = null; // filled while a building is made, so it knows where its lamps are
-function lantern(k, x, z, h = .62) { if (LAMPS) LAMPS.push(new THREE.Vector3(x + .12, h - .11, z)); k.box(x, 0, z, .04, h, .04, 'woodD'); k.box(x + .06, h - .02, z, .14, .03, .03, 'woodD'); k.box(x + .12, h - .16, z, .07, .1, .07, 'glowW', { mat: 'glow' }); k.box(x + .12, h - .07, z, .09, .03, .09, 'iron'); }
-function flag(k, x, y, z, c = 'paintR') { k.box(x, y, z, .025, .5, .025, 'woodD'); k.box(x + .13, y + .34, z, .24, .14, .015, c); }
-function rails(k, x, z, len, ry = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (const o of [-.07, .07]) k.box(x + c * o, 0, z - s * o, .025, .025, len, 'steel', { ry, mat: 'metal' }); for (let i = -len / 2 + .05; i < len / 2; i += .12) k.box(x + s * i, 0, z + c * i, .22, .015, .04, 'woodD', { ry }); }
-function cart(k, y = 0, load = 'rock', x = 0, z = 0) { k.box(x, y + .05, z, .2, .12, .26, 'iron', { mat: 'metal' }); for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(x + sx * .1, y + .04, z + sz * .08, .04, .02, 'black', { rz: Math.PI / 2, seg: 8 }); k.dode(x, y + .17, z, .09, load, { sy: .6 }); }
+export function lantern(k, x, z, h = .62) { if (LAMPS) LAMPS.push(new THREE.Vector3(x + .12, h - .11, z)); k.box(x, 0, z, .04, h, .04, 'woodD'); k.box(x + .06, h - .02, z, .14, .03, .03, 'woodD'); k.box(x + .12, h - .16, z, .07, .1, .07, 'glowW', { mat: 'glow' }); k.box(x + .12, h - .07, z, .09, .03, .09, 'iron'); }
+export function flag(k, x, y, z, c = 'paintR') { k.box(x, y, z, .025, .5, .025, 'woodD'); k.box(x + .13, y + .34, z, .24, .14, .015, c); }
+export function rails(k, x, z, len, ry = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (const o of [-.07, .07]) k.box(x + c * o, 0, z - s * o, .025, .025, len, 'steel', { ry, mat: 'metal' }); for (let i = -len / 2 + .05; i < len / 2; i += .12) k.box(x + s * i, 0, z + c * i, .22, .015, .04, 'woodD', { ry }); }
+export function cart(k, y = 0, load = 'rock', x = 0, z = 0) { k.box(x, y + .05, z, .2, .12, .26, 'iron', { mat: 'metal' }); for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(x + sx * .1, y + .04, z + sz * .08, .04, .02, 'black', { rz: Math.PI / 2, seg: 8 }); k.dode(x, y + .17, z, .09, load, { sy: .6 }); }
 const lampRow = (k, xs, z) => { for (const x of xs) lantern(k, x, z); };
 
 // --- the recipes: (kit, add) => top height. add(name, group, pos, axis, speed) registers a moving part ----------
@@ -268,6 +268,9 @@ export const PROPS = {
   weed: () => part(k => { k.ball(0, .12, 0, .12, 'woodL', { det: 0 }); k.ball(0, .12, 0, .1, 'bark', { det: 0, ry: .7 }); }, { cast: true }),
 };
 
+/* Recipes from the other towns' model files (src/assets/models/ridge.js...), which call addRecipes when loaded. */
+const MORE = {};
+export function addRecipes(o) { Object.assign(MORE, o); }
 export const BUILDING_IDS = Object.keys(R);
 /* Build a building: { obj, movers, smoke, lights, top } (see the top of this file). */
 export function makeBuilding(id, tier = 0) {
@@ -277,7 +280,7 @@ export function makeBuilding(id, tier = 0) {
     node.position.copy(pos); obj.add(node); movers.push({ kind, node, axis, speed, base: node.rotation.clone(), y0: pos.y });
   };
   let top = 1;
-  if (id === '_lot') emptyLot(k); else if (R[id]) { top = R[id](k, add); milestones(k, tier, top, id); } else { shed(k, 0, 0, 1.2, .9, .6, 'wood', 'roofR'); }
+  if (id === '_lot') emptyLot(k); else if (R[id] || MORE[id]) { top = (R[id] || MORE[id])(k, add); milestones(k, tier, top, id); } else { shed(k, 0, 0, 1.2, .9, .6, 'wood', 'roofR'); }
   obj.add(k.build());
   obj.traverse(o => { if (o.isMesh) { o.castShadow = o.castShadow !== false && o.material.type !== 'MeshBasicMaterial'; o.receiveShadow = true; } });
   LAMPS = null;

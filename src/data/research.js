@@ -47,6 +47,44 @@ export const RESEARCH = {
     about: 'Cannon and Mortar blasts are 20% wider.',
     effects: [{ stat: 'blast', per: .2 }],
   },
+  // Iron Ridge
+  drills: {
+    name: 'Steam Drills', town: 'ridge', max: 5, cost: 300,
+    about: 'The Quarry, the Iron Mine and the Coal Pit dig 25% faster.',
+    effects: [{ stat: 'prod:rquarry', per: .25 }, { stat: 'prod:ironmine', per: .25 }, { stat: 'prod:colliery', per: .25 }],
+  },
+  hotblast: {
+    name: 'Hot Blast', town: 'ridge', max: 5, cost: 1500,
+    about: 'The Blast Furnace and the Steel Mill work 25% faster.',
+    effects: [{ stat: 'prod:furnace', per: .25 }, { stat: 'prod:steelmill', per: .25 }],
+  },
+  plating: {
+    name: 'Iron Plating', town: 'ridge', max: 5, cost: 500,
+    about: 'Your vault takes 25% more hits before it breaks.',
+    effects: [{ stat: 'vault', per: .25 }],
+  },
+  rifling: {
+    name: 'Rifled Barrels', town: 'ridge', max: 5, cost: 800,
+    about: 'Every tower hits 15% harder.',
+    effects: [{ stat: 'towerDmg', per: .15 }],
+  },
+  rewards: {
+    name: 'Railroad Rewards', town: 'ridge', max: 5, cost: 900,
+    about: 'Raiders drop 30% more coins when your towers beat them.',
+    effects: [{ stat: 'bounty', per: .3 }],
+  },
+  depot: {
+    name: 'Freight Depot', town: 'ridge', max: 5, cost: 1200,
+    about: 'Everything you sell earns 10% more coins.',
+    effects: [{ stat: 'price', per: .1 }],
+  },
+  bessemer: {
+    name: 'Bessemer Converter', town: 'ridge', max: 2, cost: 4000,
+    about: 'The Steel Mill works 60% faster.',
+    worse: 'It burns one more coal for each steel it makes.',
+    effects: [{ stat: 'prod:steelmill', per: .6 }],
+    downside: [{ stat: 'use:steelmill:coal', per: 1 }],
+  },
 };
 
 export const GROWTH = 3;        // each level costs this many times the last

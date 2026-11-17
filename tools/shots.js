@@ -1,4 +1,4 @@
-// node tools/shots.js <dir>: saves screenshots of every screen at phone, landscape and desktop sizes into <dir>,
+// node tools/shots.js <dir> [gulch|outpost|ridge]: saves screenshots of every screen at phone, landscape and desktop sizes into <dir>,
 // for a look before each release (and for fresh-eyes reviews). Prints the files it wrote.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -77,12 +77,50 @@ const OUTPOST = [
   ['won', () => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
 ];
+// Iron Ridge: a Gulch at wave 20 with the coins, the locked Iron Ridge button, its sheet, Start, then the Ridge itself
+const RIDGE = [
+  ['found-chip', async () => {
+    const n = document.getElementById('newsOk'); if (n) n.click();
+    localStorage.clear(); document.getElementById('play').click();
+    for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await new Promise(r => setTimeout(r, 100));
+    const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5;
+  }],
+  ['found', () => { document.querySelector('#townChip .locked').click(); }],
+  ['ridge', async () => { document.getElementById('foundTown').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 3, yaw: 0, pitch: .32, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['ridge-built', () => {
+    CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e8;
+    for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 6, boilershop: 5, loco: 2 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); }
+    CG.play.close();
+  }],
+  ['ridge-route', () => { CG.play.open('boilershop'); }],
+  ['ridge-fight', () => {
+    const t = CG.game.town; CG.play.close(); t.flags['open:mortar'] = true; Object.assign(t.goods, { stone: 900, iron: 900, coal: 900, pigiron: 900 }); t.sell = { stone: false, iron: false, coal: false, pigiron: false };
+    for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'frost'], [3, 'still'], [4, 'crossbow'], [5, 'cannon'], [t.def.board.far, 'mortar']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); }
+    CG.play.close(); document.getElementById('callWave').click();
+  }],
+  // the armored train, close up as it comes out of the tunnel
+  ['train', async () => {
+    const t = CG.game.town, r = CG.town.rig, m = t.def.board.entrance.mouth, v = { x: m[0] - .4, z: m[1] + 2.2, yaw: .5, pitch: .5, dist: 4.4 }, w = ms => new Promise(k => setTimeout(k, ms));
+    Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; Object.assign(r.t, v); Object.assign(r.c, v);
+    for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await w(50);
+    t.waves.queue = ['train'];
+    let f = null;
+    for (let i = 0; i < 300; i++) { f = t.waves.foes.find(x => x.kind === 'train'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.4) break; } await w(50); }
+  }],
+  ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
+  ['pinehollow', async () => { CG.play.sheets.close(); CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['pinehollow-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['pinehollow-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.timber = 500; t.buildings.logcamp = 6; t.buildings.claybank = 3; for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
+];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ONLY = process.argv[3]; // optional: only this run (gulch, outpost or ridge)
 
 fs.mkdirSync(dir, { recursive: true });
 const srv = await start(0), b = await chromium.launch(), wrote = [];
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
+    if (!ONLY || ONLY === 'gulch') {
     const p = await b.newPage({ viewport: { width, height } });
     await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
@@ -91,6 +129,8 @@ try {
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();
+    }
+    if (!ONLY || ONLY === 'outpost') {
     const q = await b.newPage({ viewport: { width, height } });
     await q.goto(srv.url);
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
@@ -99,6 +139,17 @@ try {
       const f = path.join(dir, `${name}-${size}.png`); await q.screenshot({ path: f }); wrote.push(f);
     }
     await q.close();
+    }
+    if (!ONLY || ONLY === 'ridge') {
+      const r = await b.newPage({ viewport: { width, height } });
+      await r.goto(srv.url + '?coach=off&start=gulch');
+      for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
+      for (const [name, go] of RIDGE) {
+        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge' || name === 'pinehollow' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
+        const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
+      }
+      await r.close();
+    }
   }
 } finally { await b.close(); srv.close(); }
 console.log(wrote.join('\n'));

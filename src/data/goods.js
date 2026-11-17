@@ -11,6 +11,13 @@ export const GOODS = {
   bricks: { name: 'Bricks', town: 'gulch', tier: 1, price: 4.5, depth: 1.6 },
   tools:  { name: 'Tools', town: 'gulch', tier: 2, price: 13, depth: .6 },
   wagons: { name: 'Wagons', town: 'gulch', tier: 2, price: 36, depth: .3 },
-  // Dry Creek Outpost (it also digs copper ore, a good the Gulch makes too)
-  stone:  { name: 'Stone', town: 'drycreek', tier: 0, price: 1.2, depth: 3 },
+  // Iron Ridge (Dry Creek Outpost cuts stone too, as it digs copper ore, a good the Gulch makes)
+  stone:  { name: 'Stone', town: 'ridge', tier: 0, price: 1.2, depth: 3 },
+  iron:   { name: 'Iron ore', town: 'ridge', tier: 0, price: 2, depth: 3 },
+  coal:   { name: 'Coal', town: 'ridge', tier: 0, price: 1.5, depth: 3 },
+  pigiron: { name: 'Pig iron', town: 'ridge', tier: 1, price: 7.7, depth: 1.4 },
+  steel:  { name: 'Steel', town: 'ridge', tier: 1, price: 13, depth: 1 },
+  rails:  { name: 'Rails', town: 'ridge', tier: 2, price: 36, depth: .4 },
+  boilers: { name: 'Boilers', town: 'ridge', tier: 2, price: 31, depth: .4 },
+  locos:  { name: 'Locomotives', town: 'ridge', tier: 2, price: 165, depth: .1 },
 };

@@ -9,6 +9,7 @@ import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
+import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 
 // scratch objects reused every frame (no garbage for the collector to stutter on)
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();

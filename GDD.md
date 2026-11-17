@@ -21,6 +21,8 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 
 The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or 2 charters". Without the deed bonus, its coin price is out of reach.
 
+**Founding a town** (set 2026-11-17, M3). Each later town names what founding it takes (`town.def.found`, `src/core/empire.js`): the town that pays, the best wave it must have reached, and the coins it pays. Iron Ridge: Copper Gulch's best wave 20 (any life) and 150K of the Gulch's coins. Once the paying town's best wave is 5 short of the mark, the next town shows as a locked button in the town row at the top, with a red dot once it can be founded; tapping it opens a sheet with what it takes and a Start button. Founding opens the town and its outpost, and takes the player there.
+
 ## Outposts (owner request, 2026-11-17)
 The game starts in a tiny outpost, not a town. Outposts are small raw-goods camps: two raw buildings, a short road, a few stone pads, nothing else. They feed raw goods into the empire-wide market for the rest of the game.
 
@@ -41,10 +43,12 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
 | O5 | Glowrock Camp | Radium Springs | bauxite, pitchblende | a cracked rock face that glows faintly |
 
 - **Later outposts** play like Dry Creek but a little bigger: the Crossbow and the Cannon, both paid with coins and the outpost's own first raw good, and waves 1 to 15 with a small boss at 10 and 15. Winning wave 15 is the outpost's goal. The bots set the exact numbers in each town's box.
+- **Before it is won**, an outpost out of play waits like a town: the clock to its next wave stops until the player comes back.
 - **They stay useful.** Once won, an outpost keeps working in the background. Its raids stop growing (wave-10 strength, one every 2 minutes or so), and the towers it has fight them on their own. A breach there only takes part of its stockpile and never sets its waves back.
   - **Switching.** Once a second town is open, a row of town buttons sits at the top of the screen (Dry Creek, Copper Gulch); tapping one puts that town in play. The outpost's win card has a Go to Copper Gulch button. A town out of play (not an outpost) waits for the player: the wave on its road finishes, but the clock to its next wave stops until the player comes back, so nothing breaks while they are away. A won outpost keeps its raids. The empire map in M3 grows out of the town buttons.
-  - Its goods go first to the town in play: when a town's workshop is short of a raw good an outpost makes, it draws it from the outposts, up to the workshops' 10-second buffer. The rest sells on the shared market, so every outpost adds to the empire's supply of raw goods. While an outpost is out of play, the coins from its sales go to the town in play (it keeps only the bounties its towers earn), so the town feels it at once.
+  - Its goods go first to the town in play: when a town's workshop is short of a raw good an outpost makes, it draws it from the outposts, up to the workshops' 10-second buffer. Then the other towns' workshops draw the same way (so Pine Hollow's clay reaches the Gulch's Kiln while the player is in Iron Ridge). The rest sells on the shared market, so every outpost adds to the empire's supply of raw goods. While an outpost is out of play, the coins from its sales go to the town in play (it keeps only the bounties its towers earn), so the town feels it at once.
   - Its town chip (and later its camp on the empire map, a small camp around the edge) takes you there to build and upgrade.
+- **Pine Hollow numbers (first pass, the Ridge bot box tunes them).** The Logging Camp (timber, 0.9 a second per level, 12 coins, built at the start) and the Clay Bank (clay, 0.8 a second, 35 coins, opens at Logging Camp level 2). The Crossbow costs 20 coins and 6 timber, the Cannon 100 coins and 12 timber. Waves 1 to 15, at least 75 seconds apart, the bandit wagon at 10 and 15 (`waves.bosses`).
 - **Dry Creek numbers (first pass, the bot box tunes them).** The Stone Camp (stone, 0.8 a second per level, 10 coins, built at the start) and the Mining Camp (copper ore, 0.6 a second per level, 30 coins, opens at Stone Camp level 2). The Crossbow costs 20 coins and 6 stone. Raiders ride a little slower than in the Gulch (the road is short). The bandit wagon has half the war wagon's health. Light raids come every 120 seconds, and a breach takes a quarter of each good in the stockpile.
 - **Saves.** A save already in Copper Gulch when outposts arrive gets Dry Creek as won and running, with its two buildings at level 5 and two Crossbows.
 
@@ -54,7 +58,7 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
 - The vault sits at the lane's end, in the heart of the town.
 - **Every lane has a real entrance**, never a bare start. Raiders come out of it, hidden until they are clear of it, and a dust plume (or that lane's own sign) rises behind it a few seconds before each wave, bigger for a boss. `tools/audit.js` fails a lane without an entrance model.
   - Copper Gulch: a narrow slot canyon between tall layered rock walls that run off the board, with an old timber mine portal in a rockfall, a collapsed trestle at the mouth and a signpost with a wanted poster.
-  - Iron Ridge: a railway tunnel portal through the mountain. Silver Falls: boats round a misty river bend under a broken bridge. Thunder Mesa: airships come out of a cloud bank. Radium Springs: out of a glowing fissure.
+  - Iron Ridge: a railway tunnel portal through a granite shoulder, rails running out of it, a signal post and a water tank at the mouth. Its line switches back across the town four times (west, east, west, east) with the workshops in three rows between the passes, 12 pads and 4 mortar pits. Silver Falls: boats round a misty river bend under a broken bridge. Thunder Mesa: airships come out of a cloud bank. Radium Springs: out of a glowing fissure.
 - **Outpost maps** are smaller: the road enters, loops once around the camp and leaves, past the camp's few pads, with the stockpile (the vault) where the loop closes. They have a real entrance like every lane, and no mortar pits.
 - **Mortar pits.** Every town map has 3 to 5 far pads, set well back from the lane and the buildings: outside a normal tower's reach of most of the lane, but with several passes of the lane inside the Mortar's ring. They look different (a ring of sandbags). Only long-range towers (the Mortar) can be built on them, and long-range towers go only there. `tools/audit.js` fails a town without them (outposts are exempt).
 
@@ -65,7 +69,10 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Raw: timber (Lumber Camp), copper ore (Copper Mine), clay (Clay Pit).
   - Intermediate: planks (Sawmill, 2 timber), copper (Smelter, 2 ore + 1 timber as fuel), bricks (Kiln, 2 clay + 1 timber).
   - Finished: tools (Toolsmith, planks + copper), wagons (Wagon Works, 2 planks + tools + copper).
-- **Iron Ridge**
+- **Iron Ridge** (first pass, set 2026-11-17; the Ridge bot box tunes it)
+  - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 5), Rolling Mill and Boiler Shop (Steel Mill 5), Locomotive Works (Rolling Mill 10, Boiler Shop 5).
+  - Towers pay with Ridge goods: Crossbow stone, Cannon iron ore, Frost Lens coal and stone, Still iron ore and coal, Mortar pig iron and stone.
+  - Research: Steam Drills, Hot Blast, Iron Plating, Rifled Barrels, Railroad Rewards, Freight Depot, and Bessemer Converter (Steel Mill +60%, one more coal per steel: the trade-off). It opens with the Blast Furnace.
   - Raw: iron ore, coal, stone.
   - Intermediate: pig iron (2 iron + coal), steel (pig iron + coal).
   - Finished: rails (2 steel), boilers (steel + 2 bricks <- Gulch), locomotives (boiler + 2 rails + tools <- Gulch).
@@ -82,6 +89,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Intermediate: radium salts, vacuum tubes (glass + wire <- Falls).
   - Finished: radios (tubes + quartz <- Falls + aluminum <- Mesa), rockets (motor + fuel <- Mesa + radio).
 - **The Capital** makes nothing. It posts federal contracts for finished goods from every town.
+- **Routes** (set 2026-11-17, M3). A town ships the goods it makes to every later town that imports them, by wagon, automatically: as much as the importing town's workshops are short of (up to their 10-second buffer), from what the maker has above its own workshops' buffer and tower reserve. The importing town pays the maker today's market price for each load, as far as its coins reach, so the maker earns as from a sale ("Goods sent to Iron Ridge" in its income). Imported goods are never sold again. Routes go on in every town, in play or not, and the Sell switch does not stop them (it only stops market sales). The building card of a workshop that uses an import says where it comes from, and when it runs short, which building to upgrade in the other town. Decision: no route levels to buy; the choice is how far to grow the Gulch's Kiln and Toolsmith for the Ridge. The empire map draws the wagons.
 - **Outposts** make only raw goods (see Outposts). They add supply of goods a town may also make (ore, stone, timber, clay...), and towns draw from them before the market.
 
 **Chain rules** (checked by `tools/audit.js`):

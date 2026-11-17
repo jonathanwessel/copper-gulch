@@ -1,0 +1,42 @@
+/* Pine Hollow: the second outpost, opened with Iron Ridge (GDD.md, Outposts). A logging camp in the pines with a
+   Logging Camp (timber) and a Clay Bank (clay), the Crossbow and the Cannon, on one road that loops round the camp.
+   It sends its timber and clay to the town in play first, then to the other towns' workshops (more bricks in the Gulch
+   for the Ridge's boilers). Waves 1 to 15 with the bandit wagon at 10 and 15; winning wave 15 is its goal. */
+export const PINEHOLLOW = {
+  id: 'pinehollow',
+  kind: 'outpost',
+  name: 'Pine Hollow',
+  short: 'Pine Hollow',
+  store: 'stockpile',
+  era: 'Iron and rail',
+  goods: ['timber', 'clay'],
+  buildings: ['logcamp', 'claybank'],
+  top: 'timber',
+  start: { coins: 25, buildings: { logcamp: 1 } },
+  imports: [],
+  towers: ['crossbow', 'cannon'],
+  boss: 'bandits',
+  goal: 15,
+  opens: null,
+  raid: 120,
+  waves: { speed: .9, first: 30, pace: 75, bosses: [10, 15] },
+  // The road comes down a logging chute from the north, loops once counterclockwise round the two camps and ends at
+  // the stockpile beside where the loop began.
+  board: {
+    cols: 8, rows: 9,
+    plots: { logcamp: [5.1, 3.3], claybank: [2.1, 3.3] },
+    road: [
+      [3.6, -6], [3.6, .5],
+      [.9, .5], [.1, 1.3], [.1, 6.7], [.9, 7.5],
+      [6.3, 7.5], [7.1, 6.7], [7.1, 1.3], [6.3, .5], [5.6, .5],
+    ],
+    vault: [5, .5],
+    entrance: { kind: 'chute', mouth: [3.6, -1.8], portal: [3.6, -5.6], width: 2.4, hide: .6 },
+    spots: [
+      [3.6, 2.2], [1.6, 5.9], [5.6, 5.9], [3.6, 5], [3.6, 9.2], [-1.9, 3.8], [9.1, 3.8],
+    ],
+    far: 7,
+    frame: { x: 3.6, z: 3.6, w: 12.5, d: 12 },
+    look: { sand: '#bdb383', sandD: '#a1966a', dirt: '#7a5e40', rut: '#5a432c', mesa: ['#7d6a4a', '#9a8458', '#6b5a3e', '#a99a6a'] },
+  },
+};

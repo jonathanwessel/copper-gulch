@@ -23,8 +23,9 @@ export function wavesOf(town) {
   if (!WAVES.has(d)) WAVES.set(d, { ...WAVE, ...d.waves });
   return WAVES.get(d);
 }
-/* Is wave w a boss wave here? A won outpost's light raids never bring its boss again. */
-export const bossWave = (town, w) => !town.won && w % wavesOf(town).boss === 0;
+/* Is wave w a boss wave here? A town may list its boss waves (waves.bosses); otherwise every WAVE.boss-th wave.
+   A won outpost's light raids never bring its boss again. */
+export const bossWave = (town, w) => { const W = wavesOf(town); return !town.won && (W.bosses ? W.bosses.includes(w) : w % W.boss === 0); };
 /* Share of each good in its stockpile a won outpost loses when raiders break in (its waves never drop back). */
 export const RAID_LOSS = .25;
 
@@ -188,8 +189,9 @@ function kill(game, town, f) {
 }
 
 /* A town out of play waits: the wave on its road finishes, but the clock to the next one stops until the player is
-   back, so arriving always leaves the time it showed. An outpost keeps its raids (its towers fight them on their own). */
-export const waitsAway = (game, town) => !!game.active && game.active !== town.id && !isOutpost(town);
+   back, so arriving always leaves the time it showed. A won outpost keeps its raids (its towers fight them on their
+   own); one not yet won waits like a town. */
+export const waitsAway = (game, town) => !!game.active && game.active !== town.id && !(isOutpost(town) && town.won);
 
 /* One step of the battle. */
 export function fight(game, town, dt) {

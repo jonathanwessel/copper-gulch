@@ -7,6 +7,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { isOutpost } from './economy.js';
 import { researchOpen, itemsOf, researchBlock } from './research.js';
 import { charterOffered, perksToPick, deedsFor } from './charter.js';
+import { nextTowns } from './empire.js';
 
 /* The goods the Goods list shows: what this town's built buildings make. */
 export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
@@ -19,7 +20,7 @@ export function tabs(game, town) {
     goods: !!seen.goods || listedGoods(town).length >= 2,
     research: researchOpen(town),
     perks: charterOffered(game) && !isOutpost(town),
-    chip: Object.keys(game.towns).length > 1,
+    chip: Object.keys(game.towns).length + nextTowns(game).length > 1,
   };
 }
 
