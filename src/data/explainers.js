@@ -76,6 +76,12 @@ export const EXPLAINERS = [
     when: h => !!h.tabs.goods, at: () => ({ el: '#goodsBtn' }),
   },
   {
+    id: 'strip', covers: ['strip'],
+    title: 'Your goods',
+    text: 'Towers cost goods as well as coins. Tap a good at the bottom to see its price.',
+    when: h => !!h.tabs.strip && h.towers.length >= 1, at: () => ({ el: '#goodsStrip' }),
+  },
+  {
     id: 'reserve', covers: ['reserve'],
     title: 'Saved for towers',
     text: "Your town saves goods for every tower's next upgrade and one new tower. To sell everything a building makes, tap it and switch Keep for towers off.",

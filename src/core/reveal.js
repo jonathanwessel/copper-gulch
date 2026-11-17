@@ -8,9 +8,22 @@ import { isOutpost } from './economy.js';
 import { researchOpen, itemsOf, researchBlock } from './research.js';
 import { charterOffered, perksToPick, deedsFor } from './charter.js';
 import { nextTowns } from './empire.js';
+import { GOODS } from '../data/goods.js';
+import { TOWERS } from '../data/towers.js';
+import { towerOpen, towerIn } from './defense.js';
 
 /* The goods the Goods list shows: what this town's built buildings make. */
 export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
+
+/* The goods strip (owner rule: the player can always see how much of each good they have): every good this town makes
+   with a built building, has in stock, or pays for an open tower kind or the next upgrade of a tower it has, in the
+   order of the goods list. */
+export function stripGoods(town) {
+  const want = new Set(listedGoods(town));
+  for (const [g, n] of Object.entries(town.goods || {})) if (n >= 1) want.add(g);
+  for (const [k, d] of Object.entries(TOWERS)) if (towerIn(town, k) && (towerOpen(town, k) || (town.towers || []).some(t => t.kind === k))) for (const g of Object.keys(d.goods[town.id] || {})) want.add(g);
+  return Object.keys(GOODS).filter(g => want.has(g));
+}
 
 /* Which buttons are out. Goods once there are two goods to compare (or once the player met it in another town). */
 export function tabs(game, town) {
@@ -21,6 +34,7 @@ export function tabs(game, town) {
     research: researchOpen(town),
     perks: charterOffered(game) && !isOutpost(town),
     chip: Object.keys(game.towns).length + nextTowns(game).length > 1,
+    strip: stripGoods(town).length > 0,
   };
 }
 

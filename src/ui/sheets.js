@@ -53,9 +53,10 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* The Goods sheet. A good shows once its building is built. */
-export function goodsSheet(game, town) {
+export function goodsSheet(game, town, focus = null) {
   return body => {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
+    if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
@@ -99,6 +100,7 @@ export function goodsSheet(game, town) {
       }
     };
     build();
+    if (focus && rows[focus]) { rows[focus].txt.classList.add('focus'); requestAnimationFrame(() => rows[focus].txt.scrollIntoView({ block: 'nearest' })); }
     let acc = 0;
     return dt => { if ((acc += dt) < .3) return; acc = 0; if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
   };

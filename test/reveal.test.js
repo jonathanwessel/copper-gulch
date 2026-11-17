@@ -94,3 +94,18 @@ test('the Goods card waits for the Goods button, and the Red dots card shows onc
   assert.equal(E('dots').when(helper(dc, g)), true);
   assert.ok(EXPLAINERS.indexOf(E('goods')) < EXPLAINERS.indexOf(E('dots')), 'the Goods card comes first');
 });
+
+test('the goods strip shows what the town makes, holds, and needs for its towers, from the very start', async () => {
+  const { stripGoods, tabs } = await import('../src/core/reveal.js');
+  const { newGame } = await import('../src/core/setup.js');
+  const dc = newGame('strip1');
+  assert.deepEqual(stripGoods(dc.town), ['stone'], 'Dry Creek: the stone its Crossbow costs, even before any is cut');
+  assert.equal(tabs(dc, dc.town).strip, true);
+  dc.town.buildings.dmine = 1;
+  assert.deepEqual(stripGoods(dc.town), ['ore', 'stone'], 'in the order of the goods list');
+  const g = newGame('strip2', 'gulch');
+  assert.ok(['timber', 'ore', 'clay', 'planks'].every(x => stripGoods(g.town).includes(x)), 'every good an open tower kind costs');
+  assert.ok(!stripGoods(g.town).includes('bricks'), 'not the Mortar\'s bricks before it opens');
+  g.town.goods.bricks = 5;
+  assert.ok(stripGoods(g.town).includes('bricks'), 'but bricks once there are some');
+});

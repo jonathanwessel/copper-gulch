@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-17',
+    lines: [
+      'A new row at the bottom shows your goods. Tap one to see its price.',
+      'Tower costs show what you have and what you need, like Timber 3 / 8. Red means you need more.',
+    ],
+  },
+  {
     v: '2026.11.17-16',
     lines: [
       'Iron Ridge now costs 15K coins, not 150K.',

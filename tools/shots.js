@@ -19,6 +19,7 @@ const SCREENS = [
   ['fight', () => { const t = CG.game.town; CG.play.close(); t.coins = 1e6; Object.assign(t.goods, { timber: 500, ore: 500, copper: 500, bricks: 500, tools: 500, planks: 500, clay: 500 }); t.sell = { timber: false, ore: false, copper: false, bricks: false, tools: false, planks: false, clay: false }; for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   ['selected', () => { CG.play.openSpot(3); }],
   // a tower card short of a good: how much there is, about how long, and which building to upgrade
+  ['strip', () => { const t = CG.game.town; CG.play.close(); t.goods.timber = 124; t.goods.planks = 18; t.goods.ore = 6; t.goods.clay = 40; }],
   ['short', () => { const t = CG.game.town; t.goods.ore = 2; t.buildings.mine = Math.max(5, t.level('mine')); CG.play.close(); CG.play.openSpot(3); }],
   ['foreman', () => { const t = CG.game.town; t.buildings.camp = Math.max(10, t.level('camp')); t.coins = 600; CG.play.close(); CG.play.open('camp'); }],
   ['pit', () => { CG.play.openSpot(CG.game.town.def.board.far); }],

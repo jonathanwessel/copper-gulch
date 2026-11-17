@@ -91,12 +91,30 @@ async function run() {
         document.getElementById('keepTowers').click(); await wait(50);
         out.on = !t.reserveOff.timber && t.keep.timber > 0;
         t.goods.timber = 0; CG.play.openSpot(3); await wait(400);
-        const sh = document.querySelector('#card .short');
-        out.short = !!sh && /Timber 0 of \d+/.test(sh.textContent) && /Lumber Camp/.test(sh.textContent);
+        const sh = document.querySelector('#card .short'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
+        out.short = !!sh && /Lumber Camp/.test(sh.textContent);
+        out.haveNeed = low.some(x => /^Timber0 \/ \d+$/.test(x)); // the cost says have / need, red when short
         CG.play.close();
         return out;
       });
       for (const [k, v] of Object.entries(reserve)) if (!v) bad.push('tower reserve: not ' + k);
+      // the goods strip (owner rule): on screen with a count for each good, following the stock, and a tap opens Goods there
+      const strip = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, s = document.getElementById('goodsStrip'), out = {};
+        const selling = t.sell.timber; t.sell.timber = false; t.goods.timber = 37; await wait(450); // held, so the count stays put while it is read
+        const b = s && s.getBoundingClientRect(), chip = s && s.querySelector('[data-good="timber"]');
+        out.shown = !!s && !s.hidden && b.width > 0 && b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight;
+        out.counts = !!chip && Math.abs(+chip.querySelector('b').textContent - t.goods.timber) <= 4 && [...s.querySelectorAll('.goodchip b')].every(n => /^\d/.test(n.textContent));
+        out.texts = s ? [...s.querySelectorAll('.goodchip')].map(n => n.dataset.good + '=' + n.querySelector('b').textContent).join(' ') + ' have ' + t.goods.timber : 'none';
+        out.size = !!chip && chip.getBoundingClientRect().height >= 30;
+        out.noScroll = document.documentElement.scrollWidth <= innerWidth;
+        chip.click(); await wait(400);
+        const f = document.querySelector('.sheet .goods .focus');
+        out.opens = !!f && f.dataset.why === 'timber' && /You get/.test(f.textContent);
+        CG.play.sheets.close(); if (selling === undefined) delete t.sell.timber; else t.sell.timber = selling;
+        return out;
+      });
+      for (const [k, v] of Object.entries(strip)) if (!v) bad.push('goods strip: not ' + k + (k === 'counts' ? ' (' + strip.texts + ')' : ''));
       // a foreman: the camp card offers one at level 10, hiring it makes the camp buy levels by itself, and its switch stops that
       const boss = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};

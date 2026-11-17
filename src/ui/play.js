@@ -17,13 +17,15 @@ import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
 import { RESEARCH } from '../data/research.js';
-import { tabs, dots, look, lookGoods, lookPerks } from '../core/reveal.js';
+import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt } from './format.js';
 export { fmt };
 const rate = n => fmt(n) + '/s';
+/* A good's square, in its color (GOODS[g].color). */
+const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
 
 export function mountPlay(root, game, viewApi, shell = {}) {
   const town = game.town, ui = el('section', 'play'); ui.id = 'play-ui';
@@ -96,6 +98,22 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   side.append(goodsBtn, labBtn, perksBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
+  // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
+  const strip = el('div', 'goodstrip'); strip.id = 'goodsStrip'; strip.hidden = true;
+  let stripSig = '', stripNums = {};
+  const paintStrip = () => {
+    const list = stripGoods(town), s = list.join();
+    if (s !== stripSig) {
+      stripSig = s; stripNums = {}; strip.hidden = !list.length;
+      strip.replaceChildren(...list.map(g => {
+        const b = el('button', 'goodchip'); b.dataset.good = g; b.title = GOODS[g].name;
+        const n = el('b'); b.append(goodIcon(g), el('span', 'gname', GOODS[g].name), n); stripNums[g] = n;
+        b.addEventListener('click', () => openGoods(g));
+        return b;
+      }));
+    }
+    for (const [g, n] of Object.entries(stripNums)) setText(n, fmt(Math.floor((town.goods[g] || 0) + 1e-9)));
+  };
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
   for (const id of Object.keys(town.def.board.plots)) { const t = el('button', 'tag'); t.dataset.plot = id; t.addEventListener('click', () => open(id)); tags.append(t); tag[id] = t; }
@@ -103,10 +121,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
-  ui.append(tags, hud, card, mark, banner);
+  ui.append(tags, hud, strip, card, mark, banner);
   root.append(ui);
   const sheets = createSheets(ui, { onOpen: () => close() });
-  const openGoods = () => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town)); };
+  const openGoods = (focus = null) => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
   const menuCtx = { game, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
@@ -116,7 +134,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
-  goodsBtn.addEventListener('click', openGoods); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
+  goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
   function open(id) {
@@ -204,21 +222,32 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
 
   let armed = null; // a path tapped once, waiting for the second tap
-  const costText = c => [fmt(c.coins) + ' coins', ...Object.entries(c.goods).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase())].join(' + ');
+  /* A cost as a row: the coins, then each good with its square and "have / need", red when short. */
+  const costRow = c => {
+    const r = el('span', 'costrow');
+    r.append(el('span', 'need' + (town.coins + 1e-9 < c.coins ? ' low' : ''), fmt(c.coins) + ' coins'));
+    for (const [g, n] of Object.entries(c.goods)) {
+      const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need' + (have < n ? ' low' : ''));
+      p.title = GOODS[g].name; p.append(goodIcon(g), el('span', 'gname', GOODS[g].name), document.createTextNode(fmt(have) + ' / ' + n));
+      r.append(p);
+    }
+    return r;
+  };
+  const haveSig = c => Object.keys(c.goods).map(g => Math.floor(town.goods[g] || 0)).join('/') + ',' + (town.coins >= c.coins);
   /* What a tower buy is short of, in words: "Copper 6 of 10, about 40 s. Upgrade the Smelter to speed it up." */
   const time = s => { const n = s < 90 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 90 ? ' second' : ' minute') + (n === 1 ? '' : 's'); };
   const shortText = c => shortfall(town, c).map(s => {
-    const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker], amt = name + ' ' + Math.floor(s.have) + ' of ' + s.need;
-    if (!b || !town.level(s.maker)) return (s.have >= 1 ? amt + '. ' : '') + 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
-    if (s.seconds === null) return amt + '. Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
-    return amt + ', ready in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.';
+    const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
+    if (!b || !town.level(s.maker)) return 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
+    if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
+    return 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make it faster.';
   });
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return 'Your town kept ' + n.toLowerCase() + ' for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
     const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
-    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmt(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k))), JSON.stringify(shorts)].join();
+    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmt(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level)), haveSig(towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k) + haveSig(towerCost(town, k, 0)))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -232,7 +261,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       }
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
-        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), el('small', null, shut ? 'You can build it at wave ' + d.opens : costText(c)));
+        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), shut ? el('small', null, 'You can build it at wave ' + d.opens) : costRow(c));
         if (!shut) for (const s of shortText(c)) txt.append(el('small', 'short', s));
         const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
@@ -264,7 +293,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      ph.append(pt, el('span', 'cost', costText(c))); card.append(ph);
+      ph.append(pt, costRow(c)); card.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
@@ -277,8 +306,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         opt.append(txt, go); card.append(opt);
       }
     } else {
-      const up = el('button', 'btn primary buy', 'Upgrade · ' + costText(c)); up.id = 'buy'; up.disabled = !canPay(town, c);
+      const up = el('button', 'btn primary buy', 'Upgrade'); up.id = 'buy'; up.disabled = !canPay(town, c);
       up.addEventListener('click', () => { if (upgradeTower(game, town, i)) paintCard(); });
+      card.append(costRow(c));
       row.append(up);
     }
     const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
@@ -394,6 +424,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     hist.push([town.t, town.lifetime, { ...town.tally }]); while (hist.length > 25) hist.shift();
     const [t0, l0] = hist[0], per = town.t > t0 ? (town.lifetime - l0) / (town.t - t0) : 0;
     setText(coinNum, fmt(town.coins)); setText(inc, '+' + rate(per));
+    paintStrip();
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
@@ -418,7 +449,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); };
-  return { frame, open, openSpot, close, el: ui, sheets, openGoods, openMenu, openResearch, openPerks, openIncome, openVault, destroy };
+  return { frame, open, openSpot, close, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
