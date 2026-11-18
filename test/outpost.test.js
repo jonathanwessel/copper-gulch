@@ -16,7 +16,7 @@ const run = (g, seconds) => { for (let i = 0; i < seconds * 4; i++) g.step(.25);
 /* Dry Creek with a Crossbow on every pad, raised to level 4. */
 function fortify(g, t) {
   t.coins = 1e7; t.goods.stone = 1e5; t.sell.stone = false;
-  for (let i = 0; i < t.def.board.spots.length; i++) { assert.ok(buildTower(g, t, i, 'crossbow')); for (let L = 1; L < 4; L++) assert.ok(upgradeTower(g, t, i)); }
+  for (let i = 0; i < t.def.board.spots.length; i++) { assert.ok(buildTower(g, t, i, 'crossbow')); for (let L = 1; L < 7; L++) assert.ok(upgradeTower(g, t, i, 'a')); } // strong enough to kill the bandit wagon (boss waves are gates)
 }
 
 test('a new game starts in Dry Creek Outpost with a Stone Camp, and the Gulch is not open yet', () => {

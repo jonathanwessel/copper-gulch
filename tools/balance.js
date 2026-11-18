@@ -125,7 +125,8 @@ export function options(town) {
 /* The strategies (CLAUDE.md: more than one way to win). Each says how many towers it wants for the coming wave, the
    level it keeps them at, which defense buys it takes first, and whether the town or the defense gets the coins first.
      active: the steady player the pacing targets are set for.
-     minmax: a few towers on the best pads, pushed to high levels and their paths, at most two of a kind (with one
+     minmax: a few towers on the best pads, pushed to high levels and their paths, at most two of a kind and one Cannon
+       (with boss waves as gates it keeps up to 7 towers, and two high Cannons did 38-41% of its damage) (with one
        purse, small differences in coins at the Gulch's start sent it into three Crossbows and no Still, stuck at wave 20).
      swarm: towers on every pad it can (a new one every wave or two), kept at low levels and raised evenly.
      economy: the town first while no raider got through in the last two waves, with the fewest towers that hold
@@ -134,12 +135,20 @@ export function options(town) {
 /* The active player, once a raider got through, keeps its towers GUARD.levels higher for the next GUARD.waves waves:
    with Call now never locked, a called wave that leaked left Dry Creek's vault at 40% for the bandit wagon (seed 2). */
 export const GUARD = { waves: 3, levels: 1 };
+/* Boss waves are gates: a boss that gets through drops the town back and holds its waves. The bot builds for RETRY
+   seconds (its towers keep the GUARD levels), then taps Resume waves. */
+export const RETRY = 20;
+/* A careful player gets ready for a boss: its towers aim BOSS.prep levels higher while a boss wave is next or on the
+   road. Each time that boss gets through it wants BOSS.retry levels more and one tower more, from then (the waves it
+   dropped back to) until the boss is down. */
+export const BOSS = { prep: 1, retry: 1 };
+const bossExtra = (t, r, S = {}) => (bossWave(t, t.wave) ? S.prep ?? BOSS.prep : 0) + BOSS.retry * (r.bossLost || 0);
 const guard = (w, r) => (r && w - r.leakAt <= GUARD.waves ? GUARD.levels : 0);
 export const STRATEGIES = {
   active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
-  minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true, most: 2 },
+  minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2 },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
-  economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1 + w / 3.3 + r.bump, eco: true },
+  economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1.3 + w / 3.3 + r.bump, eco: true },
   defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
 };
 
@@ -192,6 +201,8 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   r.lastAge = 1; r.calls = 0;
   on('wave:clear', e => { if (mine(e)) r.lastAge = t.waves.age / wavesOf(t).pace; });
   on('leak', e => { if (!mine(e)) return; if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });
+  on('breach', e => { if (mine(e) && e.why === 'boss') r.bossLost = (r.bossLost || 0) + 1; });
+  on('wave:clear', e => { if (mine(e) && bossWave(t, e.wave)) r.bossLost = 0; });
   on('wave:clear', e => {
     if (!mine(e)) return;
     if (e.wave === 10 && r.wave10 === null) { r.wave10 = t.t; r.calls10 = r.calls; }
@@ -200,19 +211,21 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     const d = (g.dealt || {})[t.id] || {}, best = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
     if (best && t.t <= 3600) { r.top.push([e.wave, best[0], Object.keys(d).length]); for (const [k, n] of Object.entries(d)) r.dealt[k] = (r.dealt[k] || 0) + n; }
   });
-  on('breach', e => { if (mine(e)) r.breaches.push(e.wave); });
+  on('breach', e => { if (mine(e)) { r.breaches.push(e.wave); (r.why ||= []).push(e.why); } });
   on('research:new', e => { if (mine(e) && !r.signed) r.news.push(t.t); });
   on('charter:offer', e => { if (mine(e)) r.offer = t.t; });
   // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
   // also waits until a raider got through in the last two waves, once it has its first towers)
   // urgent: short of towers, a tower more than a level behind, or the vault below 60%
   const defend = (urgent = false) => {
-    const w = t.wave, want = S.want(w), lv = S.level(w, r);
+    const w = t.wave, want = S.want(w) + (r.bossLost || 0), lv = S.level(w, r) + bossExtra(t, r, S);
     if (t.towers.length >= want && !t.towers.some(x => x.level < lv)) return false;
     if (urgent && t.towers.length >= want && !t.towers.some(x => x.level < lv - 1.5) && t.vault.hp >= .6 * t.vault.max) return false;
     let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
-    if (S.most) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < S.most); // a few strong towers, but no more than two of a kind
+    // a few strong towers, but no more than two of a kind (where only one kind can be built, Dry Creek, it keeps its
+    // few towers: two Crossbows could not stop the bandit wagon once boss waves became gates)
+    if (S.most && Object.keys(TOWERS).filter(k => towerOpen(t, k)).length > 1) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < (o.kind === 'cannon' ? 1 : S.most));
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     let pick = opts[0];
     // when it adds a tower and the goal strip asks for a kind it has not built yet, it builds that kind (if it can pay)
@@ -301,10 +314,13 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
       continue;
     }
     if (save && t.waves.hold) setHold(g, t, false);
+    if (t.waves.autoHold) { r.heldAt ??= t.t; if (t.t - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; r.retries = (r.retries || 0) + 1; } }
     if (r.saving && !r.savingNow) for (const id of Object.keys(t.foremen)) setForeman(t, id, true);
     // the goal strip asks for a building (with goals on, once the first boss is down): build it, or save for it
     if (goals && t.bestWave >= 10) {
-      const gb = goalBuilding(g, t), calm = t.towers.length > 0 && t.vault.hp >= .6 * t.vault.max;
+      // not calm while a boss is next or beat it last time (the vault refills after a loss, so it would save for the goal
+      // and never get ready for the boss: four lost trains at the Ridge's wave 20)
+      const gb = goalBuilding(g, t), calm = t.towers.length > 0 && t.vault.hp >= .6 * t.vault.max && !bossWave(t, t.wave) && !(r.bossLost > 0);
       if (gb && calm) {
         if (t.coins >= cost(gb.town, gb.id)) { if (build(g, gb.town, gb.id)) continue; }
         else if (cost(gb.town, gb.id) <= GOAL_SAVE_MINUTES * (r.all || 0)) continue; // the vault holds: the towers wait
@@ -312,8 +328,9 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     }
     // a building that pays for itself within the strategy's payback time comes before the towers
     pickBuilding();
-    const safe = t.towers.length > 0 && t.wave - r.leakAt > 2;
-    const pays = saving = t.towers.length > 0 && t.wave - r.leakAt > 1 && bv * PAYBACK[strategy] > 1; // not right after a leak
+    const boss = (bossWave(t, t.wave) && (S.prep ?? BOSS.prep) > 0) || r.bossLost > 0; // a boss is next, or beat it last time: the towers come first
+    const safe = t.towers.length > 0 && t.wave - r.leakAt > 2 && !boss;
+    const pays = saving = t.towers.length > 0 && t.wave - r.leakAt > 1 && !boss && bv * PAYBACK[strategy] > 1; // not right after a leak
     if (((S.eco && safe) || pays) && grow()) continue;
     if (defend(pays)) continue;
     grow();

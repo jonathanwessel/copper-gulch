@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-3',
+    lines: [
+      'To beat a boss wave, you must stop the boss. If it reaches your vault, you drop back two waves and lose some coins.',
+      'Then your waves go on hold. Build more towers, then tap Resume waves.',
+      'The war wagon has less health now, so you can stop it on your first try.',
+    ],
+  },
+  {
     v: '2026.11.18-2',
     lines: [
       'The top left now shows the town name, Map, and a button back to the last town you played.',

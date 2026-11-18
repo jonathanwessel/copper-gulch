@@ -132,6 +132,25 @@ async function run() {
         return { open, went, paid };
       });
       if (!callGate.open || !callGate.went || !callGate.paid) bad.push('Call now was not open from the start of the wait: ' + JSON.stringify(callGate));
+      // boss waves are gates (owner rule): a boss that gets through in the town in play shows the lost card, drops the
+      // town back and holds its waves; Got it closes the card
+      const gate = await page.evaluate(async () => {
+        const m = await import(new URL('src/core/defense.js', location.href).href);
+        const t = CG.game.town, keep = JSON.stringify(t.waves), w = t.wave, bw = t.bestWave, coins = t.coins, br = t.breaches;
+        CG.town.pause('smoke', true); t.wave = 10; t.bestWave = 9; t.coins = 400; t.recent = 400;
+        m.fall(CG.game, t, 'boss'); await new Promise(r => setTimeout(r, 300));
+        const c = document.getElementById('lostCard'), out = {
+          card: !!c && c.getBoundingClientRect().width > 0, text: c ? c.textContent : '', back: t.wave === 8, held: !!t.waves.autoHold,
+          resume: document.getElementById('holdWaves').textContent === 'Resume waves',
+        };
+        if (c) document.getElementById('lostOk').click();
+        await new Promise(r => setTimeout(r, 100));
+        out.closed = !document.getElementById('lostCard');
+        Object.assign(t.waves, JSON.parse(keep), { hold: false, autoHold: false }); delete t.lost;
+        Object.assign(t, { wave: w, bestWave: bw, coins, breaches: br }); CG.town.pause('smoke', false);
+        return out;
+      });
+      if (!gate.card || !/reached your vault/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
       // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
       // names the good, the amount and the building that makes it
       const reserve = await page.evaluate(async () => {
@@ -177,8 +196,8 @@ async function run() {
         const inc = document.querySelector('.hud .coins .inc'), winfo = document.querySelector('#wave .winfo');
         Object.assign(ws, { phase: 'break', timer: 30, queue: [], foes: [] });
         let first = null, painted = true;
-        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'held'], [99, 12, '24 left · Swarm'], [999, 40, 'in 58s'], [1000, 99, '3 left · Heavy'],
-          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'held'], [99999, 99, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 12s'], [9.99e8, 10, 'in 3s']];
+        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'on hold'], [99, 12, '24 left · Swarm'], [999, 40, 'in 58s'], [1000, 99, '3 left · Heavy'],
+          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'on hold'], [99999, 99, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 12s'], [9.99e8, 10, 'in 3s']];
         for (const [n, w, info] of steps) {
           for (const g of Object.keys(t.goods)) { t.goods[g] = n; t.sell[g] = false; }
           t.coins = n * 10; t.wave = w;

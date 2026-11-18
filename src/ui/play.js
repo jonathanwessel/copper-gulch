@@ -20,7 +20,7 @@ import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, s
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
-import { lostToast } from './lost.js';
+import { lostToast, lostCard } from './lost.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt, fmtLive } from './format.js';
@@ -335,12 +335,25 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('breach', e => {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
+      if (e.held && !e.away && e.town === town.id) { showLost(); return; } // the boss got through here: a card, waves on hold
       if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id), 6000); return; }
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);
       else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
     }),
   ];
+
+  // the boss got through in the town in play: a plain card says what happened and what to do; one tap closes it
+  function showLost() {
+    const old = document.getElementById('lostCard'); if (old) old.remove();
+    const c = lostCard(town), layer = el('div', 'newslayer'), card = el('div', 'newscard lostcard'), body = el('div', 'newsbody');
+    layer.id = 'lostCard';
+    for (const l of c.lines) body.append(el('p', null, l));
+    const ok = el('button', 'btn primary', 'Got it'); ok.id = 'lostOk';
+    ok.addEventListener('click', () => layer.remove());
+    card.append(el('b', 'newstitle', c.title), body, ok); layer.append(card); root.append(layer);
+    paintCtl();
+  }
 
   // the goal strip: a finished goal shows Done for a moment, then the next one comes in
   let goalId = null, goalCur = null, doneFor = 0;
@@ -440,7 +453,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
     measure();
-    setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
+    setText(waveInfo, ws.phase === 'break' ? (ws.hold ? 'on hold' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
     call.hidden = ws.phase !== 'break';
     const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
@@ -458,7 +471,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */
-  const destroy = () => { for (const off of offs) off(); ui.remove(); };
+  const destroy = () => { for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
   return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, openPlaces, destroy };
 }
 

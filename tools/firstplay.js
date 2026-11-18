@@ -89,9 +89,12 @@ export function newcomer(seed, minutes = MINUTES) {
   g.bus.on('breach', e => { if (e.town === g.active) r.breaches.push(e.town + ' ' + e.wave); });
   g.bus.on('wave:clear', e => { if (e.town === 'gulch' && e.wave === 10 && r.wave10 === null && r.gulchAt !== null) r.wave10 = now() - r.gulchAt; });
   let seenTabs = '';
+  const RETRY = 45;
   for (let s = 0; s < minutes * 240; s++) {
     g.step(.25);
     const t = g.town, at = now();
+    // a lost boss holds the waves: the newcomer reads the card, builds a while, then taps Resume waves
+    if (t.waves.autoHold && s % 4 === 0) { r.heldAt ??= at; if (at - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; } }
     if (r.dcWon === null && g.towns.drycreek.won) { r.dcWon = at; news(); }
     const tb = tabs(g, t), shown = Object.keys(tb).filter(k => tb[k]).join(',');
     if (shown !== seenTabs) { seenTabs = shown; news(); } // a new button came out

@@ -6,9 +6,9 @@ export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
   runner: { name: 'Rider', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
-  wagon:  { name: 'War wagon', hp: 20, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
-  bandits: { name: 'Bandit wagon', hp: 10, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
-  train:  { name: 'Armored train', hp: 26, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
+  wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
+  bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
+  train:  { name: 'Armored train', hp: 21, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
 };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */
@@ -29,6 +29,8 @@ export const WAVE = {
   count: w => Math.min(36, 6 + Math.floor(w * 1.1)),
   gap: w => Math.max(.3, .8 - w * .01),
   boss: 10,         // a boss every this many waves
+  bossGrowth: .4,   // a boss's health grows slower than its wave: hp(10) x (hp(w) / hp(10)) ** bossGrowth (boss waves are gates, so a
+                    // careful player must be able to stop each one; at the full growth the wave-20 war wagon reached the vault with half its health)
   vault: 20,        // vault strength
   breachLoss: .1,   // share of coins lost when the vault falls
   breachBack: 2,    // waves dropped back when the vault falls

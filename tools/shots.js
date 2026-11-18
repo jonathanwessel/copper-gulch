@@ -50,6 +50,8 @@ const SCREENS = [
   ['why-output', () => { CG.play.close(); CG.play.open('camp'); document.querySelector('#card .stat').click(); }],
   ['why-price', () => { CG.play.close(); CG.play.openGoods(); const b = document.querySelector('#sheet [data-why="timber"]'); if (b) b.click(); }],
   ['built', () => { CG.play.sheets.close(); const t = CG.game.town; t.coins = 1e7; for (const [id, n] of Object.entries({ camp: 12, mine: 6, pit: 5, saw: 6, smelter: 3 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); } CG.play.close(); }],
+  // boss waves are gates: the war wagon got through, the card says so and the waves hold
+  ['boss-lost', async () => { CG.play.close(); const m = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; t.wave = 20; t.bestWave = 19; t.recent = Math.max(t.recent || 0, 600); m.fall(CG.game, t, 'boss'); }],
 ];
 // a new game, which starts in Dry Creek Outpost (cards on, so the win card can be shown)
 const OUTPOST = [

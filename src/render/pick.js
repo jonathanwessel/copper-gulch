@@ -29,6 +29,9 @@ export function pickTarget(cam, el, board, clientX, clientY) {
       const g = r.intersectObject(board.ground, false)[0], plot = g ? board.plotAt(g.point.x, g.point.z) : null, spot = g && !plot ? board.spotAt(g.point.x, g.point.z) : null;
       other = plot ? { plot } : spot !== null && spot !== undefined && spot !== mine ? { spot } : null;
     }
+    // at a steep angle the ray past the post can miss both the plot behind it and that plot's ground (a plot at the
+    // top edge of a landscape screen): the nearest other pad or plot on screen gets the same test
+    if (!other) other = nearest(cam, el, board, clientX, clientY, NEAR, mine);
     if (other) {
       const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top, d = (wx, wy, wz) => { const q = project(cam, el, _c.set(wx, wy, wz)); return q ? Math.hypot(q.x - x, q.y - y) : Infinity; };
       const [sx, sz] = board.def.spots[mine];
@@ -51,11 +54,11 @@ export function pickTarget(cam, el, board, clientX, clientY) {
   return nearest(cam, el, board, clientX, clientY);
 }
 /* The pad or plot whose middle is closest to a screen point on screen, if within NEAR px. */
-export function nearest(cam, el, board, clientX, clientY, near = NEAR) {
+export function nearest(cam, el, board, clientX, clientY, near = NEAR, skip = null) {
   const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top, def = board.def;
   let best = null, bd = near;
   const test = (wx, wy, wz, out) => { const s = project(cam, el, _c.set(wx, wy, wz)); if (!s) return; const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = out; } };
-  (def.spots || []).forEach(([sx, sz], i) => test(sx, .6, sz, { spot: i }));
+  (def.spots || []).forEach(([sx, sz], i) => { if (i !== skip) test(sx, .6, sz, { spot: i }); });
   for (const [id, [px, pz]] of Object.entries(def.plots)) test(px, .8, pz, { plot: id });
   return best;
 }

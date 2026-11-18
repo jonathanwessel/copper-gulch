@@ -4,13 +4,16 @@
      'shot' { town, tower, foe, kind, from, to, flight? }   'kill' { town, foe, coins }   'leak' { town, foe, hp }
      'land' { town, spot, at, splash, fire }       'tower:open' { town, kind }
      'wave:start' { town, wave, type, boss }       'wave:clear' { town, wave }
-     'breach' { town, wave, lost, why: 'vault' | 'boss', back, held }   (held: the town was away and now holds its waves)
+     'breach' { town, wave, lost, why: 'vault' | 'boss', back, held, away }   (held: the town now holds its waves; away: it
+     was out of play or catching up)
    A town's waves: town.wave is the wave running or coming next; town.waves holds the phase, timer, queue and foes,
    the lobbed shells still in the air (shells) and the burning ground Shrapnel leaves (fires).
    Every town keeps playing when the player is not looking at it (owner rule, 2026-11-17): out of play its waves run
    step by step like the town in play, and during the coarse chunks of time away (src/core/clock.js) skirmish() plays
-   each wave through a copy of the town and applies the result. A town away that loses (its vault falls, or its boss
-   gets through) holds its own waves (waves.autoHold) until the player taps Resume waves or Call now there.
+   each wave through a copy of the town and applies the result. Boss waves are gates (owner rule, 2026-11-17): a boss
+   wave is beaten only when its boss is killed; a boss that gets through loses the wave like a fallen vault, in play or
+   away. A town that loses its boss wave, or its vault while away, holds its own waves (waves.autoHold) until the
+   player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
 import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
@@ -173,9 +176,12 @@ export function callEarly(game, town) {
   return bonus;
 }
 
+/* A boss's base health at wave w: it grows slower than the wave's (WAVE.bossGrowth), from the wave-10 health. */
+export const bossHp = (W, w) => w <= 10 ? W.hp(w) : W.hp(10) * (W.hp(w) / W.hp(10)) ** (W.bossGrowth ?? 1);
 function spawn(town, kind) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
-  const hp = wavesOf(town).hp(town.wave) * f.hp * T.hp * town.mods.factor('foeHp');
+  const W = wavesOf(town), base = f.boss ? bossHp(W, town.wave) : W.hp(town.wave);
+  const hp = base * f.hp * T.hp * town.mods.factor('foeHp');
   ws.foes.push({ id: ws.nextId++, kind, hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
 }
 
@@ -297,10 +303,11 @@ export function fight(game, town, dt) {
   if (!ws.queue.length && !ws.foes.length) waveEnd(game, town);
 }
 
-/* The town loses: its vault fell (why 'vault'), or its boss got through while it was away (why 'boss', the boss gate).
+/* The town loses: its vault fell (why 'vault'), or its boss got through (why 'boss', the boss gate).
    A won outpost: raiders carry off part of each good and its waves stay. A town: it loses a share of the purse, but
-   never more than it earned in about the last 5 minutes (GDD.md, Vault), and drops back breachBack waves. A town away
-   then holds its own waves (autoHold), so it pays the loss once, not in a loop. */
+   never more than it earned in about the last 5 minutes (GDD.md, Vault), and drops back breachBack waves. A town away,
+   or any town that lost its boss, then holds its own waves (autoHold), so it pays the loss once, not in a loop; in play
+   the player decides when to try the boss again. */
 export function fall(game, town, why = 'vault') {
   const ws = town.waves;
   town.vault.hp = town.vault.max;
@@ -317,16 +324,16 @@ export function fall(game, town, why = 'vault') {
   const from = town.wave;
   town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);
   Object.assign(ws, { phase: 'break', timer: wavesOf(town).rest * 2, queue: [], foes: [], shells: [], fires: [], bossLeaked: false });
-  const held = away(game, town);
-  if (held) { ws.hold = true; ws.autoHold = true; town.lost = { why, wave: from, back: town.wave, coins: lost, at: town.t }; }
-  game.bus.emit('breach', { town: town.id, wave: from, lost, why, back: town.wave, held });
+  const gone = away(game, town), held = gone || why === 'boss';
+  if (held) { ws.hold = true; ws.autoHold = true; town.lost = { why, wave: from, back: town.wave, coins: lost, at: town.t, away: gone }; }
+  game.bus.emit('breach', { town: town.id, wave: from, lost, why, back: town.wave, held, away: gone });
 }
 
-/* The last raider is gone. A boss that got through while the town was away means the wave is lost (boss waves are
-   gates); otherwise the wave is beaten and the next one comes after the wave pace. */
+/* The last raider is gone. A boss that got through means the wave is lost (boss waves are gates); otherwise the wave
+   is beaten and the next one comes after the wave pace. */
 function waveEnd(game, town) {
   const ws = town.waves;
-  if (ws.bossLeaked && !town.won && away(game, town)) { fall(game, town, 'boss'); return; }
+  if (ws.bossLeaked && !town.won) { fall(game, town, 'boss'); return; }
   ws.bossLeaked = false;
   town.bestWave = Math.max(town.bestWave, town.wave);
   game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
