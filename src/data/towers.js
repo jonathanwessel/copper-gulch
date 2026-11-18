@@ -65,6 +65,11 @@ export const PATHS = {
 export const PATH_LEVEL = 5;          // the level at which a tower picks its path
 export const SLOW_SECONDS = 1.5;
 export const POISON_SECONDS = 4;
+/* Deep Freeze: every third pulse freezes the raiders in reach for FREEZE.seconds. A raider that thaws cannot be frozen
+   again for FREEZE.again seconds, so however many lenses overlap, it walks at least that long between two freezes (with
+   11 lenses on Iron Ridge's road, raiders stood frozen for half an hour and a wave took 40 minutes). 2.4 s left the bots'
+   Ridge too weak at its wall, so 1.2: frozen at most 0.8 of every 2 seconds. */
+export const FREEZE = { seconds: .8, again: 1.2 };
 /* Shrapnel's burning ground: how long it burns, how much it slows, and its damage per second as a share of a hit. */
 export const FIRE = { seconds: 3, slow: .3, dps: .35 };
 export const SELL_BACK = .6;           // share of the coins spent that selling a tower returns

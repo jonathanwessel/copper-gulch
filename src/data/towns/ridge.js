@@ -15,9 +15,10 @@ export const RIDGE = {
   outpost: 'pinehollow',          // founding the Ridge opens this outpost too
   // waves a little further apart than the Gulch's 58 s: with one purse the Ridge spends what every town earns, and its
   // wave 10 came at 6.7 min (target 7-10, set 2026-11-17). Since Call now is never locked (owner rule) the empire's coins
-  // let a few strong towers call every wave at once: 66 s apart, and a wave called right away brings up to 4.5 times its
-  // raiders (rushMore, src/core/defense.js RUSH; the Gulch's is 2), so the strategies stay within 25% (minmax was 29% ahead)
-  waves: { pace: 66, rushMore: 3.5 },
+  // let a few strong towers call every wave at once: 66 s apart, and a wave called right away brings up to 5 times its
+  // raiders (rushMore, src/core/defense.js RUSH; the Gulch's is 2), so the strategies stay within 25% (minmax was 29% ahead; 3.5 until
+  // 2026-11-18, when Deep Freeze stopped holding raiders for good and a seed reached wave 10 in 6.6 min)
+  waves: { pace: 66, rushMore: 4 },
   boss: 'train',                  // wave 10, 20... bring the armored train
   research: ['drills', 'hotblast', 'plating', 'rifling', 'rewards', 'depot', 'bessemer'], // src/data/research.js
   researchOpens: 'furnace',

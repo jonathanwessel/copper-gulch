@@ -378,7 +378,7 @@ export const SAVE_MINUTES = 6, GULCH_MINUTES = 100, RIDGE_MINUTES = 90;
 // Institutions (M4): while it plays on, it founds the next institution (in TREE_ORDER) once its price is no more than
 // TREE_SAVE_MINUTES of what every town earns, saving for it like the Capital, and buys the cheapest upgrade it can
 // (ties in TREE_ORDER) as soon as it has the Influence. TREE_GAP: the minutes between upgrades over CAP_PLAY.
-export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 120, TREE_SAVE_MINUTES = 6, TREE_GAP = [10, 15];
+export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 120, TREE_SAVE_MINUTES = 10, TREE_GAP = [10, 15];
 export const TREE_ORDER = ['market', 'bank', 'war', 'university', 'transport'];
 export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;

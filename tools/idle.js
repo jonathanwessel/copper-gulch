@@ -1,0 +1,130 @@
+// node tools/idle.js [--seeds 6] [--hours 12]: the idle bot (CLAUDE.md, Bots with different play styles; PLAN.md M4).
+// The careful player of tools/balance.js plays a new game up to the Capital and two hours past it (founding
+// institutions and buying their upgrades, `empire(..., { capital: true })`). Then an idle player takes over, sets the
+// switches once and leaves the game alone:
+//   - every open Automation switch goes on in every town: Auto-towers, Auto-research and Keep trying the boss, and
+//     every hired foreman works (`leave`);
+//   - a town that holds its waves gets Resume waves, except one that lost its boss (Keep trying the boss has it);
+//   - after that it never taps anything again: no new towers, paths, buildings, research picks or contracts.
+// The game then runs step by step for 12 hours with the Ridge in play, as an app left open would.
+// It reports income by the hour (coins earned by every town, the way the map's coins a second counts them), the waves
+// each town reached, what each switch bought (levels, coins), the boss tries, and the most any one purchase took from
+// the purse (the share of the coins on hand it spent; `meter`).
+// Target (PLAN.md M4): over the 12 idle hours income rises every hour, no purchase by Automation or a foreman takes
+// more than half the coins on hand (AUTO.share, SHARE), and the Capital opens at 2.5-4 h of play.
+// Prints a table per seed and "ok" or the misses.
+import { empire, CAP_AT } from './balance.js';
+import { STEP } from '../src/core/clock.js';
+import { KINDS, autoOpen, setAuto, setForemen, lostBoss } from '../src/core/automation.js';
+import { setHold, bossWave } from '../src/core/defense.js';
+import { AUTO } from '../src/data/automation.js';
+import { SHARE } from '../src/core/foremen.js';
+
+const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
+export const HOURS = 12;
+
+/* The idle player sets the switches once: every open one on in every town, every foreman working, and Resume waves
+   where a town holds (a town that lost its boss is left to Keep trying the boss). Returns the switches it turned on. */
+export function leave(game) {
+  const on = KINDS.filter(k => autoOpen(game, k));
+  for (const t of Object.values(game.towns)) {
+    for (const k of on) setAuto(game, t, k, true);
+    setForemen(t, true);
+    if (t.waves && t.waves.hold && !(on.includes('retry') && lostBoss(t))) setHold(game, t, false);
+  }
+  return on;
+}
+
+/* Watches every coin that leaves the purse and files it under who spent it: 'towers' (Auto-towers), 'research'
+   (Auto-research), 'foremen' (a foreman's building level), 'loss' (raiders broke in) or 'other'. Each purchase keeps
+   the share of the coins on hand it took. The systems list is copied, so other games are not touched.
+   Returns { buys: { kind: { n, coins, top } }, top: { kind, share, coins, town }, stop() }. */
+export function meter(game) {
+  const purse = game.shared.purse, m = { buys: {}, top: null };
+  let coins = purse.coins, sys = null, last = null;
+  const file = (kind, r) => {
+    const b = m.buys[kind] || (m.buys[kind] = { n: 0, coins: 0, top: 0 });
+    b.n++; b.coins += r.coins; b.top = Math.max(b.top, r.share);
+    if (kind !== 'loss' && (!m.top || r.share > m.top.share)) m.top = { kind, ...r };
+  };
+  Object.defineProperty(purse, 'coins', {
+    configurable: true, enumerable: true,
+    get: () => coins,
+    set: v => {
+      if (v < coins - 1e-9) {
+        const r = { coins: coins - v, share: (coins - v) / Math.max(coins, 1e-9), town: sys && sys.town };
+        if (sys && sys.id === 'foremen') file('foremen', r);
+        else if (sys && sys.id === 'automation') last = r; // filed by the event that follows
+        else if (sys && sys.id === 'defense') file('loss', r);
+        else file('other', r);
+      }
+      coins = v;
+    },
+  });
+  const offs = [
+    game.bus.on('auto:tower', () => { if (last) file('towers', last); last = null; }),
+    game.bus.on('auto:research', () => { if (last) file('research', last); last = null; }),
+  ];
+  const real = game.systems;
+  game.systems = real.map(s => !s.step ? s : { ...s, step(town, dt, g) { sys = { id: s.id, town: town.id }; try { s.step(town, dt, g); } finally { if (last) file('other', last); last = null; sys = null; } } });
+  m.stop = () => {
+    game.systems = real; for (const off of offs) off();
+    Object.defineProperty(purse, 'coins', { value: coins, writable: true, configurable: true, enumerable: true });
+  };
+  return m;
+}
+
+/* Coins every town earned from the market and contracts (what buildings make), leaving out bounties and Call now. */
+export const trade = game => Object.values(game.towns).reduce((n, t) => n + Object.entries(t.tally).reduce((a, [k, v]) => a + (k.startsWith('sale:') || k === 'contract' ? v : 0), 0), 0);
+
+/* One seed: the careful player to the Capital and on, then `hours` of the game left alone. */
+export function idle(seed, hours = HOURS) {
+  const e = empire(seed, 'active', { capital: true }), g = e.game;
+  const out = { seed, capital: e.capital ?? null, start: g.stats.steps * STEP, on: [], hours: [], retry: { tries: 0, lost: 0, beaten: 0 } };
+  if (e.capital == null) return out;
+  out.on = leave(g);
+  const m = meter(g);
+  g.bus.on('auto:retry', () => out.retry.tries++);
+  g.bus.on('breach', x => { if (x.why === 'boss') out.retry.lost++; });
+  g.bus.on('wave:clear', x => { const t = g.towns[x.town]; if (t && !t.won && bossWave(t, x.wave)) out.retry.beaten++; });
+  for (let h = 0; h < hours; h++) {
+    const before = g.earned, sold = trade(g);
+    for (let i = 0; i < 3600 / STEP; i++) g.step(STEP);
+    out.hours.push({
+      income: g.earned - before, trade: trade(g) - sold, coins: g.shared.purse.coins,
+      waves: Object.fromEntries(Object.values(g.towns).map(t => [t.id, t.won ? 'won' : t.bestWave + (t.waves && t.waves.hold ? ' held' : '')])),
+    });
+  }
+  m.stop();
+  out.buys = m.buys; out.top = m.top;
+  out.levels = Object.fromEntries(Object.values(g.towns).map(t => [t.id, Object.values(t.buildings).reduce((a, b) => a + b, 0)]));
+  return out;
+}
+
+/* The target's misses for a list of runs. */
+export function idleCheck(runs, cap = Math.min(AUTO.share, SHARE)) {
+  const misses = [];
+  for (const r of runs) {
+    if (r.capital == null) { misses.push(`seed ${r.seed}: the Capital was never built`); continue; }
+    if (r.capital < CAP_AT[0] * 60 || r.capital > CAP_AT[1] * 60) misses.push(`seed ${r.seed}: the Capital built at ${(r.capital / 3600).toFixed(2)} h (want ${CAP_AT.map(x => x / 60).join('-')} h)`);
+    for (let h = 1; h < r.hours.length; h++) if (!(r.hours[h].income > r.hours[h - 1].income)) misses.push(`seed ${r.seed}: idle hour ${h + 1} earned ${fmtK(r.hours[h].income)}, not more than hour ${h} (${fmtK(r.hours[h - 1].income)})`);
+    if (r.top && r.top.share > cap + 1e-9) misses.push(`seed ${r.seed}: ${r.top.kind} spent ${Math.round(100 * r.top.share)}% of the coins on hand in ${r.top.town} (cap ${Math.round(100 * cap)}%)`);
+  }
+  return misses;
+}
+const fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : Math.round(n / 1000) + 'K';
+
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/idle.js')) {
+  const SEEDS = arg('seeds', 6), H = arg('hours', HOURS), runs = [];
+  for (let s = 1; s <= SEEDS; s++) {
+    const r = idle(s, H); runs.push(r);
+    console.log(`seed ${s}: Capital at ${r.capital == null ? 'never' : (r.capital / 3600).toFixed(2) + ' h'}, left alone at ${(r.start / 3600).toFixed(2)} h with ${r.on.join(', ') || 'no switch'} on`);
+    console.log('  hour | income | coins | best wave by town');
+    r.hours.forEach((x, i) => console.log(`  ${i + 1} | ${fmtK(x.income)} | ${fmtK(x.coins)} | ${Object.entries(x.waves).map(([k, v]) => k + ' ' + v).join(', ')}`));
+    if (r.buys) console.log('  bought: ' + ['foremen', 'towers', 'research', 'other', 'loss'].filter(k => r.buys[k]).map(k => `${k} ${r.buys[k].n} for ${fmtK(r.buys[k].coins)} (most ${Math.round(100 * r.buys[k].top)}% of the coins)`).join(' | '));
+    console.log(`  boss: ${r.retry.lost} lost, ${r.retry.tries} tries again, ${r.retry.beaten} beaten | most one purchase took: ${r.top ? Math.round(100 * r.top.share) + '% (' + r.top.kind + ' in ' + r.top.town + ', ' + fmtK(r.top.coins) + ')' : 'nothing bought'}`);
+  }
+  const misses = idleCheck(runs);
+  console.log(misses.length ? misses.map(x => 'FAIL ' + x).join('\n') : 'ok');
+  process.exitCode = misses.length ? 1 : 0;
+}

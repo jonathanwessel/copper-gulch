@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-11',
+    lines: [
+      'A Frost Lens with Deep Freeze cannot keep a raider frozen forever now. After a freeze, a raider walks a few steps before it can freeze again.',
+      'Big waves in Iron Ridge end sooner now.',
+      'In Iron Ridge, if you tap Call now very early, that wave brings a few more raiders.',
+    ],
+  },
+  {
     v: '2026.11.18-10',
     lines: [
       'New switch on the Auto sheet. Keep trying the boss.',

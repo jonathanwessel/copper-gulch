@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -231,6 +231,7 @@ export function fight(game, town, dt) {
   // move, poison, leak
   for (const f of ws.foes) {
     if (f.poisonT > 0) { const n = f.poison * Math.min(dt, f.poisonT); tally(game, town, 'still', Math.min(Math.max(0, f.hp), n)); f.hp -= n; f.poisonT -= dt; }
+    if (f.thawT > 0) f.thawT -= dt;
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
     f.s += FOES[f.kind].speed * wavesOf(town).speed * (1 - slow) * dt;
@@ -282,7 +283,7 @@ export function fight(game, town, dt) {
         for (const f of inReach) {
           hurt(game, town, f, st.dmg, false, t.kind);
           f.slow = Math.max(f.slowT > 0 ? f.slow : 0, st.slow); f.slowT = SLOW_SECONDS; f.brittle = Math.max(f.brittle, st.brittle);
-          if (st.freeze && t.pulses % 3 === 0 && !FOES[f.kind].boss) f.frozenT = .8;
+          if (st.freeze && t.pulses % 3 === 0 && !FOES[f.kind].boss && !(f.thawT > 0)) { f.frozenT = FREEZE.seconds; f.thawT = FREEZE.seconds + FREEZE.again; }
         }
       } else if (st.splash) {
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg, false, t.kind);
