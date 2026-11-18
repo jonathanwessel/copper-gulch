@@ -85,6 +85,44 @@ export const RESEARCH = {
     effects: [{ stat: 'prod:steelmill', per: .6 }],
     downside: [{ stat: 'use:steelmill:coal', per: 1 }],
   },
+  // Silver Falls
+  sieves: {
+    name: 'Sand Sieves', town: 'falls', max: 5, cost: 1500,
+    about: 'The Sand Pit and the Quartz Mine dig 25% faster.',
+    effects: [{ stat: 'prod:sandpit', per: .25 }, { stat: 'prod:quartzmine', per: .25 }],
+  },
+  milldam: {
+    name: 'Mill Dam', town: 'falls', max: 5, cost: 3000,
+    about: 'The Water Wheel makes 25% more power.',
+    effects: [{ stat: 'prod:waterwheel', per: .25 }],
+  },
+  annealing: {
+    name: 'Annealing Ovens', town: 'falls', max: 5, cost: 6000,
+    about: 'The Glassworks and the Wire Mill work 25% faster.',
+    effects: [{ stat: 'prod:glassworks', per: .25 }, { stat: 'prod:wiremill', per: .25 }],
+  },
+  levee: {
+    name: 'River Levee', town: 'falls', max: 5, cost: 2500,
+    about: 'Your vault takes 25% more hits before it breaks.',
+    effects: [{ stat: 'vault', per: .25 }],
+  },
+  arclamps: {
+    name: 'Arc Lamps', town: 'falls', max: 5, cost: 4000,
+    about: 'Every tower hits 15% harder.',
+    effects: [{ stat: 'towerDmg', per: .15 }],
+  },
+  patents: {
+    name: 'Patent Office', town: 'falls', max: 5, cost: 5000,
+    about: 'Everything you sell earns 10% more coins.',
+    effects: [{ stat: 'price', per: .1 }],
+  },
+  livewires: {
+    name: 'Live Wires', town: 'falls', max: 2, cost: 20000,
+    about: 'The Dynamo Works and the Telegraph Works work 60% faster.',
+    worse: 'They use twice the power.',
+    effects: [{ stat: 'prod:dynamo', per: .6 }, { stat: 'prod:telegraph', per: .6 }],
+    downside: [{ stat: 'use:dynamo:power', per: 1 }, { stat: 'use:telegraph:power', per: 1 }],
+  },
 };
 
 export const GROWTH = 3;        // each level costs this many times the last

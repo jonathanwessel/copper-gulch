@@ -9,7 +9,7 @@ import { startQuality, autoStep } from './autoquality.js';
 import { CameraRig } from './camera.js';
 import { makeGround, makeMesas, polyDist, fbm, sstep, lerp } from './terrain.js';
 import { Kit, MAT, mergeStatic, rng } from './kit.js';
-import { roadRibbon, disposeTree, tierOf } from './board.js';
+import { roadRibbon, riverRibbon, bridges, disposeTree, tierOf } from './board.js';
 import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/gulch.js';
 import { makeTower } from '../assets/models/units.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -39,6 +39,7 @@ function diorama(town) {
   plate.box(B.cols / 2, -.06, B.rows / 2, B.cols + .9, .08, B.rows + .9, look.sand);
   objs.push(plate.build({ cast: false }));
   objs.push(roadRibbon(B.road, [new THREE.Color(look.dirt), new THREE.Color(look.rut), new THREE.Color('#a57a52')]));
+  if (B.river) { const r = B.river.path.concat([B.vault]), w = riverRibbon(r, look, B.river.width || 1.1); w.position.y = .05; objs.push(w, ...bridges(B.road, r)); }
   for (const [id, [x, z]] of Object.entries(B.plots)) {
     const level = town.level(id);
     if (!(level > 0) || !BUILDINGS[id]) continue;

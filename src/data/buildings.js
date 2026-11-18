@@ -25,6 +25,18 @@ export const BUILDINGS = {
   boilershop: { name: 'Boiler Shop', town: 'ridge', makes: 'boilers', inputs: { steel: 1, bricks: 2 }, rate: .2, cost: 4000, growth: 1.2, needs: { steelmill: 3 }, model: 'boilershop' },
   loco:    { name: 'Locomotive Works', town: 'ridge', makes: 'locos', inputs: { boilers: 1, rails: 2, tools: 1 }, rate: .05, cost: 15000, growth: 1.2, needs: { rolling: 5, boilershop: 5 }, model: 'loco' },
   // Pine Hollow: the second outpost, opened with Iron Ridge. Timber and clay, so the Gulch makes more bricks.
+  // Silver Falls. Every workshop draws power from the Water Wheel (power: 1 for each unit it makes); the pits do not.
+  sandpit: { name: 'Sand Pit', town: 'falls', makes: 'sand', inputs: {}, rate: 1.2, cost: 60, growth: 1.15, model: 'sandpit' },
+  quartzmine: { name: 'Quartz Mine', town: 'falls', makes: 'quartz', inputs: {}, rate: .8, cost: 300, growth: 1.15, needs: { sandpit: 3 }, model: 'quartzmine' },
+  waterwheel: { name: 'Water Wheel', town: 'falls', makes: 'power', inputs: {}, rate: 1, cost: 900, growth: 1.15, needs: { sandpit: 4 }, model: 'waterwheel' },
+  glassworks: { name: 'Glassworks', town: 'falls', makes: 'glass', inputs: { sand: 2, power: 1 }, rate: .5, cost: 3000, growth: 1.17, needs: { sandpit: 5, waterwheel: 1 }, model: 'glassworks' },
+  wiremill: { name: 'Wire Mill', town: 'falls', makes: 'wire', inputs: { copper: 1, power: 1 }, rate: .4, cost: 5000, growth: 1.17, needs: { glassworks: 3 }, model: 'wiremill' },
+  bulbworks: { name: 'Bulb Works', town: 'falls', makes: 'bulbs', inputs: { glass: 1, wire: 1, power: 1 }, rate: .25, cost: 12000, growth: 1.2, needs: { wiremill: 3 }, model: 'bulbworks' },
+  dynamo: { name: 'Dynamo Works', town: 'falls', makes: 'dynamos', inputs: { wire: 1, steel: 1, power: 1 }, rate: .2, cost: 20000, growth: 1.2, needs: { wiremill: 5 }, model: 'dynamo' },
+  telegraph: { name: 'Telegraph Works', town: 'falls', makes: 'telegraphs', inputs: { wire: 2, bulbs: 1, rails: 1, power: 1 }, rate: .08, cost: 60000, growth: 1.2, needs: { bulbworks: 5, dynamo: 3 }, model: 'telegraph' },
+  // Sandy Bend, the third outpost
+  sandwash: { name: 'Sand Wash', town: 'sandybend', makes: 'sand', inputs: {}, rate: .9, cost: 15, growth: 1.15, model: 'sandwash' },
+  quartzdig: { name: 'Quartz Diggings', town: 'sandybend', makes: 'quartz', inputs: {}, rate: .6, cost: 40, growth: 1.15, needs: { sandwash: 2 }, model: 'quartzdig' },
   logcamp: { name: 'Logging Camp', town: 'pinehollow', makes: 'timber', inputs: {}, rate: .9, cost: 12, growth: 1.15, model: 'logcamp' },
   claybank: { name: 'Clay Bank', town: 'pinehollow', makes: 'clay', inputs: {}, rate: .8, cost: 35, growth: 1.15, needs: { logcamp: 2 }, model: 'claybank' },
 };

@@ -10,7 +10,9 @@
 import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
 import { part, mergeStatic } from './kit.js';
-import { roadOf } from '../core/defense.js';
+import { lanesOf } from '../core/defense.js';
+import { polyDist } from './terrain.js';
+import { BRIDGE } from './board.js';
 import { pointAt } from '../core/path.js';
 import { FOES } from '../data/foes.js';
 import { FIRE } from '../data/towers.js';
@@ -46,8 +48,10 @@ export class Battle {
   constructor(board, game) {
     this.board = board; this.town = board.town; this.game = game;
     this.group = new THREE.Group(); this.group.name = 'battle'; board.group.add(this.group);
-    this.road = roadOf(this.town);
-    this.hideS = (this.town.def.board.entrance && this.town.def.board.entrance.hide) || 0; // raiders stay hidden inside the entrance
+    this.lanes = lanesOf(this.town);
+    this.river = this.town.def.board.river ? this.town.def.board.river.path.concat([this.town.def.board.vault]) : null; // raiders cross it on bridges
+    const B0 = this.town.def.board; // raiders stay hidden inside their lane's entrance
+    this.hideS = [(B0.entrance && B0.entrance.hide) || 0, (B0.river && B0.river.entrance && B0.river.entrance.hide) || 0];
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
     const B = this.town.def.board, far = B.far ?? B.spots.length;
@@ -136,8 +140,8 @@ export class Battle {
       }
       if (moved) { u.s0 = u.s1; u.s1 = f.s; }
       const s = u.s0 + (u.s1 - u.s0) * alpha;
-      const [x, z] = pointAt(this.road, s), [x2, z2] = pointAt(this.road, s + .3);
-      u.obj.position.set(x, 0, z); u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= this.hideS;
+      const lane = this.lanes[f.lane || 0] || this.lanes[0], [x, z] = pointAt(lane, s), [x2, z2] = pointAt(lane, s + .3);
+      u.obj.position.set(x, f.lane ? -.05 + Math.sin(t * 2.2 + u.phase) * .015 : this.river ? BRIDGE * Math.min(1, Math.max(0, (1 - polyDist(x, z, this.river).d) / .4)) : 0, z); // up the ramp and over u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= this.hideS[f.lane || 0];
       const walk = f.frozenT > 0 ? 0 : (f.slowT > 0 ? .5 : 1), d = u.obj.userData;
       u.phase += dt * 9 * walk * FOES[f.kind].speed;
       if (d.legs) d.legs.forEach((l, i) => { l.rotation.x = Math.sin(u.phase + i * Math.PI) * .6 * walk; });

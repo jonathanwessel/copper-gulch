@@ -328,4 +328,35 @@ export const EXPLAINERS = [
     text: 'Hold this logging camp for 15 waves. Its timber and clay go to your towns, so the Gulch can make more bricks for Iron Ridge.',
     when: () => true, at: () => ({ plot: 'logcamp' }),
   },
+  // Silver Falls and Sandy Bend
+  {
+    id: 'found-falls', covers: ['found:falls'],
+    title: 'Silver Falls',
+    text: 'Silver Falls is in sight. Tap Map, then tap the new town to see what it takes. You need 5 deeds, so sign a charter or two first.',
+    when: h => h.next.includes('falls'), at: () => ({ el: '#mapBtn' }),
+  },
+  {
+    id: 'falls-welcome', town: 'falls', covers: ['welcome:falls', 'river'],
+    title: 'Welcome to Silver Falls',
+    text: 'Raiders ride the road, and boats come down the river. Build towers by the water too. Start with the Sand Pit. Crossbows here are built with sand.',
+    when: () => true, at: () => ({ plot: 'sandpit' }),
+  },
+  {
+    id: 'falls-power', town: 'falls', covers: ['power'],
+    title: 'Power',
+    text: 'The Water Wheel makes power for every workshop here. When they need more than it makes, they all slow down. Tap it and upgrade it to keep up.',
+    when: h => h.level('glassworks') > 0, at: () => ({ plot: 'waterwheel' }),
+  },
+  {
+    id: 'falls-boss', town: 'falls', covers: ['boss:steamer'],
+    title: 'The ironclad steamer',
+    text: 'Wave 10 brings an ironclad steamer down the river. Its plates stop part of every hit. Mortars and the Still hurt it most.',
+    when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
+  },
+  {
+    id: 'sb-welcome', town: 'sandybend', covers: ['welcome:sandybend'],
+    title: 'Welcome to Sandy Bend',
+    text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',
+    when: () => true, at: () => ({ plot: 'sandwash' }),
+  },
 ];

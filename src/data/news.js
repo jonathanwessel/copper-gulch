@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-13',
+    lines: [
+      'Silver Falls is on the map. Beat wave 25 in Iron Ridge and hold 5 deeds to start it.',
+      'In Silver Falls, boats come down the river while raiders ride the road. Build towers by the water.',
+      'The Water Wheel makes power for the workshops there. When it makes too little, they all slow down.',
+      'Starting Silver Falls also opens Sandy Bend, a new outpost with sand and quartz.',
+    ],
+  },
+  {
     v: '2026.11.18-12',
     lines: [
       'A foreman now waits when its building makes something that sells for very little. Tap the building to see the reason.',

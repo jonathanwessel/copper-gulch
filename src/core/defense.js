@@ -39,12 +39,16 @@ export const bossWave = (town, w) => { const W = wavesOf(town); return !town.won
 export const RAID_LOSS = .25;
 
 const PATH_CACHE = new WeakMap();
-/* The town's road as a path that ends at the vault. */
-export function roadOf(town) {
+/* The town's lanes as paths that end at the vault: lane 0 is the road; a river town (board.river) has the river as
+   lane 1, which only boats ride (FOES[kind].water). */
+export function lanesOf(town) {
   const b = town.def.board;
-  if (!PATH_CACHE.has(b)) PATH_CACHE.set(b, makePath([...b.road, b.vault]));
+  if (!PATH_CACHE.has(b)) PATH_CACHE.set(b, [makePath([...b.road, b.vault]), ...(b.river ? [makePath([...b.river.path, b.vault])] : [])]);
   return PATH_CACHE.get(b);
 }
+export const roadOf = town => lanesOf(town)[0];
+/* The lane a raider rides: boats take the river where there is one. */
+export const laneFor = (town, kind) => (FOES[kind].water && town.def && town.def.board && town.def.board.river ? 1 : 0);
 
 // --- towers: stats and costs -----------------------------------------------------------------------------------------
 export function towerStats(town, t) {
@@ -125,6 +129,9 @@ export function planWave(town, w, type) {
   const mix = Object.fromEntries(Object.entries(T.mix).filter(([k]) => w >= FOES[k].from));
   const q = [];
   for (let i = 0; i < n; i++) q.push(Object.keys(mix).length ? town.rng.weighted(mix) : 'raider');
+  // a river town sends every boatEvery-th raider down the river by boat (no random draw, so other towns are untouched)
+  const every = wavesOf(town).boatEvery;
+  if (every && town.def.board && town.def.board.river) for (let i = every - 1; i < q.length; i += every) q[i] = 'boat';
   if (bossWave(town, w)) q.push((town.def && town.def.boss) || 'wagon');
   return q;
 }
@@ -182,7 +189,7 @@ function spawn(town, kind) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
   const W = wavesOf(town), base = f.boss ? bossHp(W, town.wave) : W.hp(town.wave);
   const hp = base * f.hp * T.hp * town.mods.factor('foeHp');
-  ws.foes.push({ id: ws.nextId++, kind, hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
+  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
@@ -218,7 +225,7 @@ export const waitsAway = (game, town) => away(game, town) && !town.towers.length
 
 /* One step of the battle. */
 export function fight(game, town, dt) {
-  const ws = town.waves, road = roadOf(town);
+  const ws = town.waves, lanes = lanesOf(town), laneOf = f => lanes[f.lane || 0];
   if (ws.phase === 'break') {
     if (waitsAway(game, town)) return;
     ws.timer = Math.max(0, ws.timer - dt);
@@ -235,14 +242,14 @@ export function fight(game, town, dt) {
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
     f.s += FOES[f.kind].speed * wavesOf(town).speed * (1 - slow) * dt;
-    if (f.s >= road.length && f.hp > 0) {
+    if (f.s >= laneOf(f).length && f.hp > 0) {
       const hp = FOES[f.kind].leak;
       town.vault.hp -= hp; f.hp = 0; f.leaked = true;
       if (FOES[f.kind].boss) ws.bossLeaked = true;
       game.bus.emit('leak', { town: town.id, foe: f.id, hp, boss: !!FOES[f.kind].boss });
     }
   }
-  const pos = new Map(ws.foes.map(f => [f, pointAt(road, f.s)]));
+  const pos = new Map(ws.foes.map(f => [f, pointAt(laneOf(f), f.s)]));
   // lobbed shells land: splash where they come down, and Shrapnel leaves the ground burning
   const shells = ws.shells || (ws.shells = []), fires = ws.fires || (ws.fires = []);
   for (const sh of shells) {
@@ -273,7 +280,8 @@ export function fight(game, town, dt) {
       let to = pos.get(target);
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
         const lead = FOES[target.kind].speed * wavesOf(town).speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
-        to = pointAt(road, Math.min(road.length, target.s + (target.frozenT > 0 ? 0 : lead)));
+        const lane = laneOf(target);
+        to = pointAt(lane, Math.min(lane.length, target.s + (target.frozenT > 0 ? 0 : lead)));
         ws.shells.push({ spot: t.spot, by: t.kind, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
         game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, flight: st.flight });
         continue;

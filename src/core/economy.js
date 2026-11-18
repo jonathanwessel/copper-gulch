@@ -65,19 +65,35 @@ export function demand(town) {
   const d = {};
   for (const id of buildingsOf(town)) {
     const out = output(town, id);
-    for (const g of Object.keys(BUILDINGS[id].inputs)) d[g] = (d[g] || 0) + out * uses(town, id, g);
+    for (const g of Object.keys(BUILDINGS[id].inputs)) if (!isGrid(g)) d[g] = (d[g] || 0) + out * uses(town, id, g);
   }
   return d;
 }
 
+/* The power grid (Silver Falls): power is made and used in the same moment, never kept or sold. gridShare is the share
+   of what the workshops want that the grid can give (1 when it keeps up); every workshop on the grid runs at that
+   share. { made, want, share } in units a second. */
+export const isGrid = g => !!(GOODS[g] && GOODS[g].grid);
+export function gridOf(town) {
+  let made = 0, want = 0;
+  for (const id of buildingsOf(town)) {
+    const b = BUILDINGS[id];
+    if (isGrid(b.makes)) made += output(town, id);
+    for (const g of Object.keys(b.inputs)) if (isGrid(g)) want += output(town, id) * uses(town, id, g);
+  }
+  return { made, want, share: want > 1e-9 ? Math.min(1, made / want) : 1 };
+}
+export const onGrid = id => Object.keys(BUILDINGS[id].inputs).some(isGrid);
+
 /* Make goods for dt seconds. Records which buildings ran short of inputs in town.starved. */
 export function produce(town, dt) {
   town.starved = {};
+  const grid = buildingsOf(town).some(onGrid) ? gridOf(town).share : 1;
   for (const id of buildingsOf(town)) {
     const b = BUILDINGS[id], want = output(town, id) * dt;
-    if (!(want > 0)) continue;
-    let made = want;
-    const need = Object.keys(b.inputs).map(g => [g, uses(town, id, g)]);
+    if (!(want > 0) || isGrid(b.makes)) continue; // power goes straight onto the grid
+    let made = onGrid(id) ? want * grid : want;
+    const need = Object.keys(b.inputs).filter(g => !isGrid(g)).map(g => [g, uses(town, id, g)]);
     for (const [g, n] of need) made = Math.min(made, (town.goods[g] || 0) / n);
     if (made < want * .999) town.starved[id] = true;
     if (made <= 0) continue;

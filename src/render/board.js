@@ -4,12 +4,13 @@
    The board reads the town; it never changes it. */
 import * as THREE from 'three';
 import { makeGround, makeMesas, polyDist, fbm, sstep, lerp } from './terrain.js';
-import { rng, mergeStatic } from './kit.js';
+import { rng, mergeStatic, Kit } from './kit.js';
 import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/gulch.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
+import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 
 // scratch objects reused every frame (no garbage for the collector to stutter on)
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();
@@ -21,7 +22,9 @@ export class Board {
     this.town = town; this.def = town.def.board; this.lod = lod;
     this.group = new THREE.Group(); this.group.name = 'board:' + town.id;
     this.bld = {}; this.pickables = [];
-    const B = this.def, look = B.look;
+    const B = this.def, look = B.look, RIV = B.river ? B.river.path.concat([B.vault]) : null;
+    const riverD = (x, z) => RIV ? polyDist(x, z, RIV).d : Infinity;
+    const gates = [B.entrance, B.river && B.river.entrance].filter(Boolean);
     this.center = new THREE.Vector3(B.cols / 2, 0, B.rows / 2);
     const plots = Object.values(B.plots);
     const onPlot = (x, z, m = 1.05) => plots.some(([px, pz]) => Math.abs(x - px) < m && Math.abs(z - pz) < m);
@@ -31,6 +34,8 @@ export class Board {
       let h = sstep(1.5, 8, o) * (fbm(x * .18, z * .18) * 2.8 + o * .07) + (fbm(x * .9, z * .9) - .5) * .08;
       const r = polyDist(x, z, B.road);
       if (r.d < .8) h = lerp(-.05, h, sstep(.5, .8, r.d));
+      const rd = riverD(x, z);
+      if (rd < 1.2) h = lerp(-.14, h, sstep(.55, 1.2, rd)); // the riverbed, a little under the water
       if (onPlot(x, z, 1.15)) h = Math.min(h, 0); // plots are level
       // so are the pads, and a wider floor round each mortar pit (its dead zone lies on it)
       const far = B.far ?? (B.spots || []).length;
@@ -43,17 +48,19 @@ export class Board {
       if (onPlot(x, z)) c.lerp(pad, .7);
       const r = polyDist(x, z, B.road);
       if (r.d < 1.1) c.lerp(dirt, (1 - sstep(.6, 1.1, r.d)) * .5); // trampled verges; the road itself is a ribbon
+      if (RIV) { const rd = riverD(x, z); if (rd < 1.4) c.lerp(GREEN, (1 - sstep(.7, 1.4, rd)) * .55); } // reeds and grass on the banks
     };
     this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color });
     this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, new THREE.Color('#a57a52')]));
+    if (RIV) this.group.add(riverRibbon(RIV, look, (B.river.width || 1.1))), this.group.add(...bridges(B.road, RIV));
     const cx = B.cols / 2, cz = B.rows / 2;
     const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 11, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];
     // scenery outside the yard, never on the road or a plot
     const R = rng(town.id.length * 31 + 5), n = lod === 'low' ? 14 : 46;
     for (let i = 0, placed = 0; i < n * 4 && placed < n; i++) {
       const x = -4 + R() * (B.cols + 8), z = -3 + R() * (B.rows + 6);
-      const inGate = B.entrance && Math.abs(x - B.entrance.mouth[0]) < B.entrance.width / 2 + 3.2 && z < B.entrance.mouth[1] + 1.4; // the canyon and its walls
-      if (inGate || polyDist(x, z, B.road).d < 1.1 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
+      const inGate = gates.some(e => Math.abs(x - e.mouth[0]) < e.width / 2 + 3.2 && z < e.mouth[1] + 1.4); // the canyon and its walls
+      if (inGate || polyDist(x, z, B.road).d < 1.1 || riverD(x, z) < 1.3 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
       const kind = R() < .4 ? 'cactus' : R() < .55 ? 'rock' : R() < .7 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 13);
       o.position.set(x, Math.max(0, height(x, z)), z); o.rotation.y = R() * 6; o.scale.setScalar(.7 + R() * .6);
       scenery.push(o); placed++;
@@ -63,7 +70,8 @@ export class Board {
     scenery.forEach(disposeTree);
     this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
-    if (B.entrance) this.entrance = new Entrance(this);
+    this.entrances = gates.map(e => new Entrance(this, e));
+    this.entrance = this.entrances[0] || null;
     // smoke puffs: one instanced mesh for the whole board
     this.puffs = []; this.smokeT = 0;
     this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.09, 0), new THREE.MeshLambertMaterial({ color: '#ece6de', flatShading: true, transparent: true, opacity: .75, depthWrite: false }), MAXPUFF);
@@ -122,7 +130,7 @@ export class Board {
 
   /* Animate: t is seconds; working(id) says whether a building is producing right now. */
   update(dt, t, working = () => true, view = null) {
-    if (this.entrance) this.entrance.update(dt, view);
+    for (const e of this.entrances) e.update(dt, view);
     for (const [id, b] of Object.entries(this.bld)) {
       const on = b.level > 0 && working(id);
       for (const m of b.movers) {
@@ -153,21 +161,53 @@ export class Board {
   dispose() { disposeTree(this.group); }
 }
 
+const GREEN = new THREE.Color('#7f9150');
+/* The river: a ribbon of water, darker in the middle where it runs deep, with pale foam along the banks. One mesh, no
+   moving parts (the boats show the current). w is its width in board units. */
+export function riverRibbon(pts, look, w = 1.1) {
+  const water = new THREE.Color(look.water || '#3f7fa8'), deep = new THREE.Color(look.waterD || '#2f6488'), foam = new THREE.Color(look.foam || '#9cc8d8');
+  const m = roadRibbon(pts, [water, deep, foam], w / 1.32, -.03, [[-.66, foam], [-.56, water], [-.3, water], [-.18, deep], [.18, deep], [.3, water], [.56, water], [.66, foam]]);
+  m.name = 'river'; m.material.userData.own = true;
+  return m;
+}
+/* A plank bridge wherever the road crosses the river: [mesh]. Its deck stands BRIDGE high, so boats go under it and
+   raiders on the road walk over it (src/render/battle.js lifts them). */
+export const BRIDGE = .22;
+export function bridges(road, river) {
+  const out = [], step = .1, path = new THREE.CurvePath();
+  for (let i = 0; i < road.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(road[i][0], 0, road[i][1]), new THREE.Vector3(road[i + 1][0], 0, road[i + 1][1])));
+  const n = Math.ceil(path.getLength() / step), pts = path.getSpacedPoints(n);
+  let run = null;
+  const done = () => { if (run && run.length > 2) out.push(run); run = null; };
+  for (const p of pts) { if (polyDist(p.x, p.z, river).d < .9) (run || (run = [])).push(p); else done(); }
+  done();
+  const k = new Kit();
+  for (const r of out) {
+    const a = r[0], b = r[r.length - 1], mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, len = Math.hypot(b.x - a.x, b.z - a.z) + .5, ry = Math.atan2(b.x - a.x, b.z - a.z);
+    k.box(mx, BRIDGE - .07, mz, 1.15, .07, len, 'woodL', { ry });
+    for (let i = 0; i < 7; i++) { const t = (i / 6 - .5) * (len - .1); k.box(mx + Math.sin(ry) * t, BRIDGE, mz + Math.cos(ry) * t, 1.2, .015, .05, 'woodD', { ry, ao: false }); }
+    for (const s of [-1, 1]) for (const e of [-1, 1]) { const ox = Math.cos(ry) * s * .55, oz = -Math.sin(ry) * s * .55, t = e * len * .45; k.box(mx + ox + Math.sin(ry) * t, -.1, mz + oz + Math.cos(ry) * t, .08, BRIDGE + .45, .08, 'woodD'); }
+    for (const s of [-1, 1]) { const ox = Math.cos(ry) * s * .56, oz = -Math.sin(ry) * s * .56; k.box(mx + ox, BRIDGE + .17, mz + oz, .04, .04, len, 'wood', { ry }); }
+    for (const e of [-1, 1]) k.box(mx + Math.sin(ry) * e * (len / 2 + .05), 0, mz + Math.cos(ry) * e * (len / 2 + .05), 1.1, BRIDGE - .02, .25, 'woodD', { ry }); // ramps up at each end
+  }
+  return out.length ? [k.build()] : [];
+}
+
 /* The road: a flat ribbon of packed dirt along the polyline, with two dark wheel ruts and lighter edges; w scales
    its width (the empire map's routes are narrower). */
-export function roadRibbon(pts, [dirt, rut, edge], w = 1) {
+export function roadRibbon(pts, [dirt, rut, edge], w = 1, y = .015, cross = null) {
   const path = new THREE.CurvePath();
   for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(pts[i][0], 0, pts[i][1]), new THREE.Vector3(pts[i + 1][0], 0, pts[i + 1][1])));
   const n = Math.ceil(path.getLength() / .2), samples = path.getSpacedPoints(n);
   // smooth the corners a little so the road bends instead of kinking
   for (let pass = 0; pass < 3; pass++) for (let i = 1; i < samples.length - 1; i++) samples[i].lerp(samples[i - 1].clone().add(samples[i + 1]).multiplyScalar(.5), .5);
   // bands across the road: [offset from center, color]
-  const bands = [[-.66, edge], [-.52, dirt], [-.3, dirt], [-.24, rut], [-.17, dirt], [.17, dirt], [.24, rut], [.3, dirt], [.52, dirt], [.66, edge]];
+  const bands = cross || [[-.66, edge], [-.52, dirt], [-.3, dirt], [-.24, rut], [-.17, dirt], [.17, dirt], [.24, rut], [.3, dirt], [.52, dirt], [.66, edge]];
   const pos = [], col = [], idx = [];
   samples.forEach((p, i) => {
     const a = samples[Math.max(0, i - 1)], b = samples[Math.min(samples.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1;
     const nx = -dz / L, nz = dx / L, j = ((i * 7919) % 13) / 13 * .06;
-    for (const [o, c] of bands) { pos.push(p.x + nx * o * w, .015, p.z + nz * o * w); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); }
+    for (const [o, c] of bands) { pos.push(p.x + nx * o * w, y, p.z + nz * o * w); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); }
     if (i) { const w = bands.length, s0 = (i - 1) * w, s1 = i * w; for (let k = 0; k < w - 1; k++) idx.push(s0 + k, s0 + k + 1, s1 + k, s0 + k + 1, s1 + k + 1, s1 + k); } // counter-clockwise from above
   });
   const g = new THREE.BufferGeometry();

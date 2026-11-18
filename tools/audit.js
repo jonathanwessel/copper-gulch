@@ -100,7 +100,7 @@ export function audit() {
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution', 'retry'];
+export const MECHANICS = ['river', 'power', 'upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution', 'retry'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
@@ -176,8 +176,10 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
     if (!b) continue;
     // every lane has a real entrance, with a builder in the entrance models
     const builders = read('src/assets/models/entrances.js');
-    if (!b.entrance || !b.entrance.kind) p.push(id + ': the road has no entrance (board.entrance)');
-    else if (!new RegExp('^\\s+' + b.entrance.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + b.entrance.kind + '"');
+    for (const [lane, e] of [['road', b.entrance], ...(b.river ? [['river', b.river.entrance]] : [])]) {
+      if (!e || !e.kind) p.push(id + ': the ' + lane + ' has no entrance');
+      else if (!new RegExp('^\\s+' + e.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + e.kind + '"');
+    }
     const far = b.far ?? b.spots.length, n = b.spots.length - far;
     if (towns[id].kind === 'outpost') { // outposts: no pits; the road loops round the camp and ends where the loop began
       if (n) p.push(id + ' is an outpost with mortar pits');
@@ -187,8 +189,8 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
       continue;
     }
     if (n < 3 || n > 5) { p.push(id + ' has ' + n + ' mortar pits (want 3 to 5)'); continue; }
-    const road = makePath([...b.road, b.vault]), pts = [];
-    for (let s = 0; s <= road.length; s += .1) pts.push(pointAt(road, s));
+    const pts = []; // every lane: the road, and the river where there is one
+    for (const line of [b.road, ...(b.river ? [b.river.path] : [])]) { const lane = makePath([...line, b.vault]); for (let s = 0; s <= lane.length; s += .1) pts.push(pointAt(lane, s)); }
     for (let i = far; i < b.spots.length; i++) {
       let min = Infinity, cover = 0;
       for (const q of pts) { const d = dist(b.spots[i], q); min = Math.min(min, d); if (long && d >= (long.minRange || 0) && d <= long.range) cover += .1; }

@@ -179,4 +179,56 @@ export const ENTRANCES = {
     for (let i = 0; i < 4; i++) k.log(cx - .2 + (i % 2) * .15, (i > 1 ? .12 : 0), mz + .7 + (i % 2) * .05, .8, .07, i % 2 ? 'log' : 'woodL', { ry: Math.PI / 2 * 0 + .3 });
     return { obj: k.build({ cast: true }), plume: [mx, 2.2, pz - 2.4], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
+  /* Silver Falls, the river: boats come round a bend between wooded rock banks, under a stone bridge that has fallen
+     in the middle (its two arches stand, the deck between them hangs in the water). Low mist lies on the water inside.
+     e: { mouth, portal, width, mesa } with the river running toward -z. */
+  bend: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(71), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const tones = e.mesa || ['#6f7a7c', '#8a9496', '#5d686a', '#9aa4a4'];
+    // the banks: rock shelves stepping up away from the water, the far ones curving across behind the bend
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const x = mx + side * (half + .5 + i * .9), z = mz - .6 - i * .35 - R() * .4;
+      k.box(x, -.3, z - 1.4, 1, .7 + i * .35 + R() * .25, mz - pz + 1.2, tones[i % tones.length], { jit: .12, ao: false });
+    }
+    k.box(mx + half * .6, -.3, pz - 1.6, e.width + 2.4, 1.6, 1.6, tones[2], { jit: .1, ao: false }); // the bend's far bank
+    for (let i = 0; i < 16; i++) { // pines on the banks
+      const side = i % 2 ? 1 : -1, x = mx + side * (half + 1 + R() * 2.6), z = mz - .4 - R() * (mz - pz + 1), y = .5 + R() * .6, h = .8 + R() * .5;
+      k.cyl(x, y, z, .05, .26, 'bark', { seg: 5 });
+      for (let j = 0; j < 3; j++) k.cone(x, y + .18 + j * h * .27, z, (.36 - j * .09) * (h / 1.1), h * .42, j % 2 ? 'leafD' : '#2f5a44', { seg: 6, jit: .1 });
+    }
+    // the broken bridge across the mouth: a pier on each bank, an arch from each, and the fallen middle in the water
+    const bz = mz - .5;
+    for (const side of [-1, 1]) {
+      const x = mx + side * (half + .15);
+      k.box(x, -.2, bz, .5, 1.2, .55, 'stone', { jit: .1 });
+      k.box(x - side * .35, .85, bz, .55, .2, .5, 'stoneL', { jit: .08 });           // the arch's springing
+      k.box(x - side * .62, .75, bz, .3, .16, .48, 'stone', { rz: side * .5, jit: .1 }); // where it broke off
+    }
+    k.box(mx - .1, -.15, bz + .1, 1, .2, .45, 'stoneD', { rz: .35, ry: .2, jit: .12 }); // the fallen deck
+    k.dode(mx + .35, 0, bz - .2, .22, 'stone', { jit: .15 });
+    // mist on the water inside the bend
+    for (let i = 0; i < 4; i++) k.cyl(mx + (R() - .5) * e.width * .4, -.01 + i * .005, mz - 1.4 - i * .7, .55 + R() * .2, .02, '#b9d3da', { seg: 9, sx: 1.4, ao: false });
+    return { obj: k.build({ cast: true }), plume: [mx, 1.6, pz - 1.4], shade: { x: mx, z0: mz - .2, z1: pz - .2, w: e.width * .7 } };
+  },
+  /* Sandy Bend: a dry riverbed between sandy banks, under a wooden water tower that has fallen across it (its tank on
+     its side, its legs snapped). e: { mouth, portal, width, mesa } with the bed running toward -z. */
+  riverbed: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(83), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const tones = e.mesa || ['#c9a46a', '#dcb97c', '#b08e58', '#e6c890'];
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) { // cut banks, layered, higher farther in
+      const x = mx + side * (half + .7 + i * 1.1), z = pz - .3 - R() * .6;
+      k.box(x, -.3, z + (mz - pz) / 2 - .2, 1.2, .8 + (4 - i) * .15 + R() * .3, mz - pz + 1.6, tones[i % tones.length], { jit: .12, ao: false });
+    }
+    k.box(mx, -.3, pz - 1.8, e.width + 3, 1.7, 1.8, tones[2], { jit: .12, ao: false });
+    rocks(k, mx, (mz + pz) / 2, 'rock', 'rockD', 8, half * .8, 87);
+    // the fallen water tower: the round tank lying across the bed's far side, staves and hoops, its legs broken
+    const tz = pz + .9;
+    k.cyl(mx + .2, .45, tz, .5, 1.5, 'wood', { rz: Math.PI / 2, seg: 10, jit: .08 });
+    for (const o of [-.55, 0, .55]) k.cyl(mx + .2 + o, .45, tz, .52, .05, 'iron', { rz: Math.PI / 2, seg: 10 });
+    k.cone(mx - .75, .45, tz, .55, .4, 'roofS', { rz: Math.PI / 2, seg: 10 }); // its roof, now pointing sideways
+    for (const [x, z, r] of [[mx + 1.3, tz - .3, .4], [mx + 1.2, tz + .4, -.5], [mx - 1.4, tz + .5, .9]]) k.box(x, 0, z, .08, .9, .08, 'woodD', { rz: r, ry: r });
+    k.box(mx + 1.5, 0, tz - .6, .1, .5, .1, 'woodD'); k.box(mx - 1.5, 0, tz - .5, .1, .4, .1, 'woodD'); // the stumps of the legs
+    return { obj: k.build({ cast: true }), plume: [mx, 2, pz - 1.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
+  },
 };
+function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .08, z + Math.sin(a) * d, .1 + R() * .14, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }

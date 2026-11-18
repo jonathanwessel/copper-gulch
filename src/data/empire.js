@@ -7,5 +7,7 @@ export const SITES = {
   gulch: [-6.5, 7.5],
   ridge: [6.5, -7.5],
   pinehollow: [9, -19.5],
+  falls: [7.5, 8.5],
+  sandybend: [10.5, 19.5],
 };
 export const DIORAMA = .58; // a town's board drawn on the map at this scale

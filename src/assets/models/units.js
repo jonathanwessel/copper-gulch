@@ -101,6 +101,42 @@ FOE.train = () => {
   wheels(root, [[-.21, .1, .3], [.21, .1, .3], [-.21, .1, .05], [.21, .1, .05], [-.21, .1, -.3], [.21, .1, -.3], [-.21, .1, -.56], [.21, .1, -.56]], .1, 'iron');
   return root;
 };
+FOE.boat = () => {
+  // a riverboat (Silver Falls): a flat plank hull with a raised bow, two masked raiders aboard and a pole oar that
+  // dips as it goes; it sits on the water, so its "legs" are the oar
+  const root = G(); root.userData = {};
+  root.add(part(k => {
+    k.box(0, -.04, 0, .42, .12, .8, 'woodD'); k.box(0, .08, 0, .46, .04, .84, 'wood');
+    k.box(0, .02, .42, .34, .12, .12, 'woodD', { rx: -.4 });
+    k.box(0, .06, -.2, .3, .12, .16, 'woodL'); barrelBits(k);
+    for (const [x, z] of [[-.08, .12], [.1, -.05]]) { k.box(x, .1, z, .14, .2, .1, 'paintR', { ao: false }); k.box(x, .32, z, .1, .1, .1, 'skin', { ao: false }); k.box(x, .33, z + .04, .11, .04, .03, 'paintR', { ao: false }); k.cyl(x, .38, z, .1, .015, 'bark', { seg: 8, ao: false }); }
+  }));
+  const oar = part(k => k.box(0, -.55, 0, .03, .7, .03, 'woodL', { ao: false }), { ao: false });
+  oar.position.set(.22, .45, -.15); root.add(oar); root.userData.legs = [oar];
+  return root;
+};
+FOE.steamer = () => {
+  // the ironclad steamer (Silver Falls' boss): a low iron hull with a sloped, riveted casemate, a tall stack, a gun
+  // port glowing at the bow and a paddle wheel turning at the stern
+  const root = G(); root.userData = {};
+  root.add(part(k => {
+    k.box(0, -.05, 0, .5, .14, 1.15, 'iron');
+    k.box(0, .09, 0, .52, .04, 1.2, 'steel', { mat: 'metal' });
+    k.box(0, .02, .55, .3, .14, .12, 'ironL', { rx: -.5, mat: 'metal' });
+    k.cyl(0, .13, .05, .36, .26, 'ironL', { r2: .24, seg: 4, ry: Math.PI / 4, sz: 1.5, mat: 'metal' }); // the casemate
+    for (const z of [-.2, .05, .3]) k.box(0, .13, z, .46, .02, .02, 'steel', { mat: 'metal' });
+    for (const sx of [-1, 1]) k.box(sx * .26, .02, 0, .02, .06, 1.1, 'paintR');                         // a red waterline
+    k.cyl(0, .39, -.05, .06, .36, 'black', { r2: .075, seg: 8 }); k.cyl(0, .73, -.05, .085, .04, 'paintR', { seg: 8 });
+    k.box(0, .22, .33, .08, .05, .02, 'glowO', { mat: 'glow' });
+    k.cyl(0, .34, -.32, .025, .2, 'woodD', { seg: 5 }); k.box(.05, .5, -.32, .1, .06, .01, 'paintR');
+  }));
+  // the paddle wheel turns on its child's z axis like a wagon wheel (src/render/battle.js); the holder turns that axis
+  // across the hull
+  const wheel = part(k => { k.torus(0, 0, 0, .17, .025, 'woodD', { ts: 10 }); for (let i = 0; i < 6; i++) k.box(0, -.17, 0, .03, .34, .3, 'wood', { rz: i / 6 * Math.PI }); });
+  const hold = G(); hold.add(wheel); hold.rotation.y = Math.PI / 2; hold.position.set(0, .12, -.66); root.add(hold);
+  root.userData.wheels = [hold];
+  return root;
+};
 function barrelBits(k) { k.cyl(-.1, .24, -.42, .06, .12, 'wood', { seg: 8 }); k.box(.1, .24, -.42, .1, .08, .08, 'woodL'); }
 
 export function makeFoe(kind) {

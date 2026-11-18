@@ -21,7 +21,7 @@ import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, star
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
-import { canFound, foundTown, nextTowns } from '../core/empire.js';
+import { canFound, foundTown, nextTowns, deedsOf } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
 import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
 import { TOWERS } from '../data/towers.js';
@@ -63,7 +63,7 @@ export function goodsSheet(game, town, focus = null) {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
-    const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
+    const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
     const shipped = () => ((town.def && town.def.imports) || []).filter(g => (town.shipped || {})[g] > 0);
     let sig = '';
@@ -117,8 +117,8 @@ export function foundSheet(game, id, go) {
   return body => {
     const d = TOWNS[id], f = d.found, from = TOWNS[f.from].short || TOWNS[f.from].name;
     const out = d.outpost && TOWNS[d.outpost];
-    const wave = el('p', 'uses'), coins = el('p', 'uses');
-    body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, coins);
+    const wave = el('p', 'uses'), coins = el('p', 'uses'), deeds = el('p', 'uses');
+    body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, ...(f.deeds ? [deeds] : []), coins);
     const row = el('div', 'row'), b = btn('Start ' + d.name, 'btn primary buy', 'foundTown');
     b.addEventListener('click', () => { if (foundTown(game, id)) go(id); });
     row.append(b); body.append(row);
@@ -128,6 +128,7 @@ export function foundSheet(game, id, go) {
       const m = fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c));
       if (wave.textContent !== a) wave.textContent = a;
       if (coins.textContent !== m) coins.textContent = m;
+      if (f.deeds) { const h = deedsOf(game), x = 'Hold ' + f.deeds + ' deeds' + (h >= f.deeds ? ' · Done' : ' · You have ' + h + '. Sign a charter to get more.'); if (deeds.textContent !== x) deeds.textContent = x; }
       b.disabled = !canFound(game, id);
     };
     paint();

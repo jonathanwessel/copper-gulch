@@ -10,8 +10,8 @@ import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 import { SITES, CAPITAL } from '../data/empire.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { isOutpost } from './economy.js';
-import { canFound, nextTowns } from './empire.js';
+import { isOutpost, gridOf } from './economy.js';
+import { canFound, nextTowns, deedsOf } from './empire.js';
 import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
@@ -40,7 +40,7 @@ export function makesOf(id) {
 }
 
 /* What a town that is not open yet takes: [{ kind: 'wave', town, wave, done } | { kind: 'coins', coins, done } |
-   { kind: 'with', town } (it opens with that town) | { kind: 'win', town } (winning that outpost opens it) |
+   { kind: 'deeds', deeds, have, done } (deeds the empire holds) | { kind: 'with', town } (it opens with that town) | { kind: 'win', town } (winning that outpost opens it) |
    { kind: 'later' }], and ready: it can be founded now. The Capital lists Iron Ridge's wave and the coins. */
 export function lockedRules(game, id) {
   if (id === 'capital') {
@@ -54,7 +54,9 @@ export function lockedRules(game, id) {
   if (f) {
     const from = game.towns[f.from];
     return {
-      rules: [{ kind: 'wave', town: f.from, wave: f.wave, done: !!from && (from.bestWave || 0) >= f.wave }, { kind: 'coins', coins: f.coins, done: !!from && from.coins + 1e-9 >= f.coins }],
+      rules: [{ kind: 'wave', town: f.from, wave: f.wave, done: !!from && (from.bestWave || 0) >= f.wave },
+        ...(f.deeds ? [{ kind: 'deeds', deeds: f.deeds, have: deedsOf(game), done: deedsOf(game) >= f.deeds }] : []),
+        { kind: 'coins', coins: f.coins, done: !!from && from.coins + 1e-9 >= f.coins }],
       ready: canFound(game, id),
     };
   }
@@ -76,7 +78,7 @@ export function siteInfo(game, id, meter = null) {
   const v = t.vault || { hp: 1, max: 1 };
   const vault = v.max > 0 ? Math.max(0, Math.min(1, v.hp / v.max)) : 1;
   const short = Object.keys(t.starved || {}).find(b => t.starved[b] && t.level(b) > 0) || null;
-  const ins = short && BUILDINGS[short] ? Object.entries(BUILDINGS[short].inputs || {}) : [];
+  const ins = short && BUILDINGS[short] ? Object.entries(BUILDINGS[short].inputs || {}).filter(([g]) => !GOODS[g].grid || gridOf(t).share < 1) : [];
   const needs = ins.length ? ins.reduce((a, b) => ((t.goods[b[0]] || 0) / b[1] < (t.goods[a[0]] || 0) / a[1] ? b : a))[0] : null;
   return {
     wave: t.wave || 0, best: t.bestWave || 0, won: !!t.won, vault, inPlay: game.active === id,

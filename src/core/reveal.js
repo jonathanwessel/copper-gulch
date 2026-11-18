@@ -13,8 +13,9 @@ import { TOWERS } from '../data/towers.js';
 import { towerOpen, towerIn } from './defense.js';
 import { anyAuto } from './automation.js';
 
-/* The goods the Goods list shows: what this town's built buildings make. */
-export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
+/* The goods the Goods list shows: what this town's built buildings make (power is not a good: the Water Wheel's card
+   shows it). */
+export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
 
 /* The goods strip (owner rule: the player can always see how much of each good they have): every good this town makes
    with a built building, has in stock, or pays for an open tower kind or the next upgrade of a tower it has, in the
@@ -23,7 +24,7 @@ export function stripGoods(town) {
   const want = new Set(listedGoods(town));
   for (const [g, n] of Object.entries(town.goods || {})) if (n >= 1) want.add(g);
   for (const [k, d] of Object.entries(TOWERS)) if (towerIn(town, k) && (towerOpen(town, k) || (town.towers || []).some(t => t.kind === k))) for (const g of Object.keys(d.goods[town.id] || {})) want.add(g);
-  return Object.keys(GOODS).filter(g => want.has(g));
+  return Object.keys(GOODS).filter(g => want.has(g) && !GOODS[g].grid);
 }
 
 /* Which buttons are out. Goods once there are two goods to compare (or once the player met it in another town). */

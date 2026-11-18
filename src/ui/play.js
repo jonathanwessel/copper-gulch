@@ -3,7 +3,7 @@
    this into the full HUD with tabs and sheets. */
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { build, cost, output, missing, unlocked, uses } from '../core/economy.js';
+import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { explainOutput, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
@@ -161,7 +161,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
     const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
-    const now = [id, L, why, wait && wait.why + wait.good, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    const grid = gridOf(town), gridShort = L > 0 && (onGrid(id) || isGrid(b.makes)) && grid.share < .999;
+    const now = [id, L, why, wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -183,8 +184,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
     const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
     if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
+    // the power grid (Silver Falls): the Water Wheel says how much of its power the workshops use
+    if (isGrid(b.makes) && L) card.append(el('p', 'uses', 'Your workshops use ' + fmt(grid.want) + ' power a second.'));
+    if (gridShort) card.append(el('p', 'warn', 'Not enough power. Every workshop here runs slower. ' + (isGrid(b.makes) ? 'Tap Upgrade.' : 'Upgrade the Water Wheel.')));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
-    if (town.starved[id] && L && shortImp.length) {
+    if (gridShort) { /* said above */ }
+    else if (town.starved[id] && L && shortImp.length) {
       // the town that makes it may not have built its maker yet: then the line says to build it
       const g0 = shortImp[0], mk = makerOf(g0), src = game.towns[GOODS[g0].town], mid = mk && Object.keys(BUILDINGS).find(k => BUILDINGS[k] === mk);
       const verb = src && mid && !src.level(mid) ? 'Build a ' : 'Upgrade the ';
@@ -203,7 +208,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
     sell.title = 'Sells for ' + fmt(paysEach(game, town, b.makes)) + ' coins each';
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
-    row.append(sell);
+    if (!isGrid(b.makes)) row.append(sell); // power is never sold
     card.append(row);
     // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {

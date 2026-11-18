@@ -1,7 +1,9 @@
 /* Raiders. hp: times the wave's base health; speed: world units per second; bounty: times the wave's base bounty;
    leak: vault strength lost when it reaches the vault; armor: share of each hit it shrugs off (poison ignores it).
    from: the first wave it rides in. The boss of every 10th wave is the town's own (town.def.boss; the Gulch: the war
-   wagon, Iron Ridge: the armored train, the outposts: the smaller bandit wagon). */
+   wagon, Iron Ridge: the armored train, Silver Falls: the ironclad steamer, the outposts: the smaller bandit wagon).
+   water: it rides the river (lane 1) in a town that has one; a town with a river sends every waves.boatEvery-th raider
+   by boat. */
 export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
   runner: { name: 'Rider', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
@@ -9,6 +11,8 @@ export const FOES = {
   wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
   bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
   train:  { name: 'Armored train', hp: 21, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
+  boat:   { name: 'Riverboat', hp: 2.2, speed: .85, bounty: 2, leak: 2, armor: .2, from: 1, water: true },
+  steamer: { name: 'Ironclad steamer', hp: 20, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true },
 };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */

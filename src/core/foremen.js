@@ -8,7 +8,7 @@
    town.foremen[building] is true (working) or false (hired, switched off); a building missing from it has none.
    Events: 'foreman:hire' { town, id, cost }. Foremen keep working while the game catches up time away. */
 import { BUILDINGS } from '../data/buildings.js';
-import { build, cost, unlocked, buildingsOf, output, uses, importers, isOutpost } from './economy.js';
+import { build, cost, unlocked, buildingsOf, output, uses, importers, isOutpost, isGrid, gridOf, onGrid } from './economy.js';
 import { marginal, saturation } from './market.js';
 
 export const FOREMAN_LEVEL = 10;   // the level a building must reach by hand first
@@ -37,6 +37,7 @@ export function setForeman(town, id, on) { if (hasForeman(town, id)) town.foreme
 /* The building of a town that ran short of a good in the last step (it has less than a second of that building's
    use in the yard), or null. */
 export function shortOf(town, good) {
+  if (isGrid(good)) return gridOf(town).share < 1 ? buildingsOf(town).find(onGrid) || null : null; // the grid is short for all alike
   return buildingsOf(town).find(id => town.starved && town.starved[id] && BUILDINGS[id].inputs[good]
     && (town.goods[good] || 0) < output(town, id) * uses(town, id, good)) || null;
 }
@@ -65,7 +66,7 @@ export function foremanWait(game, town, id) {
   const b = BUILDINGS[id];
   if (!town.level(id)) return null;
   if (town.starved && town.starved[id]) {
-    const g = Object.keys(b.inputs).find(k => (town.goods[k] || 0) < output(town, id) * uses(town, id, k)) || Object.keys(b.inputs)[0];
+    const g = Object.keys(b.inputs).find(k => isGrid(k) ? gridOf(town).share < 1 : (town.goods[k] || 0) < output(town, id) * uses(town, id, k)) || Object.keys(b.inputs)[0];
     if (g) return { why: 'short', good: g };
   }
   if (wanted(game, town, b.makes)) return null;

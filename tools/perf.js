@@ -1,4 +1,4 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|empire|map] [--limit 33] [--eval "js run in the page first"]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|map] [--limit 33] [--eval "js run in the page first"]
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
 // --town empire: Iron Ridge in play, founded from a built-up Copper Gulch, with the Gulch, Dry Creek and Pine Hollow
@@ -41,6 +41,12 @@ try {
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) t.buildings[id] = n;
     for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
     CG.play.close(); document.getElementById('callWave').click(); // like the Gulch: wave 1, towers down the line so raiders stay on screen
+  });
+  else if (TOWN === 'falls') await p.evaluate(() => { // two lanes: raiders on the road and boats on the river
+    const t = CG.game.town; t.coins = 1e9; Object.assign(t.goods, { sand: 500, quartz: 500, glass: 500 }); t.sell = { sand: false, quartz: false, glass: false };
+    for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 8, glassworks: 8, wiremill: 6, bulbworks: 5, dynamo: 3, telegraph: 2 })) t.buildings[id] = n;
+    for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [4, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
+    CG.play.close(); document.getElementById('callWave').click();
   });
   else if (TOWN === 'empire') await p.evaluate(async () => {
     const g = CG.game, t = g.town; t.coins = 1e9; t.bestWave = 20;

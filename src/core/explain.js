@@ -79,7 +79,7 @@ export function explainVault(town) {
   ex.value = vaultMax(town); // whole hits, as the battle uses
   ex.left = Math.max(0, Math.ceil(town.vault.hp));
   const boss = (town.def && town.def.boss) || 'wagon';
-  ex.raiders = Object.entries(FOES).filter(([k, f]) => !f.boss || k === boss).map(([k, f]) => ({ kind: k, label: f.name, hits: f.leak }));
+  ex.raiders = Object.entries(FOES).filter(([k, f]) => (!f.boss || k === boss) && (!f.water || !!(town.def.board && town.def.board.river))).map(([k, f]) => ({ kind: k, label: f.name, hits: f.leak }));
   return ex;
 }
 

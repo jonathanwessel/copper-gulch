@@ -27,6 +27,7 @@ const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
 function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
+  if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Hold ' + r.deeds + ' deeds. Sign a charter to get more.';
   if (r.kind === 'with') return short ? 'Opens with ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
   return short ? 'Coming later' : 'The Capital will be built here.';
@@ -118,7 +119,8 @@ export function mountMap(root, game, view, shell) {
       else if (info.alert === 'short') {
         // a good shipped in from another town: say which building there to build or upgrade
         const g = info.needs, home = g && GOODS[g].town !== id && game.towns[GOODS[g].town], mk = home && home.def.buildings.find(b => BUILDINGS[b].makes === g);
-        const fix = mk ? ' ' + (home.level(mk) ? 'Upgrade the ' : 'Build a ') + BUILDINGS[mk].name + ' in ' + shortOf(home.id) + '.' : '';
+        const wheel = g && GOODS[g].grid && TOWNS[id].buildings.find(b => BUILDINGS[b].makes === g); // the power grid: upgrade the Water Wheel there
+        const fix = wheel ? ' Upgrade the ' + BUILDINGS[wheel].name + '.' : mk ? ' ' + (home.level(mk) ? 'Upgrade the ' : 'Build a ') + BUILDINGS[mk].name + ' in ' + shortOf(home.id) + '.' : '';
         kids.push(el('p', 'warn', 'The ' + BUILDINGS[info.short].name + (g ? ' needs more ' + GOODS[g].name.toLowerCase() + '.' + fix : ' is short of goods.')));
       }
       const row = el('div', 'row'), go = el('button', 'btn primary buy', (info.inPlay ? 'Back to ' : 'Play ') + shortOf(id)); go.id = 'mapPlay';
@@ -131,7 +133,8 @@ export function mountMap(root, game, view, shell) {
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {
-        if (r.kind === 'wave' || r.kind === 'coins') {
+        if (r.kind === 'deeds') kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
+        else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
           const have = r.kind === 'coins' ? fmt(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Best wave ' + (from ? from.bestWave || 0 : 0);
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : have, r.done ? 'done' : 'short'));

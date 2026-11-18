@@ -10,8 +10,8 @@ const MAX = 40, WARN = 6, AFTER = 3; // puffs in the plume; seconds before a wav
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
 export class Entrance {
-  constructor(board) {
-    const e = board.def.entrance, make = ENTRANCES[e.kind];
+  constructor(board, e = board.def.entrance) {
+    const make = ENTRANCES[e.kind];
     this.town = board.town; this.group = new THREE.Group(); this.group.name = 'entrance';
     const built = make({ ...e, mesa: board.def.look && board.def.look.mesa });
     built.obj.traverse(o => { o.renderOrder = -1; }); // drawn before the ground, so the ground under it is skipped
