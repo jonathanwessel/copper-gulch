@@ -21,7 +21,7 @@ import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, star
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
-import { canFound, foundTown } from '../core/empire.js';
+import { canFound, foundTown, nextTowns } from '../core/empire.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -128,6 +128,26 @@ export function foundSheet(game, id, go) {
     paint();
     let acc = 0;
     return dt => { if ((acc += dt) < .3) return; acc = 0; paint(); };
+  };
+}
+
+/* Places, for a device that cannot draw the map: a button for every open town, and for each town in sight its sheet.
+   go(id) puts a town in play, found(id) opens a town's Start sheet. */
+export function placesSheet(game, { go, found }) {
+  return body => {
+    for (const id of Object.keys(TOWNS).filter(t => game.towns[t])) {
+      const here = id === game.active, row = el('div', 'row');
+      const b = btn(here ? TOWNS[id].name + ' · Here' : 'Go to ' + TOWNS[id].name, here ? 'btn' : 'btn primary', 'place-' + id);
+      b.dataset.town = id; b.disabled = here;
+      b.addEventListener('click', () => go(id));
+      row.append(b); body.append(row);
+    }
+    for (const n of nextTowns(game)) {
+      const row = el('div', 'row'), b = btn(TOWNS[n.id].name + (n.ready ? ' · Ready to start' : ' · Not open yet'), 'btn', 'place-' + n.id);
+      b.dataset.town = n.id; b.classList.toggle('dot', !!n.ready);
+      b.addEventListener('click', () => found(n.id));
+      row.append(b); body.append(row);
+    }
   };
 }
 

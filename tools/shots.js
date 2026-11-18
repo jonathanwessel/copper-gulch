@@ -77,6 +77,8 @@ const OUTPOST = [
   }],
   ['won', () => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
+  // the back button's card, the first time there is somewhere to go back to
+  ['back-card', async () => { delete CG.game.shared.seen.back; for (let i = 0; i < 60 && CG.coach.current !== 'back'; i++) await new Promise(r => setTimeout(r, 100)); }],
 ];
 // Iron Ridge: a Gulch at wave 20 with the coins, the locked Iron Ridge button, its sheet, Start, then the Ridge itself
 const RIDGE = [
@@ -93,8 +95,10 @@ const RIDGE = [
     t.coins = 4000;
   }],
   ['ridge-ready', () => { CG.game.town.coins = 2e5; }],
-  ['found', () => { document.querySelector('#townChip .locked').click(); }],
-  ['ridge', async () => { document.getElementById('foundTown').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
+  // the card that points at Map once Iron Ridge is in sight
+  ['found-card', async () => { delete CG.game.shared.seen.found; for (let i = 0; i < 60 && CG.coach.current !== 'found'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['found', async () => { CG.coach.dismiss(); document.getElementById('mapBtn').click(); for (let i = 0; i < 80 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('ridge'); await new Promise(r => setTimeout(r, 1200)); }],
+  ['ridge', async () => { document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
   ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 3, yaw: 0, pitch: .32, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['ridge-built', () => {
     CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e8;

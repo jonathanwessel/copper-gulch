@@ -24,6 +24,7 @@ export function goalContext(game, town) {
     founded: id => !!game.towns[id], lvIn: (tid, id) => game.towns[tid] ? game.towns[tid].level(id) : 0, canFound: id => canFound(game, id), held: () => !!(town.waves && town.waves.hold),
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
     visited: id => !!sh.visited[id] || game.active === id,
+    back: game.back, // the place the back button goes to (src/core/game.js)
     freeSpot: () => free(false), freePit: () => free(true),
     canBuild: kind => canPay(town, towerCost(town, kind)),
     // what is still missing to pay for a tower, as words that count down ("5 more coins and 3 more timber")

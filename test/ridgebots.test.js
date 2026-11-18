@@ -35,8 +35,8 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   g.town.coins = 15000;
   const go = goalNow(g);
   assert.equal(go.id, 'g-found');
-  assert.equal(go.text, 'Tap Iron Ridge, then tap Start Iron Ridge');
-  assert.deepEqual(go.at(), { el: '#townChip [data-town="ridge"]' });
+  assert.equal(go.text, 'Tap Map, Iron Ridge, then Start Iron Ridge');
+  assert.deepEqual(go.at({ back: 'drycreek' }), { el: '#mapBtn', go: 'ridge' });
   foundTown(g, 'ridge'); g.step(.25);
   assert.ok(g.shared.goals.done['g-save'] && g.shared.goals.done['g-found'], 'both done once the Ridge is founded');
   assert.equal(goalNow(g), null);

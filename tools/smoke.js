@@ -80,6 +80,15 @@ export async function tapEverything(page) {
   return out;
 }
 
+/* The place bar (name, Map, back button) as the test sees it. */
+const placeBar = page => page.evaluate(() => {
+  const bar = document.getElementById('placeBar'), r = bar.getBoundingClientRect(), bk = document.getElementById('backBtn'), mp = document.getElementById('mapBtn');
+  const kids = [...bar.children].filter(n => !n.hidden).map(n => n.getBoundingClientRect());
+  return { name: bar.querySelector('.townname').textContent, map: !mp.hidden, back: bk.hidden ? '' : bk.textContent, label: bk.getAttribute('aria-label'), dot: bk.classList.contains('dot'),
+    oneRow: kids.every(k => Math.abs(k.top + k.height / 2 - kids[0].top - kids[0].height / 2) < 3), inside: r.left >= 0 && r.right <= innerWidth + .5, big: [bk, mp].every(b => b.hidden || b.getBoundingClientRect().height >= 30),
+    whole: [bar.querySelector('.townname'), bk].every(n => n.hidden || n.scrollWidth <= n.clientWidth + 1), // no name cut short
+    canvases: document.querySelectorAll('canvas#view').length, active: CG.game.active };
+});
 async function run() {
   const srv = await start(0), browser = await chromium.launch();
   let failed = 0;
@@ -518,7 +527,7 @@ async function run() {
         out.onlyCrossbow = [...document.querySelectorAll('#card .build')].map(b => b.dataset.kind).join() === 'crossbow';
         document.querySelector('#card .build[data-kind="crossbow"]').click(); CG.play.close();
         out.tower = t.towers.some(x => x.spot === 0);
-        out.noChip = document.getElementById('townChip').hidden;
+        out.noPlaces = document.getElementById('backBtn').hidden && document.getElementById('mapBtn').hidden; // one town: no Map, no back
         // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Mining Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
@@ -542,21 +551,23 @@ async function run() {
       await sleep(300);
       if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:gulch', 10000)) bad.push('the win card did not open Copper Gulch');
       await page.evaluate(() => CG.coach.skipAll());
-      const chip = await page.evaluate(() => {
-        const c = document.getElementById('townChip'), bs = [...c.querySelectorAll('button')];
-        return { shown: !c.hidden, two: bs.map(b => b.dataset.town).join() === 'drycreek,gulch', on: (bs.find(b => b.classList.contains('on')) || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length, goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] };
-      });
+      // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
+      const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
-      if (!chip.shown || !chip.two || chip.on !== 'gulch') bad.push('the town chip is wrong (' + JSON.stringify(chip) + ')');
-      if (chip.canvases !== 1) bad.push(chip.canvases + ' canvases after switching');
+      const pg = await placeBar(page);
+      if (pg.name !== 'Copper Gulch' || !pg.map || pg.back !== 'Dry Creek' || pg.label !== 'Back to Dry Creek' || !pg.oneRow || !pg.whole || !pg.inside || !pg.big) bad.push('the place bar is wrong in the Gulch (' + JSON.stringify(pg) + ')');
+      if (pg.canvases !== 1) bad.push(pg.canvases + ' canvases after switching');
       bad.push(...(await check(page)).map(b => 'gulch: ' + b));
-      // the chip goes back to Dry Creek, which kept its tower, and then to the Gulch again
-      await page.evaluate(() => document.querySelector('#townChip [data-town="drycreek"]').click());
-      if (!await waitFor(page, () => CG.game.active === 'drycreek' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:drycreek', 10000)) bad.push('the chip did not go to Dry Creek');
-      const back = await page.evaluate(() => ({ tower: CG.game.town.towers.length > 0, won: CG.game.town.won, on: (document.querySelector('#townChip .on') || {}).dataset?.town }));
-      if (!back.tower || !back.won || back.on !== 'drycreek') bad.push('Dry Creek is not as it was left (' + JSON.stringify(back) + ')');
-      await page.evaluate(() => document.querySelector('#townChip [data-town="gulch"]').click());
-      if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5, 10000)) bad.push('the chip did not go back to the Gulch');
+      // the back button goes to Dry Creek, which kept its tower, and then back to the Gulch
+      await page.evaluate(() => document.getElementById('backBtn').click());
+      if (!await waitFor(page, () => CG.game.active === 'drycreek' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:drycreek', 10000)) bad.push('the back button did not go to Dry Creek');
+      await sleep(300);
+      const back = await page.evaluate(() => ({ tower: CG.game.town.towers.length > 0, won: CG.game.town.won }));
+      const pd = await placeBar(page);
+      if (!back.tower || !back.won) bad.push('Dry Creek is not as it was left (' + JSON.stringify(back) + ')');
+      if (!/^Dry Creek/.test(pd.name) || pd.back !== 'Copper Gulch' || !pd.oneRow || !pd.whole || !pd.inside) bad.push('the place bar is wrong in Dry Creek (' + JSON.stringify(pd) + ')');
+      await page.evaluate(() => document.getElementById('backBtn').click());
+      if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5, 10000)) bad.push('the back button did not go back to the Gulch');
       const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cg-save')).game.active);
       if (saved !== 'gulch') bad.push('the switch was not saved');
       bad.push(...errs);
@@ -579,26 +590,43 @@ async function run() {
       await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5 && CG.coach, 10000);
       await page.evaluate(() => { CG.coach.skipAll(); for (const id of ['found', 'ridge-welcome', 'ridge-route', 'ridge-boss', 'ph-welcome']) delete CG.game.shared.seen[id]; const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5; });
       if (!await waitFor(page, () => CG.coach.current === 'found', 8000)) bad.push('the new town card did not show');
-      const lock = await page.evaluate(() => { const b = document.querySelector('#townChip .locked'); return b ? { town: b.dataset.town, dot: b.classList.contains('dot') } : null; });
-      if (!lock || lock.town !== 'ridge' || !lock.dot) bad.push('no locked Iron Ridge button with a dot (' + JSON.stringify(lock) + ')');
+      // Iron Ridge is ready: Map carries a dot. Places (the map for a device with no 3D) lists it with its Start sheet
+      const lock = await page.evaluate(() => { const b = document.getElementById('mapBtn'); return { shown: !b.hidden, dot: b.classList.contains('dot') }; });
+      if (!lock.shown || !lock.dot) bad.push('no Map button with a dot for Iron Ridge (' + JSON.stringify(lock) + ')');
       bad.push(...(await check(page)).map(b => 'found card: ' + b));
-      await page.evaluate(() => { CG.coach.dismiss(); document.querySelector('#townChip .locked').click(); });
+      await page.evaluate(() => { CG.coach.dismiss(); CG.play.openPlaces(); });
+      await sleep(300);
+      const places = await page.evaluate(() => { const r = document.getElementById('place-ridge'), h = document.getElementById('place-gulch'); return { id: document.getElementById('sheet').dataset.id, ridge: !!r && r.classList.contains('dot'), here: !!h && h.disabled, dc: !!document.getElementById('place-drycreek') }; });
+      if (places.id !== 'places' || !places.ridge || !places.here || places.dc) bad.push('the places list is wrong (' + JSON.stringify(places) + ')');
+      await page.evaluate(() => document.getElementById('place-ridge').click());
       await sleep(300);
       const sheet = await page.evaluate(() => ({ id: document.getElementById('sheet').dataset.id, ready: !document.getElementById('foundTown').disabled, text: document.getElementById('sheet').textContent }));
       if (sheet.id !== 'found' || !sheet.ready || !/Beat wave 20 in Copper Gulch · Done/.test(sheet.text)) bad.push('the Iron Ridge sheet is wrong (' + JSON.stringify(sheet) + ')');
       bad.push(...(await check(page)).map(b => 'found sheet: ' + b));
-      await page.evaluate(() => document.getElementById('foundTown').click());
+      // the map itself: Map opens it, Iron Ridge's card has Start, and Start flies into the new town
+      await page.evaluate(() => { CG.play.sheets.close(); document.getElementById('mapBtn').click(); });
+      if (!await waitFor(page, () => CG.map && CG.map.frames > 5 && CG.mapui, 8000)) { bad.push('Map did not open the map'); await page.evaluate(() => CG.play.openPlaces()); }
+      else await page.evaluate(() => CG.mapui.openSite('ridge'));
+      await sleep(400);
+      const mc = await page.evaluate(() => ({ start: !!document.getElementById('mapFound'), dot: !!document.querySelector('.mapbadge[data-site="ridge"].dot') }));
+      if (!mc.start || !mc.dot) bad.push('the Iron Ridge map card is wrong (' + JSON.stringify(mc) + ')');
+      await page.evaluate(() => (document.getElementById('mapFound') || document.getElementById('place-ridge')).click());
       if (!await waitFor(page, () => CG.game.active === 'ridge' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:ridge', 10000)) bad.push('Start did not open Iron Ridge');
       if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ridge-welcome', 6000)) bad.push('no Iron Ridge welcome card');
-      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 2e5 - CG.game.towns.ridge.def.found.coins + CG.game.towns.ridge.def.start.coins + CG.game.towns.pinehollow.def.start.coins + 200, towns: [...document.querySelectorAll('#townChip button')].map(b => b.dataset.town).join(), on: (document.querySelector('#townChip .on') || {}).dataset?.town, canvases: document.querySelectorAll('canvas#view').length }));
-      if (!ridge.paid || ridge.towns !== 'gulch,ridge,pinehollow' || ridge.on !== 'ridge' || ridge.canvases !== 1) bad.push('Iron Ridge opened wrong (' + JSON.stringify(ridge) + ')');
+      await sleep(300);
+      const ridge = await page.evaluate(() => ({ paid: CG.game.towns.gulch.coins <= 2e5 - CG.game.towns.ridge.def.found.coins + CG.game.towns.ridge.def.start.coins + CG.game.towns.pinehollow.def.start.coins + 200, canvases: document.querySelectorAll('canvas#view').length, towns: Object.keys(CG.game.towns).sort().join() }));
+      const pr = await placeBar(page);
+      if (!ridge.paid || ridge.canvases !== 1 || ridge.towns !== 'gulch,pinehollow,ridge' || pr.back !== 'Copper Gulch' || !pr.map || !pr.oneRow || !pr.whole || !pr.inside) bad.push('Iron Ridge opened wrong (' + JSON.stringify({ ...ridge, ...pr }) + ')');
       await page.evaluate(() => { CG.coach.dismiss(); CG.coach.skipAll(); delete CG.game.shared.seen['ph-welcome']; });
       await sleep(400);
       const cut = await page.evaluate(() => { const w = document.querySelector('#wave .winfo'); return w.scrollWidth > w.clientWidth + 1 ? w.textContent : ''; });
       if (cut) bad.push('the wave countdown is cut off in the Ridge (' + cut + ')');
       bad.push(...(await check(page)).map(b => 'ridge: ' + b));
-      await page.evaluate(() => document.querySelector('#townChip [data-town="pinehollow"]').click());
-      if (!await waitFor(page, () => CG.game.active === 'pinehollow' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:pinehollow', 10000)) bad.push('the chip did not go to Pine Hollow');
+      await page.evaluate(() => { CG.play.openPlaces(); document.getElementById('place-pinehollow').click(); });
+      if (!await waitFor(page, () => CG.game.active === 'pinehollow' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:pinehollow', 10000)) bad.push('Places did not go to Pine Hollow');
+      await sleep(300);
+      const pp = await placeBar(page);
+      if (pp.back !== 'Iron Ridge' || !pp.oneRow || !pp.whole || !pp.inside) bad.push('the place bar is wrong in Pine Hollow (' + JSON.stringify(pp) + ')');
       if (!await waitFor(page, () => CG.coach && CG.coach.current === 'ph-welcome', 6000)) bad.push('no Pine Hollow welcome card');
       bad.push(...(await check(page)).map(b => 'pine hollow: ' + b));
       bad.push(...errs);

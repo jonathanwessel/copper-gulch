@@ -41,8 +41,9 @@ test('the Ridge goal strip walks the chain to the Locomotive Works', () => {
   build(r, { rolling: 1 });
   const tools = next();
   assert.equal(tools.id, 'r-tools');
-  assert.equal(tools.text, 'Tap Copper Gulch and build a Toolsmith there');
-  assert.deepEqual(tools.at(), { el: '#townChip [data-town="gulch"]' });
+  assert.equal(tools.text, 'Go to Copper Gulch and build a Toolsmith there');
+  assert.deepEqual(tools.at({ back: 'gulch' }), { el: '#backBtn', go: 'gulch' }, 'the back button goes there');
+  assert.deepEqual(tools.at({ back: 'pinehollow' }), { el: '#mapBtn', go: 'gulch' }, 'else Map');
   assert.deepEqual(tools.there, ['gulch', 'toolsmith']);
   g.towns.gulch.buildings.toolsmith = 1;
   assert.equal(next().id, 'r-rolling5');

@@ -28,6 +28,7 @@ export function helper(town, game = null) {
     awayFighting: !!game && Object.values(game.towns).some(o => o !== town && !o.won && (o.towers || []).length && o.waves && !o.waves.hold),
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
     unlocked: id => unlocked(town, id), level: id => town.level(id),
+    back: game ? game.back : null, // the place the back button goes to
     next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,

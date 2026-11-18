@@ -54,9 +54,8 @@ export function goalTap(game, town, rng) {
   const g = goalNow(game);
   if (!g || !g.at) return null;
   const c = goalContext(game, town), at = g.at(c) || {};
-  if (at.el && at.el.includes('townChip')) {
-    const id = at.el.match(/data-town="(\w+)"/)[1];
-    // a town not founded yet: its button opens the sheet, and Start founds it and goes there
+  if (at.go) {
+    const id = at.go; // Map (or the back button), then the town's card: Play, or Start for a town not founded yet
     if (!game.towns[id]) return canFound(game, id) ? { what: 'go', label: id, run: () => !!foundTown(game, id) && game.go(id) } : null;
     return { what: 'go', label: id, run: () => game.go(id) };
   }

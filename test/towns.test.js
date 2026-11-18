@@ -79,14 +79,15 @@ test('the win card offers a button to the town the outpost opens, and shows once
   assert.equal(card.when(helper(g.town, g)), true);
 });
 
-test('the town chip and the outpost cards show in the Gulch once both towns are open', () => {
+test('the back button and the outpost cards show in the Gulch once both towns are open', () => {
   const g = newGame('t8');
   winOutpost(g, g.town); g.go('gulch'); run(g, 60);
   const h = helper(g.town, g);
   assert.equal(h.towns, 2);
   assert.equal(h.outpostWon, true);
-  for (const id of ['townchip', 'outposts']) assert.ok(EXPLAINERS.find(e => e.id === id).when(h), id);
-  for (const id of TOWN_ORDER) assert.ok(TOWNS[id].short, id + ' has a short name for the chip');
+  assert.equal(h.back, 'drycreek');
+  for (const id of ['back', 'map', 'outposts']) assert.ok(EXPLAINERS.find(e => e.id === id).when(h), id);
+  for (const id of TOWN_ORDER) assert.ok(TOWNS[id].short, id + ' has a short name for the back button');
 });
 
 test('an outpost\'s sales go into the purse and count as the outpost\'s, never toward a town\'s deeds; save v9 adds the old count', async () => {

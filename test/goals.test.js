@@ -47,7 +47,7 @@ test('winning Dry Creek asks for Copper Gulch, and going there finishes Dry Cree
   assert.equal(goalNow(g).id, 'dc-win');
   winOutpost(g, t); step(g);
   assert.equal(goalNow(g).id, 'dc-go');
-  assert.deepEqual(goalNow(g).at(goalContext(g, t)), { el: '#townChip [data-town="gulch"]' });
+  assert.deepEqual(goalNow(g).at(goalContext(g, t)), { el: '#mapBtn', go: 'gulch' }, 'no back button yet: the spotlight is on Map');
   g.go('gulch'); step(g);
   assert.ok(g.shared.goals.done['dc-go']);
   assert.equal(goalNow(g).id, 'g-tower');

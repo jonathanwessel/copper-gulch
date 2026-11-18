@@ -104,6 +104,7 @@ export function mountMap(root, game, view, shell) {
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
       if (info.alert === 'lost') kids.push(el('p', 'warn', lostLine(t)));
+      else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders broke into the ' + store.toLowerCase() + ' here while you were away.'));
       else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
       else if (info.alert === 'short') {
         // a good shipped in from another town: say which building there to build or upgrade
@@ -116,7 +117,7 @@ export function mountMap(root, game, view, shell) {
       row.append(go); kids.push(row);
     } else {
       const lr = lockedRules(game, id);
-      kids.push(head(nameOf(id), 'Not open yet'));
+      kids.push(head(nameOf(id), lr.ready ? 'Ready to start' : 'Not open yet'));
       if (id !== 'capital' && TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {

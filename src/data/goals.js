@@ -8,11 +8,13 @@ import { RIDGE } from './towns/ridge.js';
      at(c): what to spotlight, as for explainers: { plot }, { spot }, { tower }, { el: css selector }; or nothing.
      wait: a tower kind. While it can't be paid yet, the strip says what to wait for (goalText in src/core/goals.js).
      kind: the tower to build. Once the card of the spotlit pad or building is open, the spotlight moves to its button.
-     there: [town, building] for a goal done in another town (the bots read it; the strip spotlights the town button). */
+     there: [town, building] for a goal done in another town (the bots read it).
+     at(c).go: the place the goal sends the player to; the spotlight is on the back button when it goes there, else on Map. */
+const goTo = id => c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id });
 /* Dry Creek's goals before the win: once it is won, only Go to Copper Gulch is left to show. */
 const early = (f = null) => c => !c.won && (!f || f(c));
 /* Founding Iron Ridge (M3): once the Gulch has beaten the Ridge's wave, the strip says to hold the waves and save its
-   price, then to tap the Iron Ridge button and Start. */
+   price, then to open the map, tap Iron Ridge and Start. */
 const ridgePrice = RIDGE.found.coins / 1000 + 'K';
 const ridgeWave = c => c.bestWave >= RIDGE.found.wave && !c.founded('ridge');
 /* Iron Ridge (M3, the Locomotive Works on Gulch tools): the way to its top workshop. The Locomotive Works uses tools,
@@ -31,7 +33,7 @@ export const GOALS = [
   { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Mining Camp and upgrade it to level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-path', town: 'drycreek', text: 'Upgrade a Crossbow to level 5 and pick a path', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', done: c => c.won },
-  { id: 'dc-go', town: 'drycreek', text: 'Tap Copper Gulch at the top to go there', done: c => c.visited('gulch'), ready: c => c.won, at: () => ({ el: '#townChip [data-town="gulch"]' }) },
+  { id: 'dc-go', town: 'drycreek', text: 'Tap Map, Copper Gulch, then Play Copper Gulch', done: c => c.visited('gulch'), ready: c => c.won, at: goTo('gulch') },
   // Copper Gulch
   { id: 'g-tower', town: 'gulch', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-camp3', town: 'gulch', text: 'Tap the Lumber Camp and upgrade it to level 3', done: c => c.lv('camp') >= 3, at: () => ({ plot: 'camp' }) },
@@ -50,13 +52,13 @@ export const GOALS = [
   // later goals: within (minutes from a new game) is how soon the careful bot must do them (tools/balance.js)
   { id: 'g-save', town: 'gulch', text: 'Tap Hold waves and save ' + ridgePrice + ' coins for Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap Build to build the Toolsmith', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
-  { id: 'g-found', town: 'gulch', text: 'Tap Iron Ridge, then tap Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: () => ({ el: '#townChip [data-town="ridge"]' }), within: 85 },
+  { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), within: 85 },
   // Iron Ridge
   { id: 'r-furnace', town: 'ridge', text: 'Tap Build to build the Blast Furnace', done: c => c.lv('furnace') >= 1, ready: c => c.unlocked('furnace'), at: () => ({ plot: 'furnace' }), within: RIDGE_GOAL },
   { id: 'r-boiler', town: 'ridge', text: 'Tap Build to build the Boiler Shop', done: c => c.lv('boilershop') >= 1, ready: c => c.unlocked('boilershop'), at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-steel5', town: 'ridge', text: 'Tap the Steel Mill and upgrade it to level 5', done: c => c.lv('steelmill') >= 5, ready: c => c.lv('steelmill') >= 1, at: () => ({ plot: 'steelmill' }), within: RIDGE_GOAL },
   { id: 'r-rolling', town: 'ridge', text: 'Tap Build to build the Rolling Mill', done: c => c.lv('rolling') >= 1, ready: c => c.unlocked('rolling'), at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
-  { id: 'r-tools', town: 'ridge', text: 'Tap Copper Gulch and build a Toolsmith there', done: ridgeTools, ready: c => c.lv('rolling') >= 1, at: () => ({ el: '#townChip [data-town="gulch"]' }), there: ['gulch', 'toolsmith'], within: RIDGE_GOAL },
+  { id: 'r-tools', town: 'ridge', text: 'Go to Copper Gulch and build a Toolsmith there', done: ridgeTools, ready: c => c.lv('rolling') >= 1, at: goTo('gulch'), there: ['gulch', 'toolsmith'], within: RIDGE_GOAL },
   { id: 'r-rolling5', town: 'ridge', text: 'Tap the Rolling Mill and upgrade it to level 5', done: c => c.lv('rolling') >= 5, ready: c => c.lv('rolling') >= 1, at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
   { id: 'r-boiler5', town: 'ridge', text: 'Tap the Boiler Shop and upgrade it to level 5', done: c => c.lv('boilershop') >= 5, ready: c => c.lv('boilershop') >= 1, at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-loco', town: 'ridge', text: 'Tap Build to build the Locomotive Works', done: c => c.lv('loco') >= 1, ready: c => c.unlocked('loco'), at: () => ({ plot: 'loco' }), within: RIDGE_GOAL },

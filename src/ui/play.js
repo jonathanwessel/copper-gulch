@@ -13,7 +13,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
@@ -38,26 +38,24 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const coinIcon = el('span', 'coin'), coinNum = el('b'), inc = el('span', 'inc');
   coins.append(coinIcon, coinNum, inc);
   coins.setAttribute('role', 'button'); coins.tabIndex = 0; // tap the coins: where they come from
-  // the town's name; once a second town is open it becomes the town chip: one button per open town, tap one to go there
+  // the place bar (owner rule: the top bar never grows with the towns): the town's name, Map (every town, alerts, towns
+  // to start) and one back button to the last place in play, so two places are one tap apart
+  const place = el('div', 'place'); place.id = 'placeBar';
   const name = el('div', 'townname', town.def.name);
-  const chip = el('div', 'townchip'); chip.id = 'townChip'; chip.hidden = true;
-  let chipSig = '';
-  const paintChip = (away = {}) => {
-    // a town not founded yet shows as a locked button once it is in sight; tap it to see what it takes
-    const open = Object.keys(TOWNS).filter(id => game.towns[id]), next = nextTowns(game);
-    const sig = open.join() + '|' + Object.keys(away).join() + '|' + next.map(n => n.id + n.ready).join();
-    if (sig === chipSig) return; chipSig = sig;
-    const many = open.length + next.length > 1; chip.hidden = !many; name.hidden = many; chip.classList.toggle('many', open.length + next.length > 2);
-    chip.replaceChildren(...open.map(id => {
-      const b = el('button', 'btn small' + (id === town.id ? ' on' : '') + (away[id] ? ' dot' : ''), TOWNS[id].short || TOWNS[id].name); b.dataset.town = id;
-      b.setAttribute('aria-pressed', String(id === town.id));
-      b.addEventListener('click', () => { if (id !== town.id && shell.go) shell.go(id); });
-      return b;
-    }), ...next.map(n => {
-      const b = el('button', 'btn small locked' + (n.ready ? ' dot' : ''), TOWNS[n.id].short || TOWNS[n.id].name); b.dataset.town = n.id;
-      b.addEventListener('click', () => openFound(n.id));
-      return b;
-    }));
+  const mapBtn = el('button', 'btn small', 'Map'); mapBtn.id = 'mapBtn'; mapBtn.hidden = true;
+  // no 3D view: no map to fly over, so Map lists the places instead
+  mapBtn.addEventListener('click', () => { if (shell.map && shell.view) shell.map(); else openPlaces(); });
+  const backBtn = el('button', 'btn small backbtn'); backBtn.id = 'backBtn'; backBtn.hidden = true;
+  backBtn.addEventListener('click', () => { const b = game.back; if (b && shell.go) shell.go(b); });
+  place.append(name, mapBtn, backBtn);
+  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold) || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
+  const paintPlace = () => {
+    const b = game.back, next = nextTowns(game);
+    if (backBtn.hidden !== !b) backBtn.hidden = !b;
+    setText(name, b ? town.def.short || town.def.name : town.def.name); // with a back button beside it, the short name, so all three fit on a phone
+    if (b) { const s = TOWNS[b].short || TOWNS[b].name; setText(backBtn, s); if (backBtn.dataset.town !== b) { backBtn.dataset.town = b; backBtn.setAttribute('aria-label', 'Back to ' + s); } backBtn.classList.toggle('dot', needsYou(b)); }
+    const show = mapOpen(game); if (mapBtn.hidden !== !show) mapBtn.hidden = !show;
+    mapBtn.classList.toggle('dot', Object.keys(game.towns).some(id => id !== town.id && needsYou(id)) || next.some(n => n.ready));
   };
   const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
@@ -91,17 +89,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   goal.append(goalTag, goalWords);
   const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
   goal.addEventListener('click', () => { mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping'); });
-  const left = el('div', 'hudleft'); left.append(name, chip, wave, ctl, goal); paintChip();
+  const left = el('div', 'hudleft'); left.append(place, wave, ctl, goal); paintPlace();
   // side buttons under the coins: Goods and Menu open slide-up sheets
   const side = el('div', 'side');
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn'; goodsBtn.hidden = true;
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
-  // Map: every town at once (src/ui/map.js), once a second town is open and the 3D view runs
-  const mapBtn = el('button', 'btn small', 'Map'); mapBtn.id = 'mapBtn'; mapBtn.hidden = true;
-  mapBtn.addEventListener('click', () => { if (shell.map) shell.map(); });
-  side.append(goodsBtn, labBtn, perksBtn, mapBtn, menuBtn);
+  side.append(goodsBtn, labBtn, perksBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
@@ -137,6 +132,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
+  const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id) }));
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
@@ -457,15 +453,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
-    mapBtn.hidden = !(shell.map && shell.view && mapOpen(game));
-    mapBtn.classList.toggle('dot', Object.values(game.towns).some(o => o !== town && o.waves && o.waves.autoHold) || Object.keys(D.towns).length > 0);
-    paintChip(D.towns);
+    paintPlace();
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, destroy };
+  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, openPlaces, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

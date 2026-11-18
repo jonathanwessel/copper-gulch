@@ -123,11 +123,21 @@ html.no3d body { background: var(--bg); }
 .winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; width: 8em; } /* one width whatever it says, so Call now stays put */
 .hudrow { display: flex; gap: 6px; pointer-events: none !important; } /* only its buttons take taps, never the gap between them */
 .hudrow > * { pointer-events: auto; }
-.townchip { display: flex; gap: 6px; flex-wrap: wrap; }
-.townchip .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
-.townchip .btn.locked { border-style: dashed; opacity: .82; }
-.townchip .btn.locked::before { content: ""; display: inline-block; width: 7px; height: 8px; margin-right: 5px; background: currentColor; clip-path: polygon(0 40%, 15% 40%, 15% 15%, 30% 0, 70% 0, 85% 15%, 85% 40%, 100% 40%, 100% 100%, 0 100%); vertical-align: -1px; }
-.townchip[hidden], .townname[hidden] { display: none; }
+/* the place bar: the town's name, Map, and one back button to the last place (owner rule: it never grows with the towns) */
+.place { display: flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; pointer-events: none; }
+.place > * { pointer-events: auto; }
+.place .townname { pointer-events: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.place .btn { flex: none; min-height: 34px; padding: 4px 10px; white-space: nowrap; }
+.place .backbtn { flex: 0 1 auto; min-width: 0; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
+.place .backbtn::before { content: ""; display: inline-block; width: 6px; height: 10px; margin-right: 6px; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 50%); vertical-align: -1px; }
+.place .btn[hidden], .townname[hidden] { display: none; }
+/* a phone: tighter boxes so "Copper Gulch", Map and "Dry Creek" fit beside the coins */
+@media (max-width: 480px) {
+  .place { gap: 4px; }
+  .place .townname { padding: 4px 6px; letter-spacing: 0; }
+  .place .btn { padding: 4px 7px; }
+  .place .backbtn::before { margin-right: 4px; }
+}
 .hudrow .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
 .hudrow .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
 .pausedbanner {
@@ -198,8 +208,8 @@ html.flat .tag { position: static; transform: none !important; }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
-  .hudleft > .townchip.many { grid-column: 1 / -1; } /* three towns or more: their own row, so the wave keeps its countdown */
-  .hudleft > .wave { min-width: min-content; } /* the town buttons wrap before the wave chip shrinks under Pause */
+  .hudleft > .place { grid-column: 1 / -1; } /* its own row, so the names never squeeze the wave chip */
+  .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }

@@ -18,6 +18,7 @@ export class Game {
     this.clock = new Clock();
     this.towns = {};
     this.active = null;
+    this.prev = null;            // the place in play before this one: the top bar's back button goes there
     this.stats = { steps: 0 };
     this.shared = { purse: { coins: 0 } }; // empire-wide state: the coin purse, and what systems own (shared.market...)
     for (const s of systems) if (s.setup) s.setup(this);
@@ -36,10 +37,12 @@ export class Game {
   /* Put another open town in play. Returns true when it switched. */
   go(id) {
     if (!this.towns[id] || this.active === id) return false;
-    this.active = id;
+    this.prev = this.active; this.active = id;
     this.bus.emit('town:go', { town: id });
     return true;
   }
+  /* The place the back button goes to: the last town in play before this one, while it is open (or null). */
+  get back() { return this.prev && this.towns[this.prev] && this.prev !== this.active ? this.prev : null; }
   /* Real seconds in; fixed steps out. Returns the number of steps taken. */
   advance(realSeconds) { return this.clock.advance(realSeconds, dt => this.step(dt)); }
   step(dt = STEP) {
@@ -73,13 +76,13 @@ export class Game {
   }
   toJSON() {
     return {
-      seed: this.seed, active: this.active, clock: this.clock.toJSON(), stats: this.stats, shared: JSON.parse(JSON.stringify(this.shared)),
+      seed: this.seed, active: this.active, prev: this.prev, clock: this.clock.toJSON(), stats: this.stats, shared: JSON.parse(JSON.stringify(this.shared)),
       towns: Object.fromEntries(Object.entries(this.towns).map(([id, t]) => [id, t.toJSON()])),
     };
   }
   static fromJSON(o, { systems = [], defs = {} } = {}) {
     const g = new Game({ seed: o.seed, systems, defs });
-    g.clock = new Clock(o.clock); g.stats = { ...g.stats, ...o.stats }; g.active = o.active;
+    g.clock = new Clock(o.clock); g.stats = { ...g.stats, ...o.stats }; g.active = o.active; g.prev = o.prev && o.towns && o.towns[o.prev] ? o.prev : null;
     for (const [k, v] of Object.entries(o.shared || {})) g.shared[k] = { ...(g.shared[k] || {}), ...JSON.parse(JSON.stringify(v)) };
     g.shared.purse = { coins: 0, ...(g.shared.purse || {}) };
     for (const [id, t] of Object.entries(o.towns || {})) { g.towns[id] = Town.fromJSON(t, defs[id] || null); g.towns[id].purse = g.shared.purse; }

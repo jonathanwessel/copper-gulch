@@ -5,7 +5,7 @@ export const DRYCREEK = {
   id: 'drycreek',
   kind: 'outpost',
   name: 'Dry Creek Outpost',
-  short: 'Dry Creek',              // on the town chip
+  short: 'Dry Creek',              // in the place bar, the back button and the map badges
   store: 'stockpile',             // what raiders ride for, in words and on the board (a town's is the vault)
   era: 'Frontier',
   goods: ['ore', 'stone'],

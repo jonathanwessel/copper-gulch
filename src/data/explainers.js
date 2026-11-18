@@ -214,10 +214,10 @@ export const EXPLAINERS = [
     when: h => !!(h.dots.goods || h.dots.research || h.dots.perks || Object.keys(h.dots.towns).length), at: () => ({ el: '.play .btn.dot' }),
   },
   {
-    id: 'townchip', town: 'gulch', covers: ['townchip'],
-    title: 'Your towns',
-    text: 'The buttons at the top show your towns. Tap Dry Creek to go back to the outpost. Tap Copper Gulch to come back here.',
-    when: h => h.towns > 1 && !h.outpost && h.t > 20, at: () => ({ el: '#townChip' }),
+    id: 'back', covers: ['back'],
+    title: 'Go back',
+    text: 'Tap the arrow button next to Map to go to the town you played last. Tap the same button there to come back.',
+    when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {
     id: 'away', covers: ['away'],
@@ -234,7 +234,7 @@ export const EXPLAINERS = [
   {
     id: 'map', covers: ['map'],
     title: 'The map',
-    text: 'Tap Map to see all your towns at once. Zooming the town all the way out opens it too. Tap a town on the map to see how it is doing.',
+    text: 'Tap Map to see all your towns. Tap a town there, then tap Play to go to it. A red dot on Map means a town needs you.',
     when: h => h.towns > 1 && !h.outpost && h.t > 30, at: () => ({ el: '#mapBtn' }),
   },
   {
@@ -271,8 +271,8 @@ export const EXPLAINERS = [
   {
     id: 'found', covers: ['found'],
     title: 'A new town',
-    text: 'Iron Ridge is in sight. Tap Iron Ridge at the top to see what it takes to start it.',
-    when: h => h.next.includes('ridge'), at: () => ({ el: '#townChip .locked' }),
+    text: 'Iron Ridge is in sight. Tap Map, then tap Iron Ridge to see what it takes to start it.',
+    when: h => h.next.includes('ridge'), at: () => ({ el: '#mapBtn' }),
   },
   {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],

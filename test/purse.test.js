@@ -56,7 +56,7 @@ test('the purse survives a save and load, and the loaded towns share it', () => 
 });
 
 test('save v12: the old per-town coins are added into one purse', () => {
-  assert.equal(SAVE_VERSION, 12);
+  assert.ok(SAVE_VERSION >= 12);
   const old = { v: 11, at: 0, game: { shared: {}, towns: { drycreek: { id: 'drycreek', coins: 30 }, gulch: { id: 'gulch', coins: 1200 }, ridge: { id: 'ridge', coins: 70 } } } };
   const s = migrate(old);
   assert.deepEqual(s.game.shared.purse, { coins: 1300 });

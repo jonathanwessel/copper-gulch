@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -90,6 +90,12 @@ export const MIGRATIONS = {
     for (const t of Object.values(g.towns || {})) { n += t.coins || 0; delete t.coins; if (t.recent === undefined) t.recent = 0; }
     sh.purse = { coins: n };
     return { ...s, v: 12, game: g };
+  },
+  // v13: game.prev, the last place in play before this one (the top bar's back button); old saves start with none
+  12: s => {
+    const g = s.game || {};
+    if (g.prev === undefined) g.prev = null;
+    return { ...s, v: 13, game: g };
   },
 };
 

@@ -11,10 +11,10 @@ import { SITES, CAPITAL } from '../data/empire.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { isOutpost } from './economy.js';
-import { canFound } from './empire.js';
+import { canFound, nextTowns } from './empire.js';
 
-/* The map is open once a second town is. */
-export const mapOpen = game => Object.keys(game.towns).length > 1;
+/* The map is open once a second town is, or a town to start is in sight (its Start card lives on the map). */
+export const mapOpen = game => Object.keys(game.towns).length > 1 || nextTowns(game).length > 0;
 
 /* [{ id, at: [x, z], open, outpost, capital }] in the order towns open, the Capital's site first. */
 export function mapSites(game) {
@@ -53,7 +53,8 @@ export function lockedRules(game, id) {
 }
 
 /* A town's badges: { wave, best, won, vault (0 to 1), income (coins a second), inPlay, alert, short } where alert is
-   'lost' (it lost its vault or its boss while away and holds its waves), 'vault' (its vault or stockpile is under half), 'short' (a workshop is short of goods; short names it and needs the
+   'lost' (it lost its vault or its boss while away and holds its waves), 'raided' (raiders broke in while the player
+   was elsewhere, until the player goes there), 'vault' (its vault or stockpile is under half), 'short' (a workshop is short of goods; short names it and needs the
    input it has least of) or null. */
 export function siteInfo(game, id, meter = null) {
   const t = game.towns[id];
@@ -66,7 +67,7 @@ export function siteInfo(game, id, meter = null) {
   return {
     wave: t.wave || 0, best: t.bestWave || 0, won: !!t.won, vault, inPlay: game.active === id,
     income: meter ? meter.income[id] || 0 : 0,
-    alert: t.waves && t.waves.autoHold ? 'lost' : vault < .5 ? 'vault' : short ? 'short' : null, short, needs,
+    alert: t.waves && t.waves.autoHold ? 'lost' : game.active !== id && (t.breaches || 0) > ((t.flags && t.flags.breachSeen) || 0) ? 'raided' : vault < .5 ? 'vault' : short ? 'short' : null, short, needs,
   };
 }
 

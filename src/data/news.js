@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-2',
+    lines: [
+      'The top left now shows the town name, Map, and a button back to the last town you played.',
+      'Tap Map to go to any other town or to start a new one. A red dot on Map means a town needs you.',
+    ],
+  },
+  {
     v: '2026.11.18-1',
     lines: [
       'Your other towns keep fighting their waves while you play somewhere else, and while the game is closed.',
