@@ -23,6 +23,9 @@ export function helper(town, game = null) {
     id: town.id, outpost: isOutpost(town), tabs: game ? tabs(game, town) : {}, dots: game ? dots(game, town) : { towns: {} }, won: !!town.won, towns: game ? Object.keys(game.towns).length : 1,
     outpostWon: outposts.some(o => o.won), can: kind => towerIn(town, kind),
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
+    autoHold: !!ws.autoHold, // this town lost while away and holds its waves (src/core/defense.js, fall)
+    // another town (not a won outpost) with towers keeps fighting out of sight
+    awayFighting: !!game && Object.values(game.towns).some(o => o !== town && !o.won && (o.towers || []).length && o.waves && !o.waves.hold),
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],
     unlocked: id => unlocked(town, id), level: id => town.level(id),
     next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)

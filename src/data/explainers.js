@@ -220,6 +220,18 @@ export const EXPLAINERS = [
     when: h => h.towns > 1 && !h.outpost && h.t > 20, at: () => ({ el: '#townChip' }),
   },
   {
+    id: 'away', covers: ['away'],
+    title: 'Your towns keep fighting',
+    text: 'Your other towns keep fighting while you are here. Tap Map to check on them. If raiders beat a town, its waves stop until you go back.',
+    when: h => h.awayFighting && h.t > 5, at: () => ({ el: '#mapBtn' }),
+  },
+  {
+    id: 'lost', covers: ['lost'],
+    title: 'Waves on hold',
+    text: 'Raiders beat this town while you were away, so its waves are on hold. Build or upgrade towers. Then tap Resume waves.',
+    when: h => h.autoHold && h.phase === 'break', at: () => ({ el: '#holdWaves' }),
+  },
+  {
     id: 'map', covers: ['map'],
     title: 'The map',
     text: 'Tap Map to see all your towns at once. Zooming the town all the way out opens it too. Tap a town on the map to see how it is doing.',

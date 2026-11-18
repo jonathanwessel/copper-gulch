@@ -25,12 +25,12 @@ const AWAY_MIN = 5; // seconds in the background before coming back catches up t
 
 async function startGame() {
   if (CG.game) return;
-  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }, { FlowMeter, mapOpen }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), import('./core/map.js'), titleScene]);
+  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }, { FlowMeter, mapOpen }, { lostToast }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), import('./core/map.js'), import('./ui/lost.js'), titleScene]);
   const saved = readSave();
   let game, away = null;
   // time away always counts (owner rule): run it, and note what the market sold meanwhile for the Welcome back line
   const sold = () => Object.values((game.shared.market || {}).sold || {}).reduce((a, b) => a + b, 0);
-  const catchUp = secs => { const s0 = sold(), r = game.catchUp(secs); r.sold = sold() - s0; return r; };
+  const catchUp = secs => { const s0 = sold(), from = Object.fromEntries(Object.entries(game.towns).map(([k, t]) => [k, t.t])); const r = game.catchUp(secs); r.sold = sold() - s0; r.from = from; return r; };
   if (saved) {
     game = loadGame(saved.game);
     const secs = (Date.now() - (saved.at || Date.now())) / 1000;
@@ -134,6 +134,8 @@ async function startGame() {
     if (!r || r.seconds < 60) return;
     const earned = Object.values(r.earned).reduce((a, b) => a + b, 0), n = Math.floor(r.sold);
     toast('Welcome back. While you were away, your towns earned ' + fmt(earned) + ' coins' + (n >= 1 ? ' and sold ' + fmt(n) + ' goods.' : '.'), 6000, { first: true });
+    // a town that lost while away holds its waves (owner rule): one line each, after the welcome
+    for (const t of Object.values(game.towns)) if (t.waves && t.waves.autoHold && t.lost && t.lost.at >= ((r.from || {})[t.id] ?? 0)) toast(lostToast(t, t.id === game.active), 6000);
   };
   welcome(away);
   // keep the game: every 10 seconds, and whenever the app goes to the background

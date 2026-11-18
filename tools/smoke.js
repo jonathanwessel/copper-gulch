@@ -244,9 +244,9 @@ async function run() {
         out.paused = t.t === t0 && !document.getElementById('pausedBanner').hidden;
         document.getElementById('pauseBtn').click(); await wait(900);
         out.resumed = t.t > t0 && document.getElementById('pausedBanner').hidden;
-        Object.assign(t.waves, { phase: 'break', timer: .5, queue: [], foes: [] });
+        Object.assign(t.waves, { phase: 'break', timer: .5, queue: [], foes: [], hold: false, autoHold: false }); // time away above may have held them
         document.getElementById('holdWaves').click(); await wait(1500);
-        out.held = t.waves.phase === 'break' && document.getElementById('holdWaves').textContent === 'Waves held';
+        out.held = t.waves.phase === 'break' && document.getElementById('holdWaves').textContent === 'Resume waves';
         document.getElementById('holdWaves').click(); await wait(900);
         out.released = t.waves.phase === 'wave';
         return out;

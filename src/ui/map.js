@@ -7,6 +7,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive } from './format.js';
+import { lostLine, lostToast } from './lost.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -28,6 +29,8 @@ function ruleText(game, r, short = false) {
 
 /* shell: { meter, play(id) (fly into a town), back() (fly into the town in play), toast(text) } */
 export function mountMap(root, game, view, shell) {
+  // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
+  const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false), 6000); });
   const ui = el('section', 'play mapui'); ui.id = 'map-ui';
   const hud = el('header', 'hud');
   const title = el('div', 'townname', 'Map');
@@ -100,7 +103,8 @@ export function mountMap(root, game, view, shell) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
-      if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
+      if (info.alert === 'lost') kids.push(el('p', 'warn', lostLine(t)));
+      else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
       else if (info.alert === 'short') {
         // a good shipped in from another town: say which building there to build or upgrade
         const g = info.needs, home = g && GOODS[g].town !== id && game.towns[GOODS[g].town], mk = home && home.def.buildings.find(b => BUILDINGS[b].makes === g);
@@ -145,7 +149,7 @@ export function mountMap(root, game, view, shell) {
         B.vault.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
-        setText(B.extra, rate(info.income));
+        setText(B.extra, info.alert === 'lost' ? 'On hold' : rate(info.income));
         B.b.classList.toggle('dot', !!info.alert);
       } else {
         const lr = lockedRules(game, s.id), next = lr.rules.find(r => !r.done) || lr.rules[0];
@@ -183,6 +187,6 @@ export function mountMap(root, game, view, shell) {
       }
       if (openId && (cardAcc += dt) > .5) { cardAcc = 0; paintCard(); }
     },
-    destroy() { ui.remove(); },
+    destroy() { offLost(); ui.remove(); },
   };
 }

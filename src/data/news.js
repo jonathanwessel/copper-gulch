@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-1',
+    lines: [
+      'Your other towns keep fighting their waves while you play somewhere else, and while the game is closed.',
+      'If raiders beat a town while you are away, its waves stop until you go back and tap Resume waves.',
+      'When waves are held, the button says Resume waves.',
+    ],
+  },
+  {
     v: '2026.11.17-25',
     lines: [
       'Tap a tower or building once to open its card. On a tall tower, the top works too.',

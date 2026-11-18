@@ -20,6 +20,7 @@ import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, s
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
+import { lostToast } from './lost.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt, fmtLive } from './format.js';
@@ -78,7 +79,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const p = viewApi.paused(), h = !!town.waves.hold, sig = p + ',' + h;
     if (sig === ctlSig) return; ctlSig = sig;
     setText(pause, p ? 'Resume' : 'Pause'); pause.setAttribute('aria-pressed', String(p)); banner.hidden = !p;
-    setText(hold, h ? 'Waves held' : 'Hold waves'); hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
+    setText(hold, h ? 'Resume waves' : 'Hold waves'); hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
   };
   pause.addEventListener('click', () => { viewApi.pause(!viewApi.paused()); paintCtl(); });
   hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
@@ -336,6 +337,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
     game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
     game.bus.on('breach', e => {
+      // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
+      if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
+      if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id), 6000); return; }
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);
       else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
@@ -454,6 +458,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
     mapBtn.hidden = !(shell.map && shell.view && mapOpen(game));
+    mapBtn.classList.toggle('dot', Object.values(game.towns).some(o => o !== town && o.waves && o.waves.autoHold) || Object.keys(D.towns).length > 0);
     paintChip(D.towns);
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }

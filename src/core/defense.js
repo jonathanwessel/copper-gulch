@@ -3,17 +3,23 @@
    the renderer draws the bolts, balls and clouds from the events this module emits:
      'shot' { town, tower, foe, kind, from, to, flight? }   'kill' { town, foe, coins }   'leak' { town, foe, hp }
      'land' { town, spot, at, splash, fire }       'tower:open' { town, kind }
-     'wave:start' { town, wave, type, boss }       'wave:clear' { town, wave }   'breach' { town, wave, lost }
+     'wave:start' { town, wave, type, boss }       'wave:clear' { town, wave }
+     'breach' { town, wave, lost, why: 'vault' | 'boss', back, held }   (held: the town was away and now holds its waves)
    A town's waves: town.wave is the wave running or coming next; town.waves holds the phase, timer, queue and foes,
    the lobbed shells still in the air (shells) and the burning ground Shrapnel leaves (fires).
-   While the game catches up time away, defense rests (background battles arrive with Automation, M4).
+   Every town keeps playing when the player is not looking at it (owner rule, 2026-11-17): out of play its waves run
+   step by step like the town in play, and during the coarse chunks of time away (src/core/clock.js) skirmish() plays
+   each wave through a copy of the town and applies the result. A town away that loses (its vault falls, or its boss
+   gets through) holds its own waves (waves.autoHold) until the player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
 import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
-import { demand, output, buildingsOf, isOutpost } from './economy.js';
+import { demand, output, buildingsOf } from './economy.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { Town } from './town.js';
+import { STEP } from './clock.js';
 
 /* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
 const WAVES = new WeakMap();
@@ -134,6 +140,7 @@ export function startWave(game, town, rush = 0) {
 /* Hold the waves: the wave on the road finishes, but the next one does not start until released. */
 export function setHold(game, town, on) {
   town.waves.hold = !!on;
+  if (!on) town.waves.autoHold = false;
   game.bus.emit('waves:hold', { town: town.id, hold: !!on });
 }
 
@@ -158,6 +165,7 @@ export const canCall = town => town.waves.phase === 'break';
 export function callEarly(game, town) {
   const ws = town.waves;
   if (!canCall(town)) return -1;
+  if (ws.autoHold) setHold(game, town, false); // a town that held its own waves after a loss starts again
   const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4 * RUSH.bonus);
   town.earn(bonus, false, 'call');
   town.flags.called = (town.flags.called || 0) + 1;
@@ -196,10 +204,11 @@ function kill(game, town, f) {
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }
 
-/* A town out of play waits: the wave on its road finishes, but the clock to the next one stops until the player is
-   back, so arriving always leaves the time it showed. A won outpost keeps its raids (its towers fight them on their
-   own); one not yet won waits like a town. */
-export const waitsAway = (game, town) => !!game.active && game.active !== town.id && !(isOutpost(town) && town.won);
+/* Is the town away from the player? Out of play, or any town while time away is caught up. */
+export const away = (game, town) => !!game.catching || (!!game.active && game.active !== town.id);
+/* Every town keeps playing while away (owner rule, 2026-11-17), except one with no towers yet: it waits for the player,
+   so a town just opened is never raided before it has had a look. A won outpost keeps its light raids whatever it has. */
+export const waitsAway = (game, town) => away(game, town) && !town.towers.length && !town.won;
 
 /* One step of the battle. */
 export function fight(game, town, dt) {
@@ -222,7 +231,8 @@ export function fight(game, town, dt) {
     if (f.s >= road.length && f.hp > 0) {
       const hp = FOES[f.kind].leak;
       town.vault.hp -= hp; f.hp = 0; f.leaked = true;
-      game.bus.emit('leak', { town: town.id, foe: f.id, hp });
+      if (FOES[f.kind].boss) ws.bossLeaked = true;
+      game.bus.emit('leak', { town: town.id, foe: f.id, hp, boss: !!FOES[f.kind].boss });
     }
   }
   const pos = new Map(ws.foes.map(f => [f, pointAt(road, f.s)]));
@@ -283,35 +293,112 @@ export function fight(game, town, dt) {
     if (f.spread && f.poisonT > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, f.poison / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
-  // the vault falls: lose a share of coins, fall back two waves, start again after a rest
-  if (town.vault.hp <= 0 && town.won) { // a won outpost: raiders carry off part of each good, the waves stay
+  if (town.vault.hp <= 0) { fall(game, town, 'vault'); return; }
+  if (!ws.queue.length && !ws.foes.length) waveEnd(game, town);
+}
+
+/* The town loses: its vault fell (why 'vault'), or its boss got through while it was away (why 'boss', the boss gate).
+   A won outpost: raiders carry off part of each good and its waves stay. A town: it loses a share of the purse, but
+   never more than it earned in about the last 5 minutes (GDD.md, Vault), and drops back breachBack waves. A town away
+   then holds its own waves (autoHold), so it pays the loss once, not in a loop. */
+export function fall(game, town, why = 'vault') {
+  const ws = town.waves;
+  town.vault.hp = town.vault.max;
+  town.breaches = (town.breaches || 0) + 1;
+  if (town.won) {
     const took = {};
     for (const g of Object.keys(town.goods)) { took[g] = town.goods[g] * RAID_LOSS; town.goods[g] -= took[g]; }
-    Object.assign(ws, { phase: 'break', timer: town.def.raid || 120, queue: [], foes: [], shells: [], fires: [] });
-    town.vault.hp = town.vault.max;
-    town.breaches = (town.breaches || 0) + 1;
-    game.bus.emit('breach', { town: town.id, wave: town.wave, lost: 0, goods: took });
+    Object.assign(ws, { phase: 'break', timer: town.def.raid || 120, queue: [], foes: [], shells: [], fires: [], bossLeaked: false });
+    game.bus.emit('breach', { town: town.id, wave: town.wave, lost: 0, goods: took, why, back: town.wave, held: false });
     return;
   }
-  if (town.vault.hp <= 0) {
-    // a share of the shared purse, but never more than this town earned in about the last 5 minutes (GDD.md, Vault)
-    const lost = Math.floor(Math.min(town.coins * wavesOf(town).breachLoss, town.recent || 0));
-    town.coins -= lost;
-    const from = town.wave;
-    town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);
-    Object.assign(ws, { phase: 'break', timer: wavesOf(town).rest * 2, queue: [], foes: [], shells: [], fires: [] });
-    town.vault.hp = town.vault.max;
-    town.breaches = (town.breaches || 0) + 1;
-    game.bus.emit('breach', { town: town.id, wave: from, lost });
-    return;
+  const lost = Math.floor(Math.min(town.coins * wavesOf(town).breachLoss, town.recent || 0));
+  town.coins -= lost;
+  const from = town.wave;
+  town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);
+  Object.assign(ws, { phase: 'break', timer: wavesOf(town).rest * 2, queue: [], foes: [], shells: [], fires: [], bossLeaked: false });
+  const held = away(game, town);
+  if (held) { ws.hold = true; ws.autoHold = true; town.lost = { why, wave: from, back: town.wave, coins: lost, at: town.t }; }
+  game.bus.emit('breach', { town: town.id, wave: from, lost, why, back: town.wave, held });
+}
+
+/* The last raider is gone. A boss that got through while the town was away means the wave is lost (boss waves are
+   gates); otherwise the wave is beaten and the next one comes after the wave pace. */
+function waveEnd(game, town) {
+  const ws = town.waves;
+  if (ws.bossLeaked && !town.won && away(game, town)) { fall(game, town, 'boss'); return; }
+  ws.bossLeaked = false;
+  town.bestWave = Math.max(town.bestWave, town.wave);
+  game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
+  if (town.won) { Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, (town.def.raid || 120) - (ws.age || 0)) }); return; } // light raids
+  town.wave++;
+  Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, wavesOf(town).pace - (ws.age || 0)) });
+}
+
+// --- the background battle -------------------------------------------------------------------------------------------
+/* A wave played out on a copy of the town, step by step, with a vault that never falls: what died and what got
+   through, in order, with the time of each (seconds from the wave's start). The same wave against the same towers
+   always plays out the same way, so runs are kept per town data and reused (a won outpost's raids repeat all day). */
+const RUNS = new WeakMap();
+const RUN_KEEP = 48;
+const runKey = town => {
+  const ws = town.waves, m = town.mods;
+  return [town.wave, ws.type, ws.gap, ws.queue.join(','), ...['towerDmg', 'towerRate', 'towerRange', 'blast', 'foeHp'].map(k => m.factor(k).toFixed(6)),
+    town.towers.map(t => t.spot + t.kind + t.level + (t.path || '')).join(',')].join('|');
+};
+export function waveRun(town) {
+  const runs = RUNS.get(town.def) || new Map(), key = runKey(town);
+  RUNS.set(town.def, runs);
+  if (runs.has(key)) return runs.get(key);
+  const c = Town.fromJSON(town.toJSON(), town.def);
+  c.vault = { hp: 1e15, max: 1e15 };
+  Object.assign(c.waves, { foes: [], shells: [], fires: [], age: 0, timer: 0, bossLeaked: false });
+  for (const t of c.towers) t.cd = 0;
+  const run = { ev: [], age: 0, dealt: {} };
+  const g = { active: c.id, catching: false, dealt: {}, bus: { emit(type, e) {
+    if (type === 'kill') run.ev.push([c.waves.age, 'k', e.kind]);
+    else if (type === 'leak') run.ev.push([c.waves.age, 'l', e.hp, e.boss]);
+  } } };
+  for (let n = 0; c.waves.phase === 'wave' && n < 20000; n++) fight(g, c, STEP);
+  run.age = c.waves.age || 0;
+  run.dealt = g.dealt[c.id] || {};
+  if (runs.size >= RUN_KEEP) runs.delete(runs.keys().next().value);
+  runs.set(key, run);
+  return run;
+}
+/* Play a wave that has just started (startWave) from its run: bounties paid, raiders that get through hit the vault,
+   and the wave ends as fight() would end it. Returns the seconds it took. */
+function playRun(game, town, run) {
+  const ws = town.waves;
+  ws.queue = []; ws.foes = []; ws.shells = []; ws.fires = [];
+  for (const [t, what, x, boss] of run.ev) {
+    if (what === 'k') { kill(game, town, { id: 0, kind: x }); continue; }
+    town.vault.hp -= x;
+    if (boss) ws.bossLeaked = true;
+    if (town.vault.hp <= 0) { fall(game, town, 'vault'); return t; }
   }
-  if (!ws.queue.length && !ws.foes.length) {
-    town.bestWave = Math.max(town.bestWave, town.wave);
-    game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
-    if (town.won) { Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, (town.def.raid || 120) - (ws.age || 0)) }); return; } // light raids
-    town.wave++;
-    Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, wavesOf(town).pace - (ws.age || 0)) });
+  for (const [k, n] of Object.entries(run.dealt)) tally(game, town, k, n);
+  ws.age = run.age;
+  waveEnd(game, town);
+  return run.age;
+}
+/* dt seconds of a town's waves in one go (the coarse chunks of time away). A wave already on the road finishes step by
+   step; then each break counts down, and each wave that starts is played from its run. A wave that runs past the end
+   of the chunk is owed (waves.owe) by the next chunk. */
+export function skirmish(game, town, dt) {
+  const ws = town.waves;
+  let left = dt - (ws.owe || 0);
+  ws.owe = 0;
+  for (let guard = 0; left > 1e-9 && guard < 500; guard++) {
+    if (ws.phase === 'wave') { for (let n = 0; ws.phase === 'wave' && n < 8000; n++) { fight(game, town, STEP); left -= STEP; } continue; }
+    if (waitsAway(game, town)) return;
+    const use = Math.min(left, ws.timer);
+    ws.timer = Math.max(0, ws.timer - use); left -= use;
+    if (ws.timer > 1e-9 || ws.hold) return;
+    if (!startWave(game, town)) return;
+    left -= playRun(game, town, waveRun(town));
   }
+  if (left < 0) ws.owe = -left;
 }
 
 /* The tower reserve: goods that auto-sell never sells, so the towers can be paid for once the coins are there.
@@ -389,8 +476,15 @@ export const defense = {
     syncVault(town);
     town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     town.keep = towerReserve(town);
-    if (game.catching) return;
+    town.waves.owe = 0;
     fight(game, town, dt);
   },
-  coarse(town) { syncVault(town); town.keep = towerReserve(town); },
+  coarse(town, dt, game) {
+    if (!town.def || !town.def.board) return;
+    defense.opens(game, town);
+    syncVault(town);
+    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
+    skirmish(game, town, dt);
+    town.keep = towerReserve(town);
+  },
 };

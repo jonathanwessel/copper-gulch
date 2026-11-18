@@ -18,7 +18,20 @@ const _c = new THREE.Vector3();
 export function pickTarget(cam, el, board, clientX, clientY) {
   const r = groundPoint(cam, el, clientX, clientY);
   const posts = (board.hits || []).filter(h => board.town.towers.some(t => t.spot === h.userData.spot));
-  const m = r.intersectObjects(posts.length ? board.pickables.concat(posts) : board.pickables, false)[0];
+  const hits = r.intersectObjects(posts.length ? board.pickables.concat(posts) : board.pickables, false), m = hits[0];
+  // a tower's tap post is wider and taller than the tower: when it covers a plot behind it (the plot's model, or its
+  // lot on the ground), the one whose middle is nearer the finger on screen wins
+  if (m && m.object.userData.spot !== undefined && (board.hits || []).includes(m.object)) {
+    const behind = hits.find(h => h.object.userData.plot) || null;
+    let plot = behind ? behind.object.userData.plot : null;
+    if (!plot) { const g = r.intersectObject(board.ground, false)[0]; plot = g ? board.plotAt(g.point.x, g.point.z) : null; }
+    if (plot) {
+      const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top, d = (wx, wy, wz) => { const q = project(cam, el, _c.set(wx, wy, wz)); return q ? Math.hypot(q.x - x, q.y - y) : Infinity; };
+      const [px, pz] = board.def.plots[plot], [sx, sz] = board.def.spots[m.object.userData.spot];
+      if (d(px, .5, pz) < d(sx, .6, sz)) return { plot };
+    }
+    return { spot: m.object.userData.spot };
+  }
   if (m && m.object.userData.spot !== undefined) return { spot: m.object.userData.spot };
   if (m && m.object.userData.plot) return { plot: m.object.userData.plot };
   const g = r.intersectObject(board.ground, false)[0];

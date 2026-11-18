@@ -121,10 +121,13 @@ const RIDGE = [
   ['pinehollow', async () => { CG.play.sheets.close(); CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
   ['pinehollow-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['pinehollow-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.timber = 500; t.buildings.logcamp = 6; t.buildings.claybank = 3; for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
+  // the Gulch, out of play, loses to the war wagon: its waves hold themselves and a toast says so
+  ['lost-toast', () => { const G = CG.game.towns.gulch; G.wave = 18; Object.assign(G.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); G.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: G.t }; CG.game.bus.emit('breach', { town: 'gulch', wave: 20, lost: 900, why: 'boss', back: 18, held: true }); }],
   // the empire map: every town as a small model with its badge, wagons on the roads, a town's card and the Capital's site
   ['map', async () => { (await import('./src/core/outpost.js')).grantOutpost(CG.game, 'drycreek'); CG.game.towns.gulch.drawn = { ore: 20 }; CG.game.towns.ridge.drawn = { timber: 8 }; CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await new Promise(r => setTimeout(r, 100)); for (const k of ['drycreek>gulch', 'gulch>ridge', 'pinehollow>ridge']) CG.meter.flow[k] = 4; }],
   ['map-card', () => { CG.mapui.openSite('ridge'); }],
   ['map-capital', () => { CG.mapui.openSite('capital'); }],
+  ['map-lost', () => { CG.mapui.openSite('gulch'); }],
   ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
