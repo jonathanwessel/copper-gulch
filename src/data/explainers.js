@@ -293,6 +293,12 @@ export const EXPLAINERS = [
     when: h => h.treeReady, at: () => ({ el: '#mapBtn' }),
   },
   {
+    id: 'automation', covers: ['system:automation'],
+    title: 'Automation',
+    text: 'Tap Auto. This town can raise its towers and run its research on its own. It only buys what you bought before, and it never spends more than half your coins.',
+    when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
+  },
+  {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
     text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',

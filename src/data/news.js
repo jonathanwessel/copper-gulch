@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-9',
+    lines: [
+      'The War Office at the Capital opens Auto-towers. The University opens Auto-research. Tap Auto in a town to turn them on.',
+      'Auto-towers raises one tower a level every few minutes. Auto-research runs research you did before, one level higher.',
+      'They never spend more than half your coins.',
+    ],
+  },
+  {
     v: '2026.11.18-8',
     lines: [
       'The Capital on the map is now a small city with a big domed hall, a contract board and a plaza.',

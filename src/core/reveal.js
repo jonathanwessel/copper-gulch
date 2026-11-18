@@ -11,6 +11,7 @@ import { nextTowns } from './empire.js';
 import { GOODS } from '../data/goods.js';
 import { TOWERS } from '../data/towers.js';
 import { towerOpen, towerIn } from './defense.js';
+import { anyAuto } from './automation.js';
 
 /* The goods the Goods list shows: what this town's built buildings make. */
 export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0).map(([, b]) => b.makes);
@@ -35,6 +36,7 @@ export function tabs(game, town) {
     perks: charterOffered(game) && !isOutpost(town),
     chip: Object.keys(game.towns).length + nextTowns(game).length > 1,
     strip: stripGoods(town).length > 0,
+    auto: anyAuto(game), // once the War Office or the University stands at the Capital
   };
 }
 
@@ -50,6 +52,7 @@ export function dots(game, town) {
     goods: t.goods && listedGoods(town).some(g => !f['listed:' + g]),
     research: t.research && !town.lab && itemsOf(town).some(id => !researchBlock(town, id)),
     perks: t.perks && (perksToPick(game) > 0 || deedsFor(town) > (f.deedsShown || 0)),
+    auto: t.auto && !((game.shared.seen || {})['auto:sheet']), // never opened yet
     towns,
   };
 }

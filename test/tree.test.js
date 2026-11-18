@@ -132,7 +132,7 @@ test('the save keeps the tree, and a v14 save loads with none founded', () => {
   assert.equal(nodesOf(back, 'market'), 2);
   assert.ok(Math.abs(back.towns.gulch.mods.factor('income') - 1.1 * back.towns.gulch.mods.explain('income', 1).parts.filter(p => p.source !== 'Bank').reduce((m, p) => m * p.mul, 1)) < 1e-9, 'the Bank is back on income');
   assert.equal(influenceFor(back, 8), 10, 'the Influence bonus is rebuilt');
-  assert.equal(SAVE_VERSION, 15);
+  assert.ok(SAVE_VERSION >= 15);
   const old = JSON.parse(encode(empire('t7'), 0)); old.v = 14; delete old.game.shared.tree;
   const m = migrate(old);
   assert.deepEqual(m.game.shared.tree, { founded: [], nodes: {}, spent: 0 });

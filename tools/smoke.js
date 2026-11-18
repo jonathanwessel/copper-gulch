@@ -44,6 +44,12 @@ export async function tapEverything(page) {
   await page.evaluate(() => { const n = document.getElementById('newsOk'); if (n) n.click(); for (let i = 0; i < 9; i++) { const c = document.getElementById('coachOk'); if (c && !c.closest('[hidden]')) c.click(); } });
   for (const [name, fn] of views) {
     await page.evaluate(`(${fn})()`); await wait(900);
+    // the camera eases toward its target (and refits after a turn of the screen): wait until it holds still, or a tap
+    // aimed from one frame lands a few pixels off on the next (the top edge of a landscape screen moved most)
+    await page.evaluate(async () => {
+      const r = CG.town.rig, key = () => [r.c.x, r.c.z, r.c.dist, r.c.yaw, r.c.pitch].map(v => v.toFixed(4)).join();
+      for (let i = 0, last = key(); i < 60; i++) { await new Promise(res => setTimeout(res, 50)); const k = key(); if (k === last) break; last = k; }
+    });
     const list = await page.evaluate(() => {
       const B = CG.game.town.def.board, t = CG.game.town;
       return [...B.spots.map((_, i) => ({ id: 'spot:' + i, spot: i, tower: t.towers.some(x => x.spot === i) })), ...Object.keys(B.plots).map(id => ({ id, plot: id }))];
@@ -161,11 +167,11 @@ async function run() {
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.on = !t.reserveOff.timber && t.keep.timber > 0;
-        t.goods.timber = 0; CG.play.openSpot(3); await wait(400);
+        CG.town.pause('smoke', true); t.goods.timber = 0; CG.play.openSpot(3); await wait(400); // paused, so the camp makes none meanwhile
         const sh = document.querySelector('#card .short'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
         out.short = !!sh && /Lumber Camp/.test(sh.textContent);
         out.haveNeed = low.some(x => /^Timber0 \/ \d+$/.test(x)); // the cost says have / need, red when short
-        CG.play.close();
+        CG.town.pause('smoke', false); CG.play.close();
         return out;
       });
       for (const [k, v] of Object.entries(reserve)) if (!v) bad.push('tower reserve: not ' + k);
@@ -905,6 +911,42 @@ async function run() {
     console.log('news', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
     failed += bad.length ? 1 : 0;
   } finally { await b5.close(); srv5.close(); }
+
+  // Automation: once the War Office stands, the Auto button comes out with a dot and its card; the sheet has Foremen,
+  // Auto-towers and Auto-research; switching Auto-towers on raises a tower; at phone, landscape and desktop sizes
+  const srvA = await start(0), bA = await chromium.launch();
+  try {
+    for (const [name, vp] of Object.entries({ phone: [400, 860], land: [860, 400], desk: [1366, 800] })) {
+      const page = await bA.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [], bad = [];
+      page.on('pageerror', e => errs.push(e.message));
+      await page.goto(srvA.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => CG.town && CG.town.frames > 3);
+      if (await page.evaluate(() => !document.getElementById('autoBtn').hidden)) bad.push('Auto showed before the War Office');
+      await page.evaluate(async () => {
+        const g = CG.game, t = g.town; t.bestWave = 20; t.coins = 1e9;
+        (await import('./src/core/empire.js')).foundTown(g, 'ridge'); g.towns.ridge.bestWave = 30; g.towns.ridge.waves.hold = true;
+        (await import('./src/core/capital.js')).foundCapital(g); g.shared.purse.coins = 1e9;
+        (await import('./src/core/tree.js')).foundInstitution(g, 'war');
+        Object.assign(t.goods, { timber: 9999, ore: 9999, copper: 9999, bricks: 9999, planks: 9999, tools: 9999, clay: 9999 });
+        for (const k of Object.keys(t.goods)) t.sell[k] = false;
+        (await import('./src/core/defense.js')).buildTower(g, t, 2, 'crossbow');
+      });
+      if (!await waitFor(page, () => { const b = document.getElementById('autoBtn'); return b && !b.hidden && b.classList.contains('dot'); }, 3000)) bad.push('Auto did not come out with a dot');
+      await page.evaluate(() => document.getElementById('autoBtn').click()); await sleep(500);
+      const sh = await page.evaluate(() => ({ rows: [...document.querySelectorAll('[data-auto]')].map(b => b.dataset.auto + (b.disabled ? '-' : '+')).join(), text: (document.querySelector('.sheet') || document.body).textContent, dot: document.getElementById('autoBtn').classList.contains('dot') }));
+      if (sh.rows !== 'foremen-,towers+,research-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
+      bad.push(...(await check(page)).map(b => 'automation: ' + b));
+      const before = await page.evaluate(() => CG.game.town.towers[0].level);
+      await page.evaluate(() => document.querySelector('[data-auto="towers"]').click());
+      if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next raise in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
+      bad.push(...(await check(page)).map(b => 'automation on: ' + b));
+      bad.push(...errs);
+      console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+      failed += bad.length ? 1 : 0;
+      await page.close();
+    }
+  } finally { await bA.close(); srvA.close(); }
 
   // the explainers: a fresh game opens with the welcome card and a spotlight; the game waits; Got it dismisses it for good
   const srv3 = await start(0), b3 = await chromium.launch();

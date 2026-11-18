@@ -23,6 +23,10 @@ import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/c
 import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
+import { autoOpen, autoOf, setAuto, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
+import { TOWERS } from '../data/towers.js';
+import { INSTITUTION } from '../data/institutions.js';
+import { AUTO } from '../data/automation.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -195,6 +199,54 @@ export function researchSheet(game, town) {
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
       }
+    };
+    paint();
+    let acc = 0;
+    return dt => { if ((acc += dt) < .25) return; acc = 0; paint(); };
+  };
+}
+
+/* Automation: three rows for this town, each with an On / Off switch once it is open. Foremen switch every hired
+   foreman of the town at once; Auto-towers and Auto-research open with the War Office and the University. */
+export function autoSheet(game, town) {
+  return body => {
+    const list = el('div', 'goods research auto'), rows = {};
+    body.append(el('p', 'note', 'It never spends more than half your coins.'), list);
+    const add = (id, name, about) => {
+      const row = el('div', 'option'), txt = el('div'), info = el('small'), sw = btn('Turn on', 'btn small'); sw.dataset.auto = id;
+      txt.append(el('b', null, name), el('span', null, about), info); row.append(txt, sw); list.append(row);
+      rows[id] = { row, info, sw };
+      return rows[id];
+    };
+    add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
+    add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
+    add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
+    const set = (x, open, on, line) => {
+      x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
+      if (x.sw.textContent !== label) x.sw.textContent = label;
+      x.sw.classList.toggle('on', on); x.sw.setAttribute('aria-pressed', String(on));
+      if (x.info.textContent !== line) x.info.textContent = line;
+      x.row.classList.toggle('running', on);
+    };
+    const paint = () => {
+      const a = autoOf(game, town), hired = foremenOf(town).length, working = foremenWorking(town);
+      set(rows.foremen, hired > 0, working > 0, !hired ? 'Raise a building to level 10, then tap it and hire a foreman.' : working + ' of ' + hired + ' working');
+      const tb = towerBlock(game, town), n = nextTowerUp(town);
+      const tLine = !autoOpen(game, 'towers') ? 'Build the ' + INSTITUTION[AUTO.opens.towers].name + ' at the Capital first.'
+        : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
+        : tb === 'none' ? 'Waiting for a tower. Build one first.'
+        : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
+        : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
+        : tb === 'wait' ? 'Next raise in ' + wait(a.wait)
+        : 'Raising a tower now';
+      set(rows.towers, autoOpen(game, 'towers'), !!a.towers && autoOpen(game, 'towers'), tLine);
+      const r = nextResearch(town);
+      const rLine = !autoOpen(game, 'research') ? 'Build the ' + INSTITUTION[AUTO.opens.research].name + ' at the Capital first.'
+        : !a.research ? 'Off'
+        : town.lab ? RESEARCH[town.lab.id].name + ' ready in ' + wait(town.lab.left)
+        : r ? 'Starting ' + RESEARCH[r.id].name
+        : 'Waiting for coins, or research something by hand first';
+      set(rows.research, autoOpen(game, 'research'), !!a.research && autoOpen(game, 'research'), rLine === 'Off' ? '' : rLine);
     };
     paint();
     let acc = 0;

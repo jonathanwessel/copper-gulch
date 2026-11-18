@@ -143,6 +143,8 @@ const RIDGE = [
   ['capital-city', async () => { CG.mapui.close(); const T = await import('./src/core/tree.js'); CG.game.shared.purse.coins = 1e7; for (const id of ['bank', 'war', 'transport']) T.foundInstitution(CG.game, id); const r = CG.map.rig, v = { x: 0, z: -.3, yaw: 0, pitch: .78, dist: innerWidth < innerHeight ? 15 : 9 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; await new Promise(res => setTimeout(res, 1600)); }],
   ['capital-rise', async () => { const T = await import('./src/core/tree.js'); setTimeout(() => T.foundInstitution(CG.game, 'university'), 1200 - 450); }],
   ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
+  // Automation in the Gulch (the War Office and the University stand): Auto-towers on, Auto-research off
+  ['auto', async () => { for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'gulch' && CG.play); i++) await new Promise(r => setTimeout(r, 100)); await new Promise(r => setTimeout(r, 1500)); const A = await import('./src/core/automation.js'); A.setAuto(CG.game, CG.game.town, 'towers', true); CG.play.openAuto(); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ONLY = process.argv[3]; // optional: only this run (gulch, outpost or ridge)

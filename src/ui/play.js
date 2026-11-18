@@ -13,10 +13,11 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
+import { autoOn } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
@@ -97,7 +98,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
-  side.append(goodsBtn, labBtn, perksBtn, menuBtn);
+  const autoBtn = el('button', 'btn small', 'Auto'); autoBtn.id = 'autoBtn'; autoBtn.hidden = true;
+  side.append(goodsBtn, labBtn, perksBtn, autoBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
@@ -130,6 +132,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const menuCtx = { game, audio: shell.audio || null, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
+  const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', 'Automation', autoSheet(game, town)); };
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
@@ -138,7 +141,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
-  goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); perksBtn.addEventListener('click', openPerks);
+  goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
   function open(id) {
@@ -469,13 +472,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
+    autoBtn.hidden = !T.auto; autoBtn.classList.toggle('dot', D.auto);
+    autoBtn.classList.toggle('on', autoOn(game, town, 'towers') || autoOn(game, town, 'research'));
     paintPlace();
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, openPlaces, openCapital, destroy };
+  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openIncome, openVault, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

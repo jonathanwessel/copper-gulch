@@ -1,0 +1,13 @@
+/* Automation (GDD.md, Automation): what each town's Automation sheet can take over. It only takes over choices the
+   player has made by hand (owner rule): Auto-towers raises towers that stand, never builds one and never picks a path;
+   Auto-research only runs again items the player has researched before. Every switch starts Off.
+   share:      it buys only when the price is at most this share of the coins on hand, like a foreman
+   towerEvery: seconds between two Auto-towers upgrades in one town
+   faster:     each War Office upgrade bought makes that wait this many times as long
+   opens:      the institution that opens each one at the Capital */
+export const AUTO = {
+  share: .5,
+  towerEvery: 180,
+  faster: .85,
+  opens: { towers: 'war', research: 'university' },
+};

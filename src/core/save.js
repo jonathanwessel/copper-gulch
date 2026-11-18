@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -109,6 +109,12 @@ export const MIGRATIONS = {
     const g = s.game || {}, sh = g.shared = g.shared || {};
     if (!sh.tree) sh.tree = { founded: [], nodes: {}, spent: 0 };
     return { ...s, v: 15, game: g };
+  },
+  // v16: Automation (game.shared.auto, src/core/automation.js): every switch Off in every old save
+  15: s => {
+    const g = s.game || {}, sh = g.shared = g.shared || {};
+    if (!sh.auto) sh.auto = {};
+    return { ...s, v: 16, game: g };
   },
 };
 

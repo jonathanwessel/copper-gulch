@@ -219,11 +219,13 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Legacy perks open towns early, found the Capital pre-built, and give a starting Influence pot.
   - A second life must reach the first life's peak in under 30% of the time.
 
-## Automation
-One panel, with three switches per town and one spend share per town. The share is capped at 100% of that town's income, and its formula is shown in words.
-- **Auto-build**: buildings with a hired foreman. Foremen are hired per building in the town. They save toward the best payback, including ×2 milestones and feeding a starved workshop's supplier.
-- **Auto-towers**: unlocked when the War Office is founded. Slow: one upgrade per town every few minutes, faster with War Office nodes.
-- **Auto-research**: unlocked when the University is founded.
+## Automation (first part shipped 2026-11-18)
+One sheet per town, opened with the Auto button on the play screen (`src/core/automation.js`, `src/data/automation.js`, `autoSheet` in `src/ui/sheets.js`). The button comes out once the War Office or the University stands at the Capital, with a dot until the sheet is first opened and an explainer card the first time. Every switch starts Off, and each one only takes over a choice the player has made by hand.
+- **Spending** (decision, replacing the first sketch's per-town spend share): like a foreman, each one buys only when the price is at most half the coins on hand ("Each one buys only when you have twice what it costs"), so with one purse half of it always stays, whoever spends. The idle target (`tools/idle.js`) checks that spending never passes that cap.
+- **Foremen** (Auto-build): hired per building on its card (see Foremen). The sheet switches every hired foreman of the town on or off at once and says how many work.
+- **Auto-towers**: opens with the War Office. One tower level per town every 3 minutes (each War Office upgrade makes the wait 0.85 times as long), always the cheapest raise of a tower that stands. It never builds a tower, and a tower at level 4 waits until the player picks its path. It pays coins and goods like the player.
+- **Auto-research**: opens with the University. When the lab is idle it starts the cheapest next level of an item the player has researched at least once.
+- The switches belong to the empire (`game.shared.auto`, save v16): a charter keeps them. They keep working out of play and while time away is caught up.
 - **Before the Capital**, research is always a manual choice, which teaches it.
 
 ## Empire map
