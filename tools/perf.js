@@ -1,5 +1,6 @@
 // node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|empire|map] [--limit 33] [--eval "js run in the page first"]
-// --town map: the empire map with every town open, built up, and wagons on the roads (no raider to follow there).
+// --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
+//   institutions (no raider to follow there).
 // --town empire: Iron Ridge in play, founded from a built-up Copper Gulch, with the Gulch, Dry Creek and Pine Hollow
 //   all working behind it (so every frame also steps four towns), a wave on the road. The M3 target runs it with --limit 20.
 // Frame time in headless Edge or Chrome at phone size (400x860), with the CPU throttled (Emulation.setCPUThrottlingRate)
@@ -60,6 +61,9 @@ try {
     (await import('./src/core/empire.js')).foundTown(g, 'ridge'); (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek');
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8 })) g.towns.ridge.buildings[id] = n;
     t.drawn = { ore: 20 }; g.towns.ridge.shipped = { bricks: 9 }; g.towns.ridge.drawn = { timber: 5 };
+    // the Capital built, with every institution standing in its city
+    g.towns.ridge.bestWave = 30; (await import('./src/core/capital.js')).foundCapital(g);
+    const T = await import('./src/core/tree.js'); for (const id of ['market', 'bank', 'war', 'university', 'transport']) T.foundInstitution(g, id);
     CG.openMap();
     await new Promise(r => setTimeout(r, 1500));
     for (const k of Object.keys(CG.meter.flow)) CG.meter.flow[k] = 4;

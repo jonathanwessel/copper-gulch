@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-8',
+    lines: [
+      'The Capital on the map is now a small city with a big domed hall, a contract board and a plaza.',
+      'Each institution you build gets its own building there. Watch it rise when you tap Build.',
+    ],
+  },
+  {
     v: '2026.11.18-7',
     lines: [
       'Tap Map, then Capital, then Institutions. Tap Build to start the Market Board, the Bank, the War Office and more.',

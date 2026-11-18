@@ -788,6 +788,11 @@ async function run() {
           if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 42 || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
         }
         bad.push(...(await check(page)).map(b => 'institutions bought: ' + b));
+        // the city: the Bank stands on its lot (risen and merged back in), the capitol's badge floats over it, and no
+        // road between two towns runs across the plaza
+        await sleep(1200);
+        const city = await page.evaluate(() => { const c = CG.map.city, p = CG.map.badgePoint('capital'), q = CG.map.projectSite('capital'); return c && { ...c, above: p && q ? q.y - p.y : 0 }; });
+        if (!city || city.founded.join() !== 'bank' || city.rising.length || !(city.clear > .45) || !(city.above > 0)) bad.push('the Capital city is wrong (' + JSON.stringify(city) + ')');
         await page.evaluate(() => document.getElementById('capTabContracts').click()); await sleep(300);
       }
       bad.push(...errs);

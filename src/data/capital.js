@@ -22,3 +22,24 @@ export const CAPITAL_DEF = {
     retry: 10,
   },
 };
+
+/* The Capital's city on the empire map (src/assets/models/capital.js), in map units round the Capital's site. A round
+   stone plaza; the capitol toward the back with its steps toward +z (the camera's home side) and the contract board in
+   front of them; one lot for each institution round it, the Market Board at the plaza's front gate, so every building
+   faces the camera and none hides behind the dome. A lot shows survey stakes until its institution is founded, then
+   its building rises there. Footprints are rectangles (w across, d deep, turned by ry); trees are [x, z].
+   test/city.test.js checks they all stay on the plaza and clear of each other and of the towns. */
+export const CITY = {
+  plaza: 2.5,
+  capitol: { at: [0, -1], w: 2.3, d: 1.66, ry: 0 },
+  board: { at: [0, .4], w: .9, d: .3, ry: 0 },
+  lots: {
+    market: { at: [0, 1.75], w: .9, d: .7, ry: 0 },
+    bank: { at: [-1.55, .9], w: .8, d: .7, ry: .6 },
+    transport: { at: [1.55, .9], w: .9, d: .7, ry: -.6 },
+    university: { at: [-1.8, -.55], w: .8, d: .7, ry: 1.1 },
+    war: { at: [1.8, -.55], w: .72, d: .8, ry: -1.1 },
+  },
+  lamps: [[-.72, .5], [.72, .5]],
+  trees: [.1, 1.05, 2.09, 3.03, -1.57, -2.3, -.84].map(a => [+(Math.cos(a) * 2.2).toFixed(2), +(Math.sin(a) * 2.2).toFixed(2)]),
+};

@@ -17,15 +17,19 @@ import { TOWNS } from '../data/towns/index.js';
 import { DIORAMA } from '../data/empire.js';
 import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
 import { capitalOpen } from '../core/capital.js';
+import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
+import { CITY } from '../data/capital.js';
 import '../assets/models/ridge.js';
 
 const S = DIORAMA, MAXWAGONS = 48;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _e = new THREE.Euler(), _v = new THREE.Vector3();
-/* How far a site reaches on the map (map units): an open town's board at diorama scale, or a surveyed plot. */
+/* How far a site reaches on the map (map units): an open town's board at diorama scale, the Capital's plaza, or a
+   surveyed plot. */
 export const siteRadius = id => {
   const d = TOWNS[id];
-  return d ? Math.max(d.board.cols, d.board.rows) * S * .62 : 2.2;
+  return d ? Math.max(d.board.cols, d.board.rows) * S * .62 : id === 'capital' ? CITY.plaza : 2.2;
 };
+const RISE = .9; // seconds a newly founded institution takes to rise out of its lot
 
 /* A town's diorama: its board at diorama scale, merged into a few meshes. Rebuilt when a tier or a tower changes. */
 function diorama(town) {
@@ -63,26 +67,6 @@ function surveyed(capital) {
   k.box(.3, 0, .2, .06, .6, .06, 'woodD'); k.box(.3, .42, .23, .46, .24, .03, 'cream');
   if (capital) { k.box(-.2, 0, -.3, .05, 1.2, .05, 'woodD'); k.box(.05, .92, -.3, .46, .26, .02, 'gold'); }
   for (let i = 0; i < 4; i++) k.dode(-1 + R() * 2, .05, -.8 + R() * 1.6, .1 + R() * .08, R() < .5 ? 'rock' : 'rockD');
-  return k.build();
-}
-
-/* The Capital once it is built: a white capitol with columns, steps and a copper dome, a flag on top, a plaza in front
-   and two low office blocks, merged into one model. (The full city comes with its institutions.) */
-function capitol() {
-  const k = new Kit({ ao: false });
-  k.box(0, 0, 0, 4.4, .08, 3.6, 'stoneL');                    // the plaza
-  k.box(0, .08, -.5, 2.6, .18, 1.4, 'stone');                 // the base
-  for (let i = 0; i < 3; i++) k.box(0, .08 + i * .06, .3 + i * -.06, 1.2, .06, .3, 'stoneL'); // steps
-  k.box(0, .26, -.6, 2.2, .7, 1, 'white');                    // the hall
-  for (let i = 0; i < 6; i++) k.cyl(-.75 + i * .3, .26, .02, .06, .62, 'cream');               // the columns
-  k.box(0, .88, -.1, 1.9, .1, .3, 'white');                   // the beam over the columns
-  k.gable(0, .98, -.1, 1.9, .3, .26, 'cream');
-  k.cyl(0, .96, -.6, .46, .3, 'white', { seg: 12 });          // the drum
-  k.ball(0, 1.26, -.6, .44, 'verd', { det: 1 });              // the dome
-  k.cyl(0, 1.66, -.6, .015, .5, 'ink');                       // the flagpole
-  k.box(.13, 2.0, -.6, .24, .14, .02, 'paintR');
-  for (const x of [-1.7, 1.7]) { k.box(x, .08, -.4, .8, .45, 1.1, 'adobeL'); k.hip(x, .53, -.4, .9, 1.2, .22, 'roofS'); }
-  for (const x of [-1.2, 1.2]) { k.cyl(x, .08, .9, .03, .55, 'iron'); k.ball(x, .66, .9, .07, 'glowW'); } // lamps
   return k.build();
 }
 
@@ -190,12 +174,36 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
         root.add(obj); dio[s.id] = { obj, sig };
       } else if (s.capital && capitalOpen(game)) {
         if (land[s.id]) { root.remove(land[s.id]); disposeTree(land[s.id]); delete land[s.id]; }
-        if (!dio[s.id]) { const o = capitol(); o.position.set(s.at[0], .02, s.at[1]); root.add(o); dio[s.id] = { obj: o, sig: 'capitol' }; }
+        placeCity(s);
       } else if (!land[s.id]) {
         const o = surveyed(s.capital); o.position.set(s.at[0], 0, s.at[1]); root.add(o); land[s.id] = o;
       }
     }
   };
+  // the Capital's city: rebuilt when an institution is founded or the contract board changes. A newly founded
+  // institution rises out of its lot on its own, then is merged back into the city.
+  const rising = {};
+  function placeCity(s) {
+    const st = cityState(game.shared.capital, game.shared.tree), cur = dio[s.id];
+    const fresh = cur ? st.founded.filter(id => !cur.founded.includes(id) && !rising[id]) : [];
+    for (const id of fresh) { const o = makeInstitution(id); o.position.x += s.at[0]; o.position.z += s.at[1]; o.position.y = .02; o.scale.set(.7, .01, .7); root.add(o); rising[id] = { obj: o, t: 0 }; }
+    const key = st.key + '|' + Object.keys(rising).join();
+    if (cur && cur.sig === key) return;
+    if (cur) { root.remove(cur.obj); disposeTree(cur.obj); }
+    const obj = makeCity({ ...st, skip: Object.keys(rising) }); obj.position.set(s.at[0], .02, s.at[1]);
+    root.add(obj); dio[s.id] = { obj, sig: key, founded: st.founded.slice() };
+  }
+  const riseCity = dt => {
+    let done = false;
+    for (const [id, r] of Object.entries(rising)) {
+      r.t += dt;
+      const u = Math.min(1, r.t / RISE), back = 1 + 2.2 * (u - 1) ** 3 + 1.2 * (u - 1) ** 2; // ease out with a small overshoot
+      r.obj.scale.set(.7 + .3 * Math.min(1, u * 1.6), Math.max(.01, back), .7 + .3 * Math.min(1, u * 1.6));
+      if (u >= 1) { root.remove(r.obj); disposeTree(r.obj); delete rising[id]; done = true; }
+    }
+    if (done) placeCity(capSite);
+  };
+  const capSite = sites.find(s => s.capital);
   placeSites();
 
   // routes: a dirt road for each link that has carried goods, and wagons on it
@@ -249,6 +257,12 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     get dioramas() { return Object.keys(dio); },
     get routes() { return Object.keys(routes); },
     get wagons() { return wagons.count; },
+    /* The Capital's city as drawn: the institutions standing (merged or rising), those still rising, and how far the
+       nearest road between two towns passes outside its plaza (map units, from the road's middle). */
+    get city() {
+      const c = dio.capital;
+      return c ? { founded: c.founded.slice(), rising: Object.keys(rising), clear: Math.min(...Object.values(paths).flatMap(p => p.pts.map(q => Math.hypot(q[0] - at.capital[0], q[1] - at.capital[1])))) - CITY.plaza } : null;
+    },
     /* The site under a screen point (client pixels), or null. */
     siteAt(x, y) {
       const g = rig.ground(x, y);
@@ -261,7 +275,9 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
        toward the screen's top and bottom, stay in view below it. */
     badgePoint(id) {
       const s = at[id], r = siteRadius(id) * .8, yaw = rig.c.yaw;
-      _v.set(s[0] - Math.sin(yaw) * r, 0, s[1] - Math.cos(yaw) * r).project(v.cam);
+      // the built Capital is tall: its badge floats over the capitol's flag instead of covering the dome
+      if (id === 'capital' && dio.capital) _v.set(s[0] + CITY.capitol.at[0], 2.35, s[1] + CITY.capitol.at[1]).project(v.cam);
+      else _v.set(s[0] - Math.sin(yaw) * r, 0, s[1] - Math.cos(yaw) * r).project(v.cam);
       if (_v.z > 1) return null;
       return { x: (_v.x + 1) / 2 * canvas.clientWidth, y: (1 - _v.y) / 2 * canvas.clientHeight };
     },
@@ -302,6 +318,8 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     }
     if ((sync -= dt) <= 0) { sync = 1; placeSites(); placeRoutes(); }
     rollWagons(api.paused ? 0 : dt, t);
+    if (dio.capital) placeCity(capSite); // a founding shows at once, not on the next sync
+    riseCity(dt);
     ring.visible = !!selected;
     if (selected) { const r = siteRadius(selected) + .5 + Math.sin(t * 4) * .15; ring.position.set(at[selected][0], .09, at[selected][1]); ring.scale.setScalar(r); ring.material.opacity = .65 + Math.sin(t * 4) * .25; }
     rig.update(dt);
