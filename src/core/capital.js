@@ -122,9 +122,11 @@ export function claim(game, town) {
   const n = Math.min(spareNow(town, a.good), a.need - a.got);
   if (n > 1e-9) { town.goods[a.good] -= n; a.got += n; }
   if (a.got >= a.need - 1e-6) {
-    c.active = null; c.filled++; c.influence += a.influence; c.earned += a.influence;
+    // the Empire tree may raise the Influence it pays (game.mods, src/core/tree.js)
+    const inf = Math.max(1, Math.round(a.influence * (game.mods ? game.mods.factor('influence') : 1)));
+    c.active = null; c.filled++; c.influence += inf; c.earned += inf;
     town.earn(a.coins, false, 'contract');
-    game.bus.emit('contract:done', { id: a.id, good: a.good, town: town.id, coins: a.coins, influence: a.influence });
+    game.bus.emit('contract:done', { id: a.id, good: a.good, town: town.id, coins: a.coins, influence: inf });
     fill(game);
   }
 }

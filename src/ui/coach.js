@@ -12,6 +12,8 @@ import { towerIn } from '../core/defense.js';
 import { tabs, dots } from '../core/reveal.js';
 import { nextTowns } from '../core/empire.js';
 import { capitalNext, capitalOpen } from '../core/capital.js';
+import { foundCost } from '../core/tree.js';
+import { NODE_COST } from '../data/institutions.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -32,6 +34,8 @@ export function helper(town, game = null) {
     back: game ? game.back : null, // the place the back button goes to
     next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)
     capitalSight: !!game && !!capitalNext(game), capitalOpen: !!game && capitalOpen(game), // src/core/capital.js
+    // the Capital can found an institution or buy an upgrade (src/core/tree.js)
+    treeReady: !!game && capitalOpen(game) && !!game.shared.tree && (game.shared.purse.coins >= foundCost(game) || (game.shared.capital.influence >= NODE_COST[0] && game.shared.tree.founded.length > 0)),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
     // a building whose good the town is holding back for towers right now

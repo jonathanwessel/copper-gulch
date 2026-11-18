@@ -137,6 +137,8 @@ const RIDGE = [
   // the Capital: ready to build, then its contracts with one running
   ['capital-ready', () => { const r = CG.game.towns.ridge; r.bestWave = 30; CG.game.town.coins = 4e5; CG.mapui.openSite('capital'); }],
   ['capital', async () => { document.getElementById('mapFound').click(); await new Promise(r => setTimeout(r, 300)); const c = CG.game.shared.capital; if (c.offers[0]) { document.querySelector('#mapCard [data-contract]').click(); const a = c.active; if (a) a.got = a.need * .4; } }],
+  // institutions: one founded with an upgrade bought, one ready to buy, the rest with their founding price
+  ['capital-institutions', async () => { document.getElementById('capTabInst').click(); await new Promise(r => setTimeout(r, 200)); const c = CG.game.shared.capital; CG.game.shared.purse.coins = Math.max(CG.game.shared.purse.coins, 2e5); c.influence = 20; document.querySelector('#mapCard [data-found="market"]').click(); await new Promise(r => setTimeout(r, 200)); document.querySelector('#mapCard [data-node="market"]').click(); await new Promise(r => setTimeout(r, 200)); CG.game.shared.purse.coins = 6e4; }],
   ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));

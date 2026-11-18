@@ -11,6 +11,7 @@ import { lostLine, lostToast } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { capitalPanel, contractDone } from './capital.js';
+import { treeCalls } from '../core/tree.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -124,7 +125,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
-      if (id === 'capital') kids.push(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Keep your Influence. Soon it will buy upgrades for every town.'));
+      if (id === 'capital') kids.push(el('p', 'uses', 'Your towns send goods here for coins and Influence. Spend Influence on upgrades for every town.'));
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {
@@ -150,7 +151,7 @@ export function mountMap(root, game, view, shell) {
   // the Capital's card: built once for each set of contracts, then only its words and bars change (src/ui/capital.js)
   function paintCapital() {
     if (!cap || card.dataset.sig !== 'capital|' + cap.sig()) {
-      cap = capitalPanel(game, { changed: () => { cap = null; paintCard(); } });
+      cap = capitalPanel(game, { changed: () => { cap = null; paintCard(); }, toast: (s, ms) => shell.toast && shell.toast(s, ms) });
       card.dataset.sig = 'capital|' + cap.sig(); card.replaceChildren(head(CAPITAL_DEF.name), cap.el);
     }
     cap.paint();
@@ -174,7 +175,7 @@ export function mountMap(root, game, view, shell) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '%' : 'Take a contract');
         B.vault.hidden = true; setText(B.extra, c.influence + ' Influence');
-        B.b.classList.toggle('dot', !a);
+        B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
         const lr = lockedRules(game, s.id), next = lr.rules.find(r => !r.done) || lr.rules[0];
         setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : next ? ruleText(game, next, true) : 'Not open yet');

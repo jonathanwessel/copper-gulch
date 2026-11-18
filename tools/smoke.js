@@ -767,6 +767,28 @@ async function run() {
         await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
         if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
         bad.push(...(await check(page)).map(b => 'capital contract: ' + b));
+        // Institutions: the tab lists every institution with have / need coins; Found pays from the purse, then the
+        // row offers its first upgrade for Influence, and Buy puts the bonus on every town
+        await page.evaluate(() => document.getElementById('capTabInst').click()); await sleep(500);
+        const inst = await page.evaluate(() => ({ rows: document.querySelectorAll('#mapCard [data-found]').length, pressed: document.getElementById('capTabInst').getAttribute('aria-pressed'), text: document.getElementById('mapCard').textContent }));
+        if (inst.rows !== 5 || inst.pressed !== 'true' || !/ coins/.test(inst.text)) bad.push('the Institutions tab is wrong (' + JSON.stringify({ ...inst, text: inst.text.slice(0, 160) }) + ')');
+        bad.push(...(await check(page)).map(b => 'institutions: ' + b));
+        await page.evaluate(() => { CG.game.shared.purse.coins = Math.max(CG.game.shared.purse.coins, 1e6); CG.game.shared.capital.influence = 50; });
+        await sleep(500);
+        await page.evaluate(() => document.querySelector('#mapCard [data-found="bank"]').click()); await sleep(600);
+        // its toast may wait behind the contract's one
+        const toasted = await waitFor(page, () => [...document.querySelectorAll('.toast')].some(n => /is built. Buy/.test(n.textContent)), 8000);
+        const buy = await page.evaluate(() => ({ founded: CG.game.shared.tree.founded.join(','), buy: !!document.querySelector('#mapCard [data-node="bank"]') }));
+        buy.toast = toasted;
+        if (buy.founded !== 'bank' || !buy.buy || !buy.toast) bad.push('founding the Bank did not work (' + JSON.stringify(buy) + ')');
+        else {
+          const before = await page.evaluate(() => CG.game.towns.gulch.mods.factor('income'));
+          await page.evaluate(() => document.querySelector('#mapCard [data-node="bank"]').click()); await sleep(600);
+          const after = await page.evaluate(() => ({ income: CG.game.towns.gulch.mods.factor('income'), n: CG.game.shared.tree.nodes.bank, left: CG.game.shared.capital.influence, line: document.getElementById('mapCard').textContent }));
+          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 42 || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
+        }
+        bad.push(...(await check(page)).map(b => 'institutions bought: ' + b));
+        await page.evaluate(() => document.getElementById('capTabContracts').click()); await sleep(300);
       }
       bad.push(...errs);
       console.log('map ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

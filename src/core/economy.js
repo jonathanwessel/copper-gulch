@@ -37,7 +37,7 @@ export function explainOutput(town, id) {
 }
 
 export function cost(town, id, levels = 1) {
-  const b = BUILDINGS[id], L = town.level(id), f = town.mods.factor('cost');
+  const b = BUILDINGS[id], L = town.level(id), f = town.mods.factor('cost') * town.mods.factor('cost:build');
   let sum = 0;
   for (let i = 0; i < levels; i++) sum += Math.ceil(b.cost * b.growth ** (L + i) * f);
   return sum;

@@ -287,6 +287,12 @@ export const EXPLAINERS = [
     when: h => h.capitalOpen && h.t > 3, at: () => ({ el: '#mapBtn' }),
   },
   {
+    id: 'tree', covers: ['system:tree', 'institution'],
+    title: 'Institutions',
+    text: 'Tap Map, then Capital, then Institutions. Build one with coins. Its upgrades cost Influence and help every town.',
+    when: h => h.treeReady, at: () => ({ el: '#mapBtn' }),
+  },
+  {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
     text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',

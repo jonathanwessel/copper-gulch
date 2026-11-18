@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -103,6 +103,12 @@ export const MIGRATIONS = {
     const g = s.game || {}, sh = g.shared = g.shared || {};
     if (!sh.capital) sh.capital = { open: false, influence: 0, earned: 0, filled: 0, offers: [], active: null };
     return { ...s, v: 14, game: g };
+  },
+  // v15: institutions and the Empire tree (game.shared.tree, src/core/tree.js): none founded in every old save
+  14: s => {
+    const g = s.game || {}, sh = g.shared = g.shared || {};
+    if (!sh.tree) sh.tree = { founded: [], nodes: {}, spent: 0 };
+    return { ...s, v: 15, game: g };
   },
 };
 

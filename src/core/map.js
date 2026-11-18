@@ -14,12 +14,13 @@ import { isOutpost } from './economy.js';
 import { canFound, nextTowns } from './empire.js';
 import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
+import { treeCalls } from './tree.js';
 
 /* The map is open once a second town is, or a town to start is in sight (its Start card lives on the map). */
 export const mapOpen = game => Object.keys(game.towns).length > 1 || nextTowns(game).length > 0;
 /* Something on the map wants the player: a town ready to start, the Capital ready to build, or the Capital open with no
    contract running. */
-export const mapCalls = game => nextTowns(game).some(n => n.ready) || canFoundCapital(game) || (capitalOpen(game) && !game.shared.capital.active);
+export const mapCalls = game => nextTowns(game).some(n => n.ready) || canFoundCapital(game) || (capitalOpen(game) && !game.shared.capital.active) || treeCalls(game);
 
 /* [{ id, at: [x, z], open, outpost, capital }] in the order towns open, the Capital's site first. */
 export function mapSites(game) {

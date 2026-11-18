@@ -32,6 +32,8 @@ import { TOWNS } from '../src/data/towns/index.js';
 import { canFound, foundTown } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, capitalOf, takeContract } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
+import { foundCost, foundBlock, foundInstitution, nodeBlock, nodeCost, buyNode, founded } from '../src/core/tree.js';
+import { INSTITUTIONS } from '../src/data/institutions.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
@@ -373,7 +375,11 @@ export const SAVE_MINUTES = 6, GULCH_MINUTES = 100, RIDGE_MINUTES = 90;
 // M4, the Capital: after the Ridge's RIDGE_MINUTES the player plays on in the Ridge and, once its best wave reaches the
 // Capital's mark and the price is no more than CAP_SAVE_MINUTES of what every town earns, saves for it the same way
 // (at most CAP_MINUTES). Then it plays CAP_PLAY minutes more, always working on the contract that pays the most Influence.
-export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 30;
+// Institutions (M4): while it plays on, it founds the next institution (in TREE_ORDER) once its price is no more than
+// TREE_SAVE_MINUTES of what every town earns, saving for it like the Capital, and buys the cheapest upgrade it can
+// (ties in TREE_ORDER) as soon as it has the Influence. TREE_GAP: the minutes between upgrades over CAP_PLAY.
+export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 120, TREE_SAVE_MINUTES = 6, TREE_GAP = [10, 15];
+export const TREE_ORDER = ['market', 'bank', 'war', 'university', 'transport'];
 export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
   const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
@@ -422,10 +428,23 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
     if (foundCapital(g)) {
       out.capital = now(); out.capHeld = out.capSave.saving === undefined ? 0 : out.capSave.until - out.capSave.saving;
       setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
-      const c = capitalOf(g), took = {};
-      const pick = () => { if (!c.active && c.offers.length) { const o = c.offers.slice().sort((a, b) => b.influence - a.influence || b.coins - a.coins)[0]; if (takeContract(g, o.id)) took[o.good] = (took[o.good] || 0) + 1; } };
-      play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, tick: pick });
+      const c = capitalOf(g), took = {}, tr = out.tree = { founded: [], nodes: [] }, at = () => now() - out.capital;
+      const nextInst = () => TREE_ORDER.find(id => !founded(g, id));
+      const pick = (g2, t, r) => {
+        if (!c.active && c.offers.length) { const o = c.offers.slice().sort((a, b) => b.influence - a.influence || b.coins - a.coins)[0]; if (takeContract(g, o.id)) took[o.good] = (took[o.good] || 0) + 1; }
+        const n = nextInst();
+        if (n && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
+        for (;;) {
+          const id = TREE_ORDER.filter(x => !nodeBlock(g, x)).sort((a, b) => nodeCost(g, a) - nodeCost(g, b))[0];
+          if (!id || !buyNode(g, id)) break;
+          tr.nodes.push([id, at()]);
+        }
+        for (const x of others) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, !r.savingNow);
+      };
+      const ts = (t, r) => { const n = nextInst(); return !!n && foundBlock(g, n) === 'coins' && foundCost(g) <= TREE_SAVE_MINUTES * (r.all || 0); };
+      play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, save: ts, tick: pick });
       out.contracts = { filled: c.filled, influence: c.earned, took };
+      tr.gap = tr.nodes.length ? at() / tr.nodes.length : null; // minutes of play per upgrade over the window, in seconds
     }
   }
   off();
@@ -529,6 +548,9 @@ export function capitalCheck(runs) {
     if (e.capital == null) { misses.push('seed ' + e.dc.seed + ': the Capital was never built'); continue; }
     if (e.capital < CAP_AT[0] * 60 || e.capital > CAP_AT[1] * 60) misses.push('seed ' + e.dc.seed + ': the Capital built at ' + (e.capital / 60).toFixed(0) + ' min (want ' + CAP_AT.join('-') + ')');
     if (!e.contracts || e.contracts.filled < 1) misses.push('seed ' + e.dc.seed + ': no contract filled in ' + CAP_PLAY + ' min');
+    // the Empire tree: an upgrade every TREE_GAP minutes for the active bot
+    const gap = e.tree && e.tree.gap;
+    if (gap == null || gap < TREE_GAP[0] * 60 || gap > TREE_GAP[1] * 60) misses.push('seed ' + e.dc.seed + ': an Empire tree upgrade every ' + (gap == null ? 'never' : (gap / 60).toFixed(1) + ' min') + ' (want ' + TREE_GAP.join('-') + ')');
   }
   return misses;
 }
@@ -634,6 +656,8 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   }
   console.log('The Capital (active): seed | Ridge best wave when built | built (play time) | waves held to save | contracts filled in ' + CAP_PLAY + ' min | Influence | goods asked');
   for (const e of actives) console.log(`${e.dc.seed} | ${e.game.towns.ridge ? e.game.towns.ridge.bestWave : '-'} | ${e.capital == null ? 'never' : (e.capital / 3600).toFixed(2) + ' h'} | ${mm(e.capHeld)} | ${e.contracts ? e.contracts.filled : '-'} | ${e.contracts ? e.contracts.influence : '-'} | ${e.contracts ? Object.entries(e.contracts.took).map(([k, n]) => k + ' ' + n).join(', ') : '-'}`);
+  console.log('The Empire tree (active, ' + CAP_PLAY + ' min after the Capital): seed | institutions founded (minute) | upgrades bought | minutes per upgrade | upgrades (minute)');
+  for (const e of actives) if (e.tree) console.log(`${e.dc.seed} | ${e.tree.founded.map(([k, t]) => k + ' ' + (t / 60).toFixed(0)).join(', ')} | ${e.tree.nodes.length} | ${e.tree.gap == null ? '-' : (e.tree.gap / 60).toFixed(1)} | ${e.tree.nodes.map(([k, t]) => k + ' ' + (t / 60).toFixed(0)).join(', ')}`);
   misses.push(...capitalCheck(actives));
   const ec = empireCheck(emp);
   console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);

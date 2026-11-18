@@ -20,6 +20,7 @@ import { SYSTEMS } from '../src/core/setup.js';
 import { RESEARCH } from '../src/data/research.js';
 import { PERKS } from '../src/data/perks.js';
 import { CAPS } from '../src/core/mods.js';
+import { INSTITUTIONS } from '../src/data/institutions.js';
 
 const walk = dir => fs.existsSync(path.join(root, dir))
   ? fs.readdirSync(path.join(root, dir), { recursive: true }).map(f => (dir + '/' + f).replace(/\\/g, '/')).filter(f => fs.statSync(path.join(root, f)).isFile())
@@ -99,7 +100,7 @@ export function audit() {
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract'];
+export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
@@ -251,6 +252,7 @@ export function nameRules() {
   for (const [k, x] of Object.entries(FOES)) add('raider ' + k, x.name);
   for (const [k, x] of Object.entries(RESEARCH)) add('research ' + k, x.name);
   for (const x of PERKS) for (const side of ['a', 'b']) add('perk ' + x.id + '.' + side, x[side].name);
+  for (const i of INSTITUTIONS) { add('institution ' + i.id, i.name); for (const n of i.nodes) add('upgrade ' + i.id + '.' + n.id, n.name); }
   return p;
 }
 
@@ -261,6 +263,7 @@ export function capRules() {
   const stats = [];
   for (const x of PERKS) for (const side of ['a', 'b']) for (const e of x[side].effects) stats.push(['perk ' + x.id, e.stat]);
   for (const [k, r] of Object.entries(RESEARCH)) for (const e of [...(r.effects || []), ...(r.downside || [])]) stats.push(['research ' + k, e.stat]);
+  for (const i of INSTITUTIONS) for (const n of i.nodes) for (const e of n.effects) stats.push(['upgrade ' + i.id + '.' + n.id, e.stat]);
   for (const f of walk('src/core').filter(f => f.endsWith('.js'))) {
     for (const m of stripComments(read(f)).matchAll(/mods\.(?:set|factor|value|explain)\(\s*'([^']+)'/g)) stats.push([f, m[1]]);
   }

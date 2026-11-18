@@ -30,7 +30,22 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 - **No treasury.** The first sketch had a treasury filled by a 10% tithe on every town. With one purse for the empire (owner decision), a second pile of coins would only hide coins from the player, so it was dropped: institutions are founded with purse coins. The tithe law goes too.
 - **Federal contracts.** The board holds 3 offers. Each asks for one made good (never raw) from the open town that makes it, which must have some to spare (what its buildings make, less what its own workshops and the towns it ships to use). The ask is about 4 to 8 minutes of that spare output, rounded to two figures (at least 20 of an intermediate good or 5 of a finished one). No good is on the board twice, and finished goods come up twice as often. A contract pays 1.5 times the good's base price in coins (no market saturation) and Influence: 4 for an intermediate good or 8 for a finished one, for 6 minutes' worth, scaled by the minutes asked.
 - **One at a time** (decision: the choice is which one). Take starts one; while it runs, its town sends the good to the Capital by itself, after routes and before the market, from its stock above its workshops' buffer and its tower reserve. The Sell switch does not stop it, like a route. Taking another offer (Switch, two taps) drops the one running, and what it got is lost. Drop (two taps) does the same without taking another. A full contract pays its coins into the purse as the making town's own earnings ("Contracts for the Capital" when coins are tapped, and they count toward that town's deeds), pays its Influence, says so in a toast, and the board fills again. A spot with nothing to ask for looks again every 10 seconds.
-- **Influence** is the Capital's own currency, shown on its card and its map badge. It buys nodes in the Empire tree (next part). Map carries a dot while the Capital has no contract running.
+- **Influence** is the Capital's own currency, shown on its card and its map badge. It buys upgrades in the Empire tree. Map carries a dot while the Capital has no contract running, and while an institution can be founded or an upgrade bought.
+
+## Institutions and the Empire tree (M4, shipped 2026-11-18)
+- **Founding.** The Capital's card has two tabs, Contracts and Institutions. Each institution is founded once with coins from the purse: the first costs 50K, and each one founded makes the next cost 1.5 times more, whichever it is (50K, 75K, 113K, 169K, 253K), so the order is the player's choice (`src/data/institutions.js`, `src/core/tree.js`). The Stock Exchange waits for M6.
+- **Branches.** Each institution is one branch of the Empire tree: 5 upgrades bought in order with Influence, 8, 15, 25, 40 and 60 (148 a branch). Every upgrade is a named source on every town's stats (the institution's name, so tapping a number shows "Bank"), inside the stat's published cap. The tree is empire-wide: a charter keeps it, a town opened later gets it at once, and only the Convention (M7) will reset it.
+
+| Institution | What its upgrades do |
+|---|---|
+| Market Board | goods sell for 10%, 15% and 20% more, and contracts pay 25% more Influence twice (the only way to earn Influence faster) |
+| Department of Transport | outposts make 25% and 50% more, buildings cost 10% and 15% less, every building makes 10% more |
+| Bank | coins earned +10%, +10%, +15%, and everything costs 5% less twice |
+| University | research 30% faster twice, research costs 25% less, every building makes 10% more, towers reach 10% farther. It will also open Auto-research (Automation) |
+| War Office | towers hit 10% and 15% harder, the vault takes 25% more hits, raiders drop 25% more coins, towers shoot 10% faster. It will also open Auto-towers (Automation) |
+
+- **The choice** is where Influence goes first: more Influence later (Market Board), more coins now (Bank), a stronger defense for a boss wall (War Office), or faster research and cheaper building (University, Transport). Each later upgrade of a branch costs more than the first of another, so spreading out and pushing one branch both work.
+- **Bots.** The active bot founds them in the order Market Board, Bank, War Office, University, Transport, each once its price is no more than 6 minutes of every town's income (saving for it like the Capital), and buys the cheapest upgrade it can as soon as it has the Influence. Target: an upgrade every 10-15 minutes over the 2 hours after the Capital (`tools/balance.js`, `capitalCheck`).
 - **Bots.** The active bot (`tools/balance.js`, `empire` with `capital`) plays on in the Ridge after its 90 minutes there, saves for the Capital once the price is no more than 6 minutes of every town's income (holding the Ridge's waves and switching off every town's foremen, which would spend the one purse), builds it at 3.2-3.3 h of play, and then always works on the offer that pays the most Influence: about 5 contracts and 30-45 Influence in 30 minutes.
 
 ## Outposts (owner request, 2026-11-17)
@@ -193,7 +208,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | 5 | Bounty Hunters: raiders drop 50% more coins | Stone Walls: the vault takes 50% more hits |
 - The Perks button appears at the first charter offer. Its sheet shows the deeds the charter would pay now, the best wave and coins earned with the next deed's mark for each, what signing takes away, the deeds held and the pairs. Sign the charter and Pick each need a second tap.
 
-- **Institutions**: Market Board, Department of Transport, Bank, University, Stock Exchange, War Office. Each has its own branch in the Empire tree.
+- **Institutions**: Market Board, Department of Transport, Bank, University, War Office (see Institutions and the Empire tree), and the Stock Exchange in M6. Each has its own branch in the Empire tree.
 - **Names** are never reused across institutions, tabs, branches, laws or sliders. `tools/audit.js` fails two goods, buildings, towns, tower kinds, paths, raiders, research items or perks with one name.
 - **Laws** come in three pairs:
   - Free Market vs Planned Economy;

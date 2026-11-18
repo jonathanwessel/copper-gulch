@@ -15,7 +15,7 @@ export const researchOpen = town => !!(town.flags && town.flags['open:research']
 
 /* Coins and seconds for the next level of an item (or for level L + 1). */
 export function researchCost(town, id, L = researchLevel(town, id)) {
-  return Math.ceil(RESEARCH[id].cost * GROWTH ** L * town.mods.factor('cost'));
+  return Math.ceil(RESEARCH[id].cost * GROWTH ** L * town.mods.factor('cost') * town.mods.factor('cost:research'));
 }
 export function researchTime(town, id, L = researchLevel(town, id)) {
   return TIME * TIME_GROWTH ** L;

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-7',
+    lines: [
+      'Tap Map, then Capital, then Institutions. Tap Build to start the Market Board, the Bank, the War Office and more.',
+      'They cost coins. Each one you build makes the next cost more.',
+      'Spend Influence on their upgrades. They help every town, like better prices, stronger towers or faster research.',
+    ],
+  },
+  {
     v: '2026.11.18-6',
     lines: [
       'Turning your phone sideways now fills the whole screen. Before, the right side stayed blank.',

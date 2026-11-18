@@ -18,7 +18,8 @@ export const CAPS = {
   deeds:     { max: 1e6 },
   offline:   { max: 1 },     // share of income earned while away
   bounty:    { max: 1e4 },   // coins a fallen raider drops
-  use:       { max: 10 },    // how much of an input a building uses per unit ("use:smelter:timber")
+  use:       { max: 10 },
+  influence: { max: 10 },    // Influence a finished contract pays (empire-wide, game.mods: src/core/tree.js)    // how much of an input a building uses per unit ("use:smelter:timber")
 };
 
 export class Mods {
