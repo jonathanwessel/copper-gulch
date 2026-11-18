@@ -23,7 +23,7 @@ const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
 
 /* A rule a town not open yet has, in words; the badge gets the short form. */
 function ruleText(game, r, short = false) {
-  if (r.kind === 'wave') return (short ? 'Needs wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
+  if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
   if (r.kind === 'with') return short ? 'Opens with ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
@@ -124,7 +124,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
-      if (id === 'capital') kids.push(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Save your Influence. It will buy upgrades for all your towns in a later update.'));
+      if (id === 'capital') kids.push(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Keep your Influence. Soon it will buy upgrades for every town.'));
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {

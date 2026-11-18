@@ -44,7 +44,8 @@ async function launch(opts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-'));
   const proc = spawn(exe, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + dir, '--no-first-run', '--no-default-browser-check',
     '--enable-unsafe-swiftshader', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-extensions', ...(opts.args || []), 'about:blank'], { stdio: 'ignore' }); // swiftshader: WebGL even without a GPU
-  process.on("exit", () => { try { proc.kill(); } catch (e) {} }); // never leave a headless browser behind
+  const onExit = () => { try { proc.kill(); } catch (e) {} };
+  process.on("exit", onExit); // never leave a headless browser behind (removed on close, so many launches do not pile up listeners)
   let port, wsPath;
   for (let i = 0; i < 150 && !port; i++) {
     try { const [p, w] = fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').trim().split(/\r?\n/); if (p && w) { port = p; wsPath = w; } } catch (e) {}
@@ -95,6 +96,7 @@ async function launch(opts = {}) {
       return page;
     },
     async close() {
+      process.off('exit', onExit);
       try { await bws.send('Browser.close'); } catch (e) {}
       bws.close();
       for (let i = 0; i < 30 && proc.exitCode === null; i++) await sleep(100);

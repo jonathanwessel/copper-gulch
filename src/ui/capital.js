@@ -82,7 +82,7 @@ export function capitalSheet(game, toast = () => {}) {
     b.addEventListener('click', () => { if (foundCapital(game)) { toast('The Capital is built.', 3000); paint(); } });
     const paint = () => {
       if (!capitalOpen(game)) {
-        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Save your Influence. It will buy upgrades for all your towns in a later update.'), wave, coins, row); }
+        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Keep your Influence. Soon it will buy upgrades for every town.'), wave, coins, row); }
         const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
         setText(wave, 'Beat wave ' + f.wave + ' in ' + townName(f.from) + (w >= f.wave ? ' · Done' : ' · Best so far ' + w));
         setText(coins, fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c)));

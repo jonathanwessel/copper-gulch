@@ -251,7 +251,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
     return 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make it faster.';
   });
-  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n[0] + n.slice(1).toLowerCase() + (g.length > 1 ? ' are' : ' is') + ' saved for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n[0] + n.slice(1).toLowerCase() + (g.length > 1 ? ' are' : ' is') + ' kept for this ' + (pathNext ? 'path' : 'upgrade') + ', not sold.'; };
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
@@ -365,7 +365,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); }
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
-      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); goalId = null; goalCur = null;
+      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.text); goalId = null; goalCur = null;
       if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000);
       return;
     }

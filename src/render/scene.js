@@ -109,7 +109,8 @@ export function createScene(canvas, opt = {}) {
       const dpr = Math.min(T.ratio, window.devicePixelRatio || 1) * T.scale;
       const pw = Math.max(1, Math.round(w * dpr)), ph = Math.max(1, Math.round(h * dpr));
       if (pw === W && ph === H) return; W = pw; H = ph;
-      r.setPixelRatio(1); r.setSize(pw, ph, false); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      // the CSS keeps the canvas at 100% of the screen; pinning a pixel size here froze it at the first size, so turning the phone left half the screen blank
+      r.setPixelRatio(1); r.setSize(pw, ph, false); canvas.style.width = '100%'; canvas.style.height = '100%';
       cam.aspect = w / h; cam.updateProjectionMatrix();
       if (composer) { composer.dispose(); composer = null; }
       if (!T.post) return;

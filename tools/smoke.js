@@ -940,6 +940,59 @@ async function run() {
     failed += bad.length ? 1 : 0;
   } finally { await bP.close(); srvP.close(); }
 
+  // turning the phone (owner bug, 2026-11-18): portrait 400x800 to landscape 900x400 and back, on the title, in a town
+  // and on the empire map. The canvas and its drawing buffer fill the screen each time, taps still open cards, and
+  // nothing in the HUD is cut off
+  const srvR = await start(0), bR = await chromium.launch();
+  try {
+    const page = await bR.newPage({ viewport: { width: 400, height: 800 } }), errs = [], bad = [];
+    page.on('pageerror', e => errs.push(e.message));
+    page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+    const fills = async where => {
+      await sleep(700);
+      const f = await page.evaluate(() => {
+        const c = document.getElementById('view'), r = c.getBoundingClientRect(), W = innerWidth, H = innerHeight, cut = [];
+        for (const n of document.querySelectorAll('.hud .hudleft, .hud .hudright, #goodsStrip, #placeBar, #callWave, #pauseBtn, #holdWaves')) {
+          const b = n.getBoundingClientRect(); if (!b.width || n.closest('[hidden]')) continue;
+          if (b.left < -1 || b.top < -1 || b.right > W + 1 || b.bottom > H + 1) cut.push(n.id || n.className);
+        }
+        return { css: [Math.round(r.width), Math.round(r.height)], screen: [W, H], buf: [c.width, c.height], cut };
+      });
+      if (Math.abs(f.css[0] - f.screen[0]) > 1 || Math.abs(f.css[1] - f.screen[1]) > 1) bad.push(where + ': the canvas is ' + f.css.join('x') + ' on a ' + f.screen.join('x') + ' screen');
+      if (Math.abs(f.buf[0] / f.buf[1] - f.screen[0] / f.screen[1]) > .03) bad.push(where + ': the drawing buffer is ' + f.buf.join('x') + ' on a ' + f.screen.join('x') + ' screen');
+      if (f.cut.length) bad.push(where + ': cut off ' + f.cut.join(', '));
+      bad.push(...(await check(page)).map(b => where + ': ' + b));
+    };
+    await page.goto(srvR.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
+    await fills('title portrait');
+    await page.setViewportSize({ width: 900, height: 400 }); await fills('title landscape');
+    await page.setViewportSize({ width: 400, height: 800 }); await fills('title back to portrait');
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5); await sleep(300);
+    await fills('town portrait');
+    for (const [where, width, height] of [['town landscape', 900, 400], ['town back to portrait', 400, 800]]) {
+      await page.setViewportSize({ width, height }); await fills(where);
+      const taps = await tapEverything(page);
+      if (!taps.tried) bad.push(where + ': no object could be tapped');
+      bad.push(...taps.miss.map(m => where + ': ' + m));
+    }
+    // the empire map measures the canvas too
+    await page.evaluate(() => { const t = CG.game.town; t.bestWave = 20; t.wave = 21; });
+    if (!await waitFor(page, () => !document.getElementById('mapBtn').hidden, 6000)) bad.push('no Map button');
+    else {
+      await page.evaluate(() => { if (CG.coach && CG.coach.skipAll) CG.coach.skipAll(); document.getElementById('mapBtn').click(); });
+      if (!await waitFor(page, () => CG.map && CG.map.frames > 5, 8000)) bad.push('Map did not open the map');
+      else {
+        await fills('map portrait');
+        await page.setViewportSize({ width: 900, height: 400 }); await fills('map landscape');
+        await page.setViewportSize({ width: 400, height: 800 }); await fills('map back to portrait');
+      }
+    }
+    bad.push(...errs);
+    console.log('rotate', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await bR.close(); srvR.close(); }
+
   // offline: install the service worker, then stop the server and load again
   const srv2 = await start(0), b2 = await chromium.launch();
   try {

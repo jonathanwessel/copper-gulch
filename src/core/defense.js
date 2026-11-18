@@ -481,7 +481,7 @@ export const defense = {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
     syncVault(town);
-    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
+    town.mods.set('towerDmg', 'Bonus on waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     town.keep = towerReserve(town);
     town.waves.owe = 0;
     fight(game, town, dt);
@@ -490,7 +490,7 @@ export const defense = {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
     syncVault(town);
-    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
+    town.mods.set('towerDmg', 'Bonus on waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     skirmish(game, town, dt);
     town.keep = towerReserve(town);
   },

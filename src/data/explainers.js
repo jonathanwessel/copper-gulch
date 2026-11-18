@@ -263,7 +263,7 @@ export const EXPLAINERS = [
   },
   {
     id: 'oldground', covers: ['oldground'],
-    title: 'Waves you beat before',
+    title: 'Bonus on waves you beat before',
     text: 'You beat these waves before you signed. Until you pass your old best wave, your towers hit 3 times harder and Call now works right away.',
     when: h => h.oldGround && h.phase === 'break' && h.towers.length > 0, at: () => ({ el: '#callWave' }),
   },

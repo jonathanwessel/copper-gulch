@@ -89,7 +89,7 @@ export function goodsSheet(game, town, focus = null) {
         if (r.good) { const t = fmt(Math.floor(town.goods[r.good] || 0)) + ' in stock · sent by ' + (TOWN_NAMES[GOODS[r.good].town] || 'another town'); if (r.line.textContent !== t) r.line.textContent = t; continue; }
         const kept = Math.ceil((town.keep || {})[g] || 0);
         const ex = explainPrice(game, town, g);
-        const selling = town.sell[g] !== false, have = town.goods[g] || 0, saved = !kept || !selling ? '' : kept > have + .5 ? ' · towers need ' + kept : ' · ' + kept + ' saved for towers';
+        const selling = town.sell[g] !== false, have = town.goods[g] || 0, saved = !kept || !selling ? '' : kept > have + .5 ? ' · towers need ' + kept : ' · ' + kept + ' kept for towers';
         const txt = fmt(have) + ' in stock' + saved + (open[g] ? '' : ' · sells for ' + fmt(ex.value) + ' coins each'); // open, the box says it
         if (r.line.textContent !== txt) r.line.textContent = txt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
