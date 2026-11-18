@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-4',
+    lines: [
+      'The game has music now. It is calm while you build and speeds up when raiders come. A boss brings its own tune.',
+      'Towers, buildings, coins and bosses make sounds too.',
+      'In your town, tap Menu to set the Music and Sound sliders.',
+    ],
+  },
+  {
     v: '2026.11.18-3',
     lines: [
       'To beat a boss wave, you must stop the boss. If it reaches your vault, you drop back two waves and lose some coins.',

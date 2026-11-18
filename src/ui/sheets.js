@@ -2,7 +2,7 @@
      Goods: what the town has in stock, what each good sells for now, and a Sell On or Off switch per good.
      Research: the town's research items, their next level's price and wait, and the one running.
      Perks: the town's charter (deeds it would pay now, what earns the next one, Sign), the deeds held, the perk pairs.
-     Menu: Graphics, Install, save slots, copying the save out and loading one in, the help cards, the title screen.
+     Menu: Graphics, Volume (the Music and Sound sliders), Install, save slots, copying the save out and loading one in, the help cards, the title screen.
    Every word here follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -220,7 +220,23 @@ export function menuSheet(ctx) {
         row.append(b);
       }
       paint();
-      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best. Auto picks the best one for your phone.'));
+      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best. Auto picks the best one for this device.'));
+    }
+
+    // Sound: two sliders, kept on this device (src/audio/audio.js)
+    const audio = ctx.audio || (globalThis.CG && globalThis.CG.audio);
+    if (audio) {
+      const box = el('div', 'sliders');
+      for (const [k, name] of [['music', 'Music'], ['sound', 'Sound']]) {
+        const row = el('label', 'slider'), inp = el('input'), val = el('span', 'val');
+        inp.type = 'range'; inp.min = '0'; inp.max = '100'; inp.step = '5'; inp.id = k + 'Vol';
+        inp.value = String(Math.round(audio.get(k) * 100));
+        const show = () => { val.textContent = +inp.value ? inp.value + '%' : 'Off'; };
+        inp.addEventListener('input', () => { audio.start(); audio.set(k, +inp.value / 100); show(); });
+        if (k === 'sound') inp.addEventListener('change', () => audio.play('coin'));
+        show(); row.append(el('span', 'name', name), inp, val); box.append(row);
+      }
+      sec('Volume', box);
     }
 
     // Save slots

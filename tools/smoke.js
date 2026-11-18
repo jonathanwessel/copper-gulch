@@ -436,6 +436,38 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(gfx)) if (!v) bad.push('Menu and Graphics: not ' + k);
+      // Sound: a tap starts the music, the Menu's Music and Sound sliders are kept under cg-audio, and the app in the
+      // background suspends it all (src/audio/audio.js)
+      await page.evaluate(() => document.getElementById('menuBtn').click()); await sleep(350);
+      const snd = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), out = {}, A = CG.audio;
+        document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await wait(700);
+        const st = A.state();
+        out.started = st.ctx === 'running' && st.bars > 0 && ['town', 'wave', 'boss'].includes(st.mood);
+        const m = document.getElementById('musicVol'), so = document.getElementById('soundVol');
+        out.sliders = !!(m && so) && m.closest('.sec').querySelector('h3').textContent === 'Volume';
+        const row = m && m.closest('.slider'), r = row && row.getBoundingClientRect();
+        out.fits = !!r && r.left >= 0 && r.right <= innerWidth + .5 && r.height >= 30;
+        const set = (el, v) => { el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+        set(m, 0); set(so, 35);
+        const kept = JSON.parse(localStorage.getItem('cg-audio') || '{}');
+        out.kept = kept.music === 0 && Math.abs(kept.sound - .35) < 1e-9 && A.get('music') === 0;
+        out.offLabel = m.parentElement.querySelector('.val').textContent === 'Off' && so.parentElement.querySelector('.val').textContent === '35%';
+        const b0 = A.state().bars; await wait(900); out.musicOff = A.state().bars === b0;
+        set(m, 50); set(so, 60); await wait(700);
+        out.back = A.state().bars > b0;
+        // the app goes to the background and comes back
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+        document.dispatchEvent(new Event('visibilitychange')); await wait(300);
+        out.hiddenQuiet = A.state().ctx === 'suspended';
+        const b1 = A.state().bars; await wait(800); out.hiddenNoBars = A.state().bars === b1;
+        delete document.hidden;
+        document.dispatchEvent(new Event('visibilitychange')); await wait(500);
+        out.wakes = A.state().ctx === 'running' && A.state().bars > b1;
+        document.getElementById('sheetClose').click(); await wait(100);
+        return out;
+      });
+      for (const [k, v] of Object.entries(snd)) if (!v) bad.push('Music and sound: not ' + k);
       // research: the button shows once research opens; its sheet starts an item, the others wait, and it finishes
       // the Perks button: hidden until the charter would pay a deed, then its sheet says what signing pays
       const perks = await page.evaluate(async () => {

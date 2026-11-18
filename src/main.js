@@ -7,11 +7,25 @@ import { INSTALL, installState, initInstall } from './ui/install.js';
 import { readSave, writeSave, activeSlot, setActiveSlot, slotSummary, writeText } from './ui/storage.js';
 import { newGame, loadGame } from './core/setup.js';
 import { showNews } from './ui/news.js';
+import { createAudio, soundsFor } from './audio/audio.js';
+import { moodOf } from './audio/tunes.js';
+import { bossWave } from './core/defense.js';
 
 initInstall();
+// music and sound (src/audio/): made on the first tap or key, silent while the app is hidden
+const audio = createAudio();
+for (const ev of ['pointerdown', 'keydown', 'touchend']) document.addEventListener(ev, () => audio.start(), { capture: true, passive: true });
+document.addEventListener('visibilitychange', () => audio.sleep(document.hidden));
+addEventListener('pagehide', () => audio.sleep(true));
+addEventListener('pageshow', () => { if (!document.hidden) audio.sleep(false); });
+setInterval(() => {
+  const g = window.CG && window.CG.game, t = g && g.town, ws = t && t.waves;
+  audio.mood(moodOf({ title: !g, map: !!(window.CG && window.CG.map), phase: ws ? ws.phase : 'break', boss: !!(ws && ws.phase === 'wave' && bossWave(t, t.wave)) }));
+  audio.tick();
+}, 120);
 // the test tools may start a new game in one later town alone (?start=gulch, ridge or pinehollow); players always start in Dry Creek
 const START = ['gulch', 'ridge', 'pinehollow'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
-const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
+const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, audio, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();
 // what changed since this device last opened the game (a new player skips it)
@@ -37,6 +51,7 @@ async function startGame() {
     if (secs > 30) away = catchUp(secs);
   } else game = newGame('cg-' + Date.now().toString(36), START); // a new game starts in Dry Creek Outpost
   CG.game = game;
+  soundsFor(game, audio);
   const meter = CG.meter = new FlowMeter(); // coins and goods a second, for the map's badges and wagons
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;
@@ -67,7 +82,7 @@ async function startGame() {
     });
     CG.town = town;
     if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; viewApi.setView = town.setView; }
-    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, locate, map: () => openMap(), onHelp: () => CG.play.sheets.close() });
+    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, audio, leave, go, locate, map: () => openMap(), onHelp: () => CG.play.sheets.close() });
     // the explainer cards; ?coach=off turns them off (the test tools use it)
     CG.coach = startCoach({
       game, town: game.town, root: document.body, off: coachOff,

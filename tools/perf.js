@@ -26,7 +26,7 @@ try {
   await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' ? 'gulch' : TOWN)));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
-  await p.evaluate(t => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); }, TIER);
+  await p.evaluate(([t, NOAUDIO]) => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); if (!NOAUDIO) CG.audio.start(); }, [TIER, process.argv.includes('--no-audio')]);
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(CG.town && CG.town.frames > 3))); i++) await sleep(100);
   // a busy town: buildings up, four towers, a wave on the road (Dry Creek: both camps up and a Crossbow on every pad)
   if (TOWN === 'drycreek') await p.evaluate(() => {
@@ -102,6 +102,7 @@ try {
     if (again.median < out.median) out = again;
     out.retried = first;
   }
+  out.audio = await p.evaluate(() => { const s = CG.audio.state(); return s.ctx + ' ' + s.mood + ' bars ' + s.bars + ' sounds ' + s.sounds; }).catch(() => 'none'); // music and sound play during the run, as on a phone
   await p.cdp('Emulation.setCPUThrottlingRate', { rate: 1 });
 } finally { await b.close(); srv.close(); }
 out.startTier = startTier;

@@ -304,6 +304,16 @@ html.flat .tag { position: static; transform: none !important; }
 .sec .row { justify-content: flex-start; }
 .sec .ver { margin: 0; color: var(--muted); font-size: .75rem; }
 .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.sliders { display: grid; gap: 8px; }
+.slider { display: grid; grid-template-columns: 4.2em 1fr 3.2em; align-items: center; gap: 10px; min-height: 36px; }
+.slider .name { color: var(--ink); }
+.slider .val { text-align: right; color: var(--muted); font-size: .9rem; }
+.slider input { -webkit-appearance: none; appearance: none; width: 100%; height: 40px; cursor: pointer; margin: 0; background: transparent; touch-action: none; }
+.slider input::-webkit-slider-runnable-track { height: 10px; background: var(--panel-2); border: 2px solid var(--line); box-shadow: inset 0 2px 0 var(--line); }
+.slider input::-moz-range-track { height: 10px; background: var(--panel-2); border: 2px solid var(--line); }
+.slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 32px; margin-top: -13px; background: var(--copper); border: 2px solid var(--line); box-shadow: inset 2px 2px 0 var(--copper-hi), inset -2px -2px 0 var(--copper-lo); border-radius: 0; }
+.slider input::-moz-range-thumb { width: 22px; height: 28px; background: var(--copper); border: 2px solid var(--line); border-radius: 0; }
+.slider input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .btn[aria-pressed="true"], .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
 .goods { display: grid; gap: 6px; }
 .goods .focus { outline: 2px solid var(--gold); outline-offset: 2px; }
