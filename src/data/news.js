@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-22',
+    lines: [
+      'Iron Ridge now shows goals under Pause. Follow them to build the Locomotive Works.',
+      'You can build the Rolling Mill and the Locomotive Works sooner now.',
+    ],
+  },
+  {
     v: '2026.11.17-21',
     lines: [
       'The game is smoother on phones, even when you have lots of towns.',

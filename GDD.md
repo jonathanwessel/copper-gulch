@@ -72,7 +72,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Intermediate: planks (Sawmill, 2 timber), copper (Smelter, 2 ore + 1 timber as fuel), bricks (Kiln, 2 clay + 1 timber).
   - Finished: tools (Toolsmith, planks + copper), wagons (Wagon Works, 2 planks + tools + copper).
 - **Iron Ridge** (set 2026-11-17, tuned by the Ridge bots)
-  - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 3, 1200 coins), Boiler Shop (Steel Mill 3, 4000 coins), Rolling Mill (Steel Mill 5), Locomotive Works (Rolling Mill 10, Boiler Shop 5). The Boiler Shop comes early so the bricks route from the Gulch matters in the Ridge's first hour (it was Steel Mill 5 and 15K, and the bots never reached it).
+  - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 3, 1200 coins), Boiler Shop (Steel Mill 3, 4000 coins), Rolling Mill (Steel Mill 5), Rolling Mill 3000 coins (was 12K), Locomotive Works (Rolling Mill 5, Boiler Shop 5, 15K coins; was Rolling Mill 10 and 80K, and the bots never reached it in 2.5 hours). The Ridge's goal strip leads through the chain to the Locomotive Works and sends the player to the Gulch for a Toolsmith. The Boiler Shop comes early so the bricks route from the Gulch matters in the Ridge's first hour (it was Steel Mill 5 and 15K, and the bots never reached it).
   - Towers pay with Ridge goods: Crossbow stone, Cannon iron ore, Frost Lens coal and stone, Still iron ore and coal, Mortar pig iron and stone.
   - Research: Steam Drills, Hot Blast, Iron Plating, Rifled Barrels, Railroad Rewards, Freight Depot, and Bessemer Converter (Steel Mill +60%, one more coal per steel: the trade-off). It opens with the Blast Furnace.
   - Raw: iron ore, coal, stone.
@@ -239,6 +239,7 @@ One panel, with three switches per town and one spend share per town. The share 
 | Pine Hollow won | within 20 min of getting there, every strategy within 25% |
 | Iron Ridge wave 10 (the armored train) | 7-10 min after getting there, no breach in waves 1-3 |
 | Boiler Shop | built in the Ridge's first hour, running on Gulch bricks at least 90% of the time |
+| Locomotive Works | built within 90 min of getting to the Ridge (the bots 40-54 min), running on Gulch tools at least 90% of the time (the goal strip leads there, and sends the player to the Gulch for a Toolsmith) |
 | Capital | 2.5-4 h |
 | Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |
 | Thunder Mesa | 20-30 h |

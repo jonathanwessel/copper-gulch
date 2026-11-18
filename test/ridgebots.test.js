@@ -70,7 +70,7 @@ test('Pine Hollow: raiders pay three times the usual bounty and its waves are so
 test('the Boiler Shop comes early in the Ridge: Steel Mill at Blast Furnace 3, Boiler Shop at Steel Mill 3', () => {
   assert.deepEqual(BUILDINGS.steelmill.needs, { furnace: 3 });
   assert.deepEqual(BUILDINGS.boilershop.needs, { steelmill: 3 });
-  assert.ok(BUILDINGS.boilershop.cost < BUILDINGS.rolling.cost, 'before the Rolling Mill');
+  assert.ok(BUILDINGS.boilershop.needs.steelmill < BUILDINGS.rolling.needs.steelmill, 'it opens before the Rolling Mill');
 });
 
 test('tendImports raises the Gulch\'s Kiln, or the Clay Pit that feeds it, when the Boiler Shop runs short of bricks', () => {
