@@ -1,5 +1,7 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|map] [--eval "js run in the page first"]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|empire|map] [--limit 33] [--eval "js run in the page first"]
 // --town map: the empire map with every town open, built up, and wagons on the roads (no raider to follow there).
+// --town empire: Iron Ridge in play, founded from a built-up Copper Gulch, with the Gulch, Dry Creek and Pine Hollow
+//   all working behind it (so every frame also steps four towns), a wave on the road. The M3 target runs it with --limit 20.
 // Frame time in headless Edge or Chrome at phone size (400x860), with the CPU throttled (Emulation.setCPUThrottlingRate)
 // to stand in for a mid-range phone. The page is a touch phone, so the game picks its phone tier by itself. It plays a town that is busy (buildings up, towers on the road, a wave running),
 // measures every frame for a few seconds, and prints the median and 90th percentile frame time, the frames per second,
@@ -13,7 +15,7 @@ import { start } from './serve.js';
 import { chromium } from './cdp.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const TOWN = arg('town', 'gulch'), DPR = +arg('dpr', 2), THROTTLE = +arg('throttle', 4), SECONDS = +arg('seconds', 6), EVAL = arg('eval', ''), LIMIT = 33;
+const TOWN = arg('town', 'gulch'), DPR = +arg('dpr', 2), THROTTLE = +arg('throttle', 4), SECONDS = +arg('seconds', 6), EVAL = arg('eval', ''), LIMIT = +arg('limit', 33);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // software WebGL (SwiftShader): its cost grows with pixels, passes, lights and shadow taps the way a phone GPU's does
@@ -21,7 +23,7 @@ const srv = await start(0), b = await chromium.launch({ args: ['--use-angle=swif
 let out = null, startTier = null;
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
-  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' ? 'gulch' : TOWN)));
+  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' ? 'gulch' : TOWN)));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
   await p.evaluate(t => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); }, TIER);
@@ -38,6 +40,19 @@ try {
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) t.buildings[id] = n;
     for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
     CG.play.close(); document.getElementById('callWave').click(); // like the Gulch: wave 1, towers down the line so raiders stay on screen
+  });
+  else if (TOWN === 'empire') await p.evaluate(async () => {
+    const g = CG.game, t = g.town; t.coins = 1e9; t.bestWave = 20;
+    for (const [id, n] of Object.entries({ camp: 12, mine: 8, pit: 6, saw: 8, smelter: 5, kiln: 6, toolsmith: 4 })) t.buildings[id] = n;
+    (await import('./src/core/empire.js')).foundTown(g, 'ridge');
+    const op = await import('./src/core/outpost.js'); op.grantOutpost(g, 'drycreek'); op.grantOutpost(g, 'pinehollow');
+    g.towns.pinehollow.won = true;
+    CG.go('ridge');
+    for (let i = 0; i < 100 && !(CG.town && CG.town.frames > 3); i++) await new Promise(r => setTimeout(r, 100));
+    const r = g.towns.ridge; t.coins = 1e9; Object.assign(r.goods, { stone: 500, iron: 500, coal: 500, pigiron: 500 }); r.sell = { stone: false, iron: false, coal: false, pigiron: false };
+    for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) r.buildings[id] = n;
+    for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
+    CG.play.close(); document.getElementById('callWave').click();
   });
   else if (TOWN === 'map') await p.evaluate(async () => {
     const g = CG.game, t = g.town; t.coins = 1e9; t.bestWave = 20;
@@ -78,7 +93,7 @@ try {
     const sj = jumps.slice().sort((a, b) => a - b), jmed = sj[sj.length >> 1] || 0, jmax = sj[sj.length - 1] || 0;
     const still = jumps.filter(j => j < .05).length / Math.max(1, jumps.length);
     const v = (CG.town || CG.map).view, s = v.stats || {};
-    return { frames: times.length, median: q(.5), p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2) } };
+    return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2) } };
   }, SECONDS);
   out = await measure();
   // the software GPU is noisy on a busy machine: a near miss (within 15%) is measured once more, and the better run counts

@@ -178,9 +178,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
     const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
-    if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '. This town pays for each load.'));
+    if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
-    if (town.starved[id] && L && shortImp.length) card.append(el('p', 'warn', 'Not enough ' + GOODS[shortImp[0]].name.toLowerCase() + '. ' + 'Upgrade the ' + (makerOf(shortImp[0]) || { name: 'workshop' }).name + ' in ' + fromName(shortImp[0]) + '.'));
+    if (town.starved[id] && L && shortImp.length) {
+      // the town that makes it may not have built its maker yet: then the line says to build it
+      const g0 = shortImp[0], mk = makerOf(g0), src = game.towns[GOODS[g0].town], mid = mk && Object.keys(BUILDINGS).find(k => BUILDINGS[k] === mk);
+      const verb = src && mid && !src.level(mid) ? 'Build a ' : 'Upgrade the ';
+      card.append(el('p', 'warn', 'Not enough ' + GOODS[g0].name.toLowerCase() + '. ' + verb + (mk || { name: 'workshop' }).name + ' in ' + fromName(g0) + '.'));
+    }
     else if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));

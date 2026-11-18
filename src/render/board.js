@@ -66,7 +66,7 @@ export class Board {
     if (B.entrance) this.entrance = new Entrance(this);
     // smoke puffs: one instanced mesh for the whole board
     this.puffs = []; this.smokeT = 0;
-    this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.09, 0), new THREE.MeshStandardMaterial({ color: '#ece6de', flatShading: true, roughness: 1, transparent: true, opacity: .75, depthWrite: false }), MAXPUFF);
+    this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.09, 0), new THREE.MeshLambertMaterial({ color: '#ece6de', flatShading: true, transparent: true, opacity: .75, depthWrite: false }), MAXPUFF);
     this.smoke.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.smoke.count = 0; this.smoke.frustumCulled = false;
     this.group.add(this.smoke);
     this.sync();
@@ -166,7 +166,7 @@ export function roadRibbon(pts, [dirt, rut, edge], w = 1) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
   m.receiveShadow = true; m.name = 'road';
   return m;
 }

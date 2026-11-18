@@ -32,7 +32,7 @@ function ground() {
     cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3)); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .95 }));
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   m.receiveShadow = true;
   return m;
 }
@@ -77,7 +77,7 @@ export function startTitleScene(canvas) {
     o.position.set(x, 0, z); o.rotation.y = R() * 6; o.scale.setScalar(.8 + R() * .6); scene.add(o);
   }
   v.setLamps(lamps, .25);
-  scene.traverse(o => { if (o.isMesh && o.material.type === 'MeshStandardMaterial') o.receiveShadow = true; });
+  scene.traverse(o => { if (o.isMesh && (o.material.isMeshLambertMaterial || o.material.isMeshStandardMaterial)) o.receiveShadow = true; });
 
   v.sun.position.set(-9, 7, 6); v.sun.target.position.set(0, 0, 0);
   let t0 = performance.now(), raf = 0, frames = 0;

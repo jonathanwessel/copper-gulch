@@ -271,7 +271,7 @@ export const EXPLAINERS = [
   {
     id: 'ridge-route', town: 'ridge', covers: ['route'],
     title: 'Goods from Copper Gulch',
-    text: 'The Boiler Shop uses bricks and the Locomotive Works uses tools. Copper Gulch sends them by wagon and this town pays for each load. Upgrade the Kiln and the Toolsmith there to send more.',
+    text: 'The Boiler Shop uses bricks and the Locomotive Works uses tools. Copper Gulch sends them by wagon. Upgrade the Kiln and the Toolsmith there to send more.',
     when: h => h.level('boilershop') > 0 || h.level('loco') > 0, at: h => ({ plot: h.level('boilershop') > 0 ? 'boilershop' : 'loco' }),
   },
   {

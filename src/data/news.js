@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-21',
+    lines: [
+      'The game is smoother on phones, even when you have lots of towns.',
+      'When a workshop runs short of goods from another town, its card says what to build there.',
+    ],
+  },
+  {
     v: '2026.11.17-20',
     lines: [
       'Tap Map to see all your towns at once. Zooming a town all the way out opens it too.',

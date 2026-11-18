@@ -19,7 +19,7 @@ export const col = c => COLS[c] || (COLS[c] = new THREE.Color(PAL[c] || c));
 
 // --- materials (shared by everything; color comes from the vertices) ----------------------------------------------
 export const MAT = {
-  solid: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .86, metalness: 0 }),
+  solid: new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   metal: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .45, metalness: .55 }),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true }),      // windows, furnaces, crystals: brighter at night, they bloom
   fire: new THREE.MeshBasicMaterial({ vertexColors: true }),      // always bright: flames, sparks, tracers

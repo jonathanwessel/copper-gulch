@@ -101,7 +101,12 @@ export function mountMap(root, game, view, shell) {
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
       if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
-      else if (info.alert === 'short') kids.push(el('p', 'warn', 'The ' + BUILDINGS[info.short].name + (info.needs ? ' needs more ' + GOODS[info.needs].name.toLowerCase() + '.' : ' is short of goods.')));
+      else if (info.alert === 'short') {
+        // a good shipped in from another town: say which building there to build or upgrade
+        const g = info.needs, home = g && GOODS[g].town !== id && game.towns[GOODS[g].town], mk = home && home.def.buildings.find(b => BUILDINGS[b].makes === g);
+        const fix = mk ? ' ' + (home.level(mk) ? 'Upgrade the ' : 'Build a ') + BUILDINGS[mk].name + ' in ' + shortOf(home.id) + '.' : '';
+        kids.push(el('p', 'warn', 'The ' + BUILDINGS[info.short].name + (g ? ' needs more ' + GOODS[g].name.toLowerCase() + '.' + fix : ' is short of goods.')));
+      }
       const row = el('div', 'row'), go = el('button', 'btn primary buy', (info.inPlay ? 'Back to ' : 'Play ') + shortOf(id)); go.id = 'mapPlay';
       go.addEventListener('click', () => shell.play(id));
       row.append(go); kids.push(row);
