@@ -22,6 +22,7 @@ import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns } from '../core/empire.js';
+import { capitalNext, canFoundCapital } from '../core/capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -133,7 +134,7 @@ export function foundSheet(game, id, go) {
 
 /* Places, for a device that cannot draw the map: a button for every open town, and for each town in sight its sheet.
    go(id) puts a town in play, found(id) opens a town's Start sheet. */
-export function placesSheet(game, { go, found }) {
+export function placesSheet(game, { go, found, capital = () => {} }) {
   return body => {
     for (const id of Object.keys(TOWNS).filter(t => game.towns[t])) {
       const here = id === game.active, row = el('div', 'row');
@@ -146,6 +147,14 @@ export function placesSheet(game, { go, found }) {
       const row = el('div', 'row'), b = btn(TOWNS[n.id].name + (n.ready ? ' · Ready to start' : ' · Not open yet'), 'btn', 'place-' + n.id);
       b.dataset.town = n.id; b.classList.toggle('dot', !!n.ready);
       b.addEventListener('click', () => found(n.id));
+      row.append(b); body.append(row);
+    }
+    // the Capital, once it is in sight
+    const cap = game.shared.capital, ready = canFoundCapital(game);
+    if ((cap && cap.open) || capitalNext(game)) {
+      const row = el('div', 'row'), b = btn('The Capital' + (cap.open ? '' : ready ? ' · Ready to build' : ' · Not built yet'), 'btn', 'place-capital');
+      b.classList.toggle('dot', ready || (cap.open && !cap.active));
+      b.addEventListener('click', () => capital());
       row.append(b); body.append(row);
     }
   };

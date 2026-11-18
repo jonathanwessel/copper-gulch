@@ -275,6 +275,18 @@ export const EXPLAINERS = [
     when: h => h.next.includes('ridge'), at: () => ({ el: '#mapBtn' }),
   },
   {
+    id: 'capital-sight', covers: ['capital:sight'],
+    title: 'The Capital',
+    text: 'You can build the Capital soon. Tap Map, then tap Capital to see what it needs.',
+    when: h => h.capitalSight, at: () => ({ el: '#mapBtn' }),
+  },
+  {
+    id: 'capital', covers: ['system:capital', 'contract'],
+    title: 'Contracts',
+    text: 'The Capital wants goods from your towns. Tap Map, then Capital, and take a contract. The town on the contract sends the goods by itself. A finished contract pays coins and Influence.',
+    when: h => h.capitalOpen && h.t > 3, at: () => ({ el: '#mapBtn' }),
+  },
+  {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
     text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',

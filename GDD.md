@@ -14,7 +14,7 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 | O1 | Dry Creek Outpost | Frontier camp: ore and stone | one loop round the camp | Bandit wagon | at the start (the first stage) |
 | 1 | Copper Gulch | Frontier: wood, clay, copper | road | War wagon | Dry Creek's wave 10 won (about 10-15 min) |
 | 2 | Iron Ridge | Iron and rail | switchback road | Armored train | Gulch wave 20 + 15K coins, first life, no charter needed |
-| C | The Capital | Government | none | none | Ridge wave 15 + 2M |
+| C | The Capital | Government | none | none | Ridge wave 30 + 150K coins (set 2026-11-18; the first sketch said wave 15 + 2M) |
 | 3 | Silver Falls | Electricity | road + river | Ironclad steamer | Ridge wave 25 + **5 deeds** + 50M (realistically 1 or 2 charters) |
 | 4 | Thunder Mesa | Oil and flight | road + sky | Sky pirate airship | Transport node 3 + 1B |
 | 5 | Radium Springs | Radio and radium | road + sky + a static field that jams towers | Iron Colossus (a steam walker) | Mesa wave 30 + University node 4 + 50B |
@@ -24,6 +24,14 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 **One purse for the empire** (owner decision, 2026-11-17, save v12). Coins are one balance, shown at the top in every town. Every town and outpost puts its sales, bounties and Call now bonuses into it, and every purchase anywhere spends from it. Each town still counts what it earned itself in this charter (`town.lifetime`), which is what deeds and the Welcome back line read. Tapping the coins shows the town in play by source, then one line for each other town and outpost. Routes move goods only. A charter never touches the purse. The save migration added every town's old coins into the purse.
 
 **Founding a town** (set 2026-11-17, M3). Each later town names what founding it takes (`town.def.found`, `src/core/empire.js`): the town that pays, the best wave it must have reached, and the coins it pays. Iron Ridge: Copper Gulch's best wave 20 (any life) and 15K coins from the shared purse (was 150K in the first pass; the bots never held that much, see Pacing targets). A new town and its outpost each put their start coins into the purse once (Iron Ridge 60, Pine Hollow 150). Once the paying town's best wave is 5 short of the mark, the next town shows as a locked button in the town row at the top, with a red dot once it can be founded; tapping it opens a sheet with what it takes and a Start button. Founding opens the town and its outpost, and takes the player there.
+
+## The Capital (M4, first part shipped 2026-11-18)
+- **Building it.** The Capital sits in the middle of the empire map. It comes into sight once Iron Ridge's best wave is 25: its badge and card show the rules (beat wave 30 in Iron Ridge, 150K coins) with have / need, Map gets a dot when it can be built, and Build the Capital on its card pays from the purse (`src/core/capital.js`, `src/data/capital.js`). It has no board, road or raiders, so it is never "in play": the player stays on the map and its card is its screen. Once built, the map draws a capitol (white hall, columns, a copper dome and a flag) in place of the surveyed plot. The full city with a building for each institution comes later.
+- **No treasury.** The first sketch had a treasury filled by a 10% tithe on every town. With one purse for the empire (owner decision), a second pile of coins would only hide coins from the player, so it was dropped: institutions are founded with purse coins. The tithe law goes too.
+- **Federal contracts.** The board holds 3 offers. Each asks for one made good (never raw) from the open town that makes it, which must have some to spare (what its buildings make, less what its own workshops and the towns it ships to use). The ask is about 4 to 8 minutes of that spare output, rounded to two figures (at least 20 of an intermediate good or 5 of a finished one). No good is on the board twice, and finished goods come up twice as often. A contract pays 1.5 times the good's base price in coins (no market saturation) and Influence: 4 for an intermediate good or 8 for a finished one, for 6 minutes' worth, scaled by the minutes asked.
+- **One at a time** (decision: the choice is which one). Take starts one; while it runs, its town sends the good to the Capital by itself, after routes and before the market, from its stock above its workshops' buffer and its tower reserve. The Sell switch does not stop it, like a route. Taking another offer (Switch, two taps) drops the one running, and what it got is lost. Drop (two taps) does the same without taking another. A full contract pays its coins into the purse as the making town's own earnings ("Contracts for the Capital" when coins are tapped, and they count toward that town's deeds), pays its Influence, says so in a toast, and the board fills again. A spot with nothing to ask for looks again every 10 seconds.
+- **Influence** is the Capital's own currency, shown on its card and its map badge. It buys nodes in the Empire tree (next part). Map carries a dot while the Capital has no contract running.
+- **Bots.** The active bot (`tools/balance.js`, `empire` with `capital`) plays on in the Ridge after its 90 minutes there, saves for the Capital once the price is no more than 6 minutes of every town's income (holding the Ridge's waves and switching off every town's foremen, which would spend the one purse), builds it at 3.2-3.3 h of play, and then always works on the offer that pays the most Influence: about 5 contracts and 30-45 Influence in 30 minutes.
 
 ## Outposts (owner request, 2026-11-17)
 The game starts in a tiny outpost, not a town. Outposts are small raw-goods camps: two raw buildings, a short road, a few stone pads, nothing else. They feed raw goods into the empire-wide market for the rest of the game.
@@ -145,7 +153,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | Layer | Currency | Buys | Reset by |
 |---|---|---|---|
 | Town | the shared purse (one for the empire) | buildings, towers, town research (6 to 8 items per town), foremen | that town's charter, which pays deeds |
-| Empire | Influence, plus treasury coins (a 10% tithe on every town, set by law) | founding each institution once with coins; its levels are nodes in one Empire tree; laws in pairs, locked until the Convention | the Convention, which pays Legacy |
+| Empire | Influence, plus coins from the one purse (the treasury and its tithe were dropped with the purse, 2026-11-18) | founding each institution once with coins; its levels are nodes in one Empire tree; laws in pairs, locked until the Convention | the Convention, which pays Legacy |
 | Perks | deeds and Legacy | deed perks and Legacy perks, on one Perks screen | never |
 
 ### Town research
@@ -248,7 +256,7 @@ One panel, with three switches per town and one spend share per town. The share 
 | Iron Ridge wave 10 (the armored train) | 7-10 min after getting there, no breach in waves 1-3 (waves 66 s apart, and a called wave grows faster than in the Gulch, since the shared purse arms it at once) |
 | Boiler Shop | built in the Ridge's first hour, running on Gulch bricks at least 90% of the time |
 | Locomotive Works | built within 90 min of getting to the Ridge (the bots 40-54 min), running on Gulch tools at least 90% of the time (the goal strip leads there, and sends the player to the Gulch for a Toolsmith) |
-| Capital | 2.5-4 h |
+| Capital | 2.5-4 h of play (active bot, every seed) |
 | Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |
 | Thunder Mesa | 20-30 h |
 | Radium Springs | 50-80 h |

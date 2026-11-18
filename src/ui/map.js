@@ -8,6 +8,9 @@ import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive } from './format.js';
 import { lostLine, lostToast } from './lost.js';
+import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
+import { CAPITAL_DEF } from '../data/capital.js';
+import { capitalPanel, contractDone } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -20,7 +23,7 @@ const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
 
 /* A rule a town not open yet has, in words; the badge gets the short form. */
 function ruleText(game, r, short = false) {
-  if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
+  if (r.kind === 'wave') return (short ? 'Needs wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
   if (r.kind === 'with') return short ? 'Opens with ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
@@ -31,6 +34,7 @@ function ruleText(game, r, short = false) {
 export function mountMap(root, game, view, shell) {
   // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
   const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false), 6000); });
+  const offDone = game.bus.on('contract:done', e => { if (!game.catching && shell.toast) shell.toast(contractDone(e), 5000); });
   const ui = el('section', 'play mapui'); ui.id = 'map-ui';
   const hud = el('header', 'hud');
   const title = el('div', 'townname', 'Map');
@@ -66,7 +70,7 @@ export function mountMap(root, game, view, shell) {
     badge[s.id].line.append(badge[s.id].wave, vault);
   }
 
-  let openId = null, cardAcc = 0, acc = 1, lastTap = { id: null, t: 0 };
+  let openId = null, cardAcc = 0, acc = 1, lastTap = { id: null, t: 0 }, cap = null;
   function openSite(id) {
     if (!id) { close(); return; }
     const now = performance.now();
@@ -76,12 +80,14 @@ export function mountMap(root, game, view, shell) {
     openId = id; card.hidden = false; card.dataset.site = id; paintCard();
     view.select(id === 'income' ? null : id); acc = 1;
   }
-  function close() { view.select(null); openId = null; card.hidden = true; card.replaceChildren(); delete card.dataset.site; delete card.dataset.sig; }
+  function close() { view.select(null); openId = null; cap = null; card.hidden = true; card.replaceChildren(); delete card.dataset.site; delete card.dataset.sig; }
   const head = (text, sub) => { const h = el('div', 'cardhead'), x = el('button', 'btn small', 'Close'); x.id = 'mapClose'; x.addEventListener('click', close); h.append(el('h2', '', text)); if (sub) h.append(el('span', 'lv', sub)); h.append(x); return h; };
   const stat = (label, value, cls = '') => { const r = el('div', 'stat static ' + cls); r.append(el('span', '', label), el('b', '', value)); return r; };
   function paintCard() {
     const id = openId;
     if (!id) return;
+    if (id === 'capital' && capitalOpen(game)) { paintCapital(); return; }
+    cap = null;
     const kids = [];
     if (id === 'income') {
       kids.push(head('Income'));
@@ -117,25 +123,37 @@ export function mountMap(root, game, view, shell) {
       row.append(go); kids.push(row);
     } else {
       const lr = lockedRules(game, id);
-      kids.push(head(nameOf(id), lr.ready ? 'Ready to start' : 'Not open yet'));
-      if (id !== 'capital' && TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
+      kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
+      if (id === 'capital') kids.push(el('p', 'uses', 'It asks your towns for goods. It pays coins and Influence for them. Save your Influence. It will buy upgrades for all your towns in a later update.'));
+      else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'wave' || r.kind === 'coins') {
-          const from = game.towns[(TOWNS[id].found || {}).from];
-          const have = r.kind === 'coins' ? fmt(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Best ' + (from ? from.bestWave || 0 : 0);
+          const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
+          const have = r.kind === 'coins' ? fmt(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Best wave ' + (from ? from.bestWave || 0 : 0);
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : have, r.done ? 'done' : 'short'));
         } else kids.push(el('p', 'uses', ruleText(game, r)));
       }
       if (lr.ready) {
-        const row = el('div', 'row'), go = el('button', 'btn primary buy', 'Start ' + TOWNS[id].name); go.id = 'mapFound';
-        go.addEventListener('click', () => { if (foundTown(game, id)) { shell.toast(TOWNS[id].name + ' is open.'); shell.play(id); } });
+        const row = el('div', 'row'), go = el('button', 'btn primary buy', id === 'capital' ? 'Build the Capital' : 'Start ' + TOWNS[id].name); go.id = 'mapFound';
+        go.addEventListener('click', () => {
+          if (id === 'capital') { if (foundCapital(game)) { shell.toast('The Capital is built.'); paintCard(); } return; }
+          if (foundTown(game, id)) { shell.toast(TOWNS[id].name + ' is open.'); shell.play(id); }
+        });
         row.append(go); kids.push(row);
       }
     }
     // only rebuild when something on it changed, so a tap on its button is never lost to a repaint
     const sig = kids.map(k => k.textContent).join('|');
     if (sig !== card.dataset.sig) { card.dataset.sig = sig; card.replaceChildren(...kids); }
+  }
+  // the Capital's card: built once for each set of contracts, then only its words and bars change (src/ui/capital.js)
+  function paintCapital() {
+    if (!cap || card.dataset.sig !== 'capital|' + cap.sig()) {
+      cap = capitalPanel(game, { changed: () => { cap = null; paintCard(); } });
+      card.dataset.sig = 'capital|' + cap.sig(); card.replaceChildren(head(CAPITAL_DEF.name), cap.el);
+    }
+    cap.paint();
   }
   coins.addEventListener('click', () => openSite('income'));
   coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openSite('income'); });
@@ -144,7 +162,7 @@ export function mountMap(root, game, view, shell) {
     for (const s of view.sites) {
       const B = badge[s.id], info = siteInfo(game, s.id, shell.meter);
       B.b.classList.toggle('on', !!(info && info.inPlay));
-      B.b.classList.toggle('locked', !info);
+      B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)));
       if (info) {
         setText(B.wave, info.won ? 'Won' : 'Wave ' + info.wave);
         B.vault.hidden = false;
@@ -152,9 +170,14 @@ export function mountMap(root, game, view, shell) {
         B.fill.classList.toggle('low', info.alert === 'vault');
         setText(B.extra, info.alert === 'lost' ? 'On hold' : rate(info.income));
         B.b.classList.toggle('dot', !!info.alert);
+      } else if (s.id === 'capital' && capitalOpen(game)) {
+        const c = capitalOf(game), a = c.active;
+        setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '%' : 'Take a contract');
+        B.vault.hidden = true; setText(B.extra, c.influence + ' Influence');
+        B.b.classList.toggle('dot', !a);
       } else {
         const lr = lockedRules(game, s.id), next = lr.rules.find(r => !r.done) || lr.rules[0];
-        setText(B.wave, lr.ready ? 'Ready to start' : next ? ruleText(game, next, true) : 'Not open yet');
+        setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : next ? ruleText(game, next, true) : 'Not open yet');
         B.vault.hidden = true; setText(B.extra, '');
         B.b.classList.toggle('dot', lr.ready);
       }
@@ -188,6 +211,6 @@ export function mountMap(root, game, view, shell) {
       }
       if (openId && (cardAcc += dt) > .5) { cardAcc = 0; paintCard(); }
     },
-    destroy() { offLost(); ui.remove(); },
+    destroy() { offLost(); offDone(); ui.remove(); },
   };
 }

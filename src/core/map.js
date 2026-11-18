@@ -12,13 +12,18 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { isOutpost } from './economy.js';
 import { canFound, nextTowns } from './empire.js';
+import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
+import { CAPITAL_DEF } from '../data/capital.js';
 
 /* The map is open once a second town is, or a town to start is in sight (its Start card lives on the map). */
 export const mapOpen = game => Object.keys(game.towns).length > 1 || nextTowns(game).length > 0;
+/* Something on the map wants the player: a town ready to start, the Capital ready to build, or the Capital open with no
+   contract running. */
+export const mapCalls = game => nextTowns(game).some(n => n.ready) || canFoundCapital(game) || (capitalOpen(game) && !game.shared.capital.active);
 
 /* [{ id, at: [x, z], open, outpost, capital }] in the order towns open, the Capital's site first. */
 export function mapSites(game) {
-  const out = [{ id: 'capital', at: CAPITAL, open: false, outpost: false, capital: true }];
+  const out = [{ id: 'capital', at: CAPITAL, open: capitalOpen(game), outpost: false, capital: true }];
   for (const id of TOWN_ORDER) {
     if (!SITES[id]) continue;
     out.push({ id, at: SITES[id], open: !!game.towns[id], outpost: TOWNS[id].kind === 'outpost', capital: false });
@@ -34,9 +39,15 @@ export function makesOf(id) {
 
 /* What a town that is not open yet takes: [{ kind: 'wave', town, wave, done } | { kind: 'coins', coins, done } |
    { kind: 'with', town } (it opens with that town) | { kind: 'win', town } (winning that outpost opens it) |
-   { kind: 'later' } (the Capital)], and ready: it can be founded now. */
+   { kind: 'later' }], and ready: it can be founded now. The Capital lists Iron Ridge's wave and the coins. */
 export function lockedRules(game, id) {
-  if (id === 'capital') return { rules: [{ kind: 'later' }], ready: false };
+  if (id === 'capital') {
+    const f = CAPITAL_DEF.found, from = game.towns[f.from];
+    return {
+      rules: [{ kind: 'wave', town: f.from, wave: f.wave, done: !!from && (from.bestWave || 0) >= f.wave }, { kind: 'coins', coins: f.coins, done: !!from && from.coins + 1e-9 >= f.coins }],
+      ready: canFoundCapital(game), seen: !!capitalNext(game),
+    };
+  }
   const d = TOWNS[id], f = d.found;
   if (f) {
     const from = game.towns[f.from];

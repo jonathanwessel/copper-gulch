@@ -142,10 +142,12 @@ export function ship(game, from, dt) {
 }
 
 /* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer
-   and what the town keeps for its next tower (town.keep, set by the defense). Imported goods are never sold. An outpost
+   and what the town keeps for its next tower (town.keep, set by the defense), after routes and the Capital's contract
+   have taken theirs. Imported goods are never sold. An outpost
    out of play first feeds the towns and sells the rest. */
 export function sellSurplus(game, town, dt) {
   ship(game, town, dt);
+  for (const s of game.systems) if (s.claim) s.claim(game, town); // the Capital's running contract takes its goods next (src/core/capital.js)
   const need = demand(town), keep = town.keep || {}, extra = {}, imports = (town.def && town.def.imports) || [];
   for (const g of Object.keys(town.goods)) {
     if (town.sell[g] === false || imports.includes(g)) continue;

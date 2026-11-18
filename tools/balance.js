@@ -30,6 +30,8 @@ import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
 import { TOWNS } from '../src/data/towns/index.js';
 import { canFound, foundTown } from '../src/core/empire.js';
+import { canFoundCapital, foundCapital, capitalOf, takeContract } from '../src/core/capital.js';
+import { CAPITAL_DEF } from '../src/data/capital.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
@@ -368,7 +370,11 @@ export function campaign(seed, strategy = 'active', minutes = MINUTES) {
    Times: found is play time from the new game; Pine Hollow's and the Ridge's times count from when the player gets
    there. Returns { dc, gulch, found, ph, ridge, game, goals, imports }. */
 export const SAVE_MINUTES = 6, GULCH_MINUTES = 100, RIDGE_MINUTES = 90;
-export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES } = {}) {
+// M4, the Capital: after the Ridge's RIDGE_MINUTES the player plays on in the Ridge and, once its best wave reaches the
+// Capital's mark and the price is no more than CAP_SAVE_MINUTES of what every town earns, saves for it the same way
+// (at most CAP_MINUTES). Then it plays CAP_PLAY minutes more, always working on the contract that pays the most Influence.
+export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 30;
+export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
   const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
   const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null };
@@ -405,8 +411,24 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
     }
     if (Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
   } });
-  offB(); off();
+  offB();
   out.ridge.w10 = out.ridge.wave10 === null ? null : out.ridge.wave10 - out.ridgeFrom;
+  if (capital) {
+    const F = CAPITAL_DEF.found, cs = (t, r) => !!r.savingNow || (t.bestWave >= F.wave && F.coins <= CAP_SAVE_MINUTES * (r.all || 0));
+    // with one purse, a foreman in any town spends the savings: while it saves, every town's foremen are switched off
+    const others = Object.values(g.towns).filter(x => x !== rt);
+    const hush = (g2, t, r) => { for (const x of others) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, !r.savingNow); };
+    out.capSave = play(seed, CAP_MINUTES, strategy, null, { game: g, sign: false, goals: true, save: cs, tick: hush, until: () => canFoundCapital(g) });
+    if (foundCapital(g)) {
+      out.capital = now(); out.capHeld = out.capSave.saving === undefined ? 0 : out.capSave.until - out.capSave.saving;
+      setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
+      const c = capitalOf(g), took = {};
+      const pick = () => { if (!c.active && c.offers.length) { const o = c.offers.slice().sort((a, b) => b.influence - a.influence || b.coins - a.coins)[0]; if (takeContract(g, o.id)) took[o.good] = (took[o.good] || 0) + 1; } };
+      play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, tick: pick });
+      out.contracts = { filled: c.filled, influence: c.earned, took };
+    }
+  }
+  off();
   return out;
 }
 /* A careful player raises the Gulch's makers when the Ridge runs short of what they ship: for each import a Ridge
@@ -499,6 +521,18 @@ export function empireCheck(runs) {
 /* The strategy check (CLAUDE.md, Strategies must stay close): every strategy over the seeds, the median time to
    clear waves 10 and 20, and a miss when a strategy is more than 25% slower than the best one or breaches in waves
    1-3. Returns { rows, misses }. */
+/* The Capital (M4): every active seed builds it at CAP_AT minutes of play (2.5-4 h), and fills contracts after. */
+export const CAP_AT = [150, 240];
+export function capitalCheck(runs) {
+  const misses = [];
+  for (const e of runs) {
+    if (e.capital == null) { misses.push('seed ' + e.dc.seed + ': the Capital was never built'); continue; }
+    if (e.capital < CAP_AT[0] * 60 || e.capital > CAP_AT[1] * 60) misses.push('seed ' + e.dc.seed + ': the Capital built at ' + (e.capital / 60).toFixed(0) + ' min (want ' + CAP_AT.join('-') + ')');
+    if (!e.contracts || e.contracts.filled < 1) misses.push('seed ' + e.dc.seed + ': no contract filled in ' + CAP_PLAY + ' min');
+  }
+  return misses;
+}
+
 export const STRATEGY_MINUTES = 40, STRATEGY_SLACK = 1.25;
 export function strategies(seeds = SEEDS) {
   const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
@@ -588,7 +622,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...gc.misses);
   const emp = [];
-  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k); e.strategy = k; emp.push(e); }
+  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active' }); e.strategy = k; emp.push(e); }
   const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true);
   for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...lg.misses);
@@ -598,6 +632,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     const ph = e.game.towns.pinehollow, rt = e.game.towns.ridge, im = e.imports;
     console.log(`${e.dc.seed} | ${e.gulch && e.gulch.signed ? mm(e.gulch.signed.at + e.dc.won) : 'no'} | ${mm(e.found)} | ${mm(e.held)} | ${mm(e.ph && e.ph.won)}, ${e.ph ? e.ph.breaches.join(',') || 'none' : '-'}, ${ph ? ph.towers.map(x => x.kind + x.level).join(' ') : '-'} | ${mm(e.ridge && e.ridge.w10)}, ${e.ridge ? e.ridge.breaches.join(',') || 'none' : '-'} | ${rt ? rt.wave : '-'} | ${im ? mm(im.at.boilershop) + ', ' + (im.built.boilershop ? Math.round(100 * im.run.boilershop / im.built.boilershop) + '% (short of its own goods ' + Math.round(100 * (im.short.boilershop || 0) / im.built.boilershop) + '%)' : '-') : '-'} | ${im ? mm(im.at.loco) + ', ' + (im.built.loco ? Math.round(100 * im.run.loco / im.built.loco) + '%' : '-') : '-'} | ${im ? im.raised.join(', ') || 'none' : '-'}`);
   }
+  console.log('The Capital (active): seed | Ridge best wave when built | built (play time) | waves held to save | contracts filled in ' + CAP_PLAY + ' min | Influence | goods asked');
+  for (const e of actives) console.log(`${e.dc.seed} | ${e.game.towns.ridge ? e.game.towns.ridge.bestWave : '-'} | ${e.capital == null ? 'never' : (e.capital / 3600).toFixed(2) + ' h'} | ${mm(e.capHeld)} | ${e.contracts ? e.contracts.filled : '-'} | ${e.contracts ? e.contracts.influence : '-'} | ${e.contracts ? Object.entries(e.contracts.took).map(([k, n]) => k + ' ' + n).join(', ') : '-'}`);
+  misses.push(...capitalCheck(actives));
   const ec = empireCheck(emp);
   console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);
   for (const x of ec.rows) console.log(`  ${x.strategy} | ${mm(x.found)} | ${mm(x.held)} | ${mm(x.ph)} | ${x.phTowers ?? '-'}, ${x.phLevel == null ? '-' : x.phLevel.toFixed(1)} | ${mm(x.w10)} | ${mm(x.boiler)} | ${x.run == null ? '-' : Math.round(100 * x.run) + '%'}`);

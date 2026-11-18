@@ -11,6 +11,7 @@ import { isOutpost } from '../core/economy.js';
 import { towerIn } from '../core/defense.js';
 import { tabs, dots } from '../core/reveal.js';
 import { nextTowns } from '../core/empire.js';
+import { capitalNext, capitalOpen } from '../core/capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -30,6 +31,7 @@ export function helper(town, game = null) {
     unlocked: id => unlocked(town, id), level: id => town.level(id),
     back: game ? game.back : null, // the place the back button goes to
     next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)
+    capitalSight: !!game && !!capitalNext(game), capitalOpen: !!game && capitalOpen(game), // src/core/capital.js
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
     // a building whose good the town is holding back for towers right now

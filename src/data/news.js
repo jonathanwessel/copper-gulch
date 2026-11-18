@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-5',
+    lines: [
+      'You can build the Capital now. Beat wave 30 in Iron Ridge, then tap Map, then Capital.',
+      'The Capital asks for goods from your towns. Take a contract and the town on it sends the goods by itself.',
+      'A finished contract pays coins and Influence. Save your Influence. It will buy upgrades for all your towns in a later update.',
+    ],
+  },
+  {
     v: '2026.11.18-4',
     lines: [
       'The game has music now. It is calm while you build and speeds up when raiders come. A boss brings its own tune.',

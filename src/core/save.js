@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -96,6 +96,13 @@ export const MIGRATIONS = {
     const g = s.game || {};
     if (g.prev === undefined) g.prev = null;
     return { ...s, v: 13, game: g };
+  },
+  // v14: the Capital (game.shared.capital, src/core/capital.js): not built yet in every old save; the game fills in the
+  // rest of its state (the contract board, its random stream) when it loads
+  13: s => {
+    const g = s.game || {}, sh = g.shared = g.shared || {};
+    if (!sh.capital) sh.capital = { open: false, influence: 0, earned: 0, filled: 0, offers: [], active: null };
+    return { ...s, v: 14, game: g };
   },
 };
 

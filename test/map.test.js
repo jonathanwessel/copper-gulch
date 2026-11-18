@@ -47,7 +47,7 @@ test('a town not open yet lists what it takes, and says when it can be started',
   assert.deepEqual(r.rules.map(x => x.done), [true, true]);
   assert.equal(r.ready, true);
   assert.deepEqual(lockedRules(g, 'pinehollow').rules, [{ kind: 'with', town: 'ridge' }]);
-  assert.deepEqual(lockedRules(g, 'capital').rules, [{ kind: 'later' }]);
+  assert.deepEqual(lockedRules(g, 'capital').rules.map(x => [x.kind, x.done]), [['wave', false], ['coins', false]], 'the Capital lists the Ridge wave and its coins');
   assert.deepEqual(lockedRules(newGame('m3'), 'gulch').rules, [{ kind: 'win', town: 'drycreek' }]);
 });
 

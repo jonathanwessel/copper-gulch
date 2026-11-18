@@ -11,7 +11,7 @@ import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, ca
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
-import { mapOpen } from '../core/map.js';
+import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
@@ -21,6 +21,7 @@ import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
+import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt, fmtLive } from './format.js';
@@ -55,7 +56,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     setText(name, b ? town.def.short || town.def.name : town.def.name); // with a back button beside it, the short name, so all three fit on a phone
     if (b) { const s = TOWNS[b].short || TOWNS[b].name; setText(backBtn, s); if (backBtn.dataset.town !== b) { backBtn.dataset.town = b; backBtn.setAttribute('aria-label', 'Back to ' + s); } backBtn.classList.toggle('dot', needsYou(b)); }
     const show = mapOpen(game); if (mapBtn.hidden !== !show) mapBtn.hidden = !show;
-    mapBtn.classList.toggle('dot', Object.keys(game.towns).some(id => id !== town.id && needsYou(id)) || next.some(n => n.ready));
+    mapBtn.classList.toggle('dot', Object.keys(game.towns).some(id => id !== town.id && needsYou(id)) || mapCalls(game));
   };
   const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
@@ -132,7 +133,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
-  const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id) }));
+  const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
+  const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id), capital: openCapital }));
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
@@ -330,6 +332,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const offs = [
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
+    game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000); }),
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
     game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
     game.bus.on('breach', e => {
@@ -472,7 +475,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, openPlaces, destroy };
+  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openIncome, openVault, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

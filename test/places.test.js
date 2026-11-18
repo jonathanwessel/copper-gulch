@@ -39,10 +39,10 @@ test('the last place is saved, and an old save loads with no back button', () =>
   const back = loadGame(decode(encode(g, 1)).game);
   assert.equal(back.active, 'gulch');
   assert.equal(back.back, 'drycreek');
-  assert.equal(SAVE_VERSION, 13);
+  assert.ok(SAVE_VERSION >= 13);
   const old = JSON.parse(encode(g, 1)); old.v = 12; delete old.game.prev;
   const m = migrate(old);
-  assert.equal(m.v, 13);
+  assert.equal(m.v, SAVE_VERSION);
   assert.equal(m.game.prev, null);
   assert.equal(loadGame(m.game).back, null);
   // a save that names a town it does not have keeps no back button

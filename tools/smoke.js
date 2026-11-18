@@ -747,6 +747,27 @@ async function run() {
         await page.evaluate(() => document.getElementById('mapBack').click());
         if (!await waitFor(page, () => CG.town && CG.town.frames > 5 && CG.game.active === 'ridge' && !CG.map, 6000)) bad.push('Back did not return to Iron Ridge');
       }
+      // the Capital: Map gets a dot once it can be built; its card's Build button pays for it; a contract taken shows on
+      // its badge, and a full one pays Influence and says so
+      await page.evaluate(() => { const r = CG.game.towns.ridge; Object.assign(r.buildings, { rquarry: 12, ironmine: 12, colliery: 12, furnace: 10, steelmill: 8 }); r.bestWave = 30; r.coins = 1e6; });
+      if (!await waitFor(page, () => document.getElementById('mapBtn').classList.contains('dot'), 3000)) bad.push('no dot on Map when the Capital can be built');
+      await page.evaluate(() => document.getElementById('mapBtn').click());
+      if (!await waitFor(page, () => CG.map && CG.map.frames > 5 && CG.mapui, 8000)) bad.push('Map did not open the map for the Capital');
+      else {
+        await page.evaluate(() => CG.mapui.openSite('capital')); await sleep(500);
+        const lock = await page.evaluate(() => ({ build: (document.getElementById('mapFound') || {}).textContent, dot: !!document.querySelector('.mapbadge[data-site="capital"].dot') }));
+        if (lock.build !== 'Build the Capital' || !lock.dot) bad.push('the Capital card before it is built is wrong (' + JSON.stringify(lock) + ')');
+        await page.evaluate(() => document.getElementById('mapFound').click()); await sleep(700);
+        const open = await page.evaluate(() => ({ open: CG.game.shared.capital.open, takes: document.querySelectorAll('#mapCard [data-contract]').length, text: document.getElementById('mapCard').textContent, dio: CG.map.dioramas.includes('capital') }));
+        if (!open.open || open.takes < 1 || !/Influence/.test(open.text) || !open.dio) bad.push('the Capital card after it is built is wrong (' + JSON.stringify({ ...open, text: open.text.slice(0, 120) }) + ')');
+        bad.push(...(await check(page)).map(b => 'capital card: ' + b));
+        await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(700);
+        const run = await page.evaluate(() => ({ active: !!CG.game.shared.capital.active, drop: !!document.getElementById('contractDrop'), badge: document.querySelector('.mapbadge[data-site="capital"]').textContent }));
+        if (!run.active || !run.drop || !/%/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
+        await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
+        if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
+        bad.push(...(await check(page)).map(b => 'capital contract: ' + b));
+      }
       bad.push(...errs);
       console.log('map ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

@@ -134,6 +134,9 @@ const RIDGE = [
   ['map-card', () => { CG.mapui.openSite('ridge'); }],
   ['map-capital', () => { CG.mapui.openSite('capital'); }],
   ['map-lost', () => { CG.mapui.openSite('gulch'); }],
+  // the Capital: ready to build, then its contracts with one running
+  ['capital-ready', () => { const r = CG.game.towns.ridge; r.bestWave = 30; CG.game.town.coins = 4e5; CG.mapui.openSite('capital'); }],
+  ['capital', async () => { document.getElementById('mapFound').click(); await new Promise(r => setTimeout(r, 300)); const c = CG.game.shared.capital; if (c.offers[0]) { document.querySelector('#mapCard [data-contract]').click(); const a = c.active; if (a) a.got = a.need * .4; } }],
   ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
