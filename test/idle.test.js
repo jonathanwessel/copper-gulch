@@ -10,7 +10,8 @@ import { buildTower, setHold } from '../src/core/defense.js';
 import { build } from '../src/core/economy.js';
 import { autoOn } from '../src/core/automation.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
-import { leave, meter, idleCheck, trade } from '../tools/idle.js';
+import { leave, meter, idleCheck, trade, ceiling, BLOCK, TRADE_HOLD } from '../tools/idle.js';
+import { GOODS } from '../src/data/goods.js';
 
 function empire(seed, inst = ['war', 'university']) {
   const g = newGame(seed, 'gulch'), gu = g.town;
@@ -51,10 +52,23 @@ test('the meter files Auto-towers buys with their share of the purse, and stop p
   assert.equal(typeof trade(g), 'number');
 });
 
-test('the idle check: income must rise every hour, and no purchase over half the coins', () => {
-  const run = (incomes, share = .5) => ({ seed: 1, capital: 3 * 3600, hours: incomes.map(i => ({ income: i, trade: i })), top: { kind: 'towers', share, town: 'ridge' } });
-  assert.deepEqual(idleCheck([run([1, 2, 3])]), []);
-  assert.equal(idleCheck([run([1, 3, 2])]).length, 1);
-  assert.equal(idleCheck([run([1, 2, 3], .6)]).length, 1);
-  assert.equal(idleCheck([{ ...run([1, 2]), capital: 5 * 3600 }]).length, 1);
+test('the idle check: the second half and the last 3 hours earn more, sales hold, and no purchase over half the coins', () => {
+  const run = (incomes, share = .5, sales = incomes.map(() => 10), contracts = incomes.map(() => 0)) => ({ seed: 1, capital: 3 * 3600, hours: incomes.map((i, k) => ({ income: i, sales: sales[k], trade: sales[k] + contracts[k] })), top: { kind: 'towers', share, town: 'ridge' } });
+  const up = [4, 3, 4, 3, 3, 4, 5, 3, 5, 5, 6, 5]; // a dip in the second block is fine: 21 then 29, and 11 then 16
+  assert.equal(BLOCK, 3);
+  assert.deepEqual(idleCheck([run(up)]), []);
+  assert.equal(idleCheck([run([4, 4, 4, 3, 3, 3])]).length, 2, 'the second half and the last block earned less');
+  // the careful player's last contract pays 16 in hour 1: counted, hours 1-6 (37) would beat hours 7-12 (29)
+  const big = up.map((x, k) => k ? x : x + 16), paid = up.map((_, k) => k ? 0 : 16);
+  assert.equal(idleCheck([run(big, .5, undefined, paid)]).length, 0, 'a contract left over is not counted');
+  assert.equal(idleCheck([run(big)]).length, 2, 'the same coins from anything else are');
+  assert.equal(idleCheck([run(up, .5, up.map((_, k) => k === 5 ? 10 * TRADE_HOLD - .1 : 10))]).length, 1, 'sales fell');
+  assert.equal(idleCheck([run(up, .6)]).length, 1);
+  assert.equal(idleCheck([{ ...run([1, 2, 3]), capital: 5 * 3600 }]).length, 1);
+});
+
+test('the market ceiling is every good price times depth, with the price bonuses', () => {
+  const g = newGame('i3', 'gulch');
+  const want = Object.values(GOODS).reduce((a, x) => a + x.price * x.depth, 0);
+  assert.ok(Math.abs(ceiling(g) - want) < 1e-9);
 });

@@ -29,6 +29,13 @@ export function price(game, town, good) {
   return GOODS[good].price * saturation(game, good) * eventFactor(game, good) * town.mods.factor('price');
 }
 
+/* What one more unit a second sold right now adds to the coins a second, for a town: selling more also lowers the
+   price of every unit sold, so it is base x saturation squared (the slope of rate x price), with the event and the
+   town's bonuses. A flooded good adds almost nothing (src/core/foremen.js uses it to wait). */
+export function marginal(game, town, good) {
+  return GOODS[good].price * saturation(game, good) ** 2 * eventFactor(game, good) * town.mods.factor('price') * town.mods.factor('income');
+}
+
 /* How much the sales rate rises when n units are sold over a span of `span` seconds (0: at once). Selling s
    units per second in steps of any size settles at rate s. */
 export function rateRise(n, span = 0) {

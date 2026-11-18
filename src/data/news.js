@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-12',
+    lines: [
+      'A foreman now waits when its building makes something that sells for very little. Tap the building to see the reason.',
+      'A foreman still buys the next level when a workshop or your towers need more of what its building makes.',
+      'At the Capital, each new institution costs a little more than before.',
+    ],
+  },
+  {
     v: '2026.11.18-11',
     lines: [
       'A Frost Lens with Deep Freeze cannot keep a raider frozen forever now. After a freeze, a raider walks a few steps before it can freeze again.',

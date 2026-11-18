@@ -16,7 +16,7 @@
 import { newGame } from '../src/core/setup.js';
 import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
-import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
+import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
 import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
@@ -24,7 +24,7 @@ import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
-import { canHire, hireCost, hireForeman, setForeman } from '../src/core/foremen.js';
+import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
 import { deedsFor, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
@@ -97,6 +97,9 @@ export function buildValue(game, town, id) {
   const forTowers = Object.values(TOWERS).some(d => (d.goods[town.id] || {})[b.makes]);
   return ((next - now) * net + (L ? 0 : forTowers ? 2 : 2)) / cost(town, id);
 }
+/* The order a careful player hires foremen in: the buildings highest up the chain first (finished goods, then
+   intermediate, then camps), so the workshops grow and the camps follow only when a workshop is short. */
+export const hireOrder = town => buildingsOf(town).slice().reverse();
 /* Coins plus the goods at their base price. */
 const price = c => c.coins + Object.entries(c.goods).reduce((a, [g, n]) => a + GOODS[g].price * n, 0);
 
@@ -276,8 +279,9 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
       const item = itemsOf(t).filter(id => researchBlock(t, id) === null).sort((a, b) => researchCost(t, a) - researchCost(t, b))[0];
       if (item && (!best || researchCost(t, item) <= cost(t, best)) && startResearch(g, t, item)) { r.research[item] = (r.research[item] || 0) + 1; r.firstResearch ??= t.t; return true; }
     }
-    // a foreman only for a building still worth raising (it pays back within 10 minutes): a flooded good is not
-    const boss = t.bestWave >= 10 && t.def.buildings.find(id => canHire(t, id) && hireCost(t, id) <= t.coins && buildValue(g, t, id) * 600 > 1);
+    // a foreman along the chain, the building highest up it first (PLAN.md M4, Idle income grows), and only for one
+    // whose next level is worth buying now (src/core/foremen.js, foremanWait): a camp flooding the market is not
+    const boss = t.bestWave >= 10 && hireOrder(t).find(id => canHire(t, id) && hireCost(t, id) <= t.coins && !foremanWait(g, t, id));
     if (boss && hireForeman(g, t, boss)) { r.foremen.push(boss + ' ' + (t.t / 60).toFixed(1)); return true; }
     return !!best && t.coins >= cost(t, best) && build(g, t, best);
   };
@@ -440,6 +444,7 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
           tr.nodes.push([id, at()]);
         }
         for (const x of others) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, !r.savingNow);
+        if (!r.savingNow && Math.round(t.t) % 60 === 0) tendTowns(g2, t, out.tended ||= []);
       };
       const ts = (t, r) => { const n = nextInst(); return !!n && foundBlock(g, n) === 'coins' && foundCost(g) <= TREE_SAVE_MINUTES * (r.all || 0); };
       play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, save: ts, tick: pick });
@@ -449,6 +454,28 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
   }
   off();
   return out;
+}
+/* Once the Capital stands, a careful player also looks after the towns it is not playing (PLAN.md M4, Idle income
+   grows): once a minute, in each of them (outposts aside), it buys the one level that pays back fastest, if it pays
+   back within TEND_PAYBACK at today's prices or a workshop is short of its good, and costs at most half the coins on
+   hand; then it hires a foreman along the chain (hireOrder) where the next level is worth buying and the hire costs at
+   most half the coins. Records "town building minute" in `log`. */
+export const TEND_PAYBACK = 1800;
+export function tendTowns(game, here, log = []) {
+  for (const t of Object.values(game.towns)) {
+    if (t === here || isOutpost(t) || !t.def.buildings) continue;
+    const half = () => game.shared.purse.coins * .5;
+    let best = null, bp = Infinity;
+    for (const id of t.def.buildings) {
+      if (!unlocked(t, id) || cost(t, id) > half() || (t.level(id) && t.starved[id])) continue; // short of inputs: a level makes nothing more
+      const gain = nextGain(game, t, id), p = t.level(id) && wanted(game, t, BUILDINGS[id].makes) ? 0 : gain > 0 ? cost(t, id) / gain : Infinity;
+      if (p < bp) { bp = p; best = id; }
+    }
+    if (best && bp <= TEND_PAYBACK && build(game, t, best)) log.push(t.id + ' ' + best + ' ' + (here.t / 60).toFixed(0));
+    const hire = hireOrder(t).find(id => canHire(t, id) && hireCost(t, id) <= half() && !foremanWait(game, t, id));
+    if (hire && hireForeman(game, t, hire)) log.push(t.id + ' foreman ' + hire + ' ' + (here.t / 60).toFixed(0));
+  }
+  return log;
 }
 /* A careful player raises the Gulch's makers when the Ridge runs short of what they ship: for each import a Ridge
    workshop is starved of, one level of the Gulch building that makes it, or of the building that feeds that one when it

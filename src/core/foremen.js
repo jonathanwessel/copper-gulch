@@ -1,14 +1,21 @@
 /* Foremen: a building the player has raised to FOREMAN_LEVEL by hand can get a foreman, hired with coins. A working
    foreman buys that building's next level by itself whenever the level costs no more than SHARE of the coins on hand,
    so the town always keeps the other half for towers and research. Its switch turns it off and on.
+   A foreman also waits on a level that would not pay (PLAN.md M4, Idle income grows): while its own building is short
+   of an input (another level would make nothing more), and while the next level would take longer than PAYBACK to earn
+   its price back at today's prices (a flooded good earns almost nothing more), unless a workshop or the towers are
+   short of its good: then the level is wanted whatever the price (`foremanWait`).
    town.foremen[building] is true (working) or false (hired, switched off); a building missing from it has none.
    Events: 'foreman:hire' { town, id, cost }. Foremen keep working while the game catches up time away. */
 import { BUILDINGS } from '../data/buildings.js';
-import { build, cost, unlocked, buildingsOf } from './economy.js';
+import { build, cost, unlocked, buildingsOf, output, uses, importers, isOutpost } from './economy.js';
+import { marginal, saturation } from './market.js';
 
 export const FOREMAN_LEVEL = 10;   // the level a building must reach by hand first
 export const HIRE = 3;             // a foreman costs this many times the building's next level
 export const SHARE = .5;           // a foreman buys a level when it costs at most this share of the coins on hand
+export const PAYBACK = 3600;       // seconds: a foreman buys a level only if it earns its price back within this time
+export const FLOODED = .5;         // below this share of its base price a good reads as flooded on the card
 
 export const hasForeman = (town, id) => !!town.foremen && id in town.foremen;
 export const foremanOn = (town, id) => !!(town.foremen && town.foremen[id]);
@@ -27,10 +34,50 @@ export function hireForeman(game, town, id) {
 /* Switch a hired foreman on or off. */
 export function setForeman(town, id, on) { if (hasForeman(town, id)) town.foremen[id] = !!on; }
 
-/* Each working foreman buys at most one level per step, the cheapest level first. */
+/* The building of a town that ran short of a good in the last step (it has less than a second of that building's
+   use in the yard), or null. */
+export function shortOf(town, good) {
+  return buildingsOf(town).find(id => town.starved && town.starved[id] && BUILDINGS[id].inputs[good]
+    && (town.goods[good] || 0) < output(town, id) * uses(town, id, good)) || null;
+}
+/* Who is short of a good this town makes: { town, id } for a workshop here, in a town it ships the good to, or (for an
+   outpost) in any town it feeds; { town, id: 'towers' } when its towers keep more of it than the yard holds; or null. */
+export function wanted(game, town, good) {
+  const towns = [town, ...importers(game, town).filter(t => t.def.imports.includes(good))];
+  if (isOutpost(town)) towns.push(...Object.values(game.towns).filter(t => !isOutpost(t) && t !== town));
+  for (const t of towns) { const id = shortOf(t, good); if (id) return { town: t, id }; }
+  if (((town.keep || {})[good] || 0) > (town.goods[good] || 0) + 1e-9) return { town, id: 'towers' };
+  return null;
+}
+/* The coins a second one more level of a building would add at today's prices: the extra units it makes, each worth
+   what one more sold now adds (src/core/market.js, marginal), less the inputs they use at the same measure. */
+export function nextGain(game, town, id) {
+  const b = BUILDINGS[id], L = town.level(id), now = output(town, id);
+  town.buildings[id] = L + 1; const next = output(town, id); town.buildings[id] = L; if (!L) delete town.buildings[id];
+  const net = marginal(game, town, b.makes) - Object.keys(b.inputs).reduce((a, g) => a + uses(town, id, g) * marginal(game, town, g), 0);
+  return (next - now) * net;
+}
+/* Why a foreman waits on its building's next level, or null when the level is worth buying:
+     { why: 'short', good }    the building ran short of this input, so another level would make nothing more
+     { why: 'flooded', good }  its good sells for under FLOODED of its price and nobody is short of it
+     { why: 'slow', good }     the next level would take longer than PAYBACK to earn back its price */
+export function foremanWait(game, town, id) {
+  const b = BUILDINGS[id];
+  if (!town.level(id)) return null;
+  if (town.starved && town.starved[id]) {
+    const g = Object.keys(b.inputs).find(k => (town.goods[k] || 0) < output(town, id) * uses(town, id, k)) || Object.keys(b.inputs)[0];
+    if (g) return { why: 'short', good: g };
+  }
+  if (wanted(game, town, b.makes)) return null;
+  if (nextGain(game, town, id) * PAYBACK >= cost(town, id)) return null;
+  return { why: saturation(game, b.makes) < FLOODED ? 'flooded' : 'slow', good: b.makes };
+}
+
+/* Each working foreman buys at most one level per step, the cheapest level first, when it can pay and the level is
+   worth buying. */
 export function foremenWork(game, town) {
   const ids = buildingsOf(town).filter(id => foremanOn(town, id) && unlocked(town, id)).sort((a, b) => cost(town, a) - cost(town, b));
-  for (const id of ids) if (cost(town, id) <= town.coins * SHARE + 1e-9) build(game, town, id);
+  for (const id of ids) if (cost(town, id) <= town.coins * SHARE + 1e-9 && !foremanWait(game, town, id)) build(game, town, id);
 }
 
 export const foremen = {

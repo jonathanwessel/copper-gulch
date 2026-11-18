@@ -20,7 +20,11 @@ test('every strategy builds its first tower in time and holds waves 1-3', () => 
 test('min-max keeps few towers high, swarm spreads many low', () => {
   const lv = r => r.final.towers.map(s => +s.match(/\d+/)[0]);
   const mm = lv(runs.minmax), sw = lv(runs.swarm);
-  assert.ok(mm.length <= 6, 'min-max has ' + mm.length + ' towers');
+  // its rule: no more than STRATEGIES.minmax.most of a kind and one Cannon (seven on the Gulch's four kinds; it reached
+  // seven once foremen stopped spending on flooded timber, 2026-11-18)
+  const kinds = runs.minmax.final.towers.map(s => s.match(/^[a-z]+/)[0]), count = k => kinds.filter(x => x === k).length;
+  for (const k of new Set(kinds)) assert.ok(count(k) <= (k === 'cannon' ? 1 : STRATEGIES.minmax.most), 'min-max has ' + count(k) + ' ' + k);
+  assert.ok(mm.length <= 7, 'min-max has ' + mm.length + ' towers');
   assert.ok(sw.length > mm.length, 'swarm has no more towers than min-max');
   assert.ok(Math.max(...mm) > Math.max(...sw), 'min-max top level is not above swarm');
   // on the stone pads (a Mortar in a far pit may have just been built)

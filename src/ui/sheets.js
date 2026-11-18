@@ -220,7 +220,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Keep trying the boss', 'If the boss beats this town, its waves start again after a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Keep trying the boss', 'When the boss beats this town, its waves start again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';

@@ -4,8 +4,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
 import { cost } from '../src/core/economy.js';
-import { FOREMAN_LEVEL, HIRE, SHARE, canHire, hireCost, hireForeman, setForeman, hasForeman, foremanOn } from '../src/core/foremen.js';
+import { FOREMAN_LEVEL, HIRE, SHARE, PAYBACK, canHire, hireCost, hireForeman, setForeman, hasForeman, foremanOn, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
+import { marginal, saturation } from '../src/core/market.js';
 import { encode, decode } from '../src/core/save.js';
+import { foremenWork as foremenStep } from '../src/core/foremen.js';
 
 /* A town with waves held, the camp at level `L`, and no sales (so the coins only change by spending). */
 function town(L = FOREMAN_LEVEL, seed = 'f') {
@@ -72,4 +74,48 @@ test('foremen keep working while the game catches up time away, and survive a sa
   assert.deepEqual(b.foremen, { camp: true });
   setForeman(t, 'camp', false);
   assert.deepEqual(loadGame(decode(encode(g, 0)).game).town.foremen, { camp: false });
+});
+
+// A foreman waits on a level that would not pay (PLAN.md M4, Idle income grows): a flooded good nobody is short of, a
+// level that takes over an hour to earn back, or its own building short of an input.
+test('marginal: what one more unit a second sold adds, base x saturation squared', () => {
+  const { g, t } = town(FOREMAN_LEVEL, 'w0');
+  assert.ok(Math.abs(marginal(g, t, 'timber') - 1) < 1e-9, 'an empty market pays the base price');
+  g.shared.market.rate.timber = 4; // the depth: the price is halved, one more unit adds a quarter
+  assert.ok(Math.abs(saturation(g, 'timber') - .5) < 1e-9);
+  assert.ok(Math.abs(marginal(g, t, 'timber') - .25) < 1e-9);
+});
+
+test('a foreman waits on a flooded good nobody is short of, and buys it again once a workshop runs short', () => {
+  const { g, t } = town(40, 'w1');
+  delete t.sell.timber; t.coins = 1e12; hireForeman(g, t, 'camp'); t.keep = {}; // the towers keep nothing back
+  g.shared.market.rate.timber = 5000; // timber floods the market
+  const w = foremanWait(g, t, 'camp');
+  assert.deepEqual(w, { why: 'flooded', good: 'timber' });
+  assert.ok(nextGain(g, t, 'camp') * PAYBACK < cost(t, 'camp'));
+  const L = t.level('camp');
+  t.goods = {}; g.shared.market.rate.timber = 5000; foremenStep(g, t);
+  assert.equal(t.level('camp'), L, 'it waits');
+  // the Sawmill runs short of timber: the camp's next level is wanted whatever timber sells for
+  t.buildings.saw = 30; t.starved = { saw: true }; t.goods.timber = 0;
+  assert.deepEqual(wanted(g, t, 'timber'), { town: t, id: 'saw' });
+  assert.equal(foremanWait(g, t, 'camp'), null);
+});
+
+test('a foreman waits while its own building is short of an input, and on a level too slow to pay back', () => {
+  const { g, t } = town(FOREMAN_LEVEL, 'w2');
+  t.buildings.saw = 20; t.starved = { saw: true }; t.goods.timber = 0; t.coins = 1e12; t.keep = {};
+  assert.deepEqual(foremanWait(g, t, 'saw'), { why: 'short', good: 'timber' });
+  t.starved = {}; t.goods.timber = 1e6; t.buildings.saw = 120; // a level priced far past what it adds in an hour
+  assert.ok(nextGain(g, t, 'saw') > 0);
+  assert.deepEqual(foremanWait(g, t, 'saw'), { why: 'slow', good: 'planks' });
+  t.buildings.saw = 5;
+  assert.equal(foremanWait(g, t, 'saw'), null, 'a cheap level of a good that sells well is bought');
+});
+
+test('the tower reserve counts as being short: the towers keep more than the yard holds', () => {
+  const { g, t } = town(40, 'w3');
+  g.shared.market.rate.timber = 5000; t.goods.timber = 2; t.keep = { timber: 10 };
+  assert.deepEqual(wanted(g, t, 'timber'), { town: t, id: 'towers' });
+  assert.equal(foremanWait(g, t, 'camp'), null);
 });

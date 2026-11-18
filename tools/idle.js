@@ -10,8 +10,17 @@
 // It reports income by the hour (coins earned by every town, the way the map's coins a second counts them), the waves
 // each town reached, what each switch bought (levels, coins), the boss tries, and the most any one purchase took from
 // the purse (the share of the coins on hand it spent; `meter`).
-// Target (PLAN.md M4): over the 12 idle hours income rises every hour, no purchase by Automation or a foreman takes
-// more than half the coins on hand (AUTO.share, SHARE), and the Capital opens at 2.5-4 h of play.
+// Target (PLAN.md M4, decided 2026-11-18 in "Idle income grows"): over the 12 idle hours the empire earns more in the
+// second half than in the first, and more in the last BLOCK hours than in the first (counting every coin but contracts,
+// which stop once nobody takes them: the first hour still finishes the last one the careful player took), sales hold
+// (every hour at least TRADE_HOLD of the first idle hour's),
+// no purchase by Automation or a foreman takes more than half the coins on hand (AUTO.share, SHARE), and the Capital
+// opens at 2.5-4 h of play. Why not sales rising every hour: by the Capital every good the towns make sells far past
+// its market's depth, so sales sit at the market's ceiling (the sum of price x depth over every good, with the price
+// bonuses; `ceiling`), 85-87% of it on every seed (the rest is goods the workshops use up, like bricks, or do not make yet, like wagons). A player who adds no new goods cannot raise it much; growing past it
+// is what the next town is for. What an idle empire grows is its waves (bounties, with Auto-towers) and its research.
+// Why halves and not every 3-hour block: a town at its wall breaks in and drops back every few minutes, so its bounties
+// swing by up to 2M coins an hour; seed 6 earned 11.2M, 9.4M, 9.8M and 14.7M in its four blocks.
 // Prints a table per seed and "ok" or the misses.
 import { empire, CAP_AT } from './balance.js';
 import { STEP } from '../src/core/clock.js';
@@ -19,9 +28,20 @@ import { KINDS, autoOpen, setAuto, setForemen, lostBoss } from '../src/core/auto
 import { setHold, bossWave } from '../src/core/defense.js';
 import { AUTO } from '../src/data/automation.js';
 import { SHARE } from '../src/core/foremen.js';
+import { GOODS } from '../src/data/goods.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 export const HOURS = 12;
+export const BLOCK = 3;         // hours: the last block must earn more than the first
+export const TRADE_HOLD = .95;  // every idle hour's sales and contracts reach at least this share of the first hour's
+
+/* The most the market can pay a second for sales: every good's price times its depth (src/core/market.js: selling r a
+   second pays price x r / (1 + r / depth), which never passes price x depth), with the price bonuses of the town that
+   makes it (the town in play for a good no open town makes). */
+export const ceiling = game => Object.entries(GOODS).reduce((a, [, x]) => {
+  const t = game.towns[x.town] || game.town;
+  return a + x.price * x.depth * t.mods.factor('price') * t.mods.factor('income');
+}, 0);
 
 /* The idle player sets the switches once: every open one on in every town, every foreman working, and Resume waves
    where a town holds (a town that lost its boss is left to Keep trying the boss). Returns the switches it turned on. */
@@ -75,7 +95,7 @@ export function meter(game) {
 }
 
 /* Coins every town earned from the market and contracts (what buildings make), leaving out bounties and Call now. */
-export const trade = game => Object.values(game.towns).reduce((n, t) => n + Object.entries(t.tally).reduce((a, [k, v]) => a + (k.startsWith('sale:') || k === 'contract' ? v : 0), 0), 0);
+export const trade = (game, contracts = true) => Object.values(game.towns).reduce((n, t) => n + Object.entries(t.tally).reduce((a, [k, v]) => a + (k.startsWith('sale:') || (contracts && k === 'contract') ? v : 0), 0), 0);
 
 /* One seed: the careful player to the Capital and on, then `hours` of the game left alone. */
 export function idle(seed, hours = HOURS) {
@@ -88,14 +108,15 @@ export function idle(seed, hours = HOURS) {
   g.bus.on('breach', x => { if (x.why === 'boss') out.retry.lost++; });
   g.bus.on('wave:clear', x => { const t = g.towns[x.town]; if (t && !t.won && bossWave(t, x.wave)) out.retry.beaten++; });
   for (let h = 0; h < hours; h++) {
-    const before = g.earned, sold = trade(g);
+    const before = g.earned, sold = trade(g), sales = trade(g, false);
     for (let i = 0; i < 3600 / STEP; i++) g.step(STEP);
     out.hours.push({
-      income: g.earned - before, trade: trade(g) - sold, coins: g.shared.purse.coins,
+      income: g.earned - before, trade: trade(g) - sold, sales: trade(g, false) - sales, coins: g.shared.purse.coins,
       waves: Object.fromEntries(Object.values(g.towns).map(t => [t.id, t.won ? 'won' : t.bestWave + (t.waves && t.waves.hold ? ' held' : '')])),
     });
   }
   m.stop();
+  out.fill = out.hours.length ? out.hours[out.hours.length - 1].sales / 3600 / ceiling(g) : null;
   out.buys = m.buys; out.top = m.top;
   out.levels = Object.fromEntries(Object.values(g.towns).map(t => [t.id, Object.values(t.buildings).reduce((a, b) => a + b, 0)]));
   return out;
@@ -107,7 +128,11 @@ export function idleCheck(runs, cap = Math.min(AUTO.share, SHARE)) {
   for (const r of runs) {
     if (r.capital == null) { misses.push(`seed ${r.seed}: the Capital was never built`); continue; }
     if (r.capital < CAP_AT[0] * 60 || r.capital > CAP_AT[1] * 60) misses.push(`seed ${r.seed}: the Capital built at ${(r.capital / 3600).toFixed(2)} h (want ${CAP_AT.map(x => x / 60).join('-')} h)`);
-    for (let h = 1; h < r.hours.length; h++) if (!(r.hours[h].income > r.hours[h - 1].income)) misses.push(`seed ${r.seed}: idle hour ${h + 1} earned ${fmtK(r.hours[h].income)}, not more than hour ${h} (${fmtK(r.hours[h - 1].income)})`);
+    const n = r.hours.length, sum = (a, b) => r.hours.slice(a, b).reduce((s, x) => s + x.income - (x.trade - (x.sales ?? x.trade)), 0), half = Math.floor(n / 2);
+    if (n >= 2 && !(sum(half, n) > sum(0, half))) misses.push(`seed ${r.seed}: idle hours ${half + 1}-${n} earned ${fmtK(sum(half, n))}, not more than hours 1-${half} (${fmtK(sum(0, half))})`);
+    if (n >= 2 * BLOCK && !(sum(n - BLOCK, n) > sum(0, BLOCK))) misses.push(`seed ${r.seed}: the last ${BLOCK} idle hours earned ${fmtK(sum(n - BLOCK, n))}, not more than the first ${BLOCK} (${fmtK(sum(0, BLOCK))})`);
+    const sold = x => x.sales ?? x.trade;
+    for (let h = 1; h < r.hours.length; h++) if (sold(r.hours[h]) < TRADE_HOLD * sold(r.hours[0])) misses.push(`seed ${r.seed}: idle hour ${h + 1} sold ${fmtK(sold(r.hours[h]))}, under ${Math.round(100 * TRADE_HOLD)}% of hour 1 (${fmtK(sold(r.hours[0]))})`);
     if (r.top && r.top.share > cap + 1e-9) misses.push(`seed ${r.seed}: ${r.top.kind} spent ${Math.round(100 * r.top.share)}% of the coins on hand in ${r.top.town} (cap ${Math.round(100 * cap)}%)`);
   }
   return misses;
@@ -119,9 +144,10 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/idle.
   for (let s = 1; s <= SEEDS; s++) {
     const r = idle(s, H); runs.push(r);
     console.log(`seed ${s}: Capital at ${r.capital == null ? 'never' : (r.capital / 3600).toFixed(2) + ' h'}, left alone at ${(r.start / 3600).toFixed(2)} h with ${r.on.join(', ') || 'no switch'} on`);
-    console.log('  hour | income | coins | best wave by town');
-    r.hours.forEach((x, i) => console.log(`  ${i + 1} | ${fmtK(x.income)} | ${fmtK(x.coins)} | ${Object.entries(x.waves).map(([k, v]) => k + ' ' + v).join(', ')}`));
+    console.log('  hour | income | sales | contracts | coins | best wave by town');
+    r.hours.forEach((x, i) => console.log(`  ${i + 1} | ${fmtK(x.income)} | ${fmtK(x.sales)} | ${fmtK(x.trade - x.sales)} | ${fmtK(x.coins)} | ${Object.entries(x.waves).map(([k, v]) => k + ' ' + v).join(', ')}`));
     if (r.buys) console.log('  bought: ' + ['foremen', 'towers', 'research', 'other', 'loss'].filter(k => r.buys[k]).map(k => `${k} ${r.buys[k].n} for ${fmtK(r.buys[k].coins)} (most ${Math.round(100 * r.buys[k].top)}% of the coins)`).join(' | '));
+    if (r.fill != null) console.log(`  sales in the last hour: ${Math.round(100 * r.fill)}% of the market's ceiling`);
     console.log(`  boss: ${r.retry.lost} lost, ${r.retry.tries} tries again, ${r.retry.beaten} beaten | most one purchase took: ${r.top ? Math.round(100 * r.top.share) + '% (' + r.top.kind + ' in ' + r.top.town + ', ' + fmtK(r.top.coins) + ')' : 'nothing bought'}`);
   }
   const misses = idleCheck(runs);

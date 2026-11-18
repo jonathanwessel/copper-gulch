@@ -33,7 +33,7 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "sign 1 or
 - **Influence** is the Capital's own currency, shown on its card and its map badge. It buys upgrades in the Empire tree. Map carries a dot while the Capital has no contract running, and while an institution can be founded or an upgrade bought.
 
 ## Institutions and the Empire tree (M4, shipped 2026-11-18)
-- **Founding.** The Capital's card has two tabs, Contracts and Institutions. Each institution is founded once with coins from the purse: the first costs 50K, and each one founded makes the next cost 1.5 times more, whichever it is (50K, 75K, 113K, 169K, 253K), so the order is the player's choice (`src/data/institutions.js`, `src/core/tree.js`). The Stock Exchange waits for M6.
+- **Founding.** The Capital's card has two tabs, Contracts and Institutions. Each institution is founded once with coins from the purse: the first costs 50K, and each one founded makes the next cost 1.6 times more, whichever it is (50K, 80K, 128K, 205K, 328K; 1.5 times until 2026-11-18, when foremen stopped wasting coins and the fastest seed bought an upgrade every 9.2 minutes), so the order is the player's choice (`src/data/institutions.js`, `src/core/tree.js`). The Stock Exchange waits for M6.
 - **Branches.** Each institution is one branch of the Empire tree: 5 upgrades bought in order with Influence, 8, 15, 25, 40 and 60 (148 a branch). Every upgrade is a named source on every town's stats (the institution's name, so tapping a number shows "Bank"), inside the stat's published cap. The tree is empire-wide: a charter keeps it, a town opened later gets it at once, and only the Convention (M7) will reset it.
 
 | Institution | What its upgrades do |
@@ -192,6 +192,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 ### Foremen
 - A building you have raised to level 10 by hand can hire a foreman, for 3 times its next level's price.
 - A working foreman buys that building's next level whenever it costs half the coins on hand or less, so the other half stays for towers and research. A switch on the building card turns it off.
+- A foreman waits on a level that would not pay (set 2026-11-18, `foremanWait` in `src/core/foremen.js`): while its building is short of an input ("The foreman is waiting for more clay."), and while the next level would take over an hour to earn back its price at today's prices ("The foreman is waiting. Timber sells for very little now. No workshop needs more timber.", or "...The next level would take over an hour to earn back its price."). One more unit sold counts at base price times saturation squared (`marginal` in `src/core/market.js`), since selling more also lowers the price of the rest. A level is always wanted, whatever it pays, when a workshop in the town, in a town it ships the good to, or (for an outpost) in any town is short of the good, or when the towers keep more of it than the yard holds. The idle bot found foremen on camps whose timber and stone sold at 1,000 a second spending millions on levels that earned nothing.
 - Foremen keep working while you are away. The Automation panel (M4) grows Auto-build out of them.
 
 ### Charters and deeds
@@ -229,6 +230,7 @@ One sheet per town, opened with the Auto button on the play screen (`src/core/au
 - **Auto-research**: opens with the University. When the lab is idle it starts the cheapest next level of an item the player has researched at least once.
 - The switches belong to the empire (`game.shared.auto`, save v16): a charter keeps them. They keep working out of play and while time away is caught up.
 - **Before the Capital**, research is always a manual choice, which teaches it.
+- **What an idle empire grows** (decision 2026-11-18, `tools/idle.js`): by the Capital every good sells far past its market's depth, so sales sit near the market's ceiling (the sum of price times depth over every good, with the price bonuses): 85-87% of it on every seed, the rest being goods the workshops use up (bricks) or do not make yet (wagons). A player who adds no new goods cannot raise that much; growing past it is what the next town is for. What Automation grows while the player is away is the waves (Auto-towers, and bounties with them) and research. So the idle target is: total income rises from each 3-hour block to the next over 12 hours, sales and contracts hold (every hour at least 95% of the first), no purchase takes more than half the coins on hand, and the Capital opens at 2.5-4 h. A careful player also tends the towns it is not playing once the Capital stands (`tendTowns` in `tools/balance.js`): one level a minute in each that pays back within 30 minutes, and a foreman along the chain, highest building first.
 
 ## Empire map
 - Zoom out from any town, or use the Empire tab, to see the Capital in the center with town dioramas around it.

@@ -162,7 +162,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Keep \d+ for towers · On/.test(document.getElementById('card').textContent);
+        out.says = /Keep \d+ [a-z ]+ for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -267,6 +267,10 @@ async function run() {
         document.getElementById('foremanSwitch').click(); await wait(50);
         const L = t.level('camp'); await wait(500);
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
+        // working again on a flooded good nobody is short of: the card says it waits
+        document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
+        out.waits = /The foreman is waiting. Timber sells for very little now. No workshop needs more timber./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        t.goods.timber = 50;
         CG.play.close();
         return out;
       });

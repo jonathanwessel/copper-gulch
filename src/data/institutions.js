@@ -8,7 +8,7 @@
    effects: { stat, mul, where } where 'outpost' puts it only on outposts. The stat 'influence' is the Capital's own
           (Influence a finished contract pays). Text follows the writing rule in PLAN.md: plain, short, no colons. */
 
-export const FOUND = { coins: 50000, growth: 1.5 };
+export const FOUND = { coins: 50000, growth: 1.6 }; // growth 1.5 until 2026-11-18: foremen stopped wasting coins and the fastest seed bought a tree upgrade every 9.2 min
 export const NODE_COST = [8, 15, 25, 40, 60];
 
 export const INSTITUTIONS = [

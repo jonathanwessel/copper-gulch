@@ -22,6 +22,7 @@ const SCREENS = [
   ['strip', () => { const t = CG.game.town; CG.play.close(); t.goods.timber = 124; t.goods.planks = 18; t.goods.ore = 6; t.goods.clay = 40; }],
   ['short', () => { const t = CG.game.town; t.goods.ore = 2; t.buildings.mine = Math.max(5, t.level('mine')); CG.play.close(); CG.play.openSpot(3); }],
   ['foreman', () => { const t = CG.game.town; t.buildings.camp = Math.max(10, t.level('camp')); t.coins = 600; CG.play.close(); CG.play.open('camp'); }],
+  ['foreman-wait', () => { const t = CG.game.town; delete t.sell.timber; t.coins = 1e6; t.foremen.camp = true; CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; CG.play.close(); CG.play.open('camp'); }],
   ['pit', () => { CG.play.openSpot(CG.game.town.def.board.far); }],
   ['mortar', async () => { // a shell in flight, and the Mortar selected with both of its circles
     const t = CG.game.town, B = t.def.board, wait = ms => new Promise(r => setTimeout(r, ms));

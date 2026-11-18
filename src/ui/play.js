@@ -16,7 +16,7 @@ import { isOutpost } from '../core/economy.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
-import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
+import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
 import { autoOn, retryState } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
@@ -160,7 +160,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
-    const now = [id, L, why, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
+    const now = [id, L, why, wait && wait.why + wait.good, cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -207,7 +208,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
       const kr = el('div', 'row keeprow');
-      const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
+      const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' + g.name.toLowerCase() + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
       ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks); card.append(kr);
@@ -216,14 +217,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
       const fr = el('div', 'row keeprow');
       if (!hasForeman(town, id)) {
-        fr.append(el('span', 'uses', 'Buys the next level when you have twice what it costs'));
+        fr.append(el('span', 'uses', 'A foreman buys the next level when you have twice its cost.'));
         const h = el('button', 'btn small', 'Hire foreman · ' + fmt(hireCost(town, id)) + ' coins'); h.id = 'hireForeman';
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
         fr.append(h);
       } else {
         const on = foremanOn(town, id);
-        fr.append(el('span', 'uses', on ? 'Buys the next level when you have twice what it costs' : ''));
+        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'The foreman buys the next level when you have twice its cost.'));
         const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
         sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
@@ -232,6 +233,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       card.append(fr);
     }
   }
+
+  /* Why a working foreman is not buying (src/core/foremen.js, foremanWait), in plain words. */
+  const waitText = w => {
+    const n = GOODS[w.good].name.toLowerCase();
+    if (w.why === 'short') return 'The foreman is waiting for more ' + n + '.';
+    if (w.why === 'flooded') return 'The foreman is waiting. ' + GOODS[w.good].name + ' sells for very little now. No workshop needs more ' + n + '.';
+    return 'The foreman is waiting. The next level would take over an hour to earn back its price.';
+  };
 
   let armed = null; // a path tapped once, waiting for the second tap
   /* A cost as a row: the coins, then each good with its square and "have / need", red when short. */
