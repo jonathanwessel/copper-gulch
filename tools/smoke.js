@@ -114,6 +114,43 @@ async function run() {
         CG.play.sheets.close(); if (selling === undefined) delete t.sell.timber; else t.sell.timber = selling;
         return out;
       });
+      // live numbers never change the size or place of anything (owner rule): grow every good, the coins, the coin rate,
+      // the wave number and the countdown from one digit to millions, and every HUD cell must keep its box
+      const still = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, ws = t.waves, out = { moved: [] }, { fmtLive } = await import('./src/ui/format.js');
+        const keep = { goods: { ...t.goods }, sell: { ...t.sell }, coins: t.coins, wave: t.wave, ws: JSON.stringify(ws) };
+        CG.town.pause('smoke', true);
+        const cells = () => [...document.querySelectorAll('#goodsStrip .goodchip, .hud .coins, #vaultBtn, #callWave, #pauseBtn, #holdWaves')];
+        const boxes = () => cells().map(n => { const r = n.getBoundingClientRect(); return [n.id || n.dataset.good || n.className, Math.round(r.left * 2) / 2, Math.round(r.width * 2) / 2, Math.round(r.top * 2) / 2]; });
+        const inc = document.querySelector('.hud .coins .inc'), winfo = document.querySelector('#wave .winfo');
+        Object.assign(ws, { phase: 'break', timer: 30, queue: [], foes: [] });
+        let first = null, painted = true;
+        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'held'], [99, 12, '24 left · Swarm'], [999, 40, 'in 58s'], [1000, 99, '3 left · Heavy'],
+          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'held'], [99999, 99, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 12s'], [9.99e8, 10, 'in 3s']];
+        for (const [n, w, info] of steps) {
+          for (const g of Object.keys(t.goods)) { t.goods[g] = n; t.sell[g] = false; }
+          t.coins = n * 10; t.wave = w;
+          await wait(450); // the HUD repaints 5 times a second
+          painted = painted && document.querySelector('#goodsStrip .goodchip b').textContent === fmtLive(n);
+          for (const r of ['+0/s', '+8.1/s', '+999/s', '+99.9K/s', '+1.00M/s']) {
+            inc.textContent = r; winfo.textContent = info;
+            const b = boxes(); first ??= b;
+            b.forEach((x, i) => { const f0 = first[i]; if (!f0 || f0[0] !== x[0] || f0[1] !== x[1] || f0[2] !== x[2] || f0[3] !== x[3]) out.moved.push(x[0] + ' at ' + n + '/' + w + '/' + r + ': ' + JSON.stringify(f0) + ' -> ' + JSON.stringify(x)); });
+          }
+        }
+        out.painted = painted;
+        // a wave on the road hides Call now: the wave chip keeps its width, so Pause and Hold waves stay put
+        const chip = () => Math.round(document.getElementById('wave').getBoundingClientRect().width);
+        const w0 = chip(); Object.assign(ws, { phase: 'wave', queue: ['raider', 'raider'], foes: [], type: 'mixed', timer: 99, age: 0 }); await wait(450);
+        out.chip = document.getElementById('callWave').hidden && Math.abs(chip() - w0) <= 1 ? true : 'break ' + w0 + ' wave ' + chip();
+        Object.assign(t.goods, keep.goods); t.sell = keep.sell; t.coins = keep.coins; t.wave = keep.wave; Object.assign(t.waves, JSON.parse(keep.ws));
+        CG.town.pause('smoke', false); await wait(300);
+        out.moved = out.moved.slice(0, 4);
+        return out;
+      });
+      if (!still.painted) bad.push('live numbers: the HUD did not repaint the goods strip');
+      if (still.chip !== true) bad.push('the wave chip changed width when a wave started: ' + still.chip);
+      for (const m of still.moved) bad.push('live numbers: a HUD cell moved or changed size: ' + m);
       // time away counts when the app was only in the background (owner rule), unless the player pressed Pause
       const away = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, out = {};

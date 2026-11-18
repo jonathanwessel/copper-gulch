@@ -22,9 +22,10 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reve
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt } from './format.js';
+import { fmt, fmtLive } from './format.js';
 export { fmt };
-const rate = n => fmt(n) + '/s';
+export { fmtLive };
+const rate = n => fmtLive(n) + '/s';
 /* A good's square, in its color (GOODS[g].color). */
 const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
 
@@ -116,7 +117,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         return b;
       }));
     }
-    for (const [g, n] of Object.entries(stripNums)) setText(n, fmt(Math.floor((town.goods[g] || 0) + 1e-9)));
+    for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
   };
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
@@ -251,7 +252,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
     return 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make it faster.';
   });
-  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return 'Your town kept ' + n.toLowerCase() + ' for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n[0] + n.slice(1).toLowerCase() + (g.length > 1 ? ' are' : ' is') + ' saved for this ' + (pathNext ? 'path' : 'upgrade') + '.'; };
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
@@ -432,7 +433,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     acc = 0;
     hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
     const per = income().value; // every town and outpost pays into the one purse
-    setText(coinNum, fmt(town.coins)); setText(inc, '+' + rate(per));
+    setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
     paintStrip();
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);

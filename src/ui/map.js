@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
-import { fmt } from './format.js';
+import { fmt, fmtLive } from './format.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -179,7 +179,7 @@ export function mountMap(root, game, view, shell) {
         for (const s of view.sites) if (!badge[s.id].b.hidden) widths[s.id] = badge[s.id].b.offsetWidth;
         const c = card.hidden ? null : card.getBoundingClientRect();
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
-        setText(coinNum, fmt(game.town.coins)); setText(inc, rate(shell.meter ? shell.meter.total : 0));
+        setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
       if (openId && (cardAcc += dt) > .5) { cardAcc = 0; paintCard(); }
     },

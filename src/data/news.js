@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-24',
+    lines: [
+      'The goods bar holds still. Its boxes keep one size as the numbers grow.',
+      'On a phone, the coins you make each second show under your coins.',
+      'The goods bar lines up in neat columns.',
+    ],
+  },
+  {
     v: '2026.11.17-23',
     lines: [
       'You can tap Call now as soon as a wave ends.',

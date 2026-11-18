@@ -104,8 +104,9 @@ html.no3d body { background: var(--bg); }
   display: flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 36px; background: var(--panel); border: 2px solid var(--line);
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 3px 3px 0 rgba(22, 15, 11, .5);
 }
-.coins b { font-size: 1.15rem; color: var(--gold); min-width: 3ch; }
-.coins .inc { font-size: .8rem; color: var(--good); }
+/* live numbers keep fixed cells (owner rule): room for the widest the formatter makes (fmtLive: "99.9K"), right-aligned */
+.coins b { font-size: 1.15rem; color: var(--gold); min-width: 5ch; }
+.coins .inc { font-size: .8rem; color: var(--good); min-width: 7.5ch; }
 .coin { width: 14px; height: 14px; background: var(--gold); border: 2px solid #7a5a12; box-shadow: inset -2px -2px 0 #c99a2a; flex: none; }
 .hudleft { display: grid; gap: 6px; justify-items: start; pointer-events: none; flex: 1 1 0; min-width: 0; }
 .hudleft > .wave { max-width: 100%; min-width: 0; }
@@ -114,10 +115,10 @@ html.no3d body { background: var(--bg); }
   display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; min-height: 36px; background: var(--panel); border: 2px solid var(--line);
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 3px 3px 0 rgba(22, 15, 11, .5); font-size: .85rem;
 }
-.wave b { color: var(--copper-hi); white-space: nowrap; }
+.wave b { color: var(--copper-hi); white-space: nowrap; min-width: 7ch; } /* room for "Wave 99" */
 .vault { width: 44px; height: 10px; background: var(--line); border: 1px solid #000; display: block; }
 .vault i { display: block; height: 100%; background: var(--good); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
-.winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; width: 8em; } /* one width whatever it says, so Call now stays put */
 .hudrow { display: flex; gap: 6px; }
 .townchip { display: flex; gap: 6px; flex-wrap: wrap; }
 .townchip .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
@@ -133,6 +134,7 @@ html.no3d body { background: var(--bg); }
 }
 .wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; flex: none; }
 .wave .vaultbtn { flex: none; } /* only the countdown gives way on a narrow screen, never Call now */
+.wave:has(.call[hidden]) .winfo { width: calc(8em + 82px); } /* during a wave the count and raid kind take Call now's room, so the chip keeps its width */
 /* the goal strip and its spotlight (src/core/goals.js) */
 .goal {
   display: flex; align-items: center; gap: 8px; width: min(100%, 340px); min-height: 34px; padding: 3px 10px 3px 3px; text-align: left; cursor: pointer;
@@ -151,7 +153,12 @@ html.no3d body { background: var(--bg); }
 .goalmark.ping { animation: markPing .45s 3; }
 @keyframes markPulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
 @keyframes markPing { 50% { border-color: #fff8dc; border-width: 5px; } }
-@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vaultbtn { gap: 5px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } }
+@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vaultbtn { gap: 5px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } .winfo { width: 5.2em; } .wave:has(.call[hidden]) .winfo { width: calc(5.2em + 75px); }
+  /* a phone: the coin rate goes under the coins, in one fixed column, so the wave chip keeps room for its countdown */
+  .coins { display: grid; grid-template-columns: auto 3.7rem; column-gap: 6px; row-gap: 0; padding: 3px 8px; }
+  .coins .coin { grid-row: 1 / 3; }
+  .coins b, .coins .inc { min-width: 0; line-height: 1.1; white-space: nowrap; overflow: hidden; }
+}
 .option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--panel-2); border: 2px solid var(--line); }
 .option > div { display: grid; flex: 1; gap: 1px; }
 .option b { color: var(--copper-hi); }
@@ -290,16 +297,27 @@ html.flat .tag { position: static; transform: none !important; }
 /* the goods strip along the bottom: wraps onto a second line when there are many goods, so every good shows */
 .goodstrip {
   position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom)); max-width: calc(100% - 20px - env(safe-area-inset-left) - env(safe-area-inset-right));
-  display: flex; flex-wrap: wrap; gap: 4px; padding: 3px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, auto)); gap: 4px; padding: 3px; /* columns line up, and only labels can give way */
   background: var(--line); border: 2px solid #000; box-shadow: 3px 3px 0 rgba(22, 15, 11, .5); pointer-events: auto;
 }
 .goodstrip::-webkit-scrollbar { display: none; }
 .goodstrip[hidden] { display: none; }
+/* a phone: three even columns, the count under the name, so names like Locomotives fit */
+@media (max-width: 599px) {
+  .goodstrip { width: calc(100% - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .goodstrip .goodchip { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 5px; row-gap: 0; padding: 2px 6px 2px 5px; }
+  .goodstrip .goodchip .gicon { grid-row: 1 / 3; }
+  .goodstrip .goodchip .gname, .goodstrip .goodchip b { line-height: 1.15; }
+  .goodstrip .goodchip b { margin-left: 0; }
+}
+@media (min-width: 600px) { .goodstrip { grid-template-columns: repeat(6, minmax(0, auto)); } }
+@media (min-width: 1100px) { .goodstrip { grid-template-columns: repeat(8, minmax(0, auto)); } }
+.goodchip .gname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; text-align: left; }
 .goodchip {
-  flex: none; display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;
+  flex: none; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;
   background: var(--panel); border: 0; box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f;
 }
-.goodchip b { color: var(--ink); font-size: .9rem; }
+.goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */
 .costrow { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; font-size: .82rem; color: var(--ink); }
