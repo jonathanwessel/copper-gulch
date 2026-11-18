@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -37,16 +37,19 @@ let CALL = !process.argv.includes('--no-call');
 export const setCall = on => { CALL = on; };
 const SPACING = 1.1; // about how far apart raiders ride, in world units
 
-/* Road units inside a ring [lo, hi] around a spot (memoized). */
-const COVER = new Map();
+/* Road units inside a ring [lo, hi] around a spot (memoized per board: spot numbers repeat across towns, and a run
+   that played Iron Ridge first used to read the Ridge's numbers for the Gulch's pads). */
+const COVER = new WeakMap();
 function cover(town, spot, lo, hi) {
-  const key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2);
-  if (!COVER.has(key)) {
-    const r = roadOf(town), p = town.def.board.spots[spot]; let n = 0;
+  const b = town.def.board, key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2);
+  if (!COVER.has(b)) COVER.set(b, new Map());
+  const m = COVER.get(b);
+  if (!m.has(key)) {
+    const r = roadOf(town), p = b.spots[spot]; let n = 0;
     for (let s = 0; s <= r.length; s += .1) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) n += .1; }
-    COVER.set(key, n);
+    m.set(key, n);
   }
-  return COVER.get(key);
+  return m.get(key);
 }
 /* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
    kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
@@ -128,8 +131,12 @@ export function options(town) {
      economy: the town first while no raider got through in the last two waves, with the fewest towers that hold
        (each wave that lets a raider through raises its towers half a level for good).
      defense: towers first, the town gets what is left. */
+/* The active player, once a raider got through, keeps its towers GUARD.levels higher for the next GUARD.waves waves:
+   with Call now never locked, a called wave that leaked left Dry Creek's vault at 40% for the bandit wagon (seed 2). */
+export const GUARD = { waves: 3, levels: 1 };
+const guard = (w, r) => (r && w - r.leakAt <= GUARD.waves ? GUARD.levels : 0);
 export const STRATEGIES = {
-  active: { want: w => 1 + Math.ceil(w / 3), level: w => 1.3 + w / 3 },
+  active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
   minmax: { want: w => Math.min(6, 1 + Math.ceil(w / 5)), level: w => 2 + w / 2, ups: true, most: 2 },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
   economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1 + w / 3.3 + r.bump, eco: true },
@@ -139,7 +146,8 @@ export const STRATEGIES = {
 /* Seconds a building may take to pay for itself and still come before the towers. */
 /* A buy this many times better, with its goods in the yard, is worth saving coins for. */
 export const SAVE_FOR = 1.4, SAVE_GAP = 100; // and no more than this many coins away
-export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 900, defense: 120 };
+// economy: 400 s (was 900; once the bots read each town's own pads right, at 900 its Gulch wave 10 came 27% behind)
+export const PAYBACK = { active: 300, minmax: 300, swarm: 300, economy: 400, defense: 120 };
 /* Calling the next wave early (Call now, M2 Skill pays): a careful player calls when the last wave was over within
    CALL_AGE of the town's wave pace (its towers are clearly ahead), nothing got through in the last two waves and the
    vault is above 60%. It never calls a boss wave early. The newcomer never calls (tools/firstplay.js) except once,
@@ -261,7 +269,9 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     const ws = t.waves, w = t.wave;
     if (ws.phase !== 'break' || ws.hold || t.won || ws.timer < 2 || bossWave(t, w)) return false;
     // on old ground (waves the town beat before its charter) it calls as soon as the road is clear
-    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge <= CALL_AGE || oldGround(t));
+    // a called wave comes bigger the earlier it is called (RUSH): it calls once the last wave's time, scaled up by that,
+    // still fits under CALL_AGE
+    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge * (1 + RUSH.more * rushOf(t)) <= CALL_AGE || oldGround(t));
   };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
@@ -363,13 +373,18 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
   out.ph = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won, sign: false });
   out.ph.won = pt.won ? out.ph.until - out.phFrom : null;
   g.go('ridge');
-  const rt = g.towns.ridge, imp = out.imports = { run: {}, built: {}, raised: [], at: {} };
+  const rt = g.towns.ridge, imp = out.imports = { run: {}, built: {}, short: {}, raised: [], at: {} };
   out.ridgeFrom = rt.t;
   const offB = g.bus.on('build', e => { if (e.town === 'ridge' && e.level === 1) imp.at[e.id] = rt.t - out.ridgeFrom; });
   out.ridge = play(seed, ridgeMinutes, strategy, null, { game: g, sign: false, goals: true, tick: (g2, t, r) => {
-    // the share of seconds each importing workshop runs at full speed, from when it is built
+    // the share of seconds each importing workshop is not held up by an import, from when it is built: a second it is
+    // short counts against the imports only when the input it has least of (for what it uses) is shipped in. Time short
+    // of the Ridge's own goods (steel, once the Rolling Mill and Locomotive Works use it too) is counted apart (short).
     for (const id of t.def.buildings) if (t.level(id) && Object.keys(BUILDINGS[id].inputs).some(x => (t.def.imports || []).includes(x))) {
-      imp.built[id] = (imp.built[id] || 0) + 1; if (!t.starved[id]) imp.run[id] = (imp.run[id] || 0) + 1;
+      imp.built[id] = (imp.built[id] || 0) + 1;
+      const inp = BUILDINGS[id].inputs, low = t.starved[id] && Object.keys(inp).sort((a, b) => (t.goods[a] || 0) / inp[a] - (t.goods[b] || 0) / inp[b])[0];
+      if (!low || !(t.def.imports || []).includes(low)) imp.run[id] = (imp.run[id] || 0) + 1;
+      if (low && !(t.def.imports || []).includes(low)) imp.short[id] = (imp.short[id] || 0) + 1;
     }
     if (Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
   } });
@@ -564,7 +579,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('Iron Ridge (active): seed | charter signed | Ridge founded (play time) | waves held to save | Pine Hollow won (from getting there), breaches, towers | Ridge wave 10 (from getting there), breaches | Ridge wave at the end | Boiler Shop built, share of time running | Locomotive Works built, running | Gulch levels raised for the Ridge');
   for (const e of actives) {
     const ph = e.game.towns.pinehollow, rt = e.game.towns.ridge, im = e.imports;
-    console.log(`${e.dc.seed} | ${e.gulch && e.gulch.signed ? mm(e.gulch.signed.at + e.dc.won) : 'no'} | ${mm(e.found)} | ${mm(e.held)} | ${mm(e.ph && e.ph.won)}, ${e.ph ? e.ph.breaches.join(',') || 'none' : '-'}, ${ph ? ph.towers.map(x => x.kind + x.level).join(' ') : '-'} | ${mm(e.ridge && e.ridge.w10)}, ${e.ridge ? e.ridge.breaches.join(',') || 'none' : '-'} | ${rt ? rt.wave : '-'} | ${im ? mm(im.at.boilershop) + ', ' + (im.built.boilershop ? Math.round(100 * im.run.boilershop / im.built.boilershop) + '%' : '-') : '-'} | ${im ? mm(im.at.loco) + ', ' + (im.built.loco ? Math.round(100 * im.run.loco / im.built.loco) + '%' : '-') : '-'} | ${im ? im.raised.join(', ') || 'none' : '-'}`);
+    console.log(`${e.dc.seed} | ${e.gulch && e.gulch.signed ? mm(e.gulch.signed.at + e.dc.won) : 'no'} | ${mm(e.found)} | ${mm(e.held)} | ${mm(e.ph && e.ph.won)}, ${e.ph ? e.ph.breaches.join(',') || 'none' : '-'}, ${ph ? ph.towers.map(x => x.kind + x.level).join(' ') : '-'} | ${mm(e.ridge && e.ridge.w10)}, ${e.ridge ? e.ridge.breaches.join(',') || 'none' : '-'} | ${rt ? rt.wave : '-'} | ${im ? mm(im.at.boilershop) + ', ' + (im.built.boilershop ? Math.round(100 * im.run.boilershop / im.built.boilershop) + '% (short of its own goods ' + Math.round(100 * (im.short.boilershop || 0) / im.built.boilershop) + '%)' : '-') : '-'} | ${im ? mm(im.at.loco) + ', ' + (im.built.loco ? Math.round(100 * im.run.loco / im.built.loco) + '%' : '-') : '-'} | ${im ? im.raised.join(', ') || 'none' : '-'}`);
   }
   const ec = empireCheck(emp);
   console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-23',
+    lines: [
+      'You can tap Call now as soon as a wave ends.',
+      'Tap Call now right away and the next wave has more raiders.',
+      'Plague Cloud poison is a little weaker.',
+    ],
+  },
+  {
     v: '2026.11.17-22',
     lines: [
       'Iron Ridge now shows goals under Pause. Follow them to build the Locomotive Works.',

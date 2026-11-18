@@ -53,7 +53,7 @@ export const PATHS = {
     b: { name: 'Brittle Ice', about: 'Slowed raiders take more damage.', brittle: .3 },
   },
   still: {
-    a: { name: 'Plague Cloud', about: 'Bigger, stronger poison clouds.', cloud: 2, poison: 1.4 },
+    a: { name: 'Plague Cloud', about: 'Bigger, stronger poison clouds.', cloud: 2, poison: 1.3 },
     b: { name: 'Spreading Fever', about: 'Poison spreads when a raider falls.', spread: 1 },
   },
   mortar: {

@@ -90,7 +90,7 @@ export const EXPLAINERS = [
   {
     id: 'waves', covers: ['call'],
     title: 'Waves',
-    text: 'Raiders come in waves. The green bar drops each time one gets through. Tap Call now to start the next wave early and get bonus coins for the time you skip.',
+    text: 'Raiders come in waves. The green bar is your vault. It drops when a raider gets through. Tap Call now to start the next wave early and get bonus coins. Tap it right away and the wave has more raiders.',
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {

@@ -119,11 +119,15 @@ export function planWave(town, w, type) {
   if (bossWave(town, w)) q.push((town.def && town.def.boss) || 'wagon');
   return q;
 }
-export function startWave(game, town) {
+export function startWave(game, town, rush = 0) {
   const ws = town.waves;
   if (ws.phase !== 'break') return false;
   const w = town.wave, type = waveType(town, w);
-  ws.phase = 'wave'; ws.type = type; ws.queue = planWave(town, w, type); ws.timer = 0; ws.age = 0; ws.gap = wavesOf(town).gap(w) * WAVE_TYPES[type].gap;
+  const q = planWave(town, w, type), boss = bossWave(town, w) ? q.pop() : null, n = q.length;
+  // a called wave brings more raiders (RUSH.more): copies of its own, in order, so the random stream is untouched
+  for (let i = 0, extra = Math.round(n * (wavesOf(town).rushMore ?? RUSH.more) * rush); i < extra; i++) q.push(q[i % n]);
+  if (boss) q.push(boss);
+  ws.phase = 'wave'; ws.type = type; ws.queue = q; ws.timer = 0; ws.age = 0; ws.gap = wavesOf(town).gap(w) * WAVE_TYPES[type].gap;
   game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: bossWave(town, w) });
   return true;
 }
@@ -133,27 +137,31 @@ export function setHold(game, town, on) {
   game.bus.emit('waves:hold', { town: town.id, hold: !!on });
 }
 
-/* Call now opens once the wait for the next wave is down to CALL_OPEN of the wave pace, so a strong defense can go
-   up to about twice as fast as the clock and no faster: the strategies stay close (CLAUDE.md), and a careful player
-   still beats one who never calls by a fifth or more (PLAN.md M2, Skill pays). The wait before the first wave can
-   always be cut short, and so can the wait before a wave the town beat before its last charter (oldGround: town.record
-   is the best wave of every charter before this one, kept when the charter resets the town), so a signed town races
-   back to where it was. */
-export const CALL_OPEN = .52;
+/* Call now is never locked (owner rule, 2026-11-17): the player decides when the next wave comes, at any moment of a
+   break. oldGround: a wave the town beat before its last charter (town.record is the best wave of every charter before
+   this one, kept when the charter resets the town), where its towers hit harder so a signed town races back. */
 export const oldGround = town => town.wave <= (town.record || 0);
+/* A wave called early comes bigger: calling in the last RUSH.free share of the wait is free, and the share skipped
+   beyond that (rush, 0 to 1) brings (1 + RUSH.more x rush) times its raiders. A wave lasts about as long as its raiders
+   take to ride out, so a bigger wave takes longer and racing saves less time (tougher raiders did not: a strong
+   defense killed them as fast). The bonus for the time skipped is RUSH.bonus of the old one (bounty x seconds / 4).
+   This, not a locked button, keeps a strong defense from racing far ahead of the others (CLAUDE.md, strategies stay
+   close). The first wave and waves the town beat before its charter come at their normal strength however early. */
+export const RUSH = { more: 2, free: .4, bonus: .5 };
+export const rushOf = town => (town.wave === 1 && !town.bestWave) || oldGround(town) ? 0 : Math.min(1, Math.max(0, town.waves.timer / wavesOf(town).pace - (wavesOf(town).rushFree ?? RUSH.free)) / (1 - (wavesOf(town).rushFree ?? RUSH.free)));
 /* On old ground the towers also hit OLD_GROUND times harder (the named source "Waves you beat before" on tower damage, so the
    tower card's breakdown shows it), so those waves fall fast and the town can call the next one at once. */
 export const OLD_GROUND = { dmg: 3 };
-export const canCall = town => town.waves.phase === 'break' && ((town.wave === 1 && !town.bestWave) || oldGround(town) || town.waves.timer <= wavesOf(town).pace * CALL_OPEN + 1e-9);
-/* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 if it can't be called
-   yet (not in a break, or the wait is still long). town.flags.called counts the calls (the goal strip asks for one). */
+export const canCall = town => town.waves.phase === 'break';
+/* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 when no break is on
+   (a wave is already on the road). town.flags.called counts the calls (the goal strip asks for one). */
 export function callEarly(game, town) {
   const ws = town.waves;
   if (!canCall(town)) return -1;
-  const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4);
+  const bonus = Math.ceil(wavesOf(town).bounty(town.wave) * ws.timer / 4 * RUSH.bonus);
   town.earn(bonus, false, 'call');
   town.flags.called = (town.flags.called || 0) + 1;
-  startWave(game, town);
+  startWave(game, town, rushOf(town));
   return bonus;
 }
 

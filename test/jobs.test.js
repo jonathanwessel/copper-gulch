@@ -85,13 +85,13 @@ test('a signed town remembers its best wave: old ground hits 3 times harder and 
   assert.ok(oldGround(t));
   assert.equal(t.mods.factor('towerDmg'), OLD_GROUND.dmg);
   assert.ok(t.mods.explain('towerDmg').parts.some(p => p.source === 'Waves you beat before'), 'the tower card can show where it comes from');
-  // past the first wave, Call now still works right away (on new ground it waits for half the pace)
+  // past the first wave, Call now works right away (it always does)
   t.wave = 5; t.bestWave = 4; Object.assign(t.waves, { phase: 'break', timer: 50, hold: false });
   assert.ok(canCall(t)); assert.ok(callEarly(g, t) > 0);
   // past the old best wave the bonus is gone
   t.wave = 29; t.bestWave = 28; Object.assign(t.waves, { phase: 'break', timer: 50, queue: [], foes: [] });
   g.step(.25);
-  assert.ok(!oldGround(t)); assert.equal(t.mods.factor('towerDmg'), 1); assert.ok(!canCall(t));
+  assert.ok(!oldGround(t)); assert.equal(t.mods.factor('towerDmg'), 1); assert.ok(canCall(t), 'Call now is never locked');
   // a second charter keeps the higher record
   t.bestWave = 31; t.lifetime = 1e6; assert.ok(signCharter(g, t) > 0); assert.equal(t.record, 31);
   const back = loadGame(JSON.parse(JSON.stringify(g.toJSON())));

@@ -441,7 +441,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     measure();
     setText(waveInfo, ws.phase === 'break' ? (ws.hold && ws.timer <= 0 ? 'held' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
     call.hidden = ws.phase !== 'break';
-    const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // grayed until half the wait is gone
+    const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
     look(town);
     const T = tabs(game, town), D = dots(game, town);

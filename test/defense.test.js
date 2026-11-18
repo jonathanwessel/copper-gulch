@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, CALL_OPEN, roadOf, planWave, towerReserve, setHold } from '../src/core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, callEarly, roadOf, planWave, towerReserve, setHold, canCall, rushOf, RUSH, wavesOf, bossWave } from '../src/core/defense.js';
 import { pointAt, makePath } from '../src/core/path.js';
 import { TOWERS, PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { WAVE, FOES } from '../src/data/foes.js';
@@ -173,9 +173,38 @@ test('after a long wave the rest is still at least WAVE.rest, and Call now skips
   Object.assign(t.waves, { phase: 'wave', queue: [], foes: [], age: 5 });
   g.step(.25);
   assert.ok(Math.abs(t.waves.timer - (WAVE.pace - 5.25)) < 1e-9, 'waits out the pace: ' + t.waves.timer);
-  assert.equal(callEarly(g, t), -1, 'Call now waits until about half the wait is gone');
-  t.waves.timer = WAVE.pace * CALL_OPEN;
-  assert.ok(callEarly(g, t) > 0); assert.equal(t.waves.phase, 'wave');
+  // Call now is never locked: with nearly the whole wait still ahead it starts the wave and pays for the time skipped
+  const c0 = t.coins, bonus = callEarly(g, t);
+  assert.ok(bonus > 0); assert.equal(t.waves.phase, 'wave'); assert.ok(t.coins >= c0 + bonus - 1e-9);
+  assert.equal(callEarly(g, t), -1, 'not while a wave is on the road');
+});
+
+test('Call now is never locked, and a wave called very early brings more raiders (RUSH)', () => {
+  // two games in the same state: one calls with the whole wait ahead, one in the free last part of the wait
+  const at = (timer, wave = 6) => {
+    const g = newGame('rush', 'gulch'), t = g.town;
+    t.wave = wave; t.bestWave = wave - 1;
+    Object.assign(t.waves, { phase: 'break', timer, queue: [], foes: [], hold: false });
+    return { g, t };
+  };
+  const full = at(WAVE.pace), late = at(WAVE.pace * RUSH.free);
+  assert.ok(canCall(full.t), 'open with the whole wait ahead');
+  assert.equal(rushOf(full.t), 1);
+  assert.equal(rushOf(late.t), 0, 'the last part of the wait is free');
+  assert.ok(callEarly(full.g, full.t) > 0 && callEarly(late.g, late.t) > 0, 'both pay a bonus');
+  const n = late.t.waves.queue.length;
+  assert.equal(full.t.waves.queue.length, n + Math.round(n * RUSH.more), 'called right away: ' + (1 + RUSH.more) + ' times the raiders');
+  assert.deepEqual(full.t.waves.queue.slice(0, n), late.t.waves.queue, 'the same raiders first, in the same order');
+  // a boss still rides last
+  const boss = at(WAVE.pace, 10); assert.ok(bossWave(boss.t, 10)); callEarly(boss.g, boss.t);
+  assert.equal(boss.t.waves.queue.at(-1), 'wagon');
+  assert.equal(boss.t.waves.queue.filter(k => k === 'wagon').length, 1, 'one boss, not copies of it');
+  // the first wave and waves beaten before a charter come at their normal size however early
+  const first = at(WAVE.pace, 1); first.t.bestWave = 0; assert.equal(rushOf(first.t), 0);
+  const old = at(WAVE.pace, 6); old.t.record = 20; assert.equal(rushOf(old.t), 0);
+  // Iron Ridge's called waves grow faster (its few strong towers raced the clock with the empire's coins)
+  const r = newGame('rush-ridge', 'ridge').town;
+  assert.ok(wavesOf(r).rushMore > RUSH.more);
 });
 
 test('the Cannon and the Snake Oil Still are paid with ore and planks, so they come before the Smelter', () => {

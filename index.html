@@ -131,7 +131,8 @@ html.no3d body { background: var(--bg); }
   background: var(--line); color: var(--copper-hi); font-size: 1.4rem; letter-spacing: .1em; border: 2px solid var(--copper);
   box-shadow: 4px 4px 0 rgba(22, 15, 11, .6);
 }
-.wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; }
+.wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; flex: none; }
+.wave .vaultbtn { flex: none; } /* only the countdown gives way on a narrow screen, never Call now */
 /* the goal strip and its spotlight (src/core/goals.js) */
 .goal {
   display: flex; align-items: center; gap: 8px; width: min(100%, 340px); min-height: 34px; padding: 3px 10px 3px 3px; text-align: left; cursor: pointer;
@@ -188,6 +189,7 @@ html.flat .tag { position: static; transform: none !important; }
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
   .hudleft > .townchip.many { grid-column: 1 / -1; } /* three towns or more: their own row, so the wave keeps its countdown */
+  .hudleft > .wave { min-width: min-content; } /* the town buttons wrap before the wave chip shrinks under Pause */
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; }
