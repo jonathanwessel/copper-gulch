@@ -150,7 +150,7 @@ async function startGame() {
     const earned = Object.values(r.earned).reduce((a, b) => a + b, 0), n = Math.floor(r.sold);
     toast('Welcome back. While you were away, your towns earned ' + fmt(earned) + ' coins' + (n >= 1 ? ' and sold ' + fmt(n) + ' goods.' : '.'), 6000, { first: true });
     // a town that lost while away holds its waves (owner rule): one line each, after the welcome
-    for (const t of Object.values(game.towns)) if (t.waves && t.waves.autoHold && t.lost && t.lost.at >= ((r.from || {})[t.id] ?? 0)) toast(lostToast(t, t.id === game.active), 6000);
+    for (const t of Object.values(game.towns)) if (t.waves && t.waves.autoHold && t.lost && t.lost.at >= ((r.from || {})[t.id] ?? 0)) toast(lostToast(t, t.id === game.active, game), 6000);
   };
   welcome(away);
   // keep the game: every 10 seconds, and whenever the app goes to the background

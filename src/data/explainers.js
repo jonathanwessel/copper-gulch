@@ -299,6 +299,12 @@ export const EXPLAINERS = [
     when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {
+    id: 'retry', covers: ['retry'],
+    title: 'Keep trying the boss',
+    text: 'Tap Auto and turn on Keep trying the boss. After a lost boss, this town starts its waves again by itself once a tower goes up a level.',
+    when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
+  },
+  {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
     text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',

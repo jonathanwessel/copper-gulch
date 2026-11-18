@@ -145,6 +145,9 @@ const RIDGE = [
   ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
   // Automation in the Gulch (the War Office and the University stand): Auto-towers on, Auto-research off
   ['auto', async () => { for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'gulch' && CG.play); i++) await new Promise(r => setTimeout(r, 100)); await new Promise(r => setTimeout(r, 1500)); const A = await import('./src/core/automation.js'); A.setAuto(CG.game, CG.game.town, 'towers', true); CG.play.openAuto(); }],
+  // Keep trying the boss on, right after the war wagon got through: the sheet says what it waits for, then the map badge
+  ['auto-retry', async () => { const A = await import('./src/core/automation.js'), G = CG.game.town; A.setAuto(CG.game, G, 'retry', true); if (!G.towers.length) G.towers.push({ spot: 0, kind: 'crossbow', level: 1, path: null, cd: 0, spent: 0, pulses: 0 }); for (const k of Object.keys(G.goods)) { G.goods[k] = Math.max(G.goods[k], 5000); G.sell[k] = false; } A.autoOf(CG.game, G).wait = 30; G.wave = 18; Object.assign(G.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); G.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: G.t }; CG.play.sheets.close(); CG.play.openAuto(); }],
+  ['map-retry', async () => { CG.play.sheets.close(); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('gulch'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ONLY = process.argv[3]; // optional: only this run (gulch, outpost or ridge)

@@ -7,11 +7,12 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive } from './format.js';
-import { lostLine, lostToast } from './lost.js';
+import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { capitalPanel, contractDone } from './capital.js';
 import { treeCalls } from '../core/tree.js';
+import { retryState } from '../core/automation.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -34,7 +35,7 @@ function ruleText(game, r, short = false) {
 /* shell: { meter, play(id) (fly into a town), back() (fly into the town in play), toast(text) } */
 export function mountMap(root, game, view, shell) {
   // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
-  const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false), 6000); });
+  const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false, game), 6000); });
   const offDone = game.bus.on('contract:done', e => { if (!game.catching && shell.toast) shell.toast(contractDone(e), 5000); });
   const ui = el('section', 'play mapui'); ui.id = 'map-ui';
   const hud = el('header', 'hud');
@@ -110,7 +111,8 @@ export function mountMap(root, game, view, shell) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
-      if (info.alert === 'lost') kids.push(el('p', 'warn', lostLine(t)));
+      if (info.alert === 'lost') kids.push(el('p', 'warn', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
+      else if (info.alert === 'retry' || info.alert === 'retrying') kids.push(el('p', 'uses', retryLine(game, t)));
       else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders broke into the ' + store.toLowerCase() + ' here while you were away.'));
       else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
       else if (info.alert === 'short') {
@@ -169,8 +171,8 @@ export function mountMap(root, game, view, shell) {
         B.vault.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
-        setText(B.extra, info.alert === 'lost' ? 'On hold' : rate(info.income));
-        B.b.classList.toggle('dot', !!info.alert);
+        setText(B.extra, info.alert === 'lost' ? 'On hold' : info.alert === 'retry' ? 'Retry soon' : info.alert === 'retrying' ? 'Retrying' : rate(info.income));
+        B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '%' : 'Take a contract');

@@ -4,6 +4,7 @@
    id) and `button` gets a second button that takes the player there. startCoach returns
    { frame(dt), current, dismiss(), skipAll(), destroy() }. */
 import { EXPLAINERS } from '../data/explainers.js';
+import { lostBoss, autoOpen, autoOf } from '../core/automation.js';
 import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
@@ -27,6 +28,8 @@ export function helper(town, game = null) {
     outpostWon: outposts.some(o => o.won), can: kind => towerIn(town, kind),
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     autoHold: !!ws.autoHold, // this town lost while away and holds its waves (src/core/defense.js, fall)
+    // it lost a boss wave and Keep trying the boss could take the next try (src/core/automation.js)
+    bossLost: !!game && lostBoss(town) && autoOpen(game, 'retry') && !autoOf(game, town).retry,
     // another town (not a won outpost) with towers keeps fighting out of sight
     awayFighting: !!game && Object.values(game.towns).some(o => o !== town && !o.won && (o.towers || []).length && o.waves && !o.waves.hold),
     breaches: town.breaches || 0, made: town.made || {}, bestWave: town.bestWave || 0, anyLevel: top[1], topBuilding: top[0],

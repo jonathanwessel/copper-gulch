@@ -100,7 +100,7 @@ export function audit() {
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution'];
+export const MECHANICS = ['upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution', 'retry'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);

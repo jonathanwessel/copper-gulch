@@ -935,12 +935,18 @@ async function run() {
       if (!await waitFor(page, () => { const b = document.getElementById('autoBtn'); return b && !b.hidden && b.classList.contains('dot'); }, 3000)) bad.push('Auto did not come out with a dot');
       await page.evaluate(() => document.getElementById('autoBtn').click()); await sleep(500);
       const sh = await page.evaluate(() => ({ rows: [...document.querySelectorAll('[data-auto]')].map(b => b.dataset.auto + (b.disabled ? '-' : '+')).join(), text: (document.querySelector('.sheet') || document.body).textContent, dot: document.getElementById('autoBtn').classList.contains('dot') }));
-      if (sh.rows !== 'foremen-,towers+,research-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
+      if (sh.rows !== 'foremen-,towers+,retry+,research-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
       bad.push(...(await check(page)).map(b => 'automation: ' + b));
       const before = await page.evaluate(() => CG.game.town.towers[0].level);
       await page.evaluate(() => document.querySelector('[data-auto="towers"]').click());
       if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next raise in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
       bad.push(...(await check(page)).map(b => 'automation on: ' + b));
+      // Keep trying the boss: on, then a lost war wagon holds the waves and the sheet says what it waits for
+      await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());
+      if (!await waitFor(page, () => document.querySelector('[data-auto="retry"]').textContent === 'Turn off' && /Ready if a boss gets through/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('Keep trying the boss did not switch on');
+      await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
+      if (!await waitFor(page, () => /Waiting for|Trying wave 20 again/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
+      bad.push(...(await check(page)).map(b => 'retry: ' + b));
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

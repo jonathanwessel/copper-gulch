@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-10',
+    lines: [
+      'New switch on the Auto sheet. Keep trying the boss.',
+      'Turn it on and a town that loses its boss starts its waves again by itself once a tower goes up a level.',
+      'With Auto-towers on too, a town can get past a boss while you are away. The map shows Retrying on it.',
+    ],
+  },
+  {
     v: '2026.11.18-9',
     lines: [
       'The War Office at the Capital opens Auto-towers. The University opens Auto-research. Tap Auto in a town to turn them on.',

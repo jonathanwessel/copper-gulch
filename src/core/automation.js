@@ -4,21 +4,26 @@
      that stands, never a new tower and never past level 4 until the player picks that tower's path.
    - Auto-research (opened by the University): when the lab is idle, the cheapest next level of an item the player has
      researched at least once.
+   - Keep trying the boss (opened with Auto-towers, owner 2026-11-17): a town that lost a boss wave holds its waves as
+     always, then starts them again by itself once a tower has gone up a level (or a new one stands) since the loss, so
+     it drops back, climbs and tries the boss again. One coin loss per try, and every try meets stronger towers.
    Each buys only when the price is at most AUTO.share of the coins on hand, so half the purse always stays.
-   State: game.shared.auto[town id] = { towers, research, wait, last }; it survives a charter (the switches are the
+   State: game.shared.auto[town id] = { towers, research, retry, wait, last, boss } where boss is the try in progress
+   { wave, power, at, tries } (power: the town's tower levels when it lost); it survives a charter (the switches are the
    player's settings). It keeps working out of play and while time away is caught up.
-   Events: 'auto:set' { town, kind, on }, 'auto:tower' { town, spot, level }, 'auto:research' { town, id, level }. */
+   Events: 'auto:set' { town, kind, on }, 'auto:tower' { town, spot, level }, 'auto:research' { town, id, level },
+   'auto:retry' { town, wave, tries }. */
 import { AUTO } from '../data/automation.js';
 import { PATH_LEVEL } from '../data/towers.js';
 import { founded } from './tree.js';
-import { towerCost, canPay, upgradeTower } from './defense.js';
+import { towerCost, canPay, upgradeTower, setHold, bossWave, wavesOf } from './defense.js';
 import { itemsOf, researchLevel, researchBlock, researchCost, startResearch } from './research.js';
 import { hasForeman, foremanOn, setForeman } from './foremen.js';
 
-export const KINDS = ['towers', 'research'];
+export const KINDS = ['towers', 'research', 'retry'];
 export const autoOf = (game, town) => {
   const all = game.shared.auto || (game.shared.auto = {});
-  return all[town.id] || (all[town.id] = { towers: false, research: false, wait: 0, last: null });
+  return all[town.id] || (all[town.id] = { towers: false, research: false, retry: false, wait: 0, last: null, boss: null });
 };
 export const autoOpen = (game, kind) => !!game.shared.tree && founded(game, AUTO.opens[kind]);
 export const autoOn = (game, town, kind) => autoOpen(game, kind) && !!autoOf(game, town)[kind];
@@ -70,6 +75,35 @@ export function nextResearch(town) {
   return best;
 }
 
+/* Keep trying the boss. The town holds its waves after losing a boss wave: its boss got through, or its vault fell
+   on it. towerPower counts a tower's levels (a new tower counts too), so any raise or new tower since the loss shows. */
+export const towerPower = town => (town.towers || []).reduce((n, t) => n + (t.level || 0) + 1, 0);
+export const lostBoss = town => !!(town.waves && town.waves.autoHold && town.lost && (town.lost.why === 'boss' || bossWave(town, town.lost.wave)));
+/* The town in play just lost its boss and will try again by itself. */
+export const willRetry = (game, town) => autoOn(game, town, 'retry') && lostBoss(town);
+/* Where a try stands: null (no try, or the switch is off), 'wait' (on hold until a tower goes up a level, which
+   Auto-towers will do), 'stuck' (on hold, and Auto-towers cannot raise one: it is off, there is no tower, or every
+   tower waits for its path), or 'climb' (playing back up to the boss wave). */
+export function retryState(game, town) {
+  if (!autoOn(game, town, 'retry')) return null;
+  if (lostBoss(town)) {
+    const b = towerBlock(game, town);
+    return b === 'off' || b === 'none' || b === 'path' ? 'stuck' : 'wait';
+  }
+  const a = autoOf(game, town).boss;
+  return a && !town.waves.autoHold && town.bestWave < a.wave ? 'climb' : null;
+}
+function retry(game, town, a) {
+  if (lostBoss(town)) {
+    const l = town.lost;
+    if (!a.boss || a.boss.at !== l.at || a.boss.wave !== l.wave) a.boss = { wave: l.wave, power: towerPower(town), at: l.at, tries: (a.boss && a.boss.wave === l.wave ? a.boss.tries : 0) + 1 };
+    if (towerPower(town) > a.boss.power) {
+      setHold(game, town, false);
+      game.bus.emit('auto:retry', { town: town.id, wave: a.boss.wave, tries: a.boss.tries });
+    }
+  } else if (a.boss && (town.bestWave >= a.boss.wave || town.wave < a.boss.wave - wavesOf(town).breachBack)) a.boss = null; // beaten, or fell further back (a charter, a vault)
+}
+
 /* Foremen: the town's hired ones, and how many work. setForemen switches every one. */
 export const foremenOf = town => Object.keys(town.foremen || {}).filter(id => hasForeman(town, id));
 export const foremenWorking = town => foremenOf(town).filter(id => foremanOn(town, id)).length;
@@ -88,6 +122,8 @@ function work(game, town, dt) {
       }
     }
   }
+  if (autoOn(game, town, 'retry')) retry(game, town, a);
+  else if (a.boss) a.boss = null;
   if (autoOn(game, town, 'research') && !town.lab) {
     const n = nextResearch(town);
     if (n && startResearch(game, town, n.id)) game.bus.emit('auto:research', { town: town.id, id: n.id, level: researchLevel(town, n.id) + 1 });

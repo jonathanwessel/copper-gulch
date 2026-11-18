@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -115,6 +115,12 @@ export const MIGRATIONS = {
     const g = s.game || {}, sh = g.shared = g.shared || {};
     if (!sh.auto) sh.auto = {};
     return { ...s, v: 16, game: g };
+  },
+  // v17: Keep trying the boss (src/core/automation.js): the switch Off and no try running in every old save
+  16: s => {
+    const g = s.game || {}, sh = g.shared = g.shared || {};
+    for (const a of Object.values(sh.auto || {})) { if (a.retry === undefined) a.retry = false; if (a.boss === undefined) a.boss = null; }
+    return { ...s, v: 17, game: g };
   },
 };
 

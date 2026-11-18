@@ -23,7 +23,7 @@ import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/c
 import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
-import { autoOpen, autoOf, setAuto, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
+import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
 import { TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
@@ -211,7 +211,7 @@ export function researchSheet(game, town) {
 export function autoSheet(game, town) {
   return body => {
     const list = el('div', 'goods research auto'), rows = {};
-    body.append(el('p', 'note', 'It never spends more than half your coins.'), list);
+    body.append(el('p', 'note', 'Automation never spends more than half your coins.'), list);
     const add = (id, name, about) => {
       const row = el('div', 'option'), txt = el('div'), info = el('small'), sw = btn('Turn on', 'btn small'); sw.dataset.auto = id;
       txt.append(el('b', null, name), el('span', null, about), info); row.append(txt, sw); list.append(row);
@@ -220,6 +220,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
+    add('retry', 'Keep trying the boss', 'If the boss beats this town, its waves start again after a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -240,6 +241,14 @@ export function autoSheet(game, town) {
         : tb === 'wait' ? 'Next raise in ' + wait(a.wait)
         : 'Raising a tower now';
       set(rows.towers, autoOpen(game, 'towers'), !!a.towers && autoOpen(game, 'towers'), tLine);
+      const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
+      const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
+        : !a.retry ? ''
+        : rs === 'wait' ? 'Waiting for a tower to go up a level'
+        : rs === 'stuck' ? (a.towers ? 'Waiting for a tower to go up a level' : 'Turn on Auto-towers, or raise a tower yourself')
+        : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
+        : 'Ready if a boss gets through';
+      set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
       const r = nextResearch(town);
       const rLine = !autoOpen(game, 'research') ? 'Build the ' + INSTITUTION[AUTO.opens.research].name + ' at the Capital first.'
         : !a.research ? 'Off'

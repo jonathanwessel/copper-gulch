@@ -4,10 +4,10 @@
    share:      it buys only when the price is at most this share of the coins on hand, like a foreman
    towerEvery: seconds between two Auto-towers upgrades in one town
    faster:     each War Office upgrade bought makes that wait this many times as long
-   opens:      the institution that opens each one at the Capital */
+   opens:      the institution that opens each one at the Capital (Keep trying the boss comes with Auto-towers) */
 export const AUTO = {
   share: .5,
   towerEvery: 180,
   faster: .85,
-  opens: { towers: 'war', research: 'university' },
+  opens: { towers: 'war', research: 'university', retry: 'war' },
 };

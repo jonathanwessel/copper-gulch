@@ -17,7 +17,7 @@ import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSh
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman } from '../core/foremen.js';
-import { autoOn } from '../core/automation.js';
+import { autoOn, retryState } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
 import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
@@ -50,7 +50,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const backBtn = el('button', 'btn small backbtn'); backBtn.id = 'backBtn'; backBtn.hidden = true;
   backBtn.addEventListener('click', () => { const b = game.back; if (b && shell.go) shell.go(b); });
   place.append(name, mapBtn, backBtn);
-  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold) || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
+  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold && retryState(game, o) !== 'wait') || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
   const paintPlace = () => {
     const b = game.back, next = nextTowns(game);
     if (backBtn.hidden !== !b) backBtn.hidden = !b;
@@ -342,7 +342,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
       if (e.held && !e.away && e.town === town.id) { showLost(); return; } // the boss got through here: a card, waves on hold
-      if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id), 6000); return; }
+      if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id, game), 6000); return; }
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);
       else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
@@ -352,7 +352,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the boss got through in the town in play: a plain card says what happened and what to do; one tap closes it
   function showLost() {
     const old = document.getElementById('lostCard'); if (old) old.remove();
-    const c = lostCard(town), layer = el('div', 'newslayer'), card = el('div', 'newscard lostcard'), body = el('div', 'newsbody');
+    const c = lostCard(town, game), layer = el('div', 'newslayer'), card = el('div', 'newscard lostcard'), body = el('div', 'newsbody');
     layer.id = 'lostCard';
     for (const l of c.lines) body.append(el('p', null, l));
     const ok = el('button', 'btn primary', 'Got it'); ok.id = 'lostOk';
