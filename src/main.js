@@ -11,7 +11,7 @@ import { showNews } from './ui/news.js';
 initInstall();
 // the test tools may start a new game in one later town alone (?start=gulch, ridge or pinehollow); players always start in Dry Creek
 const START = ['gulch', 'ridge', 'pinehollow'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
-const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null };
+const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();
 // what changed since this device last opened the game (a new player skips it)
@@ -25,7 +25,7 @@ const AWAY_MIN = 5; // seconds in the background before coming back catches up t
 
 async function startGame() {
   if (CG.game) return;
-  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), titleScene]);
+  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }, { FlowMeter, mapOpen }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), import('./core/map.js'), titleScene]);
   const saved = readSave();
   let game, away = null;
   // time away always counts (owner rule): run it, and note what the market sold meanwhile for the Welcome back line
@@ -37,6 +37,7 @@ async function startGame() {
     if (secs > 30) away = catchUp(secs);
   } else game = newGame('cg-' + Date.now().toString(36), START); // a new game starts in Dry Creek Outpost
   CG.game = game;
+  const meter = CG.meter = new FlowMeter(); // coins and goods a second, for the map's badges and wagons
   if (CG.scene) { CG.scene.stop(); CG.scene = null; }
   title.hidden = true;
   // leaving this game (another slot, an imported save, the title): save first, stop saving, then reload
@@ -54,16 +55,19 @@ async function startGame() {
   let flatTimer = 0;
   /* The town in play on screen: its 3D board, its HUD and cards, and its explainers. Switching towns takes them down
      and builds them again for the other town on a fresh canvas (the old one's GPU context is let go). */
-  function mount() {
+  function mount({ flyIn = false } = {}) {
     const viewApi = { onTap: () => {}, project: () => null, pause: () => {}, paused: () => false, select: () => {} };
     const b = game.town.def.board;
     // a screen point for a 3D target (a plot, a stone pad, a tower or the vault), for the spotlights
     const locate = tg => !CG.town ? null : tg.plot ? CG.town.project(tg.plot) : tg.spot !== undefined ? CG.town.projectSpot(tg.spot)
       : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
-    const town = startTownView(document.getElementById('view'), game, { onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); } });
+    const town = startTownView(document.getElementById('view'), game, {
+      flyIn, onZoomOut: () => openMap(),
+      onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { meter.update(game); if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); },
+    });
     CG.town = town;
     if (town) { viewApi.project = town.project; viewApi.pause = on => town.pause('player', on); viewApi.paused = () => town.holds.has('player'); viewApi.select = town.select; viewApi.setView = town.setView; }
-    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, locate, onHelp: () => CG.play.sheets.close() });
+    CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, leave, go, locate, map: () => openMap(), onHelp: () => CG.play.sheets.close() });
     // the explainer cards; ?coach=off turns them off (the test tools use it)
     CG.coach = startCoach({
       game, town: game.town, root: document.body, off: coachOff,
@@ -77,16 +81,47 @@ async function startGame() {
       toast('This device cannot show the 3D town, so the plots are listed instead.');
     }
   }
+  const freshCanvas = () => { const old = document.getElementById('view'), fresh = old.cloneNode(false); old.replaceWith(fresh); }; // no old listeners, no lost context
   function unmount() {
     if (CG.coach) CG.coach.destroy();
     if (CG.play) CG.play.destroy();
-    if (CG.town) {
-      CG.town.stop(true);
-      const old = document.getElementById('view'), fresh = old.cloneNode(false); // a clean canvas: no old listeners, no lost context
-      old.replaceWith(fresh);
-    }
+    if (CG.town) { CG.town.stop(true); freshCanvas(); }
     CG.coach = CG.play = CG.town = null;
   }
+  /* The empire map (src/render/empire-view.js, src/ui/map.js): the Map button, or zooming a town all the way out.
+     Pause carries over both ways. Play on a town's card flies down into it. */
+  let flying = false;
+  function openMap() {
+    if (!CG.town || CG.map || flying || !mapOpen(game)) return false;
+    const paused = CG.town.holds.has('player'), from = game.active;
+    unmount();
+    const [{ startEmpireView }, { mountMap }] = mapMods;
+    const map = startEmpireView(document.getElementById('view'), game, { from, meter, onTap: id => { if (CG.mapui) CG.mapui.openSite(id); }, onFrame: dt => { if (CG.mapui) CG.mapui.frame(dt); } });
+    if (!map) { mount(); return false; }
+    if (paused) map.pause('player', true);
+    CG.map = map;
+    CG.mapui = mountMap(document.getElementById('app'), game, map, { meter, toast, play: id => flyTo(id), back: () => flyTo(game.active) });
+    keep();
+    return true;
+  }
+  function closeMap() {
+    if (CG.mapui) CG.mapui.destroy();
+    if (CG.map) { CG.map.stop(true); freshCanvas(); }
+    CG.map = CG.mapui = null;
+  }
+  function flyTo(id) {
+    if (!CG.map || flying || !game.towns[id]) return;
+    flying = true;
+    if (CG.mapui) CG.mapui.el.classList.add('flying'); // the badges and the card stay behind
+    CG.map.fly(id, () => {
+      const paused = CG.map.holds.has('player');
+      closeMap(); if (game.active !== id) game.go(id);
+      mount({ flyIn: true }); if (paused && CG.town) CG.town.pause('player', true);
+      flying = false; keep();
+    });
+  }
+  CG.openMap = openMap; CG.flyTo = flyTo;
+  const mapMods = await Promise.all([import('./render/empire-view.js'), import('./ui/map.js')]);
   /* Put another open town in play (the town chip, the outpost's win card). */
   function go(id) {
     if (!game.towns[id] || game.active === id) return false;
@@ -110,7 +145,8 @@ async function startGame() {
   const show = () => {
     if (hiddenAt === null || document.hidden) return;
     const secs = (Date.now() - hiddenAt) / 1000; hiddenAt = null;
-    if (secs < AWAY_MIN || (CG.town && CG.town.holds.has('player'))) return;
+    const v = CG.town || CG.map;
+    if (secs < AWAY_MIN || (v && v.holds.has('player'))) return;
     const r = catchUp(secs); keep(); welcome(r);
     return r;
   };

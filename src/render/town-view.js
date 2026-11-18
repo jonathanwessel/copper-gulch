@@ -11,7 +11,8 @@ import { Selection } from './select.js';
 import { pickTarget, project } from './pick.js';
 
 const _a = new THREE.Vector3();
-export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {} } = {}) {
+/* onZoomOut: the player zoomed out past the farthest view (opens the empire map); flyIn: dive in from above. */
+export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {}, onZoomOut = null, flyIn = false } = {}) {
   const q = startQuality(), v = createScene(canvas, { tier: q.tier });
   if (!v) return null;
   const step = autoStep(v, q);
@@ -20,7 +21,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const battle = new Battle(board, game), selection = new Selection(board, battle);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
-  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
+  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   const api = {
     view: v, board, battle, rig, game, selection, holds: new Set(),

@@ -220,6 +220,12 @@ export const EXPLAINERS = [
     when: h => h.towns > 1 && !h.outpost && h.t > 20, at: () => ({ el: '#townChip' }),
   },
   {
+    id: 'map', covers: ['map'],
+    title: 'The map',
+    text: 'Tap Map to see all your towns at once. Zooming the town all the way out opens it too. Tap a town on the map to see how it is doing.',
+    when: h => h.towns > 1 && !h.outpost && h.t > 30, at: () => ({ el: '#mapBtn' }),
+  },
+  {
     id: 'outposts', town: 'gulch', covers: ['system:outpost'],
     title: 'Dry Creek keeps working',
     text: 'Raiders still come to Dry Creek while you are here. Its Crossbows fight them off. Its stone and ore still sell, and you can spend those coins here.',

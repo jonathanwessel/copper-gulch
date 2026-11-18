@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-20',
+    lines: [
+      'Tap Map to see all your towns at once. Zooming a town all the way out opens it too.',
+      'Wagons roll between towns when goods move. Busy roads get more wagons.',
+      'Tap a town on the map to see its wave and what it earns. Tap Play to fly down into it.',
+    ],
+  },
+  {
     v: '2026.11.17-19',
     lines: [
       'All your towns and outposts now use the same coins.',

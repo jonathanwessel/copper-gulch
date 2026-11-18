@@ -11,6 +11,7 @@ import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, ca
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
+import { mapOpen } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
@@ -95,7 +96,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
-  side.append(goodsBtn, labBtn, perksBtn, menuBtn);
+  // Map: every town at once (src/ui/map.js), once a second town is open and the 3D view runs
+  const mapBtn = el('button', 'btn small', 'Map'); mapBtn.id = 'mapBtn'; mapBtn.hidden = true;
+  mapBtn.addEventListener('click', () => { if (shell.map) shell.map(); });
+  side.append(goodsBtn, labBtn, perksBtn, mapBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
@@ -443,6 +447,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
+    mapBtn.hidden = !(shell.map && shell.view && mapOpen(game));
     paintChip(D.towns);
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }

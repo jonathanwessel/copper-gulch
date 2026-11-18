@@ -28,6 +28,7 @@ export async function check(page) {
     if (card && !card.hidden) { const r = card.getBoundingClientRect(); if (r.top < -1 || r.bottom > innerHeight + 1) bad.push('card taller than the screen'); }
     if (!window.CG) return [...bad, 'no game'];
     if (CG.town) { if (CG.town.frames < 3) bad.push('town not drawing'); }
+    else if (CG.map) { if (CG.map.frames < 3) bad.push('map not drawing'); }
     else if (CG.game) bad.push('no 3D town');
     else if (!document.getElementById('title')) bad.push('no title');
     else if (!CG.scene) bad.push('no 3D view');
@@ -521,6 +522,73 @@ async function run() {
       await page.close();
     }
   } finally { await b8.close(); srv8.close(); }
+
+  // the empire map: Map shows once a second town is open; it draws every town with a badge, moves under the finger,
+  // a tap on a town opens its card with its ring, Pause carries into the town, Play flies in, zooming a town all the way
+  // out opens the map again, and Back returns to the town in play
+  const srv9 = await start(0), b9 = await chromium.launch();
+  try {
+    for (const [name, [width, height]] of Object.entries(SIZES)) {
+      const page = await b9.newPage({ viewport: { width, height } }), errs = [], bad = [];
+      page.on('pageerror', e => errs.push(e.message));
+      page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+      await page.goto(srv9.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5, 10000);
+      await sleep(400);
+      if (await page.evaluate(() => !document.getElementById('mapBtn').hidden)) bad.push('Map shows with one town');
+      await page.evaluate(async () => { const { foundTown } = await import('./src/core/empire.js'); const t = CG.game.town; t.bestWave = 20; t.coins = 1e6; foundTown(CG.game, 'ridge'); t.drawn = { ore: 5 }; CG.game.towns.ridge.shipped = { bricks: 5 }; });
+      if (!await waitFor(page, () => !document.getElementById('mapBtn').hidden, 3000)) bad.push('no Map button with three towns');
+      await page.evaluate(() => document.getElementById('mapBtn').click());
+      if (!await waitFor(page, () => CG.map && CG.map.frames > 10 && CG.mapui, 8000)) bad.push('Map did not open the map');
+      await sleep(900);
+      const m = await page.evaluate(() => ({
+        canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
+        badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),
+        pause: !!document.getElementById('pauseBtn'), coins: document.getElementById('coins').textContent, back: document.getElementById('mapBack').textContent,
+      }));
+      if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
+      bad.push(...(await check(page)).map(b => 'map: ' + b));
+      // the ground under the finger stays under it
+      const pan = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view'), rig = CG.map.rig, W = innerWidth, H = innerHeight;
+        const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, bubbles: true, isPrimary: true, pointerType: 'touch' }));
+        const a = [W * .5, H * .6], A = rig.ground(...a);
+        ev('pointerdown', ...a); for (let i = 1; i <= 6; i++) { ev('pointermove', a[0] - i * 9, a[1] - i * 7); await wait(16); }
+        await wait(50);
+        const v = new (CG.map.view.cam.position.constructor)(A.x, 0, A.z).project(CG.map.view.cam), x = (v.x + 1) / 2 * cv.clientWidth, y = (1 - v.y) / 2 * cv.clientHeight;
+        ev('pointerup', a[0] - 54, a[1] - 42); await wait(100); rig.reset(); await wait(1200);
+        return Math.hypot(x - (a[0] - 54), y - (a[1] - 42));
+      });
+      if (!(pan <= 4)) bad.push('map pan: the ground slid ' + Math.round(pan) + ' px from the finger');
+      // tap Iron Ridge on the map: its card and its ring
+      await page.evaluate(() => { const p = CG.map.projectSite('ridge'), cv = document.getElementById('view'); for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { pointerId: 1, clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true, pointerType: 'touch' })); });
+      await sleep(700);
+      const card = await page.evaluate(() => ({ site: document.getElementById('mapCard').dataset.site, ring: CG.map.selected, text: document.getElementById('mapCard').textContent, play: !!document.getElementById('mapPlay') }));
+      if (card.site !== 'ridge' || card.ring !== 'ridge' || !card.play || !/Gets bricks from Copper Gulch/.test(card.text)) bad.push('the Iron Ridge card is wrong (' + JSON.stringify(card) + ')');
+      bad.push(...(await check(page)).map(b => 'map card: ' + b));
+      // Pause on the map carries into the town; Play flies in
+      await page.evaluate(() => { document.getElementById('pauseBtn').click(); document.getElementById('mapPlay').click(); });
+      if (!await waitFor(page, () => CG.town && CG.town.frames > 5 && CG.game.active === 'ridge' && CG.town.board.group.name === 'board:ridge' && !CG.map, 8000)) bad.push('Play did not fly into Iron Ridge');
+      const after = await page.evaluate(() => ({ paused: CG.town && CG.town.holds.has('player'), canvases: document.querySelectorAll('canvas#view').length, ui: !!document.getElementById('map-ui') }));
+      if (!after.paused || after.canvases !== 1 || after.ui) bad.push('after flying in (' + JSON.stringify(after) + ')');
+      await page.evaluate(() => document.getElementById('pauseBtn').click());
+      // zooming the town all the way out opens the map; Back returns to the town in play
+      await page.evaluate(async () => {
+        const cv = document.getElementById('view'), wait = ms => new Promise(r => setTimeout(r, ms));
+        for (let i = 0; i < 60 && !CG.map; i++) { cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, clientX: innerWidth / 2, clientY: innerHeight / 2, bubbles: true, cancelable: true })); await wait(20); }
+      });
+      if (!await waitFor(page, () => CG.map && CG.map.frames > 5, 6000)) bad.push('zooming out did not open the map');
+      else {
+        await page.evaluate(() => document.getElementById('mapBack').click());
+        if (!await waitFor(page, () => CG.town && CG.town.frames > 5 && CG.game.active === 'ridge' && !CG.map, 6000)) bad.push('Back did not return to Iron Ridge');
+      }
+      bad.push(...errs);
+      console.log('map ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+      failed += bad.length ? 1 : 0;
+      await page.close();
+    }
+  } finally { await b9.close(); srv9.close(); }
 
   // save slots: a new game in slot 2, a save loaded into it from text, back to slot 1, and the title says Continue
   const srv4 = await start(0), b4 = await chromium.launch();

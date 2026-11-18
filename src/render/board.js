@@ -146,8 +146,9 @@ export class Board {
   dispose() { disposeTree(this.group); }
 }
 
-/* The road: a flat ribbon of packed dirt along the polyline, with two dark wheel ruts and lighter edges. */
-function roadRibbon(pts, [dirt, rut, edge]) {
+/* The road: a flat ribbon of packed dirt along the polyline, with two dark wheel ruts and lighter edges; w scales
+   its width (the empire map's routes are narrower). */
+export function roadRibbon(pts, [dirt, rut, edge], w = 1) {
   const path = new THREE.CurvePath();
   for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(pts[i][0], 0, pts[i][1]), new THREE.Vector3(pts[i + 1][0], 0, pts[i + 1][1])));
   const n = Math.ceil(path.getLength() / .2), samples = path.getSpacedPoints(n);
@@ -159,7 +160,7 @@ function roadRibbon(pts, [dirt, rut, edge]) {
   samples.forEach((p, i) => {
     const a = samples[Math.max(0, i - 1)], b = samples[Math.min(samples.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1;
     const nx = -dz / L, nz = dx / L, j = ((i * 7919) % 13) / 13 * .06;
-    for (const [o, c] of bands) { pos.push(p.x + nx * o, .015, p.z + nz * o); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); }
+    for (const [o, c] of bands) { pos.push(p.x + nx * o * w, .015, p.z + nz * o * w); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); }
     if (i) { const w = bands.length, s0 = (i - 1) * w, s1 = i * w; for (let k = 0; k < w - 1; k++) idx.push(s0 + k, s0 + k + 1, s1 + k, s0 + k + 1, s1 + k + 1, s1 + k); } // counter-clockwise from above
   });
   const g = new THREE.BufferGeometry();

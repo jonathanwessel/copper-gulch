@@ -4,6 +4,8 @@
        spot, so whatever is between the fingers stays put;
      right-drag or Shift-drag: the map turns around the point under the pointer, the way the pointer moves;
      the wheel zooms toward the pointer;   a double tap eases back to the home view.
+   Zooming out past the farthest view (a pinch that keeps closing, or the wheel turned on) calls onZoomOut: the town
+   opens the empire map. flyIn: the first view starts high above the town and dives to the home view.
    While touching, the camera follows the fingers exactly (no easing); only a flick's glide and the reset ease.
    A drag never counts as a tap: onTap(x, y) only fires for a press that did not move.
    Framing: the home view fits the town into the part of the screen the top bar leaves free, close enough that every
@@ -26,8 +28,8 @@ export function pose(cam, s) {
 }
 
 export class CameraRig {
-  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [] }) {
-    this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads;
+  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false }) {
+    this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads; this.onZoomOut = onZoomOut; this.flyIn = flyIn; this.pull = 0;
     this.view = { top: 0, cover: null }; // the top bar's lower edge and the open card's box, in client pixels
     this.gestures = 0; this.atHome = true; this.slid = null; this.keepKey = null;
     this.home = { x: center.x, z: center.z, yaw: 0, pitch: .78, dist: 19 };
@@ -117,6 +119,7 @@ export class CameraRig {
     for (let k = 0; k < 3 && this.pads.length && this.padPx(s) < MIN_PAD - .5; k++) { search(() => this.padPx(s) >= MIN_PAD, true); center(); } // the farthest with pads big enough
     Object.assign(this.home, s);
     if (!this.fitted || this.atHome) { Object.assign(this.t, this.home); if (!this.fitted) Object.assign(this.c, this.home); }
+    if (this.flyIn && !this.fitted && this.fw !== undefined) { this.flyIn = false; this.c.dist = this.home.dist * 2.2; this.c.pitch = Math.min(1.3, this.home.pitch + .25); }
     this.fitted = true; this.slid = null;
   }
   /* Keep the selected thing (world point p, or null when no card is open) out from under its card: if the card covers
@@ -211,6 +214,7 @@ export class CameraRig {
       pts.set(e.pointerId, [e.clientX, e.clientY]);
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
       this.hold();
+      if (pts.size === 1) this.pulled = false;
       if (pts.size === 1) down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, turn: e.button === 2 || e.shiftKey, vx: 0, vy: 0, t: performance.now(), g: this.ground(e.clientX, e.clientY) };
       if (pts.size === 2 && down) down.moved = true;
       regrab();
@@ -220,7 +224,12 @@ export class CameraRig {
       pts.set(e.pointerId, [e.clientX, e.clientY]);
       if (pts.size >= 2 && two && two.A && two.B) {
         const [a, b] = [...pts.values()];
-        this.twoFinger(two.A, two.B, a, b); this.clamp(this.c); this.hold(); down.moved = true; this.gestures++; this.atHome = false; return;
+        this.twoFinger(two.A, two.B, a, b); this.clamp(this.c); this.hold(); down.moved = true; this.gestures++; this.atHome = false;
+        if (this.onZoomOut && this.c.dist >= this.max - .01) { // at the farthest view and still closing: past it
+          const p = this.ground(a[0], a[1]), q = this.ground(b[0], b[1]);
+          if (p && q && Math.hypot(q.x - p.x, q.z - p.z) < Math.hypot(two.B.x - two.A.x, two.B.z - two.A.z) * .8) this.pulled = true;
+        }
+        return;
       }
       if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
       if (!down.moved) return;
@@ -239,6 +248,7 @@ export class CameraRig {
     const up = e => {
       pts.delete(e.pointerId);
       if (down && !pts.size) {
+        if (this.pulled && this.onZoomOut) { this.pulled = false; down = null; this.onZoomOut(); return; }
         if (!down.moved && e.type === 'pointerup') this.onTap(e.clientX, e.clientY);
         else if (!down.turn && performance.now() - down.t < 80 && Math.hypot(down.vx, down.vy) > .05) this.flick = { vx: down.vx, vy: down.vy, x: down.lx, y: down.ly };
         down = null;
@@ -248,6 +258,9 @@ export class CameraRig {
     el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('wheel', e => { // zoom toward the pointer
       e.preventDefault(); this.gestures++; this.atHome = false;
+      if (this.onZoomOut) { // three turns out at the farthest view open the map
+        if (e.deltaY > 0 && this.c.dist >= this.max - .01) { if (++this.pull >= 3) { this.pull = 0; this.onZoomOut(); return; } } else this.pull = 0;
+      }
       const g = this.ground(e.clientX, e.clientY);
       this.c.dist = Math.max(this.min, Math.min(this.max, this.c.dist * (1 + Math.sign(e.deltaY) * .1)));
       this.pin(g, e.clientX, e.clientY); this.clamp(this.c); this.hold();
