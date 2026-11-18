@@ -27,6 +27,8 @@ The rules for every game in this folder (free forever, no personal details, Amer
 - The player can always see how much of each good they have (owner, 2026-11-17): a goods strip on the play screen with a count for every good the town's towers and next upgrades use, and every cost on a card shows have / need, red when short. `tools/smoke.js` checks it.
 - Time away always counts, whether the app was closed or only in the background (owner, 2026-11-17). Coming back from the background catches up the time it was hidden, like a cold start, unless the player pressed Pause. `tools/smoke.js` checks it.
 - Coins are one shared purse for the whole empire (owner decision, 2026-11-17): every town, outpost, bounty and sale adds to it and every purchase spends from it; a charter resets a town but never the purse.
+- Call now is never locked. The player decides when the next wave comes (owner, 2026-11-17). If calling early ever makes a strategy too strong, fix it with the bonus or the wave, never by graying the button.
+- Boss waves are gates (owner, 2026-11-17). A boss wave is beaten only when its boss is killed. If the boss reaches the vault or stockpile, the town drops back like a fallen vault and the next wave number never passes an unbeaten boss. Every town and outpost.
 
 **How this repo enforces the shared rules**
 - Storage keys are only `cg-*`. The old game's key `copper-gulch-save-v1` may be read, never written. Saves bump `v` with a migration for any change to their shape.
@@ -232,6 +234,20 @@ Decision (2026-11-17): the Iron Ridge box is split in two so each ships on its o
   - Notes (the frame half, met in 2026.11.17-21): decision, "2 boards" means two towns open and working at once. Only the town in play is drawn (the others run in the simulation), and the empire map draws every town as a diorama. `tools/perf.js --town empire` plays Iron Ridge founded from a built-up Gulch, with the Gulch, Dry Creek and Pine Hollow working behind it, and `--limit 20` sets the gate. Profile first (phone size, software GPU, CPU 4x): 28.4 ms median in the Gulch as shipped. Lambert lighting in place of the physically based material saved about 3 ms. Dropping the pixel ratio to 1 saved 7 ms, and no shadows 8 ms. Turning off 4x multisampling saved the most, 10 ms, because the software GPU shades every sample (a phone GPU does not, so on a phone this part is smaller). Fix: every matte surface (`MAT.solid`, the ground, the road, chimney smoke) is `MeshLambertMaterial`, metal stays physically based, and the med tier (the phone default) draws without multisampling at a pixel ratio of up to 1.35 (was 1.25 with it), so edges stay fairly clean. After: the Gulch 18.9 ms, the Ridge 18.4 ms, the Ridge with four towns 18.5 ms (109 draw calls, 62k triangles, 0.53 px raider step), the map with four towns 17.8 ms (38 draw calls, 107k triangles). Unthrottled the frame waits for the screen (16.7 ms), so stepping four towns costs almost nothing. The import half is met by the box above (2026.11.17-22): the Boiler Shop runs on Gulch bricks 96-100% of the time and the Locomotive Works on Gulch tools 100%, both within the Ridge's first hour. M3 is done. Also in -21: the import lines on a workshop card no longer say "This town pays for each load" (wrong since the shared purse), and when the town that makes an import has not built its maker yet, the card and the map card say "Build a Kiln in Copper Gulch" instead of "Upgrade the Kiln". Release checks: 202 tests, audit ok, balance ok (Dry Creek won 8.4-10.7 min, Gulch wave 10 7.8-8.3 min, charter offered 38-43 min, Ridge founded 67.5-71.3 min by strategy median, Ridge wave 10 7.1-7.7 min, Boiler Shop running 98-100%, every strategy within 25%, variety ok), firstplay ok (newcomer Dry Creek 12.7 min, Gulch wave 10 10.5 min), smoke all ok, perf as above (the empire gate 19.2 ms on the final build), update and install tests ok. The screenshot-only review reworded the What's new line ("runs faster" could read as faster waves) and asked the map card's short-of-goods line to say what to build; done. Left as they are: "Vault 100%" and the Goods sheet over the side buttons (kept by earlier reviews), and "Sell boilers · On" (the switch name used everywhere). Not yet tried on a real phone, where the edges without multisampling need a look.
 
 ### M4. The Capital and Automation
+Owner feedback from playing (2026-11-17) jumps the queue: the next three boxes come first, in this order.
+- [ ] **Call now is never locked (owner: "I have to wait till the wave countdown is at 40s before I can call wave? Dumb!").**
+  - Call now works at any point of the countdown, from the first second, in every town and outpost. Remove the `CALL_OPEN` gate (`canCall` in `src/core/defense.js`); the button is never grayed. It still pays bonus coins for the time skipped.
+  - Rerun the bots. If calling at once breaks balance (strategies more than 25% apart, or the active bot's wave 10 far under 7 min), fix it another way: a smaller bonus per second skipped, or tougher waves when called early. Never gate the button again.
+  - Update GDD.md (the wave pace line and Skill pays), the Call now goal line if needed, the tests that use `CALL_OPEN`, and the What's new card.
+- [ ] **Boss waves are gates (owner: "After wave 20 the boss got all the way to the vault but it still did not take me back like the old version. It just let me go on to wave 21. They should be a gate I can't get past.").**
+  - Today `src/core/defense.js` drops back only when the vault's strength reaches 0, so a boss that leaks still counts as cleared. Fix: a boss wave is beaten only when its boss is killed. If the boss reaches the vault (or an outpost's stockpile), the boss wave is lost: the town drops back `breachBack` waves and loses the same coin share as a fallen vault, the vault refills, and a plain card says what happened and what to do ("The war wagon got through. Back to wave 18. Build more towers and try again.").
+  - Every town and outpost, the bandit wagon in Dry Creek and Pine Hollow too. The next wave number never passes an unbeaten boss. Decide what a won outpost's raids do (they bring no boss) and write it in GDD.md.
+  - Tests: a leaked boss means no wave 21; a killed boss passes. Rerun the bots against the pacing targets and retune if they miss. Add the rule to GDD.md.
+- [ ] **Music and sound (moved up from M7 Juice and extras).**
+  - Adapt `../tycoon/src/music.js` into `src/audio/`: procedural Web Audio, no files and no other hosts. An Old West feel: a calm theme while building and a tenser one during waves and bosses.
+  - Basic sound effects: build, shot, coin and boss.
+  - Music and Sound sliders in the Menu sheet (Settings), kept under a `cg-*` key. Sound starts only after the first tap (browser rules) and stops when the app is hidden.
+  - No explainer needed; note it in What's new.
 - [ ] **The Capital.**
   - The treasury; institutions founded with coins; the Empire tree in Influence; federal contracts.
   - The Capital city scene.
@@ -262,7 +278,7 @@ Decision (2026-11-17): the Iron Ridge box is split in two so each ships on its o
 - [ ] **The top layer.** Laws, the Convention, Legacy and the Legacy perks.
 - [ ] **Juice and extras.**
   - Builds rise in scaffolding; the boss gets an entrance; coins burst out.
-  - Procedural music; gamepad support.
+  - Gamepad support (procedural music moved up to M4, owner request 2026-11-17).
   - Every mission and badge.
 - [ ] **Old-save bonus.** Read the old game's save once and grant deeds = min(15, floor(log10 of its lifetime coins)), plus a Pioneer badge. Never write the old key.
 - [ ] **Target:** a second life reaches the first life's peak in under 30% of the time, and a bot completes every mission.
