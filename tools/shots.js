@@ -157,7 +157,7 @@ const FALLS = [
     const n = document.getElementById('newsOk'); if (n) n.click();
     localStorage.clear(); document.getElementById('play').click();
     for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await wait(100);
-    const g = CG.game; g.addTown('ridge'); g.towns.ridge.bestWave = 25; g.shared.charter.deeds = 3; g.shared.purse.coins = 9e5;
+    const g = CG.game; g.addTown('ridge'); g.towns.ridge.bestWave = 57; g.shared.charter.deeds = 3; g.shared.purse.coins = 2e6;
     CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
     CG.mapui.openSite('falls'); await wait(1000);
   }],

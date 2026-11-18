@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-14',
+    lines: [
+      'Silver Falls now needs wave 57 in Iron Ridge, 1M coins and 5 deeds.',
+      'Sign the Iron Ridge charter to get the deeds for Silver Falls.',
+      'In Silver Falls, the Goal box at the top tells you what to build next, up to the Telegraph Works.',
+      'Waves in Silver Falls come a little slower. Tap Call now there and the wave brings more raiders.',
+    ],
+  },
+  {
     v: '2026.11.18-13',
     lines: [
       'Silver Falls is on the map. Beat wave 25 in Iron Ridge and hold 5 deeds to start it.',

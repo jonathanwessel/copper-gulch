@@ -17,7 +17,7 @@ import { FOES } from '../src/data/foes.js';
 
 const run = (g, seconds) => { for (let i = 0; i < seconds * 4; i++) g.step(STEP); };
 /* A game with Iron Ridge at `wave`, `coins` in the purse and `deeds` held. */
-function ridge(seed, wave = 25, coins = 1e6, deeds = 5) {
+function ridge(seed, wave = TOWNS.falls.found.wave, coins = 2e6, deeds = 5) {
   const g = newGame(seed, 'gulch');
   g.addTown('ridge');
   g.towns.ridge.bestWave = wave; g.town.coins = coins; g.shared.charter.deeds = deeds;
@@ -30,15 +30,16 @@ function falls(seed) {
   return g;
 }
 
-test('Silver Falls needs Ridge wave 25, the coins and 5 deeds, and the map lists all three', () => {
+test('Silver Falls needs Ridge wave 57, the coins and 5 deeds, and the map lists all three', () => {
   const f = TOWNS.falls.found;
-  assert.deepEqual([f.from, f.wave, f.deeds], ['ridge', 25, 5]);
+  assert.deepEqual([f.from, f.wave, f.deeds], ['ridge', 57, 5]);
   assert.deepEqual(nextTowns(ridge('f1', 19)), [], 'out of sight before Ridge wave 20');
   assert.deepEqual(nextTowns(ridge('f1', 20, 0, 0)).map(n => [n.id, n.ready, n.deedsOk]), [['falls', false, false]]);
-  assert.equal(canFound(ridge('f1', 25, 1e6, 4), 'falls'), false, 'one deed short');
-  assert.equal(canFound(ridge('f1', 25, f.coins - 1, 5), 'falls'), false, 'short of coins');
+  assert.equal(canFound(ridge('f1', f.wave, 2e6, 4), 'falls'), false, 'one deed short');
+  assert.equal(canFound(ridge('f1', f.wave, f.coins - 1, 5), 'falls'), false, 'short of coins');
+  assert.equal(canFound(ridge('f1', f.wave - 1, 2e6, 5), 'falls'), false, 'one wave short');
   assert.equal(canFound(ridge('f1'), 'falls'), true);
-  const lr = lockedRules(ridge('f1', 25, 1e6, 2), 'falls');
+  const lr = lockedRules(ridge('f1', f.wave, 2e6, 2), 'falls');
   assert.deepEqual(lr.rules.map(r => [r.kind, r.done]), [['wave', true], ['deeds', false], ['coins', true]]);
   assert.equal(lr.rules[1].have, 2);
 });

@@ -15,11 +15,11 @@ Copper Gulch is a free Old West tycoon and tower-defense game. You run towns alo
 | 1 | Copper Gulch | Frontier: wood, clay, copper | road | War wagon | Dry Creek's wave 10 won (about 10-15 min) |
 | 2 | Iron Ridge | Iron and rail | switchback road | Armored train | Gulch wave 20 + 15K coins, first life, no charter needed |
 | C | The Capital | Government | none | none | Ridge wave 30 + 150K coins (set 2026-11-18; the first sketch said wave 15 + 2M) |
-| 3 | Silver Falls | Electricity | road + river | Ironclad steamer | Ridge wave 25 + **5 deeds** + 500K coins (first pass 2026-11-18; the first sketch said 50M before the purse; the Falls bot box tunes it) |
+| 3 | Silver Falls | Electricity | road + river | Ironclad steamer | Ridge wave 57 + **5 deeds** + 1M coins (tuned 2026-11-18 by the Falls bots; the first pass said wave 25 and 500K, the first sketch 50M before the purse) |
 | 4 | Thunder Mesa | Oil and flight | road + sky | Sky pirate airship | Transport node 3 + 1B |
 | 5 | Radium Springs | Radio and radium | road + sky + a static field that jams towers | Iron Colossus (a steam walker) | Mesa wave 30 + University node 4 + 50B |
 
-The Empire map shows the 5-deed gate for Silver Falls in plain words: "Hold 5 deeds. Sign a charter to get more." with the deeds held as have / need. Deeds are kept, never spent (`town.def.found.deeds`, `src/core/empire.js`). Without the deed bonus, its coin price is out of reach.
+The Empire map shows the 5-deed gate for Silver Falls in plain words: "Hold 5 deeds. Sign a charter to get more." with the deeds held as have / need. Deeds are kept, never spent (`town.def.found.deeds`, `src/core/empire.js`). Without a charter it never opens: the Gulch's first charter pays 1 deed, and the Ridge's charter pays about 6 once its best wave is near 50. Decision (2026-11-18, the Falls bots): the wait is the Ridge's wave, not the coins. After its charter the Ridge is back past wave 50 in about 35 minutes (7 deeds add 175% to every town's coins) and then climbs slowly, so wave 57 lands the Falls at 6-7 hours. A coin price big enough to be the wait would sit far past what the purse earns in the 6 minutes the bots save for.
 
 **One purse for the empire** (owner decision, 2026-11-17, save v12). Coins are one balance, shown at the top in every town. Every town and outpost puts its sales, bounties and Call now bonuses into it, and every purchase anywhere spends from it. Each town still counts what it earned itself in this charter (`town.lifetime`), which is what deeds and the Welcome back line read. Tapping the coins shows the town in play by source, then one line for each other town and outpost. Routes move goods only. A charter never touches the purse. The save migration added every town's old coins into the purse.
 
@@ -103,7 +103,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Raw: iron ore, coal, stone.
   - Intermediate: pig iron (2 iron + coal), steel (pig iron + coal).
   - Finished: rails (2 steel), boilers (steel + 2 bricks <- Gulch), locomotives (boiler + 2 rails + tools <- Gulch).
-- **Silver Falls** (set 2026-11-18, first pass; the Falls bot box tunes it)
+- **Silver Falls** (set 2026-11-18, tuned by the Falls bots the same day)
   - Buildings: Sand Pit (sand, built at the start), Quartz Mine (Sand Pit 3), Water Wheel (Sand Pit 4), Glassworks (Sand Pit 5 and Water Wheel 1), Wire Mill (Glassworks 3), Bulb Works (Wire Mill 3), Dynamo Works (Wire Mill 5), Telegraph Works (Bulb Works 5 and Dynamo Works 3).
   - **The power grid.** The Water Wheel makes 1 power a second per level. Every workshop uses 1 power for each unit it makes; the pits use none. Power is made and used in the same moment: it is never kept, sold, shown on the goods strip or listed in Goods. When the workshops want more than the grid makes, every workshop on it runs at the same share (`gridOf` in `src/core/economy.js`) and its card says "Not enough power. Every workshop here runs slower. Upgrade the Water Wheel." The Water Wheel's card says how much power the workshops use. So the choice is how far ahead of the workshops to keep the Wheel. Its price in the data (0.5) counts only for the chain rule.
   - Towers pay with Falls goods: Crossbow sand, Cannon quartz, Frost Lens quartz and sand, Still sand and glass, Mortar glass and quartz. Quartz is used for towers until Radium Springs' radios.
@@ -111,6 +111,9 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
   - Raw: sand, quartz. The Water Wheel feeds a power grid; power is not a good.
   - Intermediate: glass (2 sand), wire (copper <- Gulch; the Wire Mill makes 0.4 a second per level, as fast as the Smelter).
   - Finished: light bulbs (glass + wire), dynamos (wire + steel <- Ridge), telegraphs (2 wire + bulb + rails <- Ridge).
+  - Waves come 70 seconds apart (the Ridge's 66 made a called wave 10 come 7.0 minutes after getting there), and a called wave comes 1 + 6 x rush bigger (`rushMore` 6, the Ridge's 4 and the Gulch's 2), so the bots' wave 10 lands at 7.6-9.3 minutes for every strategy.
+  - The goal strip walks up the chain: Water Wheel, Glassworks, Water Wheel to level 5, Wire Mill, the Gulch's Smelter if there is none, Bulb Works, Dynamo Works, the Ridge's Steel Mill and Rolling Mill if they are gone (a charter there resets them), then the Telegraph Works.
+  - The bots raise the Water Wheel first whenever the grid is short, or when the next workshop level would make it short (`gridFirst` in `tools/balance.js`), and a pad's reach counts both lanes, each weighted by the share of raiders that ride it (a third come by boat).
 - **Thunder Mesa**
   - Raw: crude oil, bauxite, rubber.
   - Intermediate: fuel, aluminum, tires.
@@ -284,7 +287,10 @@ One sheet per town, opened with the Auto button on the play screen (`src/core/au
 | Boiler Shop | built in the Ridge's first hour, running on Gulch bricks at least 90% of the time |
 | Locomotive Works | built within 90 min of getting to the Ridge (the bots 40-54 min), running on Gulch tools at least 90% of the time (the goal strip leads there, and sends the player to the Gulch for a Toolsmith) |
 | Capital | 2.5-4 h of play (active bot, every seed) |
-| Silver Falls | 6-10 h with 1 or 2 charters, at least 2.5× longer with none |
+| Silver Falls | 6-10 h with 1 or 2 charters (the active bot 6.2-6.8 h: after the Capital's 2 hours it signs the Ridge's charter at wave 48-50 for 6 deeds, climbs back to 57 and saves 10-18 min). With none it never opens, since it needs 5 deeds |
+| Sandy Bend won | within 20 min of getting there (the bots 9.7-10.7 min) |
+| Silver Falls wave 10 (the steamer) | 7-10 min after getting there, no breach in waves 1-3, every strategy within 25% (the bots 7.6-9.3 min) |
+| Wire Mill and the grid | the Wire Mill runs on Gulch copper at least 90% of the time and the grid gives at least 90% of the power on average (the bots 98-100% and 100%) |
 | Thunder Mesa | 20-30 h |
 | Radium Springs | 50-80 h |
 | First Convention worth it (4 or more Legacy) | 80-120 h |

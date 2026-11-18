@@ -21,6 +21,8 @@ const ridgeWave = c => c.bestWave >= RIDGE.found.wave && !c.founded('ridge');
    so once the Rolling Mill stands the strip sends the player to Copper Gulch for a Toolsmith. within: RIDGE_GOAL. */
 const RIDGE_GOAL = 185;
 const ridgeTools = c => c.lvIn('gulch', 'toolsmith') >= 1;
+/* Silver Falls (M5): within FALLS_GOAL minutes of a new game, the top of the Falls' 6-10 h window. */
+const FALLS_GOAL = 600;
 
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
@@ -62,4 +64,17 @@ export const GOALS = [
   { id: 'r-rolling5', town: 'ridge', text: 'Tap the Rolling Mill and upgrade it to level 5', done: c => c.lv('rolling') >= 5, ready: c => c.lv('rolling') >= 1, at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
   { id: 'r-boiler5', town: 'ridge', text: 'Tap the Boiler Shop and upgrade it to level 5', done: c => c.lv('boilershop') >= 5, ready: c => c.lv('boilershop') >= 1, at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-loco', town: 'ridge', text: 'Tap Build to build the Locomotive Works', done: c => c.lv('loco') >= 1, ready: c => c.unlocked('loco'), at: () => ({ plot: 'loco' }), within: RIDGE_GOAL },
+  // Silver Falls (M5): the way up its chain to the Telegraph Works. The Wire Mill uses Gulch copper and the Dynamo and
+  // Telegraph Works use Ridge steel and rails, so a missing maker there sends the player to that town.
+  { id: 'f-sand4', town: 'falls', text: 'Tap the Sand Pit and upgrade it to level 4', done: c => c.lv('sandpit') >= 4, at: () => ({ plot: 'sandpit' }), within: FALLS_GOAL },
+  { id: 'f-wheel', town: 'falls', text: 'Tap Build to build the Water Wheel', done: c => c.lv('waterwheel') >= 1, ready: c => c.unlocked('waterwheel'), at: () => ({ plot: 'waterwheel' }), within: FALLS_GOAL },
+  { id: 'f-glass', town: 'falls', text: 'Tap Build to build the Glassworks', done: c => c.lv('glassworks') >= 1, ready: c => c.unlocked('glassworks'), at: () => ({ plot: 'glassworks' }), within: FALLS_GOAL },
+  { id: 'f-wheel5', town: 'falls', text: 'Tap the Water Wheel and upgrade it to level 5', done: c => c.lv('waterwheel') >= 5, ready: c => c.lv('glassworks') >= 1, at: () => ({ plot: 'waterwheel' }), within: FALLS_GOAL },
+  { id: 'f-wire', town: 'falls', text: 'Tap Build to build the Wire Mill', done: c => c.lv('wiremill') >= 1, ready: c => c.unlocked('wiremill'), at: () => ({ plot: 'wiremill' }), within: FALLS_GOAL },
+  { id: 'f-copper', town: 'falls', text: 'Go to Copper Gulch and build a Smelter there', done: c => c.lvIn('gulch', 'smelter') >= 1, ready: c => c.lv('wiremill') >= 1, at: goTo('gulch'), there: ['gulch', 'smelter'], within: FALLS_GOAL },
+  { id: 'f-bulbs', town: 'falls', text: 'Tap Build to build the Bulb Works', done: c => c.lv('bulbworks') >= 1, ready: c => c.unlocked('bulbworks'), at: () => ({ plot: 'bulbworks' }), within: FALLS_GOAL },
+  { id: 'f-dynamo', town: 'falls', text: 'Tap Build to build the Dynamo Works', done: c => c.lv('dynamo') >= 1, ready: c => c.unlocked('dynamo'), at: () => ({ plot: 'dynamo' }), within: FALLS_GOAL },
+  { id: 'f-steel', town: 'falls', text: 'Go to Iron Ridge and build a Steel Mill there', done: c => c.lvIn('ridge', 'steelmill') >= 1, ready: c => c.lv('dynamo') >= 1, at: goTo('ridge'), there: ['ridge', 'steelmill'], within: FALLS_GOAL },
+  { id: 'f-rails', town: 'falls', text: 'Go to Iron Ridge and build a Rolling Mill there', done: c => c.lvIn('ridge', 'rolling') >= 1, ready: c => c.unlocked('telegraph'), at: goTo('ridge'), there: ['ridge', 'rolling'], within: FALLS_GOAL },
+  { id: 'f-telegraph', town: 'falls', text: 'Tap Build to build the Telegraph Works', done: c => c.lv('telegraph') >= 1, ready: c => c.unlocked('telegraph'), at: () => ({ plot: 'telegraph' }), within: FALLS_GOAL },
 ];

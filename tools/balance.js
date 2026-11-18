@@ -16,16 +16,16 @@
 import { newGame } from '../src/core/setup.js';
 import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
-import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost } from '../src/core/economy.js';
+import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
-import { deedsFor, signCharter, pickPerk, perkState } from '../src/core/charter.js';
+import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
 import { TOWNS } from '../src/data/towns/index.js';
@@ -34,6 +34,8 @@ import { canFoundCapital, foundCapital, capitalOf, takeContract } from '../src/c
 import { CAPITAL_DEF } from '../src/data/capital.js';
 import { foundCost, foundBlock, foundInstitution, nodeBlock, nodeCost, buyNode, founded } from '../src/core/tree.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
+import { encode, decode } from '../src/core/save.js';
+import { loadGame } from '../src/core/setup.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
@@ -42,15 +44,19 @@ export const setCall = on => { CALL = on; };
 const SPACING = 1.1; // about how far apart raiders ride, in world units
 
 /* Road units inside a ring [lo, hi] around a spot (memoized per board: spot numbers repeat across towns, and a run
-   that played Iron Ridge first used to read the Ridge's numbers for the Gulch's pads). */
+   that played Iron Ridge first used to read the Ridge's numbers for the Gulch's pads). A river town counts the river
+   too, each lane weighted by the share of raiders that ride it (every boatEvery-th raider comes by boat). */
 const COVER = new WeakMap();
-function cover(town, spot, lo, hi) {
+export function cover(town, spot, lo, hi) {
   const b = town.def.board, key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2);
   if (!COVER.has(b)) COVER.set(b, new Map());
   const m = COVER.get(b);
   if (!m.has(key)) {
-    const r = roadOf(town), p = b.spots[spot]; let n = 0;
-    for (let s = 0; s <= r.length; s += .1) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) n += .1; }
+    const lanes = lanesOf(town), p = b.spots[spot], boat = lanes.length > 1 ? 1 / (wavesOf(town).boatEvery || 3) : 0; let n = 0;
+    lanes.forEach((r, i) => {
+      const w = lanes.length > 1 ? (i ? boat : 1 - boat) : 1;
+      for (let s = 0; s <= r.length; s += .1) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) n += .1 * w; }
+    });
     m.set(key, n);
   }
   return m.get(key);
@@ -100,6 +106,16 @@ export function buildValue(game, town, id) {
 /* The order a careful player hires foremen in: the buildings highest up the chain first (finished goods, then
    intermediate, then camps), so the workshops grow and the camps follow only when a workshop is short. */
 export const hireOrder = town => buildingsOf(town).slice().reverse();
+/* The power grid (Silver Falls): a careful player raises the Water Wheel instead when the grid is short now, or when the
+   level it picked for a workshop on the grid would leave it short. */
+export function gridFirst(town, id) {
+  const wheel = (town.def.buildings || []).find(b => isGrid(BUILDINGS[b].makes));
+  if (!wheel || !unlocked(town, wheel)) return id;
+  if (gridOf(town).share < 1) return wheel;
+  if (!id || !onGrid(id)) return id;
+  const L = town.level(id); town.buildings[id] = L + 1; const after = gridOf(town).share; town.buildings[id] = L; if (!L) delete town.buildings[id];
+  return after < 1 ? wheel : id;
+}
 /* Coins plus the goods at their base price. */
 const price = c => c.coins + Object.entries(c.goods).reduce((a, [g, n]) => a + GOODS[g].price * n, 0);
 
@@ -199,7 +215,7 @@ export function goalBuilding(game, town) {
 /* With goals on (the Ridge), a careful player builds what the goal strip asks for once it can pay, and saves for it
    while the vault holds when its price is within GOAL_SAVE_MINUTES of what the purse earned in the last minute. */
 export const GOAL_SAVE_MINUTES = 6;
-export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null, save = null, sign = true, tick = null, goals = false } = {}) {
+export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null, save = null, sign = true, signAt = SIGN_AT, tick = null, goals = false } = {}) {
   const S = STRATEGIES[strategy], g = game || newGame('balance-' + seed, 'gulch'), t = g.town, mine = e => e.town === t.id, offs = [];
   const on = (name, fn) => offs.push(g.bus.on(name, fn));
   const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0, reach: {}, news: [] };
@@ -272,6 +288,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
       const v = buildValue(g, t, id) * cost(t, id) / total, step = need.sort((a, b) => cost(t, a.id) - cost(t, b.id))[0].id;
       if (v > bv) { bv = v; best = step; }
     }
+    best = gridFirst(t, best);
   };
   let saving = false;
   const grow = () => {
@@ -304,7 +321,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (tick) tick(g, t, r);
     if (s % 240 === 0) { r.rate = Math.max(0, t.lifetime - (r.lastLife ?? t.lifetime)); r.lastLife = t.lifetime; r.all = Math.max(0, g.earned - (r.lastAll ?? g.earned)); r.lastAll = g.earned; } // coins earned in the last minute (this town, and every town into the purse)
     // the first charter: signed once it pays SIGN_AT deeds; then pick the first side of each open perk pair
-    if (sign && !r.signed && deedsFor(t) >= SIGN_AT) {
+    if (sign && !r.signed && deedsFor(t) >= signAt) {
       r.signed = { at: t.t, wave: t.bestWave, coins: Math.round(t.lifetime), deeds: signCharter(g, t) };
       r.leakAt = -99; r.lastAge = 1; r.bump = 0; // a new start: the old leaks are forgotten
       for (const p of PERKS) if (perkState(g, p.id) === 'open') pickPerk(g, p.id, 'a');
@@ -384,7 +401,45 @@ export const SAVE_MINUTES = 6, GULCH_MINUTES = 100, RIDGE_MINUTES = 90;
 // (ties in TREE_ORDER) as soon as it has the Influence. TREE_GAP: the minutes between upgrades over CAP_PLAY.
 export const CAP_SAVE_MINUTES = 6, CAP_MINUTES = 120, CAP_PLAY = 120, TREE_SAVE_MINUTES = 10, TREE_GAP = [10, 15];
 export const TREE_ORDER = ['market', 'bank', 'war', 'university', 'transport'];
-export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false } = {}) {
+/* M5, Silver Falls (falls: true, after the Capital): the player plays on in the Ridge, signs the Ridge's charter once it
+   pays the deeds the Falls still needs (the town that pays the most deeds), climbs back to the Falls' wave and saves
+   for its price like the Capital (at most FALLS_SAVE_MAX minutes), founds it, wins Sandy Bend (at most OUTPOST_MINUTES)
+   and plays the Falls for FALLS_PLAY minutes with goals on, looking at the Gulch and the Ridge for the goods they ship
+   once a minute (tendImports). It goes on filling contracts and buying Empire tree upgrades, and founds no
+   institution while it saves. out.fallsSnap is the game as the player gets to the Falls (the strategy runs start from
+   it). Times: fallsFound is play time from the new game; Sandy Bend's and the Falls' count from when the player gets
+   there. */
+export const FALLS_SAVE_MINUTES = 6, FALLS_SAVE_MAX = 300, FALLS_PLAY = 60;
+/* The Falls' imports and grid while the player is there: per second from when each workshop is built, whether a
+   shipped good held it up (run counts the seconds it did not), whether its own goods did (short), and the grid's share. */
+export function fallsTick(t, imp) {
+  const imports = t.def.imports || [];
+  for (const id of t.def.buildings) {
+    if (!t.level(id)) continue;
+    const inp = BUILDINGS[id].inputs, need = Object.keys(inp).filter(g => !isGrid(g));
+    if (onGrid(id)) { imp.grid = (imp.grid || 0) + gridOf(t).share; imp.gridN = (imp.gridN || 0) + 1; }
+    if (!need.some(g => imports.includes(g))) continue;
+    imp.built[id] = (imp.built[id] || 0) + 1;
+    // held up by an input when there is less than a second of it on hand (a short grid alone is not the imports' fault)
+    const low = t.starved[id] ? need.filter(g => (t.goods[g] || 0) < uses(t, id, g) * output(t, id)) : [];
+    if (!low.some(g => imports.includes(g))) imp.run[id] = (imp.run[id] || 0) + 1;
+    if (low.some(g => !imports.includes(g))) imp.short[id] = (imp.short[id] || 0) + 1;
+  }
+}
+export function playFalls(seed, g, strategy, minutes, out) {
+  const ft = g.towns.falls, imp = { run: {}, built: {}, short: {}, raised: [], at: {} }, from = ft.t;
+  const offB = g.bus.on('build', e => { if (e.town === 'falls' && e.level === 1) imp.at[e.id] ??= ft.t - from; });
+  const r = play(seed, minutes, strategy, null, { game: g, sign: false, goals: true, tick: (g2, t, r2) => {
+    fallsTick(t, imp);
+    if (Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
+    if (out && out.pick) out.pick(g2, t, r2);
+  } });
+  offB();
+  r.w10 = r.wave10 === null ? null : r.wave10 - from;
+  r.imports = imp; r.from = from;
+  return r;
+}
+export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false, falls = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
   const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
   const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null };
@@ -437,7 +492,7 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
       const pick = (g2, t, r) => {
         if (!c.active && c.offers.length) { const o = c.offers.slice().sort((a, b) => b.influence - a.influence || b.coins - a.coins)[0]; if (takeContract(g, o.id)) took[o.good] = (took[o.good] || 0) + 1; }
         const n = nextInst();
-        if (n && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
+        if (n && !r.noInst && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
         for (;;) {
           const id = TREE_ORDER.filter(x => !nodeBlock(g, x)).sort((a, b) => nodeCost(g, a) - nodeCost(g, b))[0];
           if (!id || !buyNode(g, id)) break;
@@ -450,10 +505,41 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
       play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, save: ts, tick: pick });
       out.contracts = { filled: c.filled, influence: c.earned, took };
       tr.gap = tr.nodes.length ? at() / tr.nodes.length : null; // minutes of play per upgrade over the window, in seconds
+      out.pick = pick;
+      if (falls) toFalls(seed, g, strategy, out, now);
     }
   }
   off();
   return out;
+}
+function toFalls(seed, g, strategy, out, now) {
+  const F = TOWNS.falls.found, rt = g.towns.ridge;
+  out.deedsBefore = deedsHeld(g);
+  const short = () => Math.max(0, F.deeds - deedsHeld(g));
+  const fs = (t, r) => !!r.savingNow || (short() === 0 && t.bestWave >= F.wave && F.coins <= FALLS_SAVE_MINUTES * (r.all || 0));
+  // the institutions wait from here: the purse is for the Falls (r.noInst)
+  out.fLog = [];
+  const tick = (g2, t, r) => { r.noInst = true; out.pick(g2, t, r); if (Math.round(t.t) % 300 === 0) out.fLog.push([+(now() / 3600).toFixed(2), t.bestWave, Math.round((r.all || 0) / 1000)]); };
+  out.fSave = play(seed, FALLS_SAVE_MAX, strategy, null, { game: g, sign: short() > 0, signAt: Math.max(1, short()), goals: true, save: fs, tick, until: () => canFound(g, 'falls') });
+  out.fSigned = out.fSave.signed ? { at: out.fSave.signed.at, deeds: out.fSave.signed.deeds, wave: out.fSave.signed.wave } : null;
+  if (!canFound(g, 'falls')) { out.fallsFound = null; return; }
+  out.fallsFound = now(); out.fHeld = out.fSave.saving === undefined ? 0 : out.fSave.until - out.fSave.saving;
+  foundTown(g, 'falls');
+  setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
+  g.go('sandybend');
+  const sb = g.towns.sandybend, sbFrom = sb.t;
+  out.sb = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won, sign: false, tick: out.pick });
+  out.sb.won = sb.won ? out.sb.until - sbFrom : null;
+  g.go('falls');
+  out.fallsSnap = encode(g, 0);
+  out.falls = playFalls(seed, g, strategy, FALLS_PLAY, out);
+}
+/* A strategy's run of the Falls from the active player's game as it got there (out.fallsSnap): FALLS_STRATEGY minutes
+   with goals on and the imports tended. Returns the play() record with w10 and imports. */
+export const FALLS_STRATEGY = 30;
+export function fallsFrom(snap, seed, strategy, minutes = FALLS_STRATEGY) {
+  const g = loadGame(decode(snap).game);
+  return playFalls(seed, g, strategy, minutes, null);
 }
 /* Once the Capital stands, a careful player also looks after the towns it is not playing (PLAN.md M4, Idle income
    grows): once a minute, in each of them (outposts aside), it buys the one level that pays back fastest, if it pays
@@ -582,6 +668,45 @@ export function capitalCheck(runs) {
   return misses;
 }
 
+/* The Silver Falls checks (M5, Bots for Silver Falls and Sandy Bend) on the active empire runs (falls: true) and on the
+   strategy runs of the Falls (fallsFrom, every strategy from the same arrival): every active seed founds the Falls at
+   FALLS_AT minutes of play, wins Sandy Bend within SB_MAX minutes of getting there, clears the Falls' wave 10 (the
+   steamer) FALLS_W10 minutes after getting there with no breach in waves 1-3, runs the Wire Mill on Gulch copper at
+   least WIRE_RUN of the time and keeps the grid's share at WIRE_RUN or more on average; every strategy's median Falls
+   wave 10 is within 25% of the best one; every tower kind is bought in the Falls by some strategy, and no one kind
+   does the most damage in every wave there. Without a charter the Falls never opens (it needs 5 deeds, and the first
+   charter pays 1), which is the "at least 2.5 times later" half of the M5 target. Returns { rows, misses }. */
+export const FALLS_AT = [360, 600], SB_MAX = 20, FALLS_W10 = [7, 10], WIRE_RUN = .9;
+export function fallsCheck(actives, strat) {
+  const misses = [], m = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';
+  const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
+  for (const e of actives) {
+    const s = e.dc.seed, f = e.falls, im = f && f.imports;
+    if (e.fallsFound == null || e.fallsFound < FALLS_AT[0] * 60 || e.fallsFound > FALLS_AT[1] * 60) misses.push(`seed ${s}: Silver Falls founded at ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} of play (want ${FALLS_AT[0] / 60}-${FALLS_AT[1] / 60} h)`);
+    if (!e.sb || e.sb.won == null || e.sb.won > SB_MAX * 60) misses.push(`seed ${s}: Sandy Bend won at ${m(e.sb && e.sb.won)} after getting there (want within ${SB_MAX} min)`);
+    if (!f) continue;
+    if (f.w10 == null || f.w10 < FALLS_W10[0] * 60 || f.w10 > FALLS_W10[1] * 60) misses.push(`seed ${s}: Silver Falls wave 10 at ${m(f.w10)} after getting there (want ${FALLS_W10.join('-')} min)`);
+    if (f.breaches.some(w => w <= 3)) misses.push(`seed ${s}: a breach in Silver Falls' waves 1-3`);
+    const b = im.built.wiremill;
+    if (!b) misses.push(`seed ${s}: the Wire Mill was never built in Silver Falls`);
+    else if (im.run.wiremill / b < WIRE_RUN) misses.push(`seed ${s}: the Wire Mill ran on Gulch copper ${Math.round(100 * im.run.wiremill / b)}% of the time (want ${Math.round(100 * WIRE_RUN)}%)`);
+    if (!im.gridN || im.grid / im.gridN < WIRE_RUN) misses.push(`seed ${s}: the grid gave ${im.gridN ? Math.round(100 * im.grid / im.gridN) : 0}% of the power on average (want ${Math.round(100 * WIRE_RUN)}%)`);
+  }
+  const rows = Object.keys(STRATEGIES).map(k => {
+    const rs = strat.filter(x => x.strategy === k).map(x => x.r), dealt = {}, bought = {};
+    for (const r of rs) { for (const [a, n] of Object.entries(r.dealt)) dealt[a] = (dealt[a] || 0) + n; for (const [a, n] of Object.entries(r.bought)) bought[a] = (bought[a] || 0) + n; }
+    return { strategy: k, n: rs.length, w10: med(rs.map(r => r.w10)), early: rs.filter(r => r.breaches.some(w => w <= 3)).length, wave: med(rs.map(r => r.final.best)), dealt, bought, runs: rs };
+  });
+  const best = Math.min(...rows.map(x => x.w10 ?? Infinity));
+  for (const x of rows) if (x.w10 === null || x.w10 > best * STRATEGY_SLACK) misses.push(`${x.strategy}: Silver Falls wave 10 at ${m(x.w10)}, more than 25% behind the best (${m(best)})`);
+  for (const x of rows) if (x.early) misses.push(`${x.strategy}: a breach in Silver Falls' waves 1-3 on ${x.early} seed(s)`);
+  const kinds = Object.keys(TOWERS).filter(k => TOWERS[k].goods.falls);
+  for (const k of kinds) if (!rows.some(x => x.bought[k])) misses.push(`Silver Falls: no strategy ever builds a ${TOWERS[k].name || k}`);
+  const tops = new Set(rows.flatMap(x => x.runs.flatMap(r => r.top.filter(([, , n]) => n > 1).map(([, k]) => k))));
+  if (tops.size === 1) misses.push(`Silver Falls: ${[...tops][0]} does the most damage in every wave`);
+  return { rows, misses, tops: [...tops] };
+}
+
 export const STRATEGY_MINUTES = 40, STRATEGY_SLACK = 1.25;
 export function strategies(seeds = SEEDS) {
   const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
@@ -671,7 +796,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...gc.misses);
   const emp = [];
-  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active' }); e.strategy = k; emp.push(e); }
+  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active', falls: k === 'active' }); e.strategy = k; emp.push(e); }
   const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true);
   for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...lg.misses);
@@ -690,6 +815,18 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);
   for (const x of ec.rows) console.log(`  ${x.strategy} | ${mm(x.found)} | ${mm(x.held)} | ${mm(x.ph)} | ${x.phTowers ?? '-'}, ${x.phLevel == null ? '-' : x.phLevel.toFixed(1)} | ${mm(x.w10)} | ${mm(x.boiler)} | ${x.run == null ? '-' : Math.round(100 * x.run) + '%'}`);
   misses.push(...ec.misses);
+  console.log('Silver Falls (active): seed | Ridge charter signed (play time), deeds, at wave | Falls founded (play time) | waves held to save | Sandy Bend won (from getting there), breaches | Falls wave 10 (from getting there), breaches | Falls best wave after ' + FALLS_PLAY + ' min | workshops built (minute) | Wire Mill on Gulch copper | grid share | levels raised elsewhere');
+  const fstrat = [];
+  for (const e of actives) {
+    const f = e.falls, im = f && f.imports, cut = e.game.stats.steps; // the play time at the end, to turn the Ridge clock into play time
+    console.log(`${e.dc.seed} | ${e.fSigned ? 'wave ' + e.fSigned.wave + ', ' + e.fSigned.deeds + ' deeds' : 'no'} | ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} | ${mm(e.fHeld)} | ${mm(e.sb && e.sb.won)}, ${e.sb ? e.sb.breaches.join(',') || 'none' : '-'} | ${mm(f && f.w10)}, ${f ? f.breaches.filter(w => w <= 10).join(',') || 'none' : '-'} | ${f ? f.final.best : '-'} | ${im ? Object.entries(im.at).map(([k, t]) => k + ' ' + (t / 60).toFixed(0)).join(', ') : '-'} | ${im && im.built.wiremill ? Math.round(100 * im.run.wiremill / im.built.wiremill) + '%' : '-'} | ${im && im.gridN ? Math.round(100 * im.grid / im.gridN) + '%' : '-'} | ${im ? im.raised.join(', ') || 'none' : '-'}`);
+    if (e.fallsSnap && e.dc.seed <= EMPIRE_SEEDS) for (const k of Object.keys(STRATEGIES)) fstrat.push({ strategy: k, seed: e.dc.seed, r: fallsFrom(e.fallsSnap, e.dc.seed, k) });
+  }
+  const fc = fallsCheck(actives, fstrat);
+  console.log(`Silver Falls by strategy (median over ${EMPIRE_SEEDS} seeds, ${FALLS_STRATEGY} min from the active player's arrival): strategy | wave 10 | best wave | buys by kind | damage by kind`);
+  for (const x of fc.rows) { const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1; console.log(`  ${x.strategy} | ${mm(x.w10)} | ${x.wave ?? '-'} | ${Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ')} | ${Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', ')}`); }
+  console.log('Silver Falls wave leaders: ' + fc.tops.join(', '));
+  misses.push(...fc.misses);
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));

@@ -15,14 +15,16 @@ export const FALLS = {
   start: { coins: 400, buildings: { sandpit: 1 } },
   imports: ['copper', 'steel', 'rails'], // copper from Copper Gulch, steel and rails from Iron Ridge
   outpost: 'sandybend',
-  // the Ridge's pace for now; every third raider comes by boat (src/core/defense.js, planWave). The Falls bot box tunes it.
-  waves: { pace: 66, rushMore: 4, boatEvery: 3 },
+  // 70 s apart (the Falls bots: at 66 s a called wave 10 came 7.0 min after getting there); every third raider comes by
+  // boat (src/core/defense.js, planWave).
+  waves: { pace: 70, rushMore: 6, boatEvery: 3 },
   boss: 'steamer',                 // wave 10, 20... bring the ironclad steamer down the river
   research: ['sieves', 'milldam', 'annealing', 'levee', 'arclamps', 'patents', 'livewires'], // src/data/research.js
   researchOpens: 'glassworks',
   // founding it (src/core/empire.js): Iron Ridge's best wave, coins from the purse, and deeds held (sign 1 or 2 charters).
-  // First pass, set 2026-11-18; the Falls bot box tunes the coins (GDD.md first sketched 50M before the purse).
-  found: { from: 'ridge', wave: 25, coins: 500000, deeds: 5, shows: 20 },
+  // Tuned 2026-11-18 by the Falls bots (tools/balance.js, toFalls): the Ridge's charter pays the deeds at its wave 48-49,
+  // and it climbs back past 50 in about 35 minutes, then slowly, so wave 57 is the real wait (6-7 h of play).
+  found: { from: 'ridge', wave: 57, coins: 1000000, deeds: 5, shows: 20 },
   // The board: the road comes in through a rock cut in the north-east and switches back across the town four times
   // (west, east, west, then east to the vault); the river comes round a misty bend under a broken bridge in the north
   // and winds down the middle of the town to the vault, under a bridge at each pass of the road. Workshops stand in
