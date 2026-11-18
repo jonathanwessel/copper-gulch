@@ -69,6 +69,13 @@ export class Board {
     this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.09, 0), new THREE.MeshLambertMaterial({ color: '#ece6de', flatShading: true, transparent: true, opacity: .75, depthWrite: false }), MAXPUFF);
     this.smoke.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.smoke.count = 0; this.smoke.frustumCulled = false;
     this.group.add(this.smoke);
+    // tap targets for towers (owner: towers were hard to tap): a tower is tall, so a tap on its top used to land on the
+    // ground behind it. An invisible post a little wider and taller than a tower stands on every pad; pick.js tests the
+    // posts of pads that have a tower (an empty pad is flat and found on the ground, and its post would hide what is
+    // behind it). Buildings are tested by their own models, then the ground.
+    this.hits = [];
+    const hidden = new THREE.MeshBasicMaterial({ visible: false }), post = new THREE.CylinderGeometry(.62, .62, 1.6, 8); post.translate(0, .8, 0);
+    (B.spots || []).forEach(([sx, sz], i) => { const m = new THREE.Mesh(post, hidden); m.position.set(sx, 0, sz); m.userData.spot = i; m.updateMatrixWorld(true); this.hits.push(m); this.group.add(m); });
     this.sync();
   }
 

@@ -37,6 +37,49 @@ export async function check(page) {
   });
 }
 
+/* Click the middle of every tower pad and plot with real input, in three camera views; returns { tried, skipped, miss }. */
+export async function tapEverything(page) {
+  const out = { tried: 0, skipped: 0, miss: [] }, wait = ms => new Promise(r => setTimeout(r, ms));
+  const views = [['home', () => { CG.town.rig.reset && CG.town.rig.reset(); }], ['turned', () => { const r = CG.town.rig; r.t.yaw += 1.1; r.c.yaw = r.t.yaw; }], ['zoomed', () => { const r = CG.town.rig; r.t.dist *= .6; r.c.dist = r.t.dist; }]];
+  await page.evaluate(() => { const n = document.getElementById('newsOk'); if (n) n.click(); for (let i = 0; i < 9; i++) { const c = document.getElementById('coachOk'); if (c && !c.closest('[hidden]')) c.click(); } });
+  for (const [name, fn] of views) {
+    await page.evaluate(`(${fn})()`); await wait(900);
+    const list = await page.evaluate(() => {
+      const B = CG.game.town.def.board, t = CG.game.town;
+      return [...B.spots.map((_, i) => ({ id: 'spot:' + i, spot: i, tower: t.towers.some(x => x.spot === i) })), ...Object.keys(B.plots).map(id => ({ id, plot: id }))];
+    });
+    for (const o of list) {
+      const p = await page.evaluate(o => {
+        CG.play.close();
+        const B = CG.game.town.def.board, [x, z] = o.plot ? B.plots[o.plot] : B.spots[o.spot];
+        const q = CG.town.projectPoint(x, o.plot ? .5 : o.tower ? .6 : .1, z);
+        if (!q) return { skip: 'behind' };
+        const cv = document.getElementById('view').getBoundingClientRect(), X = q.x + cv.left, Y = q.y + cv.top;
+        if (X < 4 || Y < 4 || X > innerWidth - 4 || Y > innerHeight - 4) return { skip: 'off screen' };
+        const at = document.elementFromPoint(X, Y);
+        if (at && at.id !== 'view') {
+          const tag = at.closest('.tag');
+          if (tag && tag.dataset.plot === o.plot) return { x: X, y: Y };
+          if (at.closest('button, .card, .sheet, .coach, .news')) return { skip: 'under ' + (at.closest('button') ? 'a button' : 'a panel') };
+          // a box the player can see (a panel with a background) may cover the map; an invisible one may not
+          for (let n = at; n && n.id !== 'app' && n !== document.body; n = n.parentElement) { const bg = getComputedStyle(n).backgroundColor, al = bg.startsWith('rgba') ? parseFloat(bg.split(',')[3]) : bg === 'transparent' ? 0 : 1; if (al > 0) return { skip: 'under a panel' }; }
+          return { box: (at.className || at.tagName) + '' };
+        }
+        return { x: X, y: Y };
+      }, o);
+      if (p.skip) { out.skipped++; continue; }
+      if (p.box) { out.miss.push(name + ' view: ' + o.id + ' is under a HUD box that takes taps (' + p.box + ')'); continue; }
+      for (const type of ['mousePressed', 'mouseReleased']) await page.cdp('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: 'left', clickCount: 1 });
+      await wait(60);
+      const got = await page.evaluate(() => CG.play.current());
+      out.tried++;
+      if (got !== o.id) out.miss.push(name + ' view: a tap on ' + o.id + ' at ' + Math.round(p.x) + ',' + Math.round(p.y) + ' opened ' + got);
+    }
+  }
+  await page.evaluate(() => { CG.play.close(); CG.town.rig.reset && CG.town.rig.reset(); }); await wait(600);
+  return out;
+}
+
 async function run() {
   const srv = await start(0), browser = await chromium.launch();
   let failed = 0;
@@ -151,6 +194,12 @@ async function run() {
       if (!still.painted) bad.push('live numbers: the HUD did not repaint the goods strip');
       if (still.chip !== true) bad.push('the wave chip changed width when a wave started: ' + still.chip);
       for (const m of still.moved) bad.push('live numbers: a HUD cell moved or changed size: ' + m);
+      // every object opens with one tap (owner rule): a real click (browser hit testing, so a HUD box over the map counts)
+      // on the middle of every pad and plot, in the home view, turned and zoomed in, must open that object's card. A
+      // middle under a real button or off screen is skipped (the player moves the map), and the skips are counted.
+      const taps = await tapEverything(page);
+      for (const m of taps.miss.slice(0, 5)) bad.push('tap: ' + m);
+      if (taps.tried < 20) bad.push('tap: only ' + taps.tried + ' objects could be tapped (' + taps.skipped + ' covered)');
       // time away counts when the app was only in the background (owner rule), unless the player pressed Pause
       const away = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, out = {};
@@ -765,6 +814,31 @@ async function run() {
     console.log('coach', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
     failed += bad.length ? 1 : 0;
   } finally { await b3.close(); srv3.close(); }
+
+  // only the map zooms, never the page (owner rule): on a phone (touch, mobile viewport), pinch with two fingers over
+  // the top bar and over the map; the page's zoom (visualViewport.scale) stays 1
+  const srvP = await start(0), bP = await chromium.launch();
+  try {
+    const page = await bP.newPage({ viewport: { width: 400, height: 860 }, mobile: true }), bad = [];
+    await page.goto(srvP.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5); await sleep(300);
+    const spots = await page.evaluate(() => { const w = document.getElementById('wave').getBoundingClientRect(); return { hud: [Math.round(w.left + w.width / 2), Math.round(w.top + w.height / 2)], map: [200, 520] }; });
+    for (const [where, [x, y]] of Object.entries(spots)) for (const scaleFactor of [2.2, .5]) {
+      await page.cdp('Input.synthesizePinchGesture', { x, y, scaleFactor, gestureSourceType: 'touch', relativeSpeed: 600 });
+      await sleep(250);
+      const scale = await page.evaluate(() => window.visualViewport ? visualViewport.scale : 1);
+      if (Math.abs(scale - 1) > .01) bad.push('a pinch over the ' + where + ' zoomed the page to ' + scale.toFixed(2));
+    }
+    // headless Chrome does not zoom the page on a pretend pinch even without these, so check the settings themselves
+    const set = await page.evaluate(() => {
+      const meta = (document.querySelector('meta[name=viewport]') || {}).content || '', css = n => getComputedStyle(n).touchAction;
+      return { meta: /maximum-scale=1(,|$)/.test(meta) && /user-scalable=no/.test(meta), html: css(document.documentElement) === 'none', body: css(document.body) === 'none', canvas: css(document.getElementById('view')) === 'none' };
+    });
+    for (const [k, v] of Object.entries(set)) if (!v) bad.push('page zoom is not blocked: ' + (k === 'meta' ? 'the viewport meta lacks maximum-scale=1 and user-scalable=no' : k + ' lacks touch-action none'));
+    console.log('pinch', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await bP.close(); srvP.close(); }
 
   // offline: install the service worker, then stop the server and load again
   const srv2 = await start(0), b2 = await chromium.launch();

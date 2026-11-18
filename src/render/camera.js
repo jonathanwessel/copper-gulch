@@ -231,7 +231,8 @@ export class CameraRig {
         }
         return;
       }
-      if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
+      // a finger drifts a little during a tap: on touch it takes 12 px to become a drag (a mouse 6)
+      if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' || e.pointerType === 'pen' ? 12 : 6)) down.moved = true;
       if (!down.moved) return;
       this.gestures++; this.atHome = false; // the map is the player's now
       const now = performance.now(), dt = Math.max(1, now - down.t);

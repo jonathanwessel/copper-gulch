@@ -151,6 +151,10 @@ async function startGame() {
     return r;
   };
   document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); else show(); });
+  // only the map zooms, never the page (owner rule): iOS Safari ignores user-scalable=no, so stop its pinch gestures,
+  // and any two-finger move outside the map's own handlers
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   addEventListener('pagehide', hide);
   addEventListener('pageshow', show);
   CG.away = { hide, show, since: t => { hiddenAt = t; } }; // the smoke test hides the app for a pretend ten minutes

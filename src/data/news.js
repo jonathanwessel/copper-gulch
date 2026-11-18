@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.17-25',
+    lines: [
+      'Tap a tower or building once to open its card. On a tall tower, the top works too.',
+      'Pinch with two fingers to zoom the map. The buttons stay the same size.',
+    ],
+  },
+  {
     v: '2026.11.17-24',
     lines: [
       'The goods bar holds still. Its boxes keep one size as the numbers grow.',
