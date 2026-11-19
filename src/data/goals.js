@@ -35,7 +35,7 @@ export const GOALS = [
   { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Mining Camp and upgrade it to level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-path', town: 'drycreek', text: 'Upgrade a Crossbow to level 5 and pick a path', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', done: c => c.won },
-  { id: 'dc-go', town: 'drycreek', text: 'Tap Map, Copper Gulch, then Play Copper Gulch', done: c => c.visited('gulch'), ready: c => c.won, at: goTo('gulch') },
+  { id: 'dc-go', town: 'drycreek', text: 'Tap Map, Copper Gulch, then Play Copper Gulch', done: c => c.visited('gulch'), ready: c => c.won, at: goTo('gulch'), away: true },
   // Copper Gulch
   { id: 'g-tower', town: 'gulch', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-camp3', town: 'gulch', text: 'Tap the Lumber Camp and upgrade it to level 3', done: c => c.lv('camp') >= 3, at: () => ({ plot: 'camp' }) },
@@ -54,7 +54,7 @@ export const GOALS = [
   // later goals: within (minutes from a new game) is how soon the careful bot must do them (tools/balance.js)
   { id: 'g-save', town: 'gulch', text: 'Tap Hold waves and save ' + ridgePrice + ' coins for Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap the Toolsmith, then tap Build', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
-  { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), within: 85 },
+  { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },
   // Iron Ridge
   { id: 'r-furnace', town: 'ridge', text: 'Tap the Blast Furnace, then tap Build', done: c => c.lv('furnace') >= 1, ready: c => c.unlocked('furnace'), at: () => ({ plot: 'furnace' }), within: RIDGE_GOAL },
   { id: 'r-boiler', town: 'ridge', text: 'Tap the Boiler Shop, then tap Build', done: c => c.lv('boilershop') >= 1, ready: c => c.unlocked('boilershop'), at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },

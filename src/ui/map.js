@@ -18,7 +18,10 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 const nameOf = id => id === 'capital' ? 'The Capital' : TOWNS[id].name;
 const shortOf = id => id === 'capital' ? 'Capital' : TOWNS[id].short || TOWNS[id].name;
-const rate = n => '+' + fmt(n) + '/s';
+const rate = n => '+' + fmtLive(n) + '/s'; // as the top bar writes it
+/* A won outpost out of play sends its goods to the town in play and earns next to nothing itself (review 2026-11-18:
+   Dry Creek's label read +0/s once won). */
+const sendsOnly = info => !!(info.won && !info.inPlay && info.income < .1);
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
@@ -30,7 +33,7 @@ function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
   if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Deeds';
-  if (r.kind === 'with') return short ? 'Start ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
+  if (r.kind === 'with') return short ? 'Needs ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
   return short ? 'Coming later' : 'The Capital will be built here.';
 }
@@ -128,7 +131,7 @@ export function mountMap(root, game, view, shell) {
       kids.push(head(d.name, info.inPlay ? 'Playing now' : ''));
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), stat('Earns', rate(info.income)));
+      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Earns here', rate(info.income)));
       kids.push(grid);
       kids.push(el('p', 'uses', 'Makes ' + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
       for (const l of mapRoutes(game)) {
@@ -137,7 +140,7 @@ export function mountMap(root, game, view, shell) {
       }
       if (info.alert === 'lost') kids.push(el('p', 'warn', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
       else if (info.alert === 'retry' || info.alert === 'retrying') kids.push(el('p', 'uses', retryLine(game, t)));
-      else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders broke into the ' + store.toLowerCase() + ' here while you were away.'));
+      else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders got through to the ' + store.toLowerCase() + ' here while you were away.'));
       else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
       else if (info.alert === 'short') {
         // a good shipped in from another town: say which building there to build or upgrade
@@ -151,7 +154,7 @@ export function mountMap(root, game, view, shell) {
       row.append(go); kids.push(row);
     } else {
       const lr = lockedRules(game, id);
-      kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
+      kids.push(head(nameOf(id), lr.ready ? '' : (id === 'capital' ? 'Not built yet' : 'Not open yet'))); // ready: the Start button says it
       if (id === 'capital') kids.push(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'));
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + makesWords(id) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + makesWords(id) + '.'));
@@ -201,7 +204,7 @@ export function mountMap(root, game, view, shell) {
         B.vault.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
-        setText(B.extra, info.alert === 'lost' ? 'On hold' : info.alert === 'retry' ? 'Retry soon' : info.alert === 'retrying' ? 'Retrying' : rate(info.income));
+        setText(B.extra, info.alert === 'lost' ? 'On hold' : info.alert === 'retry' ? 'Retry soon' : info.alert === 'retrying' ? 'Retrying' : sendsOnly(info) ? 'Sends goods' : rate(info.income));
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;

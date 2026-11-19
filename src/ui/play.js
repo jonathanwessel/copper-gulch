@@ -7,7 +7,7 @@ import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } 
 import { explainOutput, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
@@ -20,12 +20,12 @@ import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, s
 import { autoOn, retryState } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
-import { goalNow, goalContext, goalsOf, goalText } from '../core/goals.js';
+import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtLive } from './format.js';
+import { fmt, fmtLive, sellsFor } from './format.js';
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
@@ -206,7 +206,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     row.append(buy);
     const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off'));
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
-    sell.title = 'Sells for ' + fmt(paysEach(game, town, b.makes)) + ' coins each';
+    sell.title = 'S' + sellsFor(paysEach(game, town, b.makes)).slice(1);
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     if (!isGrid(b.makes)) row.append(sell); // power is never sold
     card.append(row);
@@ -248,10 +248,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   };
 
   let armed = null; // a path tapped once, waiting for the second tap
-  /* A cost as a row: the coins, then each good with its square and "have / need", red when short. */
+  /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:
+     coins showed only a price). The coins cell keeps up with the purse 5 times a second (paintCoinCosts), so the card is
+     not rebuilt for it. */
+  const coinCost = need => fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // the purse as the top bar writes it
   const costRow = c => {
-    const r = el('span', 'costrow');
-    r.append(el('span', 'need' + (town.coins + 1e-9 < c.coins ? ' low' : ''), fmt(c.coins) + ' coins'));
+    const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins));
+    cc.dataset.need = c.coins; r.append(cc);
     for (const [g, n] of Object.entries(c.goods)) {
       const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need' + (have < n ? ' low' : ''));
       p.title = GOODS[g].name; p.append(goodIcon(g), el('span', 'gname', GOODS[g].name), document.createTextNode(fmt(have) + ' / ' + n));
@@ -361,7 +364,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (e.held && !e.away && e.town === town.id) { showLost(); return; } // the boss got through here: a card, waves on hold
       if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id, game), 6000); return; }
       if (e.town !== town.id) return;
-      if (e.goods) toast('Raiders broke into the ' + store + ' and took a quarter of its goods.', 5000);
+      if (e.goods) toast('Raiders got through to the ' + store + ' and took a quarter of its goods.', 5000);
       else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
     }),
   ];
@@ -381,7 +384,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the goal strip: a finished goal shows Done for a moment, then the next one comes in
   let goalId = null, goalCur = null, doneFor = 0;
   function paintGoal(dt) {
-    const now = goalNow(game), sh = game.shared.goals || { done: {} };
+    const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
+    const g0 = goalNow(game), now = boss && sendsAway(g0) ? null : g0, sh = game.shared.goals || { done: {} }; // a boss fight here: no goal that sends you away
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); }
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
@@ -441,10 +445,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (sig !== markSig) { markSig = sig; mark.style.width = Math.round(r.w) + 'px'; mark.style.height = Math.round(r.h) + 'px'; }
   }
 
+  function paintCoinCosts() {
+    if (card.hidden) return;
+    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need)); n.classList.toggle('low', town.coins + 1e-9 < need); }
+  }
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
   // the Income sheet explains the same few seconds as the number at the top
-  const income = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0); };
+  // the Income sheet shows the very numbers the top bar last wrote, so the two never disagree (screenshot review 2026-11-19: +28/s and +25/s)
+  let lastIncome = null;
+  const incomeNow = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0); };
+  const income = () => lastIncome || (lastIncome = incomeNow());
   function frame(dt) {
     acc += dt; cardAcc += dt;
     sheets.frame(dt);
@@ -468,9 +479,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (acc < .2) return;
     acc = 0;
     hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
-    const per = income().value; // every town and outpost pays into the one purse
+    lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
-    paintStrip();
+    paintStrip(); paintCoinCosts();
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;

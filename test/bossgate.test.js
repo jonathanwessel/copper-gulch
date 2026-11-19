@@ -89,7 +89,7 @@ test('the lost card says what happened and what to tap, in plain words', () => {
   run(g, 4 * 60);
   const c = lostCard(G);
   assert.equal(c.title, 'Wave 10 lost');
-  assert.match(c.lines[0], /^The war wagon reached your vault\. You dropped back to wave 8 and lost \d+ coins\.$/);
+  assert.match(c.lines[0], /^The war wagon got through\. You dropped back to wave 8 and lost \d+ coins\.$/);
   assert.match(c.lines[1], /Resume waves/);
   for (const l of [c.title, ...c.lines]) assert.ok(!/[;:]/.test(l), 'no colons or semicolons: ' + l);
 });

@@ -49,7 +49,7 @@ export const PATHS = {
     b: { name: 'Longbow', about: 'Hits much harder and farther, but slowly.', dmg: 2.2, rate: .55, range: 1.3 },
   },
   cannon: {
-    a: { name: 'Heavy Cannon', about: 'Bigger blast, reaches farther.', splash: 1.7, range: 1.3, dmg: 1.15, rate: .85 },
+    a: { name: 'Heavy Cannon', about: 'Bigger blast, reaches farther, fires slower.', splash: 1.7, range: 1.3, dmg: 1.15, rate: .85 },
     b: { name: 'Grapeshot', about: 'Fires fast, only up close.', rate: 1.8, dmg: .75, range: .85 },
   },
   frost: {
@@ -61,7 +61,7 @@ export const PATHS = {
     b: { name: 'Spreading Fever', about: 'Poison spreads when a raider falls.', spread: 1 },
   },
   mortar: {
-    a: { name: 'Siege Mortar', about: 'Shoots farther. The blast is bigger.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
+    a: { name: 'Siege Mortar', about: 'Shoots farther with a bigger blast, but fires slower.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
     b: { name: 'Shrapnel', about: 'Smaller blast that sets the ground on fire.', splash: .7, rate: 1.15, fire: 1 },
   },
 };

@@ -9,6 +9,17 @@ export function fmt(n) {
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(a) / 3)), v = n / 10 ** (i * 3);
   return (v < 10 ? +v.toFixed(2) : v < 100 ? +v.toFixed(1) : Math.floor(v)).toString() + SUFFIX[i]; // 1.8K, not 1.80K
 }
+/* A price in coins, rounded for a player (review 2026-11-18: "0.93 coins"): under 10 coins one decimal, from 10 up as
+   fmt. Under 0.05 it is "under 0.1 coin", never "0 coins" for a good that still sells. */
+export const ALMOST = 'under 0.1 coin';
+export function fmtPrice(v) {
+  if (!isFinite(v) || v <= 0) return '0 coins';
+  if (v < .05) return ALMOST;
+  const s = v < 10 ? String(Math.round(v * 10) / 10) : fmt(v);
+  return s + (s === '1' ? ' coin' : ' coins');
+}
+/* "sells for 0.9 coins each", "sells for under 0.1 coin each" */
+export const sellsFor = v => 'sells for ' + fmtPrice(v) + ' each';
 /* A live count on the HUD (owner rule: live numbers never change the size or place of anything on screen). Never
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
    rate under 10), then 1.00K-9.99K, 10.0K-99.9K, 100K-999K, 1.00M... It rounds down, so 999.96 never shows as 1000. */

@@ -66,7 +66,7 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
   go.addEventListener('click', () => { const to = cur && cur.e.go; api.dismiss(); if (to) onGo(to); });
 
   function show(e) {
-    cur = { e }; title.textContent = e.title; text.textContent = e.text; layer.hidden = false; layer.dataset.id = e.id;
+    cur = { e }; title.textContent = e.title; text.textContent = (e.say && e.say(helper(town, game))) || e.text; layer.hidden = false; layer.dataset.id = e.id;
     go.hidden = !e.go; go.textContent = e.button || ''; ok.textContent = e.go ? 'Stay here' : 'Got it'; ok.classList.toggle('primary', !e.go);
     pause(true); place();
   }

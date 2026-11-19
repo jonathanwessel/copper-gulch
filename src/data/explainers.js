@@ -5,7 +5,9 @@
    below) and fails when any has no explainer.
      covers: the feature ids it teaches.     when(h): true once it should show; h reads the town (src/ui/coach.js).
      at(h): what to spotlight: { plot }, { spot }, { tower }, { vault: true } or { el: css selector }; or nothing.
-     town: show it only while this town is in play.   go, button: a second button that takes the player to that town. */
+     town: show it only while this town is in play.   go, button: a second button that takes the player to that town.
+     say(h): the text with what is on screen in it, such as a button's name (text stays the plain form the audit reads). */
+import { TOWNS } from './towns/index.js';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
@@ -23,7 +25,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-stockpile', town: 'drycreek', covers: ['stockpile'],
     title: 'The stockpile',
-    text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it breaks, you lose some coins and go back two waves.',
+    text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it falls, you lose some coins and go back two waves.',
     when: h => h.t > 12 && !h.won, at: () => ({ vault: true }),
   },
   {
@@ -114,7 +116,7 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through damages the vault. If it breaks, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
+    text: 'Every raider that gets through damages the vault. If it falls, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
   },
   {
@@ -217,6 +219,8 @@ export const EXPLAINERS = [
     id: 'back', covers: ['back'],
     title: 'Go back',
     text: 'Tap the ◂ button beside Map to go back to the town you played last.',
+    // the button as it reads, "◂ Dry Creek" (review 2026-11-19)
+    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' next to Map to go back to the town you played last.' : null),
     when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {

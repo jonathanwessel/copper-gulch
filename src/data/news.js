@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-2',
+    lines: [
+      'Tower cards show the coins you have next to the coins you need, red when you are short.',
+      'Prices in Goods are rounded. A good kept for towers says so.',
+      'In a boss wave, the goal at the top no longer sends you to another town.',
+      'The Heavy Cannon and Siege Mortar cards say they fire slower.',
+      'On the map, a won outpost says Sends goods. A town that needs another says Needs Iron Ridge.',
+    ],
+  },
+  {
     v: '2026.11.19-1',
     lines: [
       'When the waves in a town are on hold, the goal at the top says to tap Resume waves.',

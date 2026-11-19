@@ -2,7 +2,7 @@
    works out: the starting value, one row per level, path, market or bonus, and the total. Also the Income sheet
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
-import { fmt } from './format.js';
+import { fmt, fmtPrice, fmtLive } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -14,8 +14,8 @@ export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Ma
 
 /* A value in its unit. */
 export function unitText(unit, v, extra = {}) {
-  if (unit === 'rate') return fmt(v) + '/s';
-  if (unit === 'coins') return fmt(v) + (Math.abs(v - 1) < .05 ? ' coin' : ' coins');
+  if (unit === 'rate') return fmtLive(v) + '/s'; // as the top bar writes it, so the Income total and the bar agree (review 2026-11-18)
+  if (unit === 'coins') return fmtPrice(v); // a price: one decimal under 10 coins, "under 0.1 coin" near 0
   if (unit === 'hits') return Math.round(v) + (Math.round(v) === 1 ? ' hit' : ' hits');
   if (unit === 'shots') return shotsWord(v);
   if (unit === 'reach') return reachWord(v, extra.minRange);
@@ -26,14 +26,18 @@ const places = (m, digits) => digits ?? (m >= 2 ? 1 : 2);
 const shownMul = (r, m) => (r === 1 ? (m >= 1 ? 1.01 : .99) : r); // a factor never reads × 1
 export function mulText(m, digits) {
   const k = 10 ** places(m, digits);
-  return '× ' + shownMul(Math.round(m * k) / k, m);
+  return mulWord(shownMul(Math.round(m * k) / k, m));
 }
+/* A factor as written: a factor that rounds to 0 but is not 0 reads "× under 0.01" (review 2026-11-18: "× 0" on a flooded good's price). */
+const mulWord = v => (v === 0 ? '× under 0.01' : '× ' + v);
+/* A total as written, the way unitText shows it: a price under 10 coins has one decimal. */
+const shownNum = (unit, v) => (unit === 'coins' && Math.abs(v) < 10 ? String(Math.round(v * 10) / 10) : fmt(v));
 /* The factors as written, so that the start times them gives the total as written (a level 6 tower read
    "36 × 1.3 × 1.3 = 59", owner review 2026-11-18). Each factor is its value rounded to 1 or 2 decimals, or 2 or 3 if
    needed, and at 3 decimals up or down, whichever makes the product read right. Returns one number per row (null for a starting value). */
 export function mulShown(ex) {
-  const want = fmt(ex.value), idx = ex.rows.map((r, i) => (r.base === undefined ? i : -1)).filter(i => i >= 0);
-  const read = vals => fmt(ex.rows.reduce((v, r, i) => (r.base !== undefined ? r.base : v * vals[i]), 1));
+  const want = shownNum(ex.unit, ex.value), idx = ex.rows.map((r, i) => (r.base === undefined ? i : -1)).filter(i => i >= 0);
+  const read = vals => shownNum(ex.unit, ex.rows.reduce((v, r, i) => (r.base !== undefined ? r.base : v * vals[i]), 1));
   let first = null;
   for (const digits of [undefined, 2, 3]) {
     const near = [], other = [];
@@ -57,7 +61,7 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
   const box = el('div', 'explain why');
   const row = (a, b, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, b)); box.append(r); };
   const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
-  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : vals ? '× ' + vals[i] : mulText(r.mul));
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : vals ? mulWord(vals[i]) : mulText(r.mul));
   if (ex.rows.length > 1 || ex.unit === 'reach') row(total, unitText(ex.unit, ex.value, extra), 'total');
   return box;
 }

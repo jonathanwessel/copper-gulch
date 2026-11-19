@@ -157,7 +157,7 @@ async function run() {
         Object.assign(t, { wave: w, bestWave: bw, coins, breaches: br }); CG.town.pause('smoke', false);
         return out;
       });
-      if (!gate.card || !/reached your vault/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
+      if (!gate.card || !/got through. You dropped back/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
       // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
       // names the good, the amount and the building that makes it
       const reserve = await page.evaluate(async () => {
@@ -174,6 +174,14 @@ async function run() {
         // "You will have enough timber in about ..." is good news: plain ink, not red (#f07067)
         out.calm = !!sh && (/^You will have enough/.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
         out.haveNeed = low.some(x => /^Timber0 \/ \d+$/.test(x)); // the cost says have / need, red when short
+        // coins too, kept up with the purse in place (review 2026-11-18): short shows red, enough shows plain
+        // (the card is rebuilt when the coins cross the price, so the cell is looked up again each time)
+        const cell = () => document.querySelector('#card .costrow .coinneed'), c0 = cell(), need = c0 ? +c0.dataset.need : 0, had = CG.game.shared.purse.coins;
+        CG.game.shared.purse.coins = Math.max(0, need - 1); await wait(450);
+        let cn = cell(); out.coinShort = !!cn && cn.classList.contains('low') && / \/ [\d.KM]+ coins$/.test(cn.textContent);
+        CG.game.shared.purse.coins = need + 5; await wait(450);
+        cn = cell(); out.coinOk = !!cn && !cn.classList.contains('low') && / \/ [\d.KM]+ coins$/.test(cn.textContent);
+        CG.game.shared.purse.coins = had;
         CG.town.pause('smoke', false); CG.play.close();
         return out;
       });

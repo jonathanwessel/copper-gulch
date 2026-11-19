@@ -53,7 +53,7 @@ export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at
 export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
 const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
-  return { id: 'resume-' + id, text: 'Go to ' + name + ' and tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
+  return { id: 'resume-' + id, away: true, text: 'Go to ' + name + ' and tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
 };
 /* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens next. */
 const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk));
@@ -64,6 +64,10 @@ const heldAway = game => Object.values(game.towns).find(t => t.id !== game.activ
 /* The goal the strip shows for the town in play, or null when its goals are all done (or the strip is off).
    held false: leave out the Resume waves steps (the careful bots tap Resume waves by their own rules and read the
    strip only for what to build). */
+/* A goal that takes the player to another town (review 2026-11-18: "Go to Copper Gulch and build a Smelter there"
+   showed during a boss wave in the town in play). The play screen keeps such a goal off the strip during a boss wave. */
+export const sendsAway = g => !!(g && (g.there || g.away));
+
 export function goalNow(game, held = true) {
   const sh = game.shared.goals, town = game.town;
   if (!sh || sh.off || !town) return null;
