@@ -69,7 +69,7 @@ test('the Falls goal strip walks up the chain and sends the player to the town t
   t.buildings = { sandpit: 4 }; g.step(.25);
   gl = goalNow(g);
   assert.equal(gl.id, 'f-wheel');
-  assert.equal(goalText(g, t, gl), 'Tap Build to build the Water Wheel');
+  assert.equal(goalText(g, t, gl), 'Tap the Water Wheel, then tap Build');
   t.buildings = { sandpit: 8, waterwheel: 5, glassworks: 3, wiremill: 1 };
   g.towns.gulch.buildings = { camp: 5, mine: 5 };
   g.step(.25);

@@ -22,16 +22,42 @@ export function unitText(unit, v, extra = {}) {
   return fmt(v);
 }
 /* A factor, written as one ("× 1.15", "× 3.7", "× 0.82"): the parts multiply, so they never read as if they add. */
-export function mulText(m) {
-  const r = m >= 2 ? Math.round(m * 10) / 10 : Math.round(m * 100) / 100;
-  return '× ' + (r === 1 ? (m >= 1 ? 1.01 : .99) : r);
+const places = (m, digits) => digits ?? (m >= 2 ? 1 : 2);
+const shownMul = (r, m) => (r === 1 ? (m >= 1 ? 1.01 : .99) : r); // a factor never reads × 1
+export function mulText(m, digits) {
+  const k = 10 ** places(m, digits);
+  return '× ' + shownMul(Math.round(m * k) / k, m);
+}
+/* The factors as written, so that the start times them gives the total as written (a level 6 tower read
+   "36 × 1.3 × 1.3 = 59", owner review 2026-11-18). Each factor is its value rounded to 1 or 2 decimals, or 2 or 3 if
+   needed, and at 3 decimals up or down, whichever makes the product read right. Returns one number per row (null for a starting value). */
+export function mulShown(ex) {
+  const want = fmt(ex.value), idx = ex.rows.map((r, i) => (r.base === undefined ? i : -1)).filter(i => i >= 0);
+  const read = vals => fmt(ex.rows.reduce((v, r, i) => (r.base !== undefined ? r.base : v * vals[i]), 1));
+  let first = null;
+  for (const digits of [undefined, 2, 3]) {
+    const near = [], other = [];
+    for (const [i, r] of ex.rows.entries()) {
+      if (r.base !== undefined) { near[i] = other[i] = null; continue; }
+      const k = 10 ** places(r.mul, digits), lo = Math.floor(r.mul * k) / k, hi = Math.ceil(r.mul * k) / k, n = Math.round(r.mul * k) / k;
+      near[i] = shownMul(n, r.mul); other[i] = shownMul(n === lo ? hi : lo, r.mul);
+    }
+    if (!first) first = near;
+    // nearest first at 1-2, then 2, then 3 decimals; only at 3 decimals may a factor round the other way
+    for (let mask = 0; mask < (digits === 3 ? 1 << Math.min(idx.length, 6) : 1); mask++) {
+      const vals = near.map((v, i) => { const j = idx.indexOf(i); return j >= 0 && mask >> j & 1 ? other[i] : v; });
+      if (read(vals) === want) return vals;
+    }
+  }
+  return first;
 }
 
 /* The breakdown box: one row per part, then the total. */
 export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
   const box = el('div', 'explain why');
   const row = (a, b, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, b)); box.append(r); };
-  for (const r of ex.rows) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : mulText(r.mul));
+  const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : vals ? '× ' + vals[i] : mulText(r.mul));
   if (ex.rows.length > 1 || ex.unit === 'reach') row(total, unitText(ex.unit, ex.value, extra), 'total');
   return box;
 }

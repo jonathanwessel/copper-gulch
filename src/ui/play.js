@@ -266,9 +266,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
     if (!b || !town.level(s.maker)) return 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
-    return 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make it faster.';
+    const when = 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '.';
+    return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
   });
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n[0] + n.slice(1).toLowerCase() + (g.length > 1 ? ' are' : ' is') + ' kept for this ' + (pathNext ? 'path' : 'upgrade') + ', not sold.'; };
+  // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
+  const soon = s => s.startsWith('You will have enough');
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
@@ -288,7 +291,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
         const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), shut ? el('small', null, 'You can build it at wave ' + d.opens) : costRow(c));
-        if (!shut) for (const s of shortText(c)) txt.append(el('small', 'short', s));
+        if (!shut) for (const s of shortText(c)) txt.append(el('small', soon(s) ? 'soon' : 'short', s));
         const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
         row.append(txt, go); card.append(row);
@@ -338,7 +341,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       row.append(up);
     }
     const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
-    if (sh.length) for (const s of sh) card.append(el('p', 'warn short', s));
+    if (sh.length) for (const s of sh) card.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
     else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
     const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
@@ -513,12 +516,29 @@ function underHud() {
   for (const n of document.querySelectorAll('.hud .hudleft, .hud .hudright')) { const b = n.getBoundingClientRect(); if (b.height) y = Math.max(y, b.bottom); }
   return y && y + 8 < innerHeight * .6 ? Math.round(y + 8) : null;
 }
+/* A toast never covers an open card (review 2026-11-18: "The Capital is built." sat on the card's title in landscape).
+   A card on the right side (landscape) moves the toast into the space left of it; a card below (portrait) keeps the
+   toast above the card's top edge when there is room. Exported for the smoke test. */
+export function clearOfCards(t) {
+  if (!t.isConnected) return;
+  const cards = [...document.querySelectorAll('.card')].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
+  const hit = (a, r) => a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top;
+  for (const r of cards) {
+    const a = t.getBoundingClientRect();
+    if (!hit(a, r)) continue;
+    if (r.left > innerWidth * .35) { // a side card: center the toast in the space to its left
+      const room = r.left - 20;
+      t.style.maxWidth = Math.max(120, room - 12) + 'px'; t.style.left = Math.round(Math.max(10, room / 2 + 10 - Math.min(a.width, room - 12) / 2)) + 'px'; t.style.transform = 'none';
+    } else if (r.top - a.height - 8 > 0) t.style.top = Math.round(Math.max(8, Math.min(a.top, r.top - a.height - 8))) + 'px';
+  }
+}
 function nextToast() {
   const q = toasts.queue.shift();
   if (!q) { toasts.up = null; return; }
   const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
   const below = underHud(); if (below) t.style.top = below + 'px';
   document.body.append(t);
+  clearOfCards(t); setTimeout(() => clearOfCards(t), 350); // a card opened by the same tap
   toasts.up = q;
   const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;
   setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);

@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-17',
+    lines: [
+      'Tap Damage on a tower. The numbers in the list now multiply to the total.',
+      'When a tower card says you will have enough soon, that line is no longer red.',
+      'Goals now say which thing to tap, like "Tap the Sawmill, then tap Build".',
+      'The Capital\'s label on the map says how far your contract is.',
+      'Messages at the top no longer cover a card when the phone is turned sideways.',
+    ],
+  },
+  {
     v: '2026.11.18-16',
     lines: [
       'Town labels on the map no longer cover each other.',

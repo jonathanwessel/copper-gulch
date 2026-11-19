@@ -131,7 +131,7 @@ export function capitalSheet(game, toast = () => {}) {
     let panel = null, sig = '';
     const f = CAPITAL_DEF.found, wave = el('p', 'uses'), coins = el('p', 'uses'), b = el('button', 'btn primary buy', 'Build the Capital');
     b.id = 'foundCapital';
-    b.addEventListener('click', () => { if (foundCapital(game)) { toast('The Capital is built.', 3000); paint(); } });
+    b.addEventListener('click', () => { if (foundCapital(game)) paint(); }); // the sheet itself shows it is built, no toast
     const paint = () => {
       if (!capitalOpen(game)) {
         if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Your towns send goods here for coins and Influence. Spend Influence on upgrades for every town.'), wave, coins, row); }

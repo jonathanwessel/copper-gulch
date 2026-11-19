@@ -5,7 +5,7 @@ export function fmt(n) {
   const a = Math.abs(n);
   if (a < 1) return (Math.round(n * 100) / 100).toString();
   if (a < 10) return (Math.round(n * 10) / 10).toString();
-  if (a < 1000) return Math.floor(n).toString();
+  if (a < 1000) return Math.floor(n + 1e-9).toString(); // 59.99999 from a product of factors is 60
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(a) / 3)), v = n / 10 ** (i * 3);
   return (v < 10 ? +v.toFixed(2) : v < 100 ? +v.toFixed(1) : Math.floor(v)).toString() + SUFFIX[i]; // 1.8K, not 1.80K
 }

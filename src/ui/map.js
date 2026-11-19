@@ -22,6 +22,8 @@ const rate = n => '+' + fmt(n) + '/s';
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
+/* What a place makes, in the same words on its card before and after it opens: its top goods, or every good it makes. */
+export const makesWords = id => TOWNS[id].makesText || goodsLower(makesOf(id));
 
 /* A rule a town not open yet has, in words; the badge gets the short form. */
 function ruleText(game, r, short = false) {
@@ -128,8 +130,7 @@ export function mountMap(root, game, view, shell) {
       const grid = el('div', 'statgrid');
       grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), stat('Earns', rate(info.income)));
       kids.push(grid);
-      const makes = makesOf(id).filter(g => (t.made && t.made[g] > 0) || t.goods[g] > 0);
-      if (makes.length) kids.push(el('p', 'uses', 'Makes ' + goodsLower(makes) + '.'));
+      kids.push(el('p', 'uses', 'Makes ' + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
       for (const l of mapRoutes(game)) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
@@ -152,12 +153,12 @@ export function mountMap(root, game, view, shell) {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
       if (id === 'capital') kids.push(el('p', 'uses', 'Your towns send goods here for coins and Influence. Spend Influence on upgrades for every town.'));
-      else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
-      else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
+      else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + makesWords(id) + '.'));
+      else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + makesWords(id) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
-          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town and Sign the charter.'));
+          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town, then tap Sign the charter.'));
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
@@ -168,7 +169,7 @@ export function mountMap(root, game, view, shell) {
       if (lr.ready) {
         const row = el('div', 'row'), go = el('button', 'btn primary buy', id === 'capital' ? 'Build the Capital' : 'Start ' + TOWNS[id].name); go.id = 'mapFound';
         go.addEventListener('click', () => {
-          if (id === 'capital') { if (foundCapital(game)) { shell.toast('The Capital is built.'); paintCard(); } return; }
+          if (id === 'capital') { if (foundCapital(game)) paintCard(); return; } // the card itself shows it is built, no toast
           if (foundTown(game, id)) { shell.toast(TOWNS[id].name + ' is open.'); shell.play(id); }
         });
         row.append(go); kids.push(row);
@@ -203,7 +204,7 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '% sent' : 'Take a contract');
+        setText(B.wave, a ? 'Contract ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '% done' : 'Take a contract'); // it names the contract (review 2026-11-18)
         B.vault.hidden = true; setText(B.extra, c.influence + ' Influence');
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {

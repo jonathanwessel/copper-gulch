@@ -169,8 +169,10 @@ async function run() {
         document.getElementById('keepTowers').click(); await wait(50);
         out.on = !t.reserveOff.timber && t.keep.timber > 0;
         CG.town.pause('smoke', true); t.goods.timber = 0; CG.play.openSpot(3); await wait(400); // paused, so the camp makes none meanwhile
-        const sh = document.querySelector('#card .short'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
-        out.short = !!sh && /Lumber Camp/.test(sh.textContent);
+        const sh = document.querySelector('#card .short, #card .soon'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
+        out.short = !!sh && /Lumber Camp|enough timber in about/.test(sh.textContent); // a wait under 20 s has no advice
+        // "You will have enough timber in about ..." is good news: plain ink, not red (#f07067)
+        out.calm = !!sh && (/^You will have enough/.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
         out.haveNeed = low.some(x => /^Timber0 \/ \d+$/.test(x)); // the cost says have / need, red when short
         CG.town.pause('smoke', false); CG.play.close();
         return out;
@@ -593,7 +595,7 @@ async function run() {
         // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Mining Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
-        out.goalNext = gt() === 'Tap Build to build the Mining Camp' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        out.goalNext = gt() === 'Tap the Mining Camp, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
@@ -771,7 +773,11 @@ async function run() {
         await page.evaluate(() => document.getElementById('mapFound').click()); await sleep(700);
         // the map brings its dioramas in step once a second, so a busy machine can take longer than the sleep
         await waitFor(page, () => CG.map.dioramas.includes('capital'), 3000);
-        const open = await page.evaluate(() => ({ open: CG.game.shared.capital.open, takes: document.querySelectorAll('#mapCard [data-contract]').length, text: document.getElementById('mapCard').textContent, dio: CG.map.dioramas.includes('capital') }));
+        // no toast covers the open card (review 2026-11-18: "The Capital is built." sat on the card's title in landscape;
+        // that toast is gone, the card shows it) and no toast repeats it
+        const covers = await page.evaluate(() => { const c = document.getElementById('mapCard').getBoundingClientRect(); return [...document.querySelectorAll('.toast')].filter(n => !n.classList.contains('out')).map(n => [n.textContent, n.getBoundingClientRect()]).filter(([x, a]) => /Capital is built/.test(x) || (a.left < c.right && a.right > c.left && a.top < c.bottom && a.bottom > c.top)).map(([x]) => x); });
+        if (covers.length) bad.push('a toast covers or repeats the Capital card: ' + covers.join(' | '));
+        const open =await page.evaluate(() => ({ open: CG.game.shared.capital.open, takes: document.querySelectorAll('#mapCard [data-contract]').length, text: document.getElementById('mapCard').textContent, dio: CG.map.dioramas.includes('capital') }));
         if (!open.open || open.takes < 1 || !/Influence/.test(open.text) || !open.dio) bad.push('the Capital card after it is built is wrong (' + JSON.stringify({ ...open, text: open.text.slice(0, 120) }) + ')');
         bad.push(...(await check(page)).map(b => 'capital card: ' + b));
         await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(700);
