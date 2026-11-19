@@ -109,7 +109,7 @@ function institutions(game, live, changed, toast) {
       live.push(() => { cost(small, game.shared.purse.coins, foundCost(game), 'coins'); b.disabled = foundBlock(game, inst.id) !== null; });
     } else {
       const n = nodesOf(game, inst.id), node = nextNode(game, inst.id);
-      txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' upgrades'));
+      txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' bought'));
       if (!node) { txt.append(el('span', '', 'All upgrades bought.')); row.append(txt); row.classList.add('off'); }
       else {
         txt.append(el('span', '', node.about), small);

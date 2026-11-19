@@ -59,7 +59,7 @@ const INSTITUTION = {
     k.box(0, .62, .33, .3, .1, .02, 'paintY');
     crate(k, .22, .2, .14, .05); crate(k, -.24, .18, .12, .05, .4); sacks(k, -.05, .22);
   },
-  /* Department of Transport: a brick depot with a tall door, a clock over it, and rails out front with a little engine. */
+  /* Department of Transportation: a brick depot with a tall door, a clock over it, and rails out front with a little engine. */
   transport(k) {
     k.box(0, 0, -.12, .84, .5, .42, 'brick', { jit: .06 });
     k.hip(0, .5, -.12, .94, .52, .18, 'roofS');

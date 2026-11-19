@@ -305,7 +305,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
       r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; paintCard(); });
     };
-    line('Damage', fmt(st.dmg) + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''), 'dmg');
+    line('Damage', fmt(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''), 'dmg');
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', st.splash < 1.2 ? 'Small' : 'Wide');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');

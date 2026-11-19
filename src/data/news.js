@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-16',
+    lines: [
+      'Town labels on the map no longer cover each other.',
+      'The Silver Falls card on the map shows your deeds and how to earn them.',
+      'What\'s new now scrolls when the phone is turned sideways.',
+      'Tower cards show the damage of each hit.',
+      'The Institutions tab shows how many upgrades you bought.',
+      'One Capital building has a new name, the Department of Transportation.',
+    ],
+  },
+  {
     v: '2026.11.18-15',
     lines: [
       'Cannon, Frost Lens and Mortar upgrades now add a bit less power. Crossbow upgrades stay the same.',

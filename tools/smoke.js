@@ -798,7 +798,7 @@ async function run() {
           const before = await page.evaluate(() => CG.game.towns.gulch.mods.factor('income'));
           await page.evaluate(() => document.querySelector('#mapCard [data-node="bank"]').click()); await sleep(600);
           const after = await page.evaluate(() => ({ income: CG.game.towns.gulch.mods.factor('income'), n: CG.game.shared.tree.nodes.bank, left: CG.game.shared.capital.influence, line: document.getElementById('mapCard').textContent }));
-          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 50 - NODE_COST[0] || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
+          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 50 - NODE_COST[0] || !/1 of 5 bought/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
         }
         bad.push(...(await check(page)).map(b => 'institutions bought: ' + b));
         // the city: the Bank stands on its lot (risen and merged back in), the capitol's badge floats over it, and no
@@ -910,6 +910,15 @@ async function run() {
     await page.evaluate(() => localStorage.setItem('cg-news', '2026.11.16-12')); await page.reload(); await waitFor(page, () => window.CG && CG.ready && (!CG.scene || CG.scene.frames > 3));
     const shown = await page.evaluate(() => { const n = document.getElementById('news'); return n ? n.querySelectorAll('li').length : 0; });
     if (!shown) bad.push('What\'s new did not show after an update');
+    // in landscape every line can be reached: Got it stays on screen and the list scrolls (2026.11.18-15 review)
+    await page.setViewportSize({ width: 860, height: 400 }); await sleep(300);
+    const land = await page.evaluate(() => { const ok = document.getElementById('newsOk').getBoundingClientRect(), b = document.querySelector('#news .newsbody');
+      b.scrollTop = b.scrollHeight; const last = [...b.querySelectorAll('li')].pop().getBoundingClientRect(), br = b.getBoundingClientRect();
+      return { ok: ok.bottom <= innerHeight && ok.top >= 0, last: last.bottom <= br.bottom + 1 && last.top >= br.top - 1 }; });
+    if (!land.ok) bad.push('in landscape Got it on What\'s new is off the screen');
+    if (!land.last) bad.push('in landscape the last line of What\'s new cannot be scrolled to');
+    if (process.env.CG_NEWS_SHOT) await page.screenshot({ path: process.env.CG_NEWS_SHOT });
+    await page.setViewportSize({ width: 400, height: 860 }); await sleep(300);
     bad.push(...(await check(page)).map(b => 'news: ' + b));
     await page.evaluate(() => document.getElementById('newsOk').click()); await sleep(200);
     await page.reload(); await waitFor(page, () => window.CG && CG.ready);

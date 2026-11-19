@@ -27,10 +27,32 @@ const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
 function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
-  if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Hold ' + r.deeds + ' deeds. Sign a charter to get more.';
-  if (r.kind === 'with') return short ? 'Opens with ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
+  if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Deeds';
+  if (r.kind === 'with') return short ? 'Start ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
   return short ? 'Coming later' : 'The Capital will be built here.';
+}
+
+/* Badges as { x (center), y (bottom), w, h }: the lowest keeps its place, and each one above it that would cover a
+   badge already placed is lifted until its bottom sits 2 px over that badge's top. `bar` is the top bar's boxes as
+   [{ l, r, b }] (left, right, bottom): a badge whose town is under one of them sits just below it, and when lifting
+   would push a badge under one, it moves down below the badges it meets instead. Changes y in place; returns them. */
+export function liftBadges(rs, bar = [], gap = 2) {
+  const done = [], tops = new Map(rs.map(r => [r, Math.max(gap, ...bar.filter(q => q.l < r.x + r.w / 2 && q.r > r.x - r.w / 2).map(q => q.b + gap))]));
+  const settle = (r, y, up) => {
+    for (let moved = true, n = 0; moved && n < 20; n++) {
+      moved = false;
+      for (const o of done) if (Math.abs(r.x - o.x) < (r.w + o.w) / 2 && y > o.y - o.h - gap && y - r.h < o.y + gap) { y = up ? o.y - o.h - gap : o.y + r.h + gap; moved = true; }
+    }
+    return y;
+  };
+  for (const r of rs) r.y = Math.max(r.y, tops.get(r) + r.h); // never under the top bar's boxes
+  for (const r of rs.slice().sort((a, b) => b.y - a.y)) {
+    const up = settle(r, r.y, true);
+    r.y = up - r.h >= tops.get(r) || up === r.y ? up : settle(r, r.y, false);
+    done.push(r);
+  }
+  return rs;
 }
 
 /* shell: { meter, play(id) (fly into a town), back() (fly into the town in play), toast(text) } */
@@ -133,7 +155,10 @@ export function mountMap(root, game, view, shell) {
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + (TOWNS[id].makesText || goodsLower(makesOf(id))) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + goodsLower(makesOf(id)) + '.'));
       for (const r of lr.rules) {
-        if (r.kind === 'deeds') kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
+        if (r.kind === 'deeds') {
+          kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
+          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town and Sign the charter.'));
+        }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
           const have = r.kind === 'coins' ? fmt(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Best wave ' + (from ? from.bestWave || 0 : 0);
@@ -178,7 +203,7 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '%' : 'Take a contract');
+        setText(B.wave, a ? GOODS[a.good].name + ' ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '% sent' : 'Take a contract');
         B.vault.hidden = true; setText(B.extra, c.influence + ' Influence');
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
@@ -189,17 +214,21 @@ export function mountMap(root, game, view, shell) {
       }
     }
   }
-  // badges sit above their towns, kept inside the screen (their widths are measured with the 4-a-second paint)
-  const widths = {};
+  // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
+  // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
+  // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
+  const widths = {}, heights = {}; let bar = [];
   function placeBadges() {
-    const W = innerWidth, H = innerHeight;
+    const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
       const B = badge[s.id], p = view.badgePoint(s.id), w = widths[s.id] || 80;
       if (!p || p.x < -w || p.x > W + w || p.y < -40 || p.y > H + 40) { B.b.hidden = true; continue; }
       B.b.hidden = false;
-      const x = Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4);
-      const tr = `translate(${x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`;
-      if (B.b.style.transform !== tr) B.b.style.transform = tr;
+      shown.push({ B, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
+    }
+    for (const r of liftBadges(shown, bar)) {
+      const tr = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px) translate(-50%, -100%)`;
+      if (r.B.b.style.transform !== tr) r.B.b.style.transform = tr;
     }
   }
   paintBadges(); paintPause(); setText(back, 'Back to ' + shortOf(game.active));
@@ -210,8 +239,9 @@ export function mountMap(root, game, view, shell) {
       placeBadges();
       if ((acc += dt) >= .25) {
         acc = 0; paintBadges(); paintPause();
-        for (const s of view.sites) if (!badge[s.id].b.hidden) widths[s.id] = badge[s.id].b.offsetWidth;
+        for (const s of view.sites) if (!badge[s.id].b.hidden) { widths[s.id] = badge[s.id].b.offsetWidth; heights[s.id] = badge[s.id].b.offsetHeight; }
         const c = card.hidden ? null : card.getBoundingClientRect();
+        bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
