@@ -196,16 +196,16 @@ html.no3d body { background: var(--bg); }
 html.flat .tags { position: absolute; inset: 64px 12px auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 html.flat .tag { position: static; transform: none !important; }
 .card {
-  position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--striph, 0px)); transform: translateX(-50%);
   width: min(calc(100% - 20px), 420px); padding: 12px; display: grid; gap: 8px;
-  max-height: calc(100% - 20px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  max-height: calc(100% - 20px - env(safe-area-inset-bottom) - var(--striph, 0px)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
   background: var(--panel); border: 2px solid var(--line);
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 4px 4px 0 rgba(22, 15, 11, .6);
   animation: riseX .2s both;
 }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
-  .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
+  .card { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
@@ -343,6 +343,7 @@ html.flat .tag { position: static; transform: none !important; }
 }
 @media (min-width: 600px) { .goodstrip { grid-template-columns: repeat(6, minmax(0, auto)); } }
 @media (min-width: 1100px) { .goodstrip { grid-template-columns: repeat(8, minmax(0, auto)); } }
+.goodstrip.narrow { grid-template-columns: repeat(3, minmax(0, 1fr)); } /* beside a side card */
 .goodchip .gname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; text-align: left; }
 .goodchip {
   flex: none; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;

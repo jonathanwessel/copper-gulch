@@ -4,7 +4,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
-import { explainOutput, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
+import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave } from '../core/defense.js';
@@ -25,7 +25,7 @@ import { lostToast, lostCard } from './lost.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtLive, sellsFor, perSecond } from './format.js';
+import { fmt, fmtLive, sellsFor, perSecond, oneOf } from './format.js';
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
@@ -54,7 +54,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const paintPlace = () => {
     const b = game.back, next = nextTowns(game);
     if (backBtn.hidden !== !b) backBtn.hidden = !b;
-    setText(name, b ? town.def.short || town.def.name : town.def.name); // with a back button beside it, the short name, so all three fit on a phone
+    setText(name, town.def.short || town.def.name); // the short name, as the map and the back button say it (review of 2026.11.19-4), so all three fit on a phone
     if (b) { const s = TOWNS[b].short || TOWNS[b].name; setText(backBtn, s); if (backBtn.dataset.town !== b) { backBtn.dataset.town = b; backBtn.setAttribute('aria-label', 'Back to ' + s); } backBtn.classList.toggle('dot', needsYou(b)); }
     const show = mapOpen(game); if (mapBtn.hidden !== !show) mapBtn.hidden = !show;
     mapBtn.classList.toggle('dot', Object.keys(game.towns).some(id => id !== town.id && needsYou(id)) || mapCalls(game));
@@ -155,7 +155,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   viewApi.onTap = hit => { if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
-  let sig = '';
+  let sig = '', madeEl = null;
   function paintCard(force = true) {
     if (!openId) return;
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
@@ -163,7 +163,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
     const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
     const grid = gridOf(town), gridShort = L > 0 && (onGrid(id) || isGrid(b.makes)) && grid.share < .999;
-    const now = [id, L, why, wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    const made = L ? explainMade(town, id) : null, madeText = perSecond(made ? made.value : b.rate, g);
+    if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
+    const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -171,15 +173,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     head.append(el('h2', null, b.name), el('span', 'lv', L ? 'Level ' + L : unlocked(town, id) ? 'Not built' : 'Locked'));
     const x = el('button', 'btn small close', 'Close'); x.addEventListener('click', close); head.append(x);
     card.append(head);
-    const out = output(town, id) || b.rate;
     const line = el('button', 'stat');
-    line.append(el('span', null, L ? 'Makes' : 'Makes at level 1'), el('b', null, perSecond(out, g)));
+    line.append(el('span', null, L ? 'Makes' : 'Makes at level 1'), madeEl = el('b', null, madeText)); // what it really makes: less when short
     line.addEventListener('click', () => { why = !why; paintCard(); });
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
-    if (why && L) card.append(explainBox(explainOutput(town, id)));
+    if (why && L) card.append(explainBox(made));
     const ins = Object.entries(b.inputs);
-    if (ins.length) card.append(el('p', 'uses', 'Each one uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    if (ins.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
     // goods shipped in from another town (src/core/economy.js, ship): where they come from, and what to do when short
     const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
@@ -244,8 +245,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const waitText = w => {
     const n = GOODS[w.good].name.toLowerCase();
     if (w.why === 'short') return 'The foreman is waiting for more ' + n + '.';
-    if (w.why === 'flooded') return 'The foreman is waiting. ' + GOODS[w.good].name + ' sells for very little now. No workshop needs more ' + n + '.';
-    return 'The foreman is waiting. The next level would take over an hour to earn back its price.';
+    if (w.why === 'flooded') return 'The foreman is waiting because ' + n + ' sells for very little now and no workshop needs more.';
+    return 'The foreman is waiting because the next level would take over an hour to earn back its price.';
   };
 
   let armed = null; // a path tapped once, waiting for the second tap
@@ -257,8 +258,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins));
     cc.dataset.need = c.coins; r.append(cc);
     for (const [g, n] of Object.entries(c.goods)) {
-      const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need' + (have < n ? ' low' : ''));
-      p.title = GOODS[g].name; p.append(goodIcon(g), el('span', 'gname', GOODS[g].name), document.createTextNode(fmt(have) + ' / ' + n));
+      const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need goodneed' + (have < n ? ' low' : ''));
+      p.dataset.good = g; p.dataset.need = n;
+      const num = el('span', 'hn', fmtLive(have) + ' / ' + n); // the count as the goods strip writes it, kept up in place (paintCoinCosts)
+      p.title = GOODS[g].name; p.append(goodIcon(g), el('span', 'gname', GOODS[g].name), num);
       r.append(p);
     }
     return r;
@@ -392,7 +395,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let goalId = null, goalCur = null, doneFor = 0;
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
-    const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), now = (boss && sendsAway(g0)) || lostUp ? null : g0, sh = game.shared.goals || { done: {} }; // a boss fight here: no goal that sends you away
+    const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
+    // an explainer card is up and stops the game, so a goal it just finished is not marked done yet: it goes from the
+    // strip at once (review of 2026.11.19-4: "Beat wave 10 to open Copper Gulch" behind "Copper Gulch is open")
+    const coachEl = document.getElementById('coach'), stale = !!(g0 && g0.done && coachEl && !coachEl.hidden && g0.done(goalContext(game, town)));
+    const now = (boss && sendsAway(g0)) || lostUp || stale ? null : g0; // a boss fight here: no goal that sends you away
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
@@ -410,8 +417,19 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
   let cardTop = 0;
-  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null;
+  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '';
   function measure() {
+    // a card at the bottom opens above the goods strip, so the counts stay in view (owner rule: you can always see what
+    // you have; review of 2026.11.19-4: the mortar pit card cut off the timber count)
+    const sh = strip.hidden ? 0 : Math.round(strip.getBoundingClientRect().height + 4);
+    if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); }
+    // a side card (a short landscape screen) leaves the strip the room to its left, so it covers no count
+    let sw = '';
+    if (!strip.hidden && openId && !card.hidden) {
+      const c = card.getBoundingClientRect(), s0 = strip.getBoundingClientRect();
+      if (c.width && c.left > innerWidth * .35 && c.bottom > s0.top) sw = Math.max(160, Math.floor(c.left - s0.left - 8)) + 'px';
+    }
+    if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('narrow', !!sw); } // three columns there, so every name and count fits
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
     // what covers the board: the camera fits its home view under the top bar and keeps the selection clear of the card
@@ -461,6 +479,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   function paintCoinCosts() {
     if (card.hidden) return;
     for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need)); n.classList.toggle('low', town.coins + 1e-9 < need); }
+    // each good's have / need too, so it reads the same as the goods strip (review of 2026.11.19-4: the card said 5 / 9 while the strip said 6)
+    for (const n of card.querySelectorAll('.goodneed')) {
+      const need = +n.dataset.need, have = Math.floor((town.goods[n.dataset.good] || 0) + 1e-9), h = n.querySelector('.hn');
+      if (h) setText(h, fmtLive(have) + ' / ' + need); n.classList.toggle('low', have < need);
+    }
   }
   // income: coins earned over the last few seconds
   const hist = []; let acc = 0, cardAcc = 0;
@@ -563,12 +586,26 @@ export function clearOfCards(t) {
     } else if (r.top - a.height - 8 > 0) t.style.top = Math.round(Math.max(8, Math.min(a.top, r.top - a.height - 8))) + 'px';
   }
 }
-/* Below the top bar (measured again later: a toast from a town switch comes before the new town's bar), then clear of cards. */
+/* On the map and the Capital, a toast never covers a town's label (review of 2026.11.19-4): it moves down to the first
+   place where it covers no label and no card, or stays where it is when there is none. Exported for the smoke test. */
+export function clearOfBadges(t) {
+  if (!t.isConnected) return;
+  const rects = sel => [...document.querySelectorAll(sel)].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
+  const badges = rects('.mapbadge');
+  if (!badges.length) return;
+  const all = [...badges, ...rects('.card, .sheet')], a = t.getBoundingClientRect();
+  const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
+  if (!hitAt(a.top)) return;
+  for (let y = Math.ceil(a.top) + 6; y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) { t.style.top = y + 'px'; return; }
+}
+/* Below the top bar (measured again later: a toast from a town switch comes before the new town's bar), then clear of
+   cards and of the map's labels. */
 function placeToast(t) {
   if (!t.isConnected) return;
   t.style.left = ''; t.style.transform = ''; t.style.maxWidth = '';
   const below = underHud(); t.style.top = below ? below + 'px' : '';
   clearOfCards(t);
+  clearOfBadges(t);
 }
 function nextToast() {
   const q = toasts.queue.shift();

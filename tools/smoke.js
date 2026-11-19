@@ -30,6 +30,9 @@ export async function uncovered(page) {
       if (r.bottom > innerHeight + 1 || r.top < -1) bad.push((p.id === 'card' ? 'the card' : 'a sheet') + ' runs off the screen');
     }
     const buy = document.querySelector('#card #buy'), card = document.getElementById('card');
+    // a card at the bottom opens above the goods strip, so the counts stay in view (review of 2026.11.19-4)
+    const strip = document.getElementById('goodsStrip');
+    if (vis(card) && vis(strip) && hit(R(card), R(strip))) bad.push('the card covers the goods strip');
     if (vis(buy) && vis(card)) { const b = R(buy), c = R(card); if (b.top < c.top - 1 || b.bottom > c.bottom + 1 || b.bottom > innerHeight) bad.push('the card\'s ' + buy.textContent.split(' ')[0] + ' button is out of view'); }
     return bad;
   });
@@ -306,7 +309,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /The foreman is waiting. Timber sells for very little now. No workshop needs more timber./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /The foreman is waiting because timber sells for very little now and no workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -756,6 +759,14 @@ async function run() {
       if (!await waitFor(page, () => CG.map && CG.map.frames > 10 && CG.mapui, 8000)) bad.push('Map did not open the map');
       if (await page.evaluate(() => [...document.querySelectorAll('.toast')].some(t => t.textContent === 'Smoke lost line.'))) bad.push('the lost toast stayed over the map');
       await sleep(900);
+      // a toast on the map moves off the town labels (review of 2026.11.19-4: toasts over the labels on the Capital screens)
+      const onBadge = await page.evaluate(async () => {
+        const { toast } = await import('./src/ui/play.js'); toast('Smoke map line.', 2000); await new Promise(r => setTimeout(r, 500));
+        const t = [...document.querySelectorAll('.toast')].find(n => n.textContent === 'Smoke map line.'); if (!t) return 'no toast';
+        const a = t.getBoundingClientRect();
+        return [...document.querySelectorAll('.mapbadge')].filter(n => { const r = n.getBoundingClientRect(); return r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top; }).map(n => n.textContent.slice(0, 20)).join(' | ');
+      });
+      if (onBadge) bad.push('a toast on the map covers ' + onBadge);
       const m = await page.evaluate(() => ({
         canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
         badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),

@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-5',
+    lines: [
+      'A workshop that runs short shows how much it really makes, and tapping it shows what it is short of.',
+      'A good you sold too much of reads almost 0 coins.',
+      'Cards open above your goods, so you can always see how many you have.',
+      'Messages on the map move down so they never cover a town name.',
+      'Costs on a card count your goods the same way as the bar at the bottom.',
+    ],
+  },
+  {
     v: '2026.11.19-4',
     lines: [
       'A building card says what it makes with the good named, like 2 planks a second.',

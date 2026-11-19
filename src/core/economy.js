@@ -85,17 +85,22 @@ export function gridOf(town) {
 }
 export const onGrid = id => Object.keys(BUILDINGS[id].inputs).some(isGrid);
 
-/* Make goods for dt seconds. Records which buildings ran short of inputs in town.starved. */
+/* Make goods for dt seconds. Records which buildings ran short of inputs in town.starved, and in town.ran[id] what
+   each one really made a second, smoothed over about RAN_SECONDS (its card shows it when short, review of 2026.11.19-4:
+   "Makes 1 boiler a second" beside "Not enough bricks"). town.ran is optional and only for the screen. */
+export const RAN_SECONDS = 3;
 export function produce(town, dt) {
   town.starved = {};
+  const ran = town.ran ||= {}, k = 1 - Math.exp(-dt / RAN_SECONDS);
   const grid = buildingsOf(town).some(onGrid) ? gridOf(town).share : 1;
   for (const id of buildingsOf(town)) {
     const b = BUILDINGS[id], want = output(town, id) * dt;
-    if (!(want > 0) || isGrid(b.makes)) continue; // power goes straight onto the grid
+    if (!(want > 0) || isGrid(b.makes)) { delete ran[id]; continue; } // power goes straight onto the grid
     let made = onGrid(id) ? want * grid : want;
     const need = Object.keys(b.inputs).filter(g => !isGrid(g)).map(g => [g, uses(town, id, g)]);
     for (const [g, n] of need) made = Math.min(made, (town.goods[g] || 0) / n);
     if (made < want * .999) town.starved[id] = true;
+    ran[id] = id in ran ? ran[id] + (made / dt - ran[id]) * k : made / dt;
     if (made <= 0) continue;
     for (const [g, n] of need) town.goods[g] -= made * n;
     town.addGood(b.makes, made);

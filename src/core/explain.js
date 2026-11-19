@@ -12,7 +12,7 @@ import { GOODS } from '../data/goods.js';
 import { TOWERS, PATHS, PER_LEVEL } from '../data/towers.js';
 import { FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
-import { milestonesAt } from './economy.js';
+import { milestonesAt, output, uses, isGrid, gridOf } from './economy.js';
 import { saturation, eventFactor } from './market.js';
 import { towerStats, wavesOf, vaultMax } from './defense.js';
 
@@ -34,6 +34,22 @@ export function explainOutput(town, id) {
   if (m) rows.push({ label: 'Level ' + list + (m === 1 ? ' bonus' : ' bonuses'), mul: 2 ** m });
   rows.push(...modRows(town.mods, 'prod'), ...modRows(town.mods, 'prod:' + id));
   return done('rate', rows);
+}
+
+/* What a building really makes a second: its output at full supply, and when it runs short (town.ran, smoothed in
+   src/core/economy.js, under SHORT_SHARE of that) one more row for what it is short of, so the card never says
+   "Makes 1 boiler a second" beside "Not enough bricks" (review of 2026.11.19-4). ex.short is the good it lacks, or null. */
+export const SHORT_SHARE = .97;
+export function explainMade(town, id) {
+  const ex = explainOutput(town, id), full = ex.value, ran = town.ran && town.ran[id];
+  ex.short = null; ex.lacking = false;
+  if (!town.level(id) || !(full > 0) || ran === undefined || ran >= full * SHORT_SHARE) return ex;
+  const ins = Object.keys(BUILDINGS[id].inputs), out = output(town, id);
+  const g = ins.find(k => isGrid(k) ? gridOf(town).share < .999 : (town.goods[k] || 0) < out * uses(town, id, k)) || null;
+  ex.short = g; ex.lacking = true;
+  ex.rows.push({ label: g ? 'Not enough ' + GOODS[g].name.toLowerCase() : 'Not enough materials', mul: Math.max(0, ran) / full });
+  ex.value = Math.max(0, ran);
+  return ex;
 }
 
 /* What one unit of a good pays right now: its base price, the market (selling a lot lowers it for a while, an event

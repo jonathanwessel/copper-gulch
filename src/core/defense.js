@@ -166,9 +166,11 @@ export const oldGround = town => town.wave <= (town.record || 0);
    close). The first wave and waves the town beat before its charter come at their normal strength however early. */
 export const RUSH = { more: 2, free: .4, bonus: .5 };
 export const rushOf = town => (town.wave === 1 && !town.bestWave) || oldGround(town) ? 0 : Math.min(1, Math.max(0, town.waves.timer / wavesOf(town).pace - (wavesOf(town).rushFree ?? RUSH.free)) / (1 - (wavesOf(town).rushFree ?? RUSH.free)));
-/* On old ground the towers also hit OLD_GROUND times harder (the named source "Waves you beat before" on tower damage, so the
+/* On old ground the towers also hit OLD_GROUND times harder (the named source OLD_LABEL on tower damage, so the
    tower card's breakdown shows it), so those waves fall fast and the town can call the next one at once. */
 export const OLD_GROUND = { dmg: 3 };
+/* Its row on the tower card says where it comes from (review of 2026.11.19-4: "Waves you beat before" did not). */
+export const OLD_LABEL = 'Beat before you signed';
 export const canCall = town => town.waves.phase === 'break';
 /* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 when no break is on
    (a wave is already on the road). town.flags.called counts the calls (the goal strip asks for one). */
@@ -490,7 +492,7 @@ export const defense = {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
     syncVault(town);
-    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
+    town.mods.set('towerDmg', OLD_LABEL, { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     town.keep = towerReserve(town);
     town.waves.owe = 0;
     fight(game, town, dt);
@@ -499,7 +501,7 @@ export const defense = {
     if (!town.def || !town.def.board) return;
     defense.opens(game, town);
     syncVault(town);
-    town.mods.set('towerDmg', 'Waves you beat before', { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
+    town.mods.set('towerDmg', OLD_LABEL, { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     skirmish(game, town, dt);
     town.keep = towerReserve(town);
   },

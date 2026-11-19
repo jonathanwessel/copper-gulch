@@ -84,7 +84,7 @@ test('a signed town remembers its best wave: old ground hits 3 times harder and 
   g.step(.25);
   assert.ok(oldGround(t));
   assert.equal(t.mods.factor('towerDmg'), OLD_GROUND.dmg);
-  assert.ok(t.mods.explain('towerDmg').parts.some(p => p.source === 'Waves you beat before'), 'the tower card can show where it comes from');
+  assert.ok(t.mods.explain('towerDmg').parts.some(p => p.source === 'Beat before you signed'), 'the tower card can show where it comes from');
   // past the first wave, Call now works right away (it always does)
   t.wave = 5; t.bestWave = 4; Object.assign(t.waves, { phase: 'break', timer: 50, hold: false });
   assert.ok(canCall(t)); assert.ok(callEarly(g, t) > 0);

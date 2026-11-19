@@ -10,15 +10,21 @@ export function fmt(n) {
   return (v < 10 ? +v.toFixed(2) : v < 100 ? +v.toFixed(1) : Math.floor(v)).toString() + SUFFIX[i]; // 1.8K, not 1.80K
 }
 /* A price in coins, rounded for a player (review 2026-11-18: "0.93 coins"): under 10 coins one decimal, from 10 up as
-   fmt. Under 0.05 it is "under 0.1 coin", never "0 coins" for a good that still sells. */
-export const ALMOST = 'under 0.1 coin';
+   fmt. Under 0.1 it keeps one digit that is not 0 ("0.04 coins", "0.003 coins"), so a flooded good never reads
+   "0 coins" and its price breakdown multiplies to it as written (review of 2026.11.19-4: "× under 0.01" next to
+   "under 0.1 coin" did not add up). Under 0.01 it is "almost 0 coins" (a second review: "0.00005 coins" is unreadable). */
+export const ALMOST = 'almost 0 coins';
+export function priceNum(v) {
+  if (v < .095) return String(+v.toPrecision(1));
+  return v < 10 ? String(Math.round(v * 10) / 10) : fmt(v);
+}
 export function fmtPrice(v) {
   if (!isFinite(v) || v <= 0) return '0 coins';
-  if (v < .05) return ALMOST;
-  const s = v < 10 ? String(Math.round(v * 10) / 10) : fmt(v);
+  if (v < .0095) return ALMOST;
+  const s = priceNum(v);
   return s + (s === '1' ? ' coin' : ' coins');
 }
-/* "sells for 0.9 coins each", "sells for under 0.1 coin each" */
+/* "sells for 0.9 coins each", "sells for 0.004 coins each" */
 export const sellsFor = v => 'sells for ' + fmtPrice(v) + ' each';
 /* A live count on the HUD (owner rule: live numbers never change the size or place of anything on screen). Never
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
@@ -43,7 +49,8 @@ export function ago(ms) {
 
 /* A building's output with its good as the unit (review of 2026.11.19-3: "1 a second" said 1 of what?): "1 plank a second",
    "2.4 planks a second", "0.5 copper ore a second". Goods named in the plural drop the s for exactly 1 (not glass). */
+export const oneOf = good => { const name = good.name.toLowerCase(); return /[^s]s$/.test(name) ? name.slice(0, -1) : name; };
 export function perSecond(n, good) {
-  const v = fmt(n), name = good.name.toLowerCase();
-  return v + ' ' + (v === '1' && /[^s]s$/.test(name) ? name.slice(0, -1) : name) + ' a second';
+  const v = fmt(n);
+  return v + ' ' + (v === '1' ? oneOf(good) : good.name.toLowerCase()) + ' a second';
 }
