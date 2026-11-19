@@ -1,8 +1,9 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|map] [--limit 33] [--eval "js run in the page first"]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|map] [--limit 33] [--eval "js run in the page first"] [--profile] [--script ms] [--calls n]
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
 // --town empire: Iron Ridge in play, founded from a built-up Copper Gulch, with the Gulch, Dry Creek and Pine Hollow
-//   all working behind it (so every frame also steps four towns), a wave on the road. The M3 target runs it with --limit 20.
+//   all working behind it (so every frame also steps four towns), a wave on the road. The M3 target runs it with
+//   --script 10 --calls 300: the frame under the phone limit, the game's own work in it under 10 ms, fewer than 300 draw calls.
 // Frame time in headless Edge or Chrome at phone size (400x860), with the CPU throttled (Emulation.setCPUThrottlingRate)
 // to stand in for a mid-range phone. The page is a touch phone, so the game picks its phone tier by itself. It plays a town that is busy (buildings up, towers on the road, a wave running),
 // measures every frame for a few seconds, and prints the median and 90th percentile frame time, the frames per second,
@@ -85,17 +86,19 @@ try {
   startTier = await p.evaluate(() => (CG.town || CG.map).view.tier);
   await p.cdp('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   const measure = () => p.evaluate(async sec => {
-    const times = []; let last = performance.now();
+    const times = [], gpu = []; let last = performance.now();
     const gl = (CG.town || CG.map).view.renderer.getContext(), px = new Uint8Array(4), track = [];
     const battle = CG.town && CG.town.battle; let id = null;
     // wait for the GPU every frame (a one-pixel read), so the time includes drawing, not just the script
-    await new Promise(done => { const t0 = last; const f = now => { gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); now = performance.now(); times.push(now - last); last = now;
+    await new Promise(done => { const t0 = last; const f = now => { const w0 = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); now = performance.now(); gpu.push(now - w0); times.push(now - last); last = now;
         // follow one raider on screen while the clock says three seconds have not passed since tracking began
         if (battle && now - t0 < 3000 && !CG.town.paused) {
           if (id === null || !battle.foes.has(id)) id = [...battle.foes.keys()].find(k => battle.foes.get(k).obj.position.x > -50) ?? null;
           const u = id !== null && battle.foes.get(id);
           if (u) { const p = CG.town.projectPoint(u.obj.position.x, .5, u.obj.position.z); if (p) track.push([p.x, p.y, id]); }
         } if (now - t0 < sec * 1000) requestAnimationFrame(f); else done(); }; requestAnimationFrame(f); });
+    // script: each frame's time less its wait for the GPU (the game's own work: simulation, interface, three's setup)
+    const script = times.map((x, i) => Math.max(0, x - gpu[i])); script.shift(); script.sort((a, b) => a - b);
     times.shift(); times.sort((a, b) => a - b);
     const q = k => times[Math.min(times.length - 1, Math.floor(times.length * k))];
     const jumps = [];
@@ -103,9 +106,18 @@ try {
     const sj = jumps.slice().sort((a, b) => a - b), jmed = sj[sj.length >> 1] || 0, jmax = sj[sj.length - 1] || 0;
     const still = jumps.filter(j => j < .05).length / Math.max(1, jumps.length);
     const v = (CG.town || CG.map).view, s = v.stats || {};
-    return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2) } };
+    return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), script: script[script.length >> 1], p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2) } };
   }, SECONDS);
+  const PROFILE = process.argv.includes('--profile');
+  if (PROFILE) { await p.cdp('Profiler.enable'); await p.cdp('Profiler.start'); }
   out = await measure();
+  if (PROFILE) { // --profile: the functions that took the most time of their own while measuring, with their share
+    const { profile } = await p.cdp('Profiler.stop'), self = new Map(), dt = profile.timeDeltas || [];
+    const byId = new Map(profile.nodes.map(n => [n.id, n])); let total = 0;
+    (profile.samples || []).forEach((id, i) => { const c = byId.get(id).callFrame, k = (c.functionName || '(anon)') + ' ' + c.url.split('/').slice(-2).join('/') + ':' + (c.lineNumber + 1);
+      self.set(k, (self.get(k) || 0) + (dt[i] || 0)); total += dt[i] || 0; });
+    for (const [k, v] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 30)) console.log((100 * v / total).toFixed(1).padStart(5) + '%  ' + k);
+  }
   // the software GPU is noisy on a busy machine: a near miss (within 15%) is measured once more, and the better run counts
   if (out.median > LIMIT && out.median <= LIMIT * 1.15) {
     const again = await measure(), first = +out.median.toFixed(1);
@@ -120,8 +132,12 @@ out.startTier = startTier;
 const sm = out.smooth, jerky = TOWN === 'map' ? null : sm.samples < 20 ? 'too few frames with a raider on screen to judge smoothness'
   : sm.stillFrames > .3 ? `the raider stood still on ${Math.round(sm.stillFrames * 100)}% of frames (it moves in steps)`
   : sm.maxJump > 3 * sm.medianJump ? `a raider jumped ${sm.maxJump} px in one frame, over 3 times the median ${sm.medianJump} px` : null;
-const ok = out && out.median <= LIMIT && out.tier === startTier && !jerky;
-console.log(JSON.stringify({ ...out, median: +out.median.toFixed(1), p90: +out.p90.toFixed(1), fps: +out.fps.toFixed(1), dpr: DPR, throttle: THROTTLE }));
-console.log(ok ? 'ok' : jerky ? 'FAIL not smooth: ' + jerky : out.tier !== startTier ? `FAIL frames were slow enough to step down from ${startTier} to ${out.tier}` : `FAIL median frame ${out.median.toFixed(1)} ms is over ${LIMIT} ms`);
+const SCRIPT = +arg('script', 0); // --script ms: the median script part of a frame must stay under it too
+const slowScript = SCRIPT && out.script > SCRIPT;
+const CALLS = +arg('calls', 0), manyCalls = CALLS && out.calls >= CALLS; // --calls n: fewer draw calls than n
+
+const ok = out && out.median <= LIMIT && !slowScript && !manyCalls && out.tier === startTier && !jerky;
+console.log(JSON.stringify({ ...out, median: +out.median.toFixed(1), script: +out.script.toFixed(1), p90: +out.p90.toFixed(1), fps: +out.fps.toFixed(1), dpr: DPR, throttle: THROTTLE }));
+console.log(ok ? 'ok' : manyCalls ? `FAIL ${out.calls} draw calls, not fewer than ${CALLS}` : slowScript ? `FAIL the script part of a frame is ${out.script.toFixed(1)} ms, over ${SCRIPT} ms` : jerky ? 'FAIL not smooth: ' + jerky : out.tier !== startTier ? `FAIL frames were slow enough to step down from ${startTier} to ${out.tier}` : `FAIL median frame ${out.median.toFixed(1)} ms is over ${LIMIT} ms`);
 process.exitCode = ok ? 0 : 1;
 setTimeout(() => process.exit(), 100);
