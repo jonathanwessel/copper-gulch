@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -101,8 +101,9 @@ export function goodsSheet(game, town, focus = null) {
         const txt = goodsLine({ have, kept, selling, price: ex.value, open: !!open[g] });
         if (r.line.textContent !== txt) r.line.textContent = txt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
-        const ws = open[g] ? JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(open[g] ? [explainBox(ex, { total: 'You get' })] : [])); }
+        const note = open[g] ? priceNote({ have, kept, price: ex.value }) : null; // none to sell, or a price of almost 0: words, not rows
+        const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
         const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const s = selling ? 'Sell · On' : 'Sell · Off'; if (r.sw.textContent !== s) r.sw.textContent = s;
         r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', selling);

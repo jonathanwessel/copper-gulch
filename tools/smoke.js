@@ -318,7 +318,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /The foreman waits. Timber sells low and no workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /The foreman is not buying. Timber sells low and no workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -645,14 +645,21 @@ async function run() {
         card.querySelector('.stat').click(); await wait(150);
         out.output = /Level [0-9]+/.test(card.querySelector('.explain.why')?.textContent || '');
         CG.play.close();
+        // timber to sell, so its price rows show; then none, so one plain line says what it would pay (review of 2026.11.19-9)
+        // (and a fresh market, since a price of almost 0 also reads as one line)
+        const T = CG.game.town, was = T.goods.timber, mk = CG.game.shared.market, rate = mk.rate.timber; mk.rate.timber = 0; T.goods.timber = Math.ceil((T.keep || {}).timber || 0) + 60;
         document.getElementById('goodsBtn').click(); await wait(300);
         sheet.querySelector('[data-why="timber"]').click(); await wait(400);
         out.price = /Base price/.test(sheet.textContent) && /You get/.test(sheet.textContent);
+        T.goods.timber = 0; await wait(600);
+        out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Base price/.test(sheet.textContent);
+        if (!out.price || !out.noneToSell) out.priceText = sheet.textContent.slice(0, 400);
+        T.goods.timber = was; mk.rate.timber = rate;
         return out;
       });
       bad.push(...(await check(page)).map(b => 'price why: ' + b));
       await page.evaluate(() => document.getElementById('sheetClose').click());
-      for (const [k, v] of Object.entries({ ...why, ...why2 })) if (!v) bad.push('Tap to explain: not ' + k);
+      for (const [k, v] of Object.entries({ ...why, ...why2 })) if (k === 'priceText') bad.push('the Goods sheet read ' + JSON.stringify(v)); else if (!v) bad.push('Tap to explain: not ' + k);
       await sleep(400);
       bad.push(...(await check(page)).map(b => 'card: ' + b), ...errs);
       console.log(name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

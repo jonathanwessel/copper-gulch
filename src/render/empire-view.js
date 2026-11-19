@@ -246,7 +246,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   let selected = null;
 
   // the camera: the whole map at home; tap a town to open its card
-  const rig = new CameraRig(v.cam, canvas, { center, size: Math.max(x1 - x0, z1 - z0) * 1.1, pads: [], onTap: (x, y) => onTap(api.siteAt(x, y), x, y) });
+  const rig = new CameraRig(v.cam, canvas, { center, size: Math.max(x1 - x0, z1 - z0) * 1.1, pads: [], fitCover: true, onTap: (x, y) => onTap(api.siteAt(x, y), x, y) });
   rig.min = 5; rig.max = 110;
   rig.frame(center.x, center.z, x1 - x0, z1 - z0);
   let raf = 0, last = performance.now(), frames = 0, t = 0, sync = 0, opened = false;

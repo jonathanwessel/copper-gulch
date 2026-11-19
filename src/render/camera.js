@@ -27,8 +27,22 @@ export function pose(cam, s) {
   cam.lookAt(s.x, 0, s.z); cam.updateMatrixWorld();
 }
 
+/* Which way an open card leaves room: 'b:<its top>' for a card at the bottom, 'r:<its left>' for one at the right edge,
+   or '' (rounded to 8 px, so a card that grows a line does not move the camera). */
+export function coverSide(cv, el) {
+  if (!cv) return '';
+  const r = el.getBoundingClientRect(), W = r.width || innerWidth;
+  const H = r.height || innerHeight;
+  const side = cv.r > r.left + W - 40 && cv.l > r.left + W * .35; // a short landscape screen: the card stands at the right edge
+  if (side) return 'r:' + Math.round(cv.l / 8) * 8;
+  // a phone or a wide screen: it sits at the bottom. A tall one (the Capital's) leaves too little room above it, and the
+  // map would shrink into the distance: the camera keeps its usual view then (review of 2026.11.19-10's shots)
+  return cv.t - r.top < H * .5 ? '' : 'b:' + Math.round(cv.t / 8) * 8;
+}
+
 export class CameraRig {
-  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false }) {
+  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false, fitCover = false }) {
+    this.fitCover = fitCover; // the empire map: an open card shrinks the home view to the space it leaves
     this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads; this.onZoomOut = onZoomOut; this.flyIn = flyIn; this.pull = 0;
     this.view = { top: 0, cover: null }; // the top bar's lower edge and the open card's box, in client pixels
     this.gestures = 0; this.atHome = true; this.slid = null; this.keepKey = null;
@@ -56,6 +70,7 @@ export class CameraRig {
   setView(top, cover) {
     this.view.cover = cover;
     if (Math.abs(top - this.view.top) > 4) { this.view.top = top; this.fitKey = ''; }
+    if (this.fitCover) { const k = coverSide(cover, this.el); if (k !== this.coverKey) { this.coverKey = k; this.fitKey = ''; } }
   }
   /* Where world point (x, y, z) lands on screen (client pixels) for rig state s. */
   proj(s, x, y, z) {
@@ -82,7 +97,7 @@ export class CameraRig {
      but never so far out that a stone pad drops under MIN_PAD pixels. Tall phones get a wider lens and a steeper
      view; wide screens a lower one, so the town's depth takes less height. Solved by projecting the frame's corners. */
   fit(aspect, w = 0, h = 0) {
-    const key = w + 'x' + h + ':' + Math.round(this.view.top) + ':' + this.fw + ',' + this.fd + ',' + this.fx + ',' + this.fz; // (no reads of the page each frame)
+    const key = w + 'x' + h + ':' + Math.round(this.view.top) + ':' + (this.coverKey || '') + ':' + this.fw + ',' + this.fd + ',' + this.fx + ',' + this.fz; // (no reads of the page each frame)
     if (key === this.fitKey) return;
     const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
     this.fitKey = key; this.aspect = aspect;
@@ -94,6 +109,10 @@ export class CameraRig {
     const cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z;
     const s = { x: cx, z: cz, yaw: turn ? -Math.PI / 2 : 0, pitch: tall ? 1.08 : aspect > 1.5 ? .72 : .8, dist: 19 };
     const m = 8, top = Math.min(H * .45, this.view.top) + m, R = { l: r.left + m, r: r.left + W - m, t: r.top + top, b: r.top + H - m };
+    // the empire map with a card open: the whole map fits in the part the card leaves, so no town's label sits under it
+    // (review of 2026.11.19-9: Dry Creek's label under the card, so the labels in view did not add up to the top bar)
+    const side = this.fitCover && this.coverKey;
+    if (side) { const [k, v] = side.split(':'); if (k === 'b') R.b = Math.max(R.t + 120, +v - m); else R.r = Math.max(R.l + 120, +v - m); }
     const corners = [];
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [0, 1.2]) corners.push([cx + sx * fw / 2, y, cz + sz * fd / 2]);
     const box = st => {

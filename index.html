@@ -198,7 +198,7 @@ html.flat .tag { position: static; transform: none !important; }
 .card {
   position: absolute; left: 50%; bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--striph, 0px)); transform: translateX(-50%);
   width: min(calc(100% - 20px), 420px); padding: 12px; display: grid; gap: 8px;
-  max-height: calc(100% - 20px - env(safe-area-inset-bottom) - var(--striph, 0px)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  max-height: calc(100% - var(--hudtop, 10px) - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
   background: var(--panel); border: 2px solid var(--line);
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 4px 4px 0 rgba(22, 15, 11, .6);
   animation: riseX .2s both;
@@ -242,6 +242,10 @@ html.flat .tag { position: static; transform: none !important; }
 .card > .buybar.pathbar { position: static; margin: 0; padding: 0; border-top: 0; box-shadow: none; }
 .card > .buybar .costrow { margin-top: 0; }
 .card .buy { flex: 1; font-size: 1.05rem; text-wrap: balance; }
+/* the price stays on one line beside a small switch, which wraps its words instead (review of 2026.11.19-9: "Upgrade · 10.5K coins" broke in two in landscape) */
+.card .row:has(> .buy) { flex-wrap: nowrap; }
+.card .row > .buy { white-space: nowrap; flex: 1 0 auto; }
+.card .row:has(> .buy) > .btn.small { flex: 0 1 auto; min-width: 0; white-space: normal; text-wrap: balance; }
 .card .keeprow { align-items: center; justify-content: space-between; gap: 8px; }
 .card .keeprow .uses { flex: 1; font-size: .85rem; }
 .option small.short { color: var(--bad); }

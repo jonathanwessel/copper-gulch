@@ -5,7 +5,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
-import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord } from './explain.js';
+import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
@@ -210,7 +210,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off'));
+    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off')); // it wraps between the good and its state, never before On
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
     sell.title = 'S' + sellsFor(paysEach(game, town, b.makes)).slice(1);
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
@@ -235,7 +235,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         fr.append(h);
       } else {
         const on = foremanOn(town, id);
-        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'The foreman buys the next level when you have twice its cost.'));
+        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Buys the next level when you have twice its cost.'));
         const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
         sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
@@ -245,13 +245,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
   }
 
-  /* Why a working foreman is not buying (src/core/foremen.js, foremanWait), in plain words. */
-  const waitText = w => {
-    const n = GOODS[w.good].name.toLowerCase();
-    if (w.why === 'short') return 'The foreman waits for more ' + n + '.';
-    if (w.why === 'flooded') return 'The foreman waits. ' + n[0].toUpperCase() + n.slice(1) + ' sells low and no workshop needs more.';
-    return 'The foreman waits. The next level would take over an hour to pay for itself.';
-  };
+  /* Why a working foreman is not buying (src/core/foremen.js, foremanWait), in plain words (foremanLine, src/ui/explain.js). */
+  const waitText = w => foremanLine(w.why, GOODS[w.good].name.toLowerCase());
 
   let armed = null; // a path tapped once, waiting for the second tap
   /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:
@@ -280,7 +275,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const when = 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '.';
     return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
   });
-  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => fmt(c.goods[k]) + ' ' + GOODS[k].name.toLowerCase()).join(' and '); return n + (g.length > 1 || c.goods[g[0]] !== 1 ? ' are' : ' is') + ' set aside for this ' + (pathNext ? 'path' : 'upgrade') + '.'; }; // amounts, so it never reads as short beside "Copper 888 / 20" (review of 2026.11.19-7)
+  // names the goods, not amounts: the cost row above has them (review of 2026.11.19-9: "20 copper and 20 bricks are set aside" said the cost twice)
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; return keepLine(g.map(k => GOODS[k].name.toLowerCase()), pathNext ? 'path' : 'upgrade'); };
   // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
   const soon = s => s.startsWith('You will have enough');
   let pathNext = false;
@@ -358,7 +354,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
     const lines = path ? card : bar;
     if (sh.length) for (const s of sh) lines.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
-    else if (keepText(c)) lines.append(el('p', 'uses', keepText(c)));
+    // the kept goods line sits over the pinned bar, not in it, so the bar stays short and the stats stay in view (review
+    // of 2026.11.19-9: in landscape the Cannon card's Blast row was cut by its cost row)
+    else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
     const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     row.append(sell);
@@ -409,7 +407,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
-      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.heldText || goalCur.text); goalId = null; goalCur = null;
+      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.doneText || goalCur.text); goalId = null; goalCur = null;
       if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000);
       return;
     }
@@ -422,7 +420,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
-  let cardTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1;
+  let cardTop = 0, hudTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1;
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
   const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
@@ -459,6 +457,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       for (const n of [right, ctl]) { const b = n.getBoundingClientRect(); if (b.height) ct = Math.max(ct, b.bottom); }
       ct = Math.round(ct + 6);
       if (ct > 6 && ct !== cardTop) { cardTop = ct; ui.style.setProperty('--cardtop', ct + 'px'); }
+      // a tall card on a phone stops under the whole top bar: Pause, Hold waves and the goal strip (review of 2026.11.19-9:
+      // the stone pad card covered their bottom edge)
+      const ht = Math.round(Math.max(top, ct - 6) + 6);
+      if (ht > 6 && ht !== hudTop) { hudTop = ht; ui.style.setProperty('--hudtop', ht + 'px'); }
       const cb = openId && !card.hidden ? card.getBoundingClientRect() : null;
       viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null);
     }

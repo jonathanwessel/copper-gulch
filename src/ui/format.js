@@ -38,6 +38,14 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   const saved = all ? ' · none to sell, towers need it all' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
   return fmtLive(have) + ' in stock' + saved + (open || all ? '' : ' · ' + (selling ? sellsFor(price) : 'not sold, ' + fmtPrice(price) + ' each if sold'));
 }
+/* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
+   "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a
+   good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */
+export function priceNote({ have, kept = 0, price = 0 }) {
+  if (price < .0095) return 'You sold a lot of it lately, so it pays almost nothing now.'; // the sheet's header says it comes back
+  if (have - kept < 1) return 'Pays ' + fmtPrice(price) + ' each once you have some to sell.';
+  return null;
+}
 /* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level
    you had, review of 2026.11.19-7). */
 export const levelsDone = (L, max) => (L ? L + ' of ' + max + ' levels done' : 'No levels yet');

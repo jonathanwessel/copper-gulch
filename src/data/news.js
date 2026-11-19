@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-10',
+    lines: [
+      'A finished goal says what you did, like Sand Pit is level 4.',
+      'With a card open on the map, the whole map fits above it, so you see every town and what it earns.',
+      'The map card shows the vault in hits and the coins the same way as the label under the town.',
+      'In Goods, a good with none to sell says what it would pay instead of a long price list.',
+      'On a phone, cards stop under Pause and Hold waves. Upgrade prices stay on one line.',
+      'After a lost wave, the message asks for one tap at a time.',
+    ],
+  },
+  {
     v: '2026.11.19-9',
     lines: [
       'In Income, other towns read Earned in and the town name, with the same coins a second as the map.',

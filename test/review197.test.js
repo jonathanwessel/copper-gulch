@@ -23,10 +23,10 @@ test('research says how many levels are done', () => {
   assert.equal(levelsDone(2, 5), '2 of 5 levels done');
 });
 
-test('the lost toast away from the map names Map, the town and its Play button', () => {
+test('the lost toast is one step, and the map card says the rest', () => {
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch' }, lost: { why: 'vault', back: 8 }, wave: 8 };
-  assert.equal(lostToast(town), 'The vault in Copper Gulch fell. Tap Map, then Copper Gulch, then Play Copper Gulch, then Resume waves.');
-  assert.equal(lostToast(town, false, null, true), 'The vault in Copper Gulch fell. Tap Copper Gulch, then Play Copper Gulch, then Resume waves.');
+  assert.equal(lostToast(town), 'The vault in Copper Gulch fell. Tap Map to go there.');
+  assert.equal(lostToast(town, false, null, true), 'The vault in Copper Gulch fell. Tap Copper Gulch to see it.');
 });
 
 test('goods shipped in for a built workshop stay on the strip at 0', async () => {

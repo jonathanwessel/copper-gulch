@@ -12,6 +12,20 @@ export const reachWord = (range, minRange = 0) => (minRange ? 'Long, not up clos
 /* Shots in words: "1.3 a second", "One every 3 seconds". */
 export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Math.round(1 / r) + ' seconds');
 
+/* A working foreman that is not buying, beside its "Foreman · On" switch: what it is doing and why, as a status, not a
+   story (review of 2026.11.19-9: "The foreman waits. Timber sells low..." read as a narrator). */
+export function foremanLine(why, good) {
+  if (why === 'short') return 'The foreman is not buying. It needs more ' + good + ' first.';
+  if (why === 'flooded') return 'The foreman is not buying. ' + good[0].toUpperCase() + good.slice(1) + ' sells low and no workshop needs more.';
+  return 'The foreman is not buying. The next level takes over an hour to pay for itself.';
+}
+/* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line
+   shows those (review of 2026.11.19-9: "20 copper and 20 bricks are set aside for this path" said the cost twice). */
+export function keepLine(goods, what) {
+  const n = goods.length > 1 ? goods.slice(0, -1).join(', ') + ' and ' + goods[goods.length - 1] : goods[0];
+  return 'Your buildings keep the ' + n + ' for this ' + what + ' and never sell ' + (goods.length > 1 ? 'them' : 'it') + '.';
+}
+
 /* A value in its unit. */
 export function unitText(unit, v, extra = {}) {
   if (unit === 'rate') return fmtLive(v) + '/s'; // as the top bar writes it, so the Income total and the bar agree (review 2026-11-18)

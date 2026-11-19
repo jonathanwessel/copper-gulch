@@ -35,6 +35,8 @@ export function badgeRates(total, infos) {
   });
   return { words: out, nums, total: '+' + sp.total + '/s' };
 }
+/* A town's vault as hits left of its full strength ("20 / 20 hits"), the words of its Vault sheet. */
+export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }; return Math.max(0, Math.ceil(v.hp)) + ' / ' + Math.round(v.max) + ' hits'; };
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
@@ -144,7 +146,9 @@ export function mountMap(root, game, view, shell) {
       kids.push(head(d.name, info.inPlay ? 'Playing now' : ''));
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', (rates.nums[id] || '0') + ' a second'));
+      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, vaultHits(t), info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
+      // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
+      // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);
       kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
       for (const l of mapRoutes(game)) {
