@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -121,6 +121,22 @@ export const MIGRATIONS = {
     const g = s.game || {}, sh = g.shared = g.shared || {};
     for (const a of Object.values(sh.auto || {})) { if (a.retry === undefined) a.retry = false; if (a.boss === undefined) a.boss = null; }
     return { ...s, v: 17, game: g };
+  },
+  // v18: Silver Falls has 3 mortar pits, not 4 (src/data/towns/falls.js): the east pit by the rock cut (old 13) is gone,
+  // and pit 13 is now the pit by the vault (old 15). A Mortar by the vault keeps its place under its new number. A Mortar
+  // on the east pit moves to the pit by the vault when that is free; when it is not, it comes down with every coin spent
+  // on it back in the purse.
+  17: s => {
+    const g = s.game || {}, f = g.towns && g.towns.falls;
+    if (f && Array.isArray(f.towers)) {
+      const east = f.towers.find(t => t.spot === 13), south = f.towers.find(t => t.spot === 15);
+      if (east && south) {
+        f.towers = f.towers.filter(t => t !== east);
+        const sh = g.shared = g.shared || {}; sh.purse = sh.purse || { coins: 0 }; sh.purse.coins = (sh.purse.coins || 0) + (east.spent || 0);
+      }
+      if (south) south.spot = 13; // the east Mortar alone keeps number 13, which is now the pit by the vault
+    }
+    return { ...s, v: 18, game: g };
   },
 };
 

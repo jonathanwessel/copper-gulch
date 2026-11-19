@@ -30,9 +30,9 @@ function falls(seed) {
   return g;
 }
 
-test('Silver Falls needs Ridge wave 57, the coins and 5 deeds, and the map lists all three', () => {
+test('Silver Falls needs Ridge wave 52, the coins and 5 deeds, and the map lists all three', () => {
   const f = TOWNS.falls.found;
-  assert.deepEqual([f.from, f.wave, f.deeds], ['ridge', 57, 5]);
+  assert.deepEqual([f.from, f.wave, f.deeds], ['ridge', 52, 5]);
   assert.deepEqual(nextTowns(ridge('f1', 19)), [], 'out of sight before Ridge wave 20');
   assert.deepEqual(nextTowns(ridge('f1', 20, 0, 0)).map(n => [n.id, n.ready, n.deedsOk]), [['falls', false, false]]);
   assert.equal(canFound(ridge('f1', f.wave, 2e6, 4), 'falls'), false, 'one deed short');

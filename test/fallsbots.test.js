@@ -84,7 +84,7 @@ test('the Falls goal strip walks up the chain and sends the player to the town t
   for (const x of GOALS.filter(x => x.town === 'falls')) assert.ok(x.within >= 360, x.id + ' has a time for the bots');
 });
 
-test('Silver Falls costs Ridge wave 57, 1M coins and 5 deeds (tuned by the Falls bots)', () => {
+test('Silver Falls costs Ridge wave 52, 1M coins and 5 deeds (tuned by the Falls bots)', () => {
   const f = TOWNS.falls.found;
-  assert.deepEqual([f.wave, f.coins, f.deeds], [57, 1e6, 5]);
+  assert.deepEqual([f.wave, f.coins, f.deeds], [52, 1e6, 5]);
 });

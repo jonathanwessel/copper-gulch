@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.18-15',
+    lines: [
+      'Cannon, Frost Lens and Mortar upgrades now add a bit less power. Crossbow upgrades stay the same.',
+      'Silver Falls has 3 mortar pits now. A Mortar on the pit that is gone moved to the pit by the vault.',
+      'If that pit already had a Mortar, the other one came down and you got back every coin spent on it.',
+      'Silver Falls now needs wave 52 in Iron Ridge to open, not 57.',
+      'The armored train in Iron Ridge is a little easier to stop.',
+      'The first upgrade of each Capital building now costs 10 Influence, not 8.',
+    ],
+  },
+  {
     v: '2026.11.18-14',
     lines: [
       'Silver Falls now needs wave 57 in Iron Ridge, 1M coins and 5 deeds.',

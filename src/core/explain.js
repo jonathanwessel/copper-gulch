@@ -61,7 +61,7 @@ export function explainTower(town, t) {
     return done(unit, rows);
   };
   const out = {
-    dmg: part('towerDmg', d.dmg, PER_LEVEL.dmg ** (L - 1), p && p.dmg, 'dmg', 'Base damage'),
+    dmg: part('towerDmg', d.dmg, (d.grow || PER_LEVEL.dmg) ** (L - 1), p && p.dmg, 'dmg', 'Base damage'),
     rate: part('towerRate', d.rate, PER_LEVEL.rate ** (L - 1), p && p.rate, 'shots', 'Base shots'),
     range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range'),
   };

@@ -10,9 +10,9 @@ export const FOES = {
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
   wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
   bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
-  train:  { name: 'Armored train', hp: 21, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
+  train:  { name: 'Armored train', hp: 19, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
   boat:   { name: 'Riverboat', hp: 2.2, speed: .85, bounty: 2, leak: 2, armor: .2, from: 1, water: true },
-  steamer: { name: 'Ironclad steamer', hp: 20, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true },
+  steamer: { name: 'Ironclad steamer', hp: 18, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true },
 };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */

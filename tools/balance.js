@@ -148,7 +148,10 @@ export function options(town) {
 /* The strategies (CLAUDE.md: more than one way to win). Each says how many towers it wants for the coming wave, the
    level it keeps them at, which defense buys it takes first, and whether the town or the defense gets the coins first.
      active: the steady player the pacing targets are set for.
-     minmax: a few towers on the best pads, pushed to high levels and their paths, at most two of a kind and one Cannon
+     minmax: a few towers on the best pads, pushed to high levels and their paths, at most two Crossbows and two Mortars
+       and one each of the other kinds (one Frost Lens and one Still since 2026.11.18-15: in Silver Falls, where every
+       tower stands near level 15, its two lenses and two Crossbows took turns doing 37-39% of the damage, its Still near
+       the vault doing none; in the Gulch one lens alone left two Stills at 41%)
        (with boss waves as gates it keeps up to 7 towers, and two high Cannons did 38-41% of its damage) (with one
        purse, small differences in coins at the Gulch's start sent it into three Crossbows and no Still, stuck at wave 20).
      swarm: towers on every pad it can (a new one every wave or two), kept at low levels and raised evenly.
@@ -169,7 +172,7 @@ const bossExtra = (t, r, S = {}) => (bossWave(t, t.wave) ? S.prep ?? BOSS.prep :
 const guard = (w, r) => (r && w - r.leakAt <= GUARD.waves ? GUARD.levels : 0);
 export const STRATEGIES = {
   active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
-  minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2 },
+  minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2, one: ['cannon', 'frost', 'still'] },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
   economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1.3 + w / 3.3 + r.bump, eco: true },
   defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
@@ -248,7 +251,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
     // a few strong towers, but no more than two of a kind (where only one kind can be built, Dry Creek, it keeps its
     // few towers: two Crossbows could not stop the bandit wagon once boss waves became gates)
-    if (S.most && Object.keys(TOWERS).filter(k => towerOpen(t, k)).length > 1) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < (o.kind === 'cannon' ? 1 : S.most));
+    if (S.most && Object.keys(TOWERS).filter(k => towerOpen(t, k)).length > 1) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < ((S.one || []).includes(o.kind) ? 1 : S.most));
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     let pick = opts[0];
     // when it adds a tower and the goal strip asks for a kind it has not built yet, it builds that kind (if it can pay)
@@ -728,16 +731,18 @@ export function strategies(seeds = SEEDS) {
 }
 
 /* Tower balance (M2, fresh-eyes issue 2): no kind does more than SHARE_MAX of the damage for any strategy, and every
-   kind does the most damage in some wave for at least one strategy. Returns the misses. */
+   kind does the most damage in some wave for at least one strategy. Returns the misses. `where` names the town for a
+   run of another town (Silver Falls, since M5); lead: false leaves out the second check there (fallsCheck has its own:
+   no one kind leads every wave). */
 export const SHARE_MAX = .36; // "about 35%"
-export function towerBalance(rows) {
+export function towerBalance(rows, where = '', lead = true) {
   const misses = [], led = new Set();
   for (const x of rows) {
     const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1;
-    for (const [k, n] of Object.entries(x.dealt)) if (n / tot > SHARE_MAX) misses.push(`${x.strategy}: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
+    for (const [k, n] of Object.entries(x.dealt)) if (n / tot > SHARE_MAX) misses.push(`${where ? where + ', ' : ''}${x.strategy}: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
     for (const r of x.runs) for (const [, k, n] of r.top) if (n > 1) led.add(k);
   }
-  for (const k of Object.keys(TOWERS)) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
+  if (lead) for (const k of Object.keys(TOWERS)) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
   return misses;
 }
 /* The charter's payoff (M2, fresh-eyes issue 3): a signed town gets back to its old best wave in REGAIN_MAX of the
@@ -826,7 +831,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log(`Silver Falls by strategy (median over ${EMPIRE_SEEDS} seeds, ${FALLS_STRATEGY} min from the active player's arrival): strategy | wave 10 | best wave | buys by kind | damage by kind`);
   for (const x of fc.rows) { const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1; console.log(`  ${x.strategy} | ${mm(x.w10)} | ${x.wave ?? '-'} | ${Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ')} | ${Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', ')}`); }
   console.log('Silver Falls wave leaders: ' + fc.tops.join(', '));
-  misses.push(...fc.misses);
+  misses.push(...fc.misses, ...towerBalance(fc.rows, 'Silver Falls', false));
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));

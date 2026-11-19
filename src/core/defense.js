@@ -54,7 +54,7 @@ export const laneFor = (town, kind) => (FOES[kind].water && town.def && town.def
 export function towerStats(town, t) {
   const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : {};
   const s = {
-    dmg: d.dmg * PER_LEVEL.dmg ** (L - 1) * (p.dmg || 1) * town.mods.factor('towerDmg'),
+    dmg: d.dmg * (d.grow || PER_LEVEL.dmg) ** (L - 1) * (p.dmg || 1) * town.mods.factor('towerDmg'),
     rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * town.mods.factor('towerRate'),
     range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * town.mods.factor('towerRange'),
     splash: (d.splash || 0) * (p.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,

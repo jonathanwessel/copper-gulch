@@ -5,6 +5,7 @@
 // Prints one line per size ("phone ok") and exits non-zero on any failure.
 import { start } from './serve.js';
 import { chromium } from './cdp.js';
+import { NODE_COST } from '../src/data/institutions.js';
 
 const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -768,6 +769,8 @@ async function run() {
         const lock = await page.evaluate(() => ({ build: (document.getElementById('mapFound') || {}).textContent, dot: !!document.querySelector('.mapbadge[data-site="capital"].dot') }));
         if (lock.build !== 'Build the Capital' || !lock.dot) bad.push('the Capital card before it is built is wrong (' + JSON.stringify(lock) + ')');
         await page.evaluate(() => document.getElementById('mapFound').click()); await sleep(700);
+        // the map brings its dioramas in step once a second, so a busy machine can take longer than the sleep
+        await waitFor(page, () => CG.map.dioramas.includes('capital'), 3000);
         const open = await page.evaluate(() => ({ open: CG.game.shared.capital.open, takes: document.querySelectorAll('#mapCard [data-contract]').length, text: document.getElementById('mapCard').textContent, dio: CG.map.dioramas.includes('capital') }));
         if (!open.open || open.takes < 1 || !/Influence/.test(open.text) || !open.dio) bad.push('the Capital card after it is built is wrong (' + JSON.stringify({ ...open, text: open.text.slice(0, 120) }) + ')');
         bad.push(...(await check(page)).map(b => 'capital card: ' + b));
@@ -795,7 +798,7 @@ async function run() {
           const before = await page.evaluate(() => CG.game.towns.gulch.mods.factor('income'));
           await page.evaluate(() => document.querySelector('#mapCard [data-node="bank"]').click()); await sleep(600);
           const after = await page.evaluate(() => ({ income: CG.game.towns.gulch.mods.factor('income'), n: CG.game.shared.tree.nodes.bank, left: CG.game.shared.capital.influence, line: document.getElementById('mapCard').textContent }));
-          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 42 || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
+          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 50 - NODE_COST[0] || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
         }
         bad.push(...(await check(page)).map(b => 'institutions bought: ' + b));
         // the city: the Bank stands on its lot (risen and merged back in), the capitol's badge floats over it, and no

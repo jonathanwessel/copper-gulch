@@ -23,8 +23,9 @@ export const FALLS = {
   researchOpens: 'glassworks',
   // founding it (src/core/empire.js): Iron Ridge's best wave, coins from the purse, and deeds held (sign 1 or 2 charters).
   // Tuned 2026-11-18 by the Falls bots (tools/balance.js, toFalls): the Ridge's charter pays the deeds at its wave 48-49,
-  // and it climbs back past 50 in about 35 minutes, then slowly, so wave 57 is the real wait (6-7 h of play).
-  found: { from: 'ridge', wave: 57, coins: 1000000, deeds: 5, shows: 20 },
+  // and it climbs back past 50 in about 35 minutes, then slowly, so wave 57 was the real wait (6-7 h of play). Wave 52 since
+  // 2026.11.18-15: with group towers growing slower each level the charter pays at wave 45-47 and the climb back is slower.
+  found: { from: 'ridge', wave: 52, coins: 1000000, deeds: 5, shows: 20 },
   // The board: the road comes in through a rock cut in the north-east and switches back across the town four times
   // (west, east, west, then east to the vault); the river comes round a misty bend under a broken bridge in the north
   // and winds down the middle of the town to the vault, under a bridge at each pass of the road. Workshops stand in
@@ -57,7 +58,10 @@ export const FALLS = {
       [3.4, 13.8], [6.2, 14.2],                                                // by the vault
       [-1.4, 2.4], [-1.4, 10.4], [11.4, 6.4], [11.4, 1.6],                     // outside the bends
       // mortar pits (from index `far` on): well back from the road and the river
-      [-3.4, 6.4], [13.6, 3.6], [2, -3.2], [3.6, 16.6],
+      // 3 pits (was 4 until 2026.11.18-15: the east pit by the rock cut gave the Mortar the road first, and with it
+      // half the Falls' damage; save v18 gives the pit by the vault its new number, src/core/save.js)
+      // the north pit sits 1 back from where it was (2, -3.2), so it reaches less of both lanes as they come in
+      [-3.4, 6.4], [3.6, 16.6], [2, -4.2],
     ],
     far: 12,
     frame: { x: 5, z: 6.8, w: 13.6, d: 16.4 },
