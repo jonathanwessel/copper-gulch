@@ -39,7 +39,7 @@ const AWAY_MIN = 5; // seconds in the background before coming back catches up t
 
 async function startGame() {
   if (CG.game) return;
-  const [{ startTownView }, { mountPlay, toast, fmt }, { startCoach }, { FlowMeter, mapOpen }, { lostToast }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), import('./core/map.js'), import('./ui/lost.js'), titleScene]);
+  const [{ startTownView }, { mountPlay, toast, dropToasts, fmt }, { startCoach }, { FlowMeter, mapOpen }, { lostToast }] = await Promise.all([import('./render/town-view.js'), import('./ui/play.js'), import('./ui/coach.js'), import('./core/map.js'), import('./ui/lost.js'), titleScene]);
   const saved = readSave();
   let game, away = null;
   // time away always counts (owner rule): run it, and note what the market sold meanwhile for the Welcome back line
@@ -109,6 +109,7 @@ async function startGame() {
   function openMap() {
     if (!CG.town || CG.map || flying || !mapOpen(game)) return false;
     const paused = CG.town.holds.has('player'), from = game.active;
+    dropToasts('lost'); // the map shows the town on hold, so the toast would only cover its labels
     unmount();
     const [{ startEmpireView }, { mountMap }] = mapMods;
     const map = startEmpireView(document.getElementById('view'), game, { from, meter, onTap: id => { if (CG.mapui) CG.mapui.openSite(id); }, onFrame: dt => { if (CG.mapui) CG.mapui.frame(dt); } });
@@ -150,7 +151,7 @@ async function startGame() {
     const earned = Object.values(r.earned).reduce((a, b) => a + b, 0), n = Math.floor(r.sold);
     toast('Welcome back. While you were away, your towns earned ' + fmt(earned) + ' coins' + (n >= 1 ? ' and sold ' + fmt(n) + ' goods.' : '.'), 6000, { first: true });
     // a town that lost while away holds its waves (owner rule): one line each, after the welcome
-    for (const t of Object.values(game.towns)) if (t.waves && t.waves.autoHold && t.lost && t.lost.at >= ((r.from || {})[t.id] ?? 0)) toast(lostToast(t, t.id === game.active, game), 6000);
+    for (const t of Object.values(game.towns)) if (t.waves && t.waves.autoHold && t.lost && t.lost.at >= ((r.from || {})[t.id] ?? 0)) toast(lostToast(t, t.id === game.active, game), 6000, { kind: 'lost' });
   };
   welcome(away);
   // keep the game: every 10 seconds, and whenever the app goes to the background

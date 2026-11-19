@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-4',
+    lines: [
+      'A building card says what it makes with the good named, like 2 planks a second.',
+      'While research runs, its button shows the time left.',
+      'Perks says that more deeds let you pick more perks.',
+      'A town card on the map shows its coins a second.',
+      'Opening the map clears the message about a lost wave, so it no longer covers the town names.',
+    ],
+  },
+  {
     v: '2026.11.19-3',
     lines: [
       'On a phone turned sideways, cards and menus open below Pause, Hold waves and your coins.',

@@ -13,7 +13,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, leftWord } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
 import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
@@ -25,7 +25,7 @@ import { lostToast, lostCard } from './lost.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtLive, sellsFor } from './format.js';
+import { fmt, fmtLive, sellsFor, perSecond } from './format.js';
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
@@ -173,7 +173,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     card.append(head);
     const out = output(town, id) || b.rate;
     const line = el('button', 'stat');
-    line.append(el('span', null, 'Makes ' + g.name.toLowerCase()), el('b', null, fmt(out) + ' a second' + (L ? '' : ' at level 1')));
+    line.append(el('span', null, L ? 'Makes' : 'Makes at level 1'), el('b', null, perSecond(out, g)));
     line.addEventListener('click', () => { why = !why; paintCard(); });
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
@@ -369,7 +369,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
       if (e.held && !e.away && e.town === town.id) { showLost(); return; } // the boss got through here: a card, waves on hold
-      if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id, game), 6000); return; }
+      if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id, game), 6000, { kind: 'lost' }); return; }
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders got through to the ' + store + ' and took a quarter of its goods.', 5000);
       else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
@@ -509,7 +509,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     goodsBtn.hidden = !T.goods; goodsBtn.classList.toggle('dot', D.goods);
     labBtn.hidden = !T.research; labBtn.classList.toggle('dot', D.research);
     menuBtn.classList.toggle('dot', !!document.getElementById('updateBar'));
-    setText(labBtn, town.lab ? 'Research · ' + Math.ceil(town.lab.left) + 's' : 'Research');
+    setText(labBtn, town.lab ? 'Research · ' + leftWord(town.lab.left).replace(' left', '') : 'Research'); // the same unit as the button on its card
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
@@ -529,9 +529,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
    line (the Welcome back line, which comes after catching up and would wait behind the news of the time away). */
 const toasts = { queue: [], up: null, el: null };
 export function placeToasts() { if (toasts.el) placeToast(toasts.el); }
-export function toast(text, ms = 4000, { first = false } = {}) {
+/* Take away every toast of one kind, showing or waiting (review of 2026.11.19-3: the lost toast from the town sat over the
+   map's town labels when the map opened, and the map already shows that town on hold). */
+export function dropToasts(kind) {
+  toasts.queue = toasts.queue.filter(q => q.kind !== kind);
+  if (toasts.up && toasts.up.kind === kind && toasts.el) { const t = toasts.el; toasts.el = null; t.remove(); clearTimeout(toasts.timer); nextToast(); }
+}
+export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
-  if (first) toasts.queue.unshift({ text, ms }); else toasts.queue.push({ text, ms });
+  if (first) toasts.queue.unshift({ text, ms, kind }); else toasts.queue.push({ text, ms, kind });
   if (toasts.queue.length > 3) { if (first) toasts.queue.pop(); else toasts.queue.shift(); }
   if (!toasts.up) nextToast();
 }
@@ -572,5 +578,5 @@ function nextToast() {
   placeToast(t); setTimeout(() => placeToast(t), 350); // a card opened by the same tap, or the new town's top bar after a switch
   toasts.up = q; toasts.el = t;
   const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);
+  toasts.timer = setTimeout(() => { t.classList.add('out'); toasts.timer = setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);
 }

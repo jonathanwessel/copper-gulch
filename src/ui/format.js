@@ -40,3 +40,10 @@ export function ago(ms) {
   const d = Math.floor(s / 86400);
   return d + (d === 1 ? ' day ago' : ' days ago');
 }
+
+/* A building's output with its good as the unit (review of 2026.11.19-3: "1 a second" said 1 of what?): "1 plank a second",
+   "2.4 planks a second", "0.5 copper ore a second". Goods named in the plural drop the s for exactly 1 (not glass). */
+export function perSecond(n, good) {
+  const v = fmt(n), name = good.name.toLowerCase();
+  return v + ' ' + (v === '1' && /[^s]s$/.test(name) ? name.slice(0, -1) : name) + ' a second';
+}

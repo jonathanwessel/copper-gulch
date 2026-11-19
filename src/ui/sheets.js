@@ -170,6 +170,8 @@ export function placesSheet(game, { go, found, capital = () => {} }) {
 /* A short phrase that never breaks across lines (a line wraps only between phrases). */
 const keep = s => s.replace(/ /g, '\u00a0');
 /* Seconds in words: "40 seconds", "3 minutes". */
+/* The research button while it runs (review of 2026.11.19-3: it read "Working"): the time left, short. */
+export const leftWord = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec left' : Math.round(s / 60) + ' min left';
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
@@ -183,7 +185,7 @@ export function researchSheet(game, town) {
       bar.append(fill); txt.append(name, el('span', null, r.about));
       if (r.worse) txt.append(el('span', 'worse', r.worse));
       txt.append(info, bar);
-      const go = btn('Research', 'btn small build'); go.dataset.research = id;
+      const go = btn('Research', 'btn small build timer'); go.dataset.research = id;
       go.addEventListener('click', () => { if (startResearch(game, town, id)) paint(); });
       row.append(txt, go); list.append(row);
       rows[id] = { row, name, info, bar, fill, go };
@@ -192,13 +194,13 @@ export function researchSheet(game, town) {
       for (const [id, x] of Object.entries(rows)) {
         const r = RESEARCH[id], L = researchLevel(town, id), lab = town.lab && town.lab.id === id ? town.lab : null, block = researchBlock(town, id);
         const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
-        const info = lab ? 'Level ' + (L + 1) + ' ready in ' + wait(lab.left)
+        const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
           : ['Level ' + (L + 1) + ' of ' + r.max, fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
-        const label = lab ? 'Working' : block === 'max' ? 'Done' : 'Research';
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : 'Research';
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
       }
@@ -394,15 +396,16 @@ export function perksSheet(ctx) {
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
-      const t1 = p.total ? 'Sign the charter to get ' + plural(p.total, 'deed') + '.' : 'Earn a deed to sign the charter.';
+      const t1 = p.total ? 'Sign the charter to get ' + (c.deeds ? p.total + ' more ' + (p.total === 1 ? 'deed' : 'deeds') : plural(p.total, 'deed')) + '.' : 'Earn a deed to sign the charter.';
       if (now.textContent !== t1) now.textContent = t1;
       const w = 'Best wave ' + town.bestWave + (p.wave ? ', worth ' + plural(p.wave, 'deed') : '') + '. Next deed at wave ' + n.wave + '.';
       const k = 'You earned ' + fmt(town.ownEarned) + ' coins here' + (p.coins ? ', worth ' + plural(p.coins, 'deed') : '') + '. Next deed at ' + fmt(n.coins) + ' coins.';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;
-      const h = c.deeds ? 'You have ' + plural(c.deeds, 'deed') + '. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.'
-        : 'Deeds stay with you for good. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.';
+      const more = PERKS.some(x => x.need > c.deeds) ? ' More deeds let you pick more perks.' : '';
+      const h = (c.deeds ? 'You have ' + plural(c.deeds, 'deed') + '. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.'
+        : 'Deeds stay with you for good. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.') + more;
       if (held.textContent !== h) held.textContent = h;
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;

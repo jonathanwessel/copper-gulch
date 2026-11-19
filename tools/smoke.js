@@ -540,9 +540,9 @@ async function run() {
         const sheet = document.getElementById('sheet'); out.sheet = !sheet.hidden && sheet.dataset.id === 'research';
         t.coins = 1e6; t.lab = null; const before = t.research.saws || 0;
         document.querySelector('#sheet [data-research="saws"]').click(); await wait(400);
-        out.started = !!t.lab && t.lab.id === 'saws' && /ready in/.test(sheet.textContent);
+        out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         out.oneAtATime = document.querySelector('#sheet [data-research="walls"]').disabled;
-        out.label = /Research · [0-9]+s/.test(btn.textContent);
+        out.label = /Research · [0-9]+ (sec|min)$/.test(btn.textContent);
         out.tradeoff = /burn one more timber/.test(sheet.textContent);
         return out;
       });
@@ -750,8 +750,11 @@ async function run() {
       if (await page.evaluate(() => !document.getElementById('mapBtn').hidden)) bad.push('Map shows with one town');
       await page.evaluate(async () => { const { foundTown } = await import('./src/core/empire.js'); const t = CG.game.town; t.bestWave = 20; t.coins = 1e6; foundTown(CG.game, 'ridge'); t.drawn = { ore: 5 }; CG.game.towns.ridge.shipped = { bricks: 5 }; });
       if (!await waitFor(page, () => !document.getElementById('mapBtn').hidden, 3000)) bad.push('no Map button with three towns');
+      // a lost toast from the town goes when the map opens (review of 2026.11.19-3: it covered the town labels)
+      await page.evaluate(async () => { const { toast } = await import('./src/ui/play.js'); toast('Smoke lost line.', 6000, { kind: 'lost' }); });
       await page.evaluate(() => document.getElementById('mapBtn').click());
       if (!await waitFor(page, () => CG.map && CG.map.frames > 10 && CG.mapui, 8000)) bad.push('Map did not open the map');
+      if (await page.evaluate(() => [...document.querySelectorAll('.toast')].some(t => t.textContent === 'Smoke lost line.'))) bad.push('the lost toast stayed over the map');
       await sleep(900);
       const m = await page.evaluate(() => ({
         canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),

@@ -18,7 +18,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 const nameOf = id => id === 'capital' ? 'The Capital' : TOWNS[id].name;
 const shortOf = id => id === 'capital' ? 'Capital' : TOWNS[id].short || TOWNS[id].name;
-const rate = n => '+' + fmtLive(n) + '/s'; // as the top bar writes it
+const rate = n => '+' + fmtLive(n) + '/s'; // as the top bar writes it (the small labels on the map)
 /* A won outpost out of play sends its goods to the town in play and earns next to nothing itself (review 2026-11-18:
    Dry Creek's label read +0/s once won). */
 const sendsOnly = info => !!(info.won && !info.inPlay && info.income < .1);
@@ -32,7 +32,7 @@ export const makesWords = id => TOWNS[id].makesText || goodsLower(makesOf(id));
 function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Opens at wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
-  if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Deeds';
+  if (r.kind === 'deeds') return short ? 'Needs ' + r.deeds + ' deeds' : 'Deeds';
   if (r.kind === 'with') return short ? 'Needs ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
   return short ? 'Coming later' : 'The Capital will be built here.';
@@ -120,18 +120,18 @@ export function mountMap(root, game, view, shell) {
     cap = null;
     const kids = [];
     if (id === 'income') {
-      kids.push(head('Income'));
+      kids.push(head('Income', 'Coins a second'));
       const rows = Object.keys(game.towns).map(t => [t, shell.meter ? shell.meter.income[t] || 0 : 0]).sort((a, b) => b[1] - a[1]);
       const box = el('div', 'explain why');
-      for (const [t, n] of rows) { const r = el('div'); r.append(el('span', '', nameOf(t)), el('b', '', rate(n))); box.append(r); }
-      const tot = el('div', 'total'); tot.append(el('span', '', 'All your towns'), el('b', '', rate(shell.meter ? shell.meter.total : 0))); box.append(tot);
+      for (const [t, n] of rows) { const r = el('div'); r.append(el('span', '', nameOf(t)), el('b', '', fmtLive(n))); box.append(r); }
+      const tot = el('div', 'total'); tot.append(el('span', '', 'All your towns'), el('b', '', fmtLive(shell.meter ? shell.meter.total : 0))); box.append(tot);
       kids.push(box);
     } else if (game.towns[id]) {
       const t = game.towns[id], info = siteInfo(game, id, shell.meter), d = TOWNS[id];
       kids.push(head(d.name, info.inPlay ? 'Playing now' : ''));
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Earns here', rate(info.income)));
+      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', fmtLive(info.income) + ' a second'));
       kids.push(grid);
       kids.push(el('p', 'uses', 'Makes ' + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
       for (const l of mapRoutes(game)) {

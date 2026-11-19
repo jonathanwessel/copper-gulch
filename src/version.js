@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.19-3';
-export const GAME_NEWS = 'Landscape cards clear the top buttons, Pine Hollow on the goal strip';
+export const GAME_VERSION = '2026.11.19-4';
+export const GAME_NEWS = 'Rates name their unit, research shows time left, clearer deeds line';
