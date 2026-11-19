@@ -516,6 +516,22 @@ async function run() {
         return was !== now && (t.sell.timber !== false) === was;
       });
       if (!goods) bad.push('the Goods sheet did not switch selling');
+      // the sheet's counts read as the strip's in every frame (review of 2026.11.19-7: 46 copper ore beside the strip's 45)
+      const goodsDiff = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
+        for (let k = 0; k < 12; k++) {
+          await new Promise(r => requestAnimationFrame(r));
+          for (const row of document.querySelectorAll('#sheet [data-why]')) {
+            const g = row.dataset.why, chip = document.querySelector('#goodsStrip .goodchip[data-good="' + g + '"] b'), line = row.querySelector('span');
+            if (!chip || !line) continue;
+            const a = line.textContent.split(' in stock')[0], b = chip.textContent;
+            if (a !== b) out.push(g + ' ' + a + ' / ' + b);
+          }
+          await wait(170);
+        }
+        return [...new Set(out)].slice(0, 4).join(', ');
+      });
+      if (goodsDiff) bad.push('the Goods sheet and the strip disagree: ' + goodsDiff);
       await page.evaluate(() => document.getElementById('menuBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'menu sheet: ' + b));
       const gfx = await page.evaluate(async () => {

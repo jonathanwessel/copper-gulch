@@ -93,7 +93,9 @@ export function incomeSheet(income) {
     // painted whenever the top bar writes a new number (it keeps the object until then), so the two always agree
     // (review of 2026.11.19-5: the sheet painted every 0.5 s and the bar every 0.2 s, +28/s beside +25/s)
     let last = income();
-    return () => { const ex = income(); if (ex === last) return; last = ex; paint(); };
+    const tick = () => { const ex = income(); if (ex === last) return; last = ex; paint(); };
+    tick.sync = tick; // in the frame the top bar writes its number (review of 2026.11.19-7: +5.3/s beside +5.2/s)
+    return tick;
   };
 }
 

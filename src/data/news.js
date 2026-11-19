@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-8',
+    lines: [
+      'In Silver Falls, a workshop card shows how much power the Water Wheel makes and how much your workshops use.',
+      'In Goods, a good your towers need all of says there is none to sell. A good you do not sell shows what it would sell for.',
+      'Research shows how many levels you have done.',
+      'The message after a fallen vault names every button to tap, Play too.',
+      'The Income menu and the coins at the top always show the same number, and Goods shows the same counts as the bottom bar.',
+      'Goods sent in from another town stay on the bottom bar, even at 0.',
+    ],
+  },
+  {
     v: '2026.11.19-7',
     lines: [
       'On the map, the coins each town earns add up to the total at the top. A town on hold still shows what it earns.',

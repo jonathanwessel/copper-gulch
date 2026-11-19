@@ -26,6 +26,18 @@ export function fmtPrice(v) {
 }
 /* "sells for 0.9 coins each", "sells for 0.004 coins each" */
 export const sellsFor = v => 'sells for ' + fmtPrice(v) + ' each';
+/* A good's line on the Goods sheet. Every unit kept for towers: nothing is sold now, so no price (review 2026-11-18:
+   "sells for 0 coins each" next to Sell On), and it says there is none to sell, since "all kept" beside Sell On read
+   as a contradiction (review of 2026.11.19-7). Sell Off says it is not sold and what it would sell for, so it never sits
+   as "worth 0.9" beside another good's "sells for 13" with nothing saying why. open: its price box says the price. */
+export function goodsLine({ have, kept = 0, selling = true, price = 0, open = false }) {
+  const all = selling && kept > 0 && kept + .5 >= have;
+  const saved = all ? ' · none to sell, towers need it all' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
+  return fmtLive(have) + ' in stock' + saved + (open || all ? '' : ' · ' + (selling ? sellsFor(price) : 'not sold, ' + fmtPrice(price) + ' each if sold'));
+}
+/* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level
+   you had, review of 2026.11.19-7). */
+export const levelsDone = (L, max) => (L ? L + ' of ' + max + ' levels done' : 'No levels yet');
 /* A live count on the HUD (owner rule: live numbers never change the size or place of anything on screen). Never
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
    rate under 10), then 1.00K-9.99K, 10.0K-99.9K, 100K-999K, 1.00M... It rounds down, so 999.96 never shows as 1000. */

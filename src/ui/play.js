@@ -188,7 +188,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
     // the power grid (Silver Falls): the Water Wheel says how much of its power the workshops use
     if (isGrid(b.makes) && L) card.append(el('p', 'uses', 'Your workshops use ' + fmt(grid.want) + ' power a second.'));
-    if (gridShort) card.append(el('p', 'warn', 'Not enough power. Every workshop here runs slower. ' + (isGrid(b.makes) ? 'Tap Upgrade.' : 'Upgrade the Water Wheel.')));
+    // a workshop on the grid says how much power there is (review of 2026.11.19-7: power was named but never counted)
+    else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' a second.'));
+    // the numbers above already show a workshop is short, so its warning only says what that does and what to tap
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Every workshop here runs slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] && L && shortImp.length) {
@@ -276,7 +279,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const when = 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '.';
     return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
   });
-  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => GOODS[k].name).join(' and '); return n[0] + n.slice(1).toLowerCase() + (g.length > 1 ? ' are' : ' is') + ' kept for this ' + (pathNext ? 'path' : 'upgrade') + ', not sold.'; };
+  const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; const n = g.map(k => fmt(c.goods[k]) + ' ' + GOODS[k].name.toLowerCase()).join(' and '); return n + (g.length > 1 || c.goods[g[0]] !== 1 ? ' are' : ' is') + ' set aside for this ' + (pathNext ? 'path' : 'upgrade') + '.'; }; // amounts, so it never reads as short beside "Copper 888 / 20" (review of 2026.11.19-7)
   // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
   const soon = s => s.startsWith('You will have enough');
   let pathNext = false;
@@ -504,7 +507,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
   }
   // income: coins earned over the last few seconds
-  const hist = []; let acc = 0, cardAcc = 0;
+  const hist = []; let acc = .2, cardAcc = 0; // the top bar paints on the first frame, never blank (review of 2026.11.19-7)
   // the Income sheet explains the same few seconds as the number at the top
   // the Income sheet shows the very numbers the top bar last wrote, so the two never disagree (screenshot review 2026-11-19: +28/s and +25/s)
   let lastIncome = null;
@@ -541,6 +544,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
     paintStrip(); paintCoinCosts();
+    sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;

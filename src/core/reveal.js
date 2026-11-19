@@ -23,6 +23,8 @@ export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) =>
 export function stripGoods(town) {
   const want = new Set(listedGoods(town));
   for (const [g, n] of Object.entries(town.goods || {})) if (n >= 1) want.add(g);
+  // goods shipped in for a built workshop stay on the strip at 0 (review of 2026.11.19-7: the Ridge's bricks came and went)
+  for (const g of (town.def && town.def.imports) || []) if (Object.entries(BUILDINGS).some(([id, b]) => b.town === town.id && town.level(id) > 0 && g in b.inputs)) want.add(g);
   for (const [k, d] of Object.entries(TOWERS)) if (towerIn(town, k) && (towerOpen(town, k) || (town.towers || []).some(t => t.kind === k))) for (const g of Object.keys(d.goods[town.id] || {})) want.add(g);
   return Object.keys(GOODS).filter(g => want.has(g) && !GOODS[g].grid);
 }

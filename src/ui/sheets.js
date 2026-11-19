@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { fmt, fmtLive, ago, sellsFor, fmtPrice } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -32,7 +32,9 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
 const TOWN_NAMES = Object.fromEntries(Object.entries(TOWNS).map(([id, t]) => [id, t.short || t.name]));
 
-/* A sheet: build(body) fills it; frame(dt) (optional, returned by build) runs while it is open. */
+/* A sheet: build(body) fills it; frame(dt) (optional, returned by build) runs while it is open. A frame function may
+   carry .sync, called by sync() right after the play screen repaints its top bar and goods strip, so a sheet that
+   shows the same numbers repaints in that frame (review of 2026.11.19-7: Goods read 46 copper ore beside the strip's 45). */
 export function createSheets(root, { onOpen = () => {} } = {}) {
   const back = el('div', 'scrim'); back.hidden = true;
   const sheet = el('section', 'sheet'); sheet.id = 'sheet'; sheet.hidden = true; sheet.setAttribute('role', 'dialog');
@@ -52,6 +54,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
     },
     close() { cur = null; sheet.hidden = true; back.hidden = true; body.replaceChildren(); },
     frame(dt) { if (cur && cur.tick) cur.tick(dt); },
+    sync() { if (cur && cur.tick && cur.tick.sync) cur.tick.sync(); },
   };
   x.addEventListener('click', api.close); back.addEventListener('click', api.close);
   return api;
@@ -95,8 +98,7 @@ export function goodsSheet(game, town, focus = null) {
         const ex = explainPrice(game, town, g);
         const selling = town.sell[g] !== false, have = town.goods[g] || 0;
         // every unit kept for towers: nothing is sold now, so no price (review 2026-11-18: "sells for 0 coins each" next to Sell On)
-        const all = selling && kept > 0 && kept + .5 >= have, saved = all ? ' · all kept for towers' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
-        const txt = fmtLive(have) + ' in stock' + saved + (open[g] || all ? '' : ' · ' + (selling ? sellsFor(ex.value) : 'worth ' + fmtPrice(ex.value) + ' each')); // Sell Off: not sold, so what it is worth (screenshot review 2026-11-19) // open, the box says it
+        const txt = goodsLine({ have, kept, selling, price: ex.value, open: !!open[g] });
         if (r.line.textContent !== txt) r.line.textContent = txt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const ws = open[g] ? JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) : '';
@@ -108,8 +110,9 @@ export function goodsSheet(game, town, focus = null) {
     };
     build();
     if (focus && rows[focus]) { rows[focus].txt.classList.add('focus'); requestAnimationFrame(() => rows[focus].txt.scrollIntoView({ block: 'nearest' })); }
-    let acc = 0;
-    return dt => { if ((acc += dt) < .3) return; acc = 0; if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
+    // painted only when the strip is (sync), so its counts always match the strip's
+    const tick = () => {}; tick.sync = () => { if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
+    return tick;
   };
 }
 
@@ -196,7 +199,7 @@ export function researchSheet(game, town) {
         const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
         const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : ['Level ' + (L + 1) + ' of ' + r.max, fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
+          : [levelsDone(L, r.max), fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
