@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-1',
+    lines: [
+      'When the waves in a town are on hold, the goal at the top says to tap Resume waves.',
+      'Starting a new town starts the waves again in the town that saved up for it.',
+      'Keep trying the boss now also starts the waves again after a vault falls.',
+      'In an outpost you won, Auto-towers raises a tower only when a raid gets through.',
+    ],
+  },
+  {
     v: '2026.11.18-17',
     lines: [
       'Tap Damage on a tower. The numbers in the list now multiply to the total.',

@@ -4,7 +4,7 @@
 // switches once and leaves the game alone:
 //   - every open Automation switch goes on in every town: Auto-towers, Auto-research and Keep trying the boss, and
 //     every hired foreman works (`leave`);
-//   - a town that holds its waves gets Resume waves, except one that lost its boss (Keep trying the boss has it);
+//   - a town that holds its waves gets Resume waves, except one that lost (Keep trying the boss has it);
 //   - after that it never taps anything again: no new towers, paths, buildings, research picks or contracts.
 // The game then runs step by step for 12 hours with the Ridge in play, as an app left open would.
 // It reports income by the hour (coins earned by every town, the way the map's coins a second counts them), the waves
@@ -24,7 +24,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { empire, CAP_AT } from './balance.js';
 import { STEP } from '../src/core/clock.js';
-import { KINDS, autoOpen, setAuto, setForemen, lostBoss } from '../src/core/automation.js';
+import { KINDS, autoOpen, setAuto, setForemen, lostTry } from '../src/core/automation.js';
 import { setHold, bossWave } from '../src/core/defense.js';
 import { AUTO } from '../src/data/automation.js';
 import { SHARE } from '../src/core/foremen.js';
@@ -50,7 +50,7 @@ export function leave(game) {
   for (const t of Object.values(game.towns)) {
     for (const k of on) setAuto(game, t, k, true);
     setForemen(t, true);
-    if (t.waves && t.waves.hold && !(on.includes('retry') && lostBoss(t))) setHold(game, t, false);
+    if (t.waves && t.waves.hold && !(on.includes('retry') && lostTry(t))) setHold(game, t, false);
   }
   return on;
 }

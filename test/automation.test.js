@@ -125,3 +125,22 @@ test('the switches survive a save and a charter, and an old save loads with ever
   const o = loadGame(m.game);
   assert.equal(autoOn(o, o.towns.gulch, 'towers'), false);
 });
+
+// Evaluation 2 (2026-11-19): a won outpost only meets light raids its towers already beat, so Auto-towers raises a
+// tower there only after a raid got through, one raise per raid lost.
+test('in a won outpost Auto-towers waits for a raid to get through, then raises one tower', () => {
+  const g = empire('a-won'), d = g.towns.drycreek || g.addTown('drycreek');
+  d.won = true; rich(d);
+  d.towers = [{ spot: 0, kind: 'crossbow', level: 2, path: null, cd: 0, spent: 0, pulses: 0 }];
+  d.breaches = 0;
+  setAuto(g, d, 'towers', true); autoOf(g, d).wait = 0;
+  assert.equal(towerBlock(g, d), 'won');
+  for (let i = 0; i < 4 * 600; i++) g.step(.25);
+  assert.equal(d.towers[0].level, 2, 'no raise while the raids are held');
+  d.breaches = 1; autoOf(g, d).wait = 0;
+  g.step(.25);
+  assert.equal(d.towers[0].level, 3, 'a raid got through: one raise');
+  autoOf(g, d).wait = 0;
+  for (let i = 0; i < 4 * 600; i++) g.step(.25);
+  assert.equal(d.towers[0].level, 3, 'one raise per raid lost');
+});

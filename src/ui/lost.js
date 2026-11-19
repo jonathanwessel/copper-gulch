@@ -4,6 +4,7 @@
 import { FOES } from '../data/foes.js';
 import { fmt } from './format.js';
 import { willRetry, retryState, autoOf } from '../core/automation.js';
+import { bossWave } from '../core/defense.js';
 
 const AGAIN = 'start again by themselves after a tower goes up a level.';
 
@@ -18,7 +19,7 @@ export function lostToast(town, here = false, game = null) {
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
   return (l.why === 'boss' ? 'The ' + bossName(town) + ' broke into ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.')
-    + ' Its waves wait until you go there.';
+    + ' Tap Map, then ' + town.def.name + ', then Resume waves.';
 }
 /* The card when the boss gets through in the town in play (boss waves are gates, owner rule 2026-11-17): what
    happened, and what to do. The waves are on hold until the player taps Resume waves or Call now. */
@@ -34,10 +35,11 @@ export function lostCard(town, game = null) {
 /* The line on the town's map card while it tries its boss again (Keep trying the boss): on hold until a tower goes up,
    stuck (Auto-towers cannot raise one), or playing back up to the boss. */
 export function retryLine(game, town) {
-  const st = retryState(game, town), a = autoOf(game, town).boss, name = 'the ' + bossName(town), here = town.def.short || town.def.name;
-  if (st === 'climb') return here + ' fights ' + name + ' again at wave ' + a.wave + '.';
-  if (st === 'stuck') return here + ' fights ' + name + ' again after a tower goes up a level. Go there and raise one.';
-  return here + ' fights ' + name + ' again after a tower goes up a level. Auto-towers will raise one.';
+  const st = retryState(game, town), a = autoOf(game, town).boss, here = town.def.short || town.def.name;
+  const w = a ? a.wave : (town.lost || {}).wave, what = w && !bossWave(town, w) ? 'wave ' + w : 'the ' + bossName(town);
+  if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
+  if (st === 'stuck') return 'Go to ' + here + ' and raise a tower one level. Then it fights ' + what + ' again.';
+  return 'Auto-towers will raise a tower. Then ' + here + ' fights ' + what + ' again.';
 }
 /* The warning line on the town's map card while its waves are on hold. */
 export function lostLine(town) {

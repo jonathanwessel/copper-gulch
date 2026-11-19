@@ -203,7 +203,7 @@ export const GOAL_PICK = .6;
 /* What the goal strip asks to build in this town, or in another town for a goal with there (the building, or while it
    is locked the cheapest level that opens it): { town, id }, or null. */
 export function goalBuilding(game, town) {
-  const gl = goalNow(game);
+  const gl = goalNow(game, false);
   if (!gl || game.town !== town) return null;
   if (gl.there) {
     const t = game.towns[gl.there[0]], id = gl.there[1];
@@ -255,7 +255,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     let pick = opts[0];
     // when it adds a tower and the goal strip asks for a kind it has not built yet, it builds that kind (if it can pay)
-    const gk = pick && !pick.up && t.bestWave >= 10 && (goalNow(g) || {}).kind;
+    const gk = pick && !pick.up && t.bestWave >= 10 && (goalNow(g, false) || {}).kind;
     if (gk && gk !== pick.kind && !t.towers.some(x => x.kind === gk)) { const o = opts.find(o => !o.up && o.kind === gk); if (o && o.value >= GOAL_PICK * pick.value) pick = o; }
     // a careful player saves for a much better new tower whose goods are already in the yard and whose coins are
     // nearly there, rather than build a weak one, while the vault is holding (returns true: the coins wait, the town

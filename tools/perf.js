@@ -1,6 +1,8 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|map] [--limit 33] [--eval "js run in the page first"] [--profile] [--script ms] [--calls n]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|map] [--limit 33] [--eval "js run in the page first"] [--profile] [--script ms] [--calls n]
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
+// --town falls-empire: Silver Falls in play with the Gulch, the Ridge, the Capital, Dry Creek, Pine Hollow and Sandy Bend
+//   all working behind it (M5: phone performance with every board so far).
 // --town empire: Iron Ridge in play, founded from a built-up Copper Gulch, with the Gulch, Dry Creek and Pine Hollow
 //   all working behind it (so every frame also steps four towns), a wave on the road. The M3 target runs it with
 //   --script 10 --calls 300: the frame under the phone limit, the game's own work in it under 10 ms, fewer than 300 draw calls.
@@ -25,7 +27,7 @@ const srv = await start(0), b = await chromium.launch({ args: ['--use-angle=swif
 let out = null, startTier = null;
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
-  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' ? 'gulch' : TOWN)));
+  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' || TOWN === 'falls-empire' ? 'gulch' : TOWN)));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
   await p.evaluate(([t, NOAUDIO]) => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); if (!NOAUDIO) CG.audio.start(); }, [TIER, process.argv.includes('--no-audio')]);
@@ -60,6 +62,25 @@ try {
     const r = g.towns.ridge; t.coins = 1e9; Object.assign(r.goods, { stone: 500, iron: 500, coal: 500, pigiron: 500 }); r.sell = { stone: false, iron: false, coal: false, pigiron: false };
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) r.buildings[id] = n;
     for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
+    CG.play.close(); document.getElementById('callWave').click();
+  });
+  else if (TOWN === 'falls-empire') await p.evaluate(async () => { // M5: the Falls in play, every board before it working behind it
+    const g = CG.game, t = g.town, wait = () => new Promise(r => setTimeout(r, 100)); t.coins = 1e9; t.bestWave = 30;
+    const tower = (x, spot, kind, level) => x.towers.push({ spot, kind, level, path: null, cd: 0, spent: 0, pulses: 0 });
+    for (const [id, n] of Object.entries({ camp: 12, mine: 10, pit: 8, saw: 10, smelter: 8, kiln: 8, toolsmith: 6 })) t.buildings[id] = n;
+    for (const [s, k] of [[1, 'crossbow'], [2, 'cannon'], [3, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(t, s, k, 12);
+    const op = await import('./src/core/outpost.js'); op.grantOutpost(g, 'drycreek');
+    const r = g.addTown('ridge'); g.addTown('pinehollow'); op.grantOutpost(g, 'pinehollow'); g.towns.pinehollow.won = true; r.bestWave = 52;
+    for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) r.buildings[id] = n;
+    for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(r, s, k, 12);
+    (await import('./src/core/capital.js')).foundCapital(g);
+    g.addTown('falls'); op.grantOutpost(g, 'sandybend'); g.towns.sandybend.won = true;
+    for (const x of Object.values(g.towns)) if (x.waves) x.waves.hold = false;
+    CG.go('falls');
+    for (let i = 0; i < 100 && !(CG.town && CG.town.frames > 3); i++) await wait();
+    const f = g.towns.falls; f.coins = 1e9; Object.assign(f.goods, { sand: 500, quartz: 500, glass: 500 }); f.sell = { sand: false, quartz: false, glass: false };
+    for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 8, glassworks: 8, wiremill: 6, bulbworks: 5, dynamo: 3, telegraph: 2 })) f.buildings[id] = n;
+    for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [4, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
     CG.play.close(); document.getElementById('callWave').click();
   });
   else if (TOWN === 'map') await p.evaluate(async () => {

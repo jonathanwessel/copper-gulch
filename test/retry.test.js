@@ -162,3 +162,35 @@ test('away and in catch-up, the town keeps trying and breaks through with Auto-t
   const losses = breaches(ev).filter(e => e.why === 'boss' && e.wave === 10).length, tries = ev.filter(([n, e]) => n === 'auto:retry' && e.town === 'gulch').length;
   assert.ok(losses <= tries + 1, 'one loss per try (' + losses + ' losses, ' + tries + ' tries)');
 });
+
+// Evaluation 2 (2026-11-19): in the 24 h idle run every seed's Gulch lost its vault on a plain wave while away and sat
+// on hold for the whole day. Keep trying the boss now takes up a fallen vault too.
+test('On, a vault that fell on a plain wave while away starts again once a tower goes up a level', async () => {
+  const { fall } = await import('../src/core/defense.js');
+  const { retryLine } = await import('../src/ui/lost.js');
+  const { g, G } = gulch('r9', weak());
+  G.wave = 14; G.bestWave = 13; g.active = 'ridge';
+  setAuto(g, G, 'retry', true);
+  fall(g, G, 'vault');
+  assert.equal(G.waves.autoHold, true, 'away, a fallen vault holds the waves');
+  assert.equal(G.lost.why, 'vault');
+  assert.equal(retryState(g, G), 'stuck', 'Auto-towers is off');
+  assert.equal(retryLine(g, G), 'Go to Copper Gulch and raise a tower one level. Then it fights wave 14 again.');
+  run(g, 60);
+  assert.equal(G.waves.hold, true, 'no stronger tower yet');
+  G.towers[0].level++;
+  g.step(.25);
+  assert.equal(G.waves.hold, false, 'a tower went up: the waves start again');
+  assert.equal(retryState(g, G), 'climb');
+  assert.equal(retryLine(g, G), 'Copper Gulch fights wave 14 again.');
+});
+
+test('Off, a vault that fell while away stays on hold until the player goes there', async () => {
+  const { fall } = await import('../src/core/defense.js');
+  const { g, G } = gulch('r10', weak());
+  G.wave = 14; G.bestWave = 13; g.active = 'ridge';
+  fall(g, G, 'vault');
+  G.towers[0].level++;
+  run(g, 60);
+  assert.equal(G.waves.hold, true);
+});

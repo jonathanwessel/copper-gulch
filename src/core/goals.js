@@ -8,7 +8,8 @@ import { unlocked } from './economy.js';
 import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
 import { GOODS } from '../data/goods.js';
 import { researchOpen } from './research.js';
-import { canFound } from './empire.js';
+import { canFound, nextTowns } from './empire.js';
+import { TOWNS } from '../data/towns/index.js';
 
 /* What a goal reads: a small view of one town. */
 export function goalContext(game, town) {
@@ -41,10 +42,34 @@ export function goalContext(game, town) {
 
 export const goalsOf = id => GOALS.filter(g => g.town === id);
 
-/* The goal the strip shows for the town in play, or null when its goals are all done (or the strip is off). */
-export function goalNow(game) {
+/* Waves on hold (Evaluation 2, 2026-11-19): the newcomer bot held the Gulch's waves to save for Iron Ridge as the
+   strip said, never resumed them, and the Ridge's vault fell while it was in the Gulch, so from about an hour in both
+   towns sat on hold for two hours, the strip asking for a Toolsmith it could not open yet. So before any other goal the
+   strip asks for Resume waves in the town in play (unless it holds to save for its next town), then sends the player
+   to a town that lost while away. These are never marked done: they show while the waves are held. resume: the tap
+   the bots make. */
+export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at: () => ({ el: '#holdWaves' }), done: () => false };
+/* After a loss the lost card says to build more towers first (review of 2026.11.19-1), so the strip says the same. */
+export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
+const goResume = id => {
+  const name = (TOWNS[id] && TOWNS[id].name) || id;
+  return { id: 'resume-' + id, text: 'Go to ' + name + ' and tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
+};
+/* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens next. */
+const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk));
+/* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
+const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
+  && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry));
+
+/* The goal the strip shows for the town in play, or null when its goals are all done (or the strip is off).
+   held false: leave out the Resume waves steps (the careful bots tap Resume waves by their own rules and read the
+   strip only for what to build). */
+export function goalNow(game, held = true) {
   const sh = game.shared.goals, town = game.town;
   if (!sh || sh.off || !town) return null;
+  if (held && heldHere(game, town)) return town.waves.autoHold ? RESUME_LOST : RESUME;
+  const away = held && heldAway(game);
+  if (away) return goResume(away.id);
   let c = null;
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;

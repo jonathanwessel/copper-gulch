@@ -221,7 +221,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Keep trying the boss', 'When the boss beats this town, its waves start again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Keep trying the boss', 'After a boss gets through or the vault falls, waves start again when a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -236,6 +236,7 @@ export function autoSheet(game, town) {
       const tb = towerBlock(game, town), n = nextTowerUp(town);
       const tLine = !autoOpen(game, 'towers') ? 'Build the ' + INSTITUTION[AUTO.opens.towers].name + ' at the Capital first.'
         : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
+        : tb === 'won' ? 'Raises a tower when a raid gets through.'
         : tb === 'none' ? 'Waiting for a tower. Build one first.'
         : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
         : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
@@ -391,7 +392,7 @@ export function perksSheet(ctx) {
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
-      const t1 = p.total ? 'Sign the charter to get ' + plural(p.total, 'deed') + '.' + (c.deeds ? ' Then you will have ' + (c.deeds + p.total) + '.' : '') : 'Earn a deed to sign the charter.';
+      const t1 = p.total ? 'Sign the charter to get ' + plural(p.total, 'deed') + '.' : 'Earn a deed to sign the charter.';
       if (now.textContent !== t1) now.textContent = t1;
       const w = 'Best wave ' + town.bestWave + (p.wave ? ', worth ' + plural(p.wave, 'deed') : '') + '. Next deed at wave ' + n.wave + '.';
       const k = 'You earned ' + fmt(town.ownEarned) + ' coins here' + (p.coins ? ', worth ' + plural(p.coins, 'deed') : '') + '. Next deed at ' + fmt(n.coins) + ' coins.';

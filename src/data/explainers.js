@@ -216,7 +216,7 @@ export const EXPLAINERS = [
   {
     id: 'back', covers: ['back'],
     title: 'Go back',
-    text: 'Tap the arrow button next to Map to go to the town you played last. Tap the same button there to come back.',
+    text: 'Tap the ◂ button beside Map to go back to the town you played last.',
     when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {
@@ -263,7 +263,7 @@ export const EXPLAINERS = [
   },
   {
     id: 'oldground', covers: ['oldground'],
-    title: 'Bonus on waves you beat before',
+    title: 'Towers hit harder on old waves',
     text: 'You beat these waves before you signed. Until you pass your old best wave, your towers hit 3 times harder and Call now works right away.',
     when: h => h.oldGround && h.phase === 'break' && h.towers.length > 0, at: () => ({ el: '#callWave' }),
   },
@@ -301,7 +301,7 @@ export const EXPLAINERS = [
   {
     id: 'retry', covers: ['retry'],
     title: 'Keep trying the boss',
-    text: 'Tap Auto and turn on Keep trying the boss. After a lost boss, this town starts its waves again by itself once a tower goes up a level.',
+    text: 'Tap Auto and turn on Keep trying the boss. After a boss gets through or the vault falls, this town starts its waves again by itself once a tower goes up a level.',
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {

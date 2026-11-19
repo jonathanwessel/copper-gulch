@@ -152,7 +152,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? (id === 'capital' ? 'Ready to build' : 'Ready to start') : (id === 'capital' ? 'Not built yet' : 'Not open yet')));
-      if (id === 'capital') kids.push(el('p', 'uses', 'Your towns send goods here for coins and Influence. Spend Influence on upgrades for every town.'));
+      if (id === 'capital') kids.push(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'));
       else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + makesWords(id) + '.'));
       else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + makesWords(id) + '.'));
       for (const r of lr.rules) {
@@ -170,7 +170,8 @@ export function mountMap(root, game, view, shell) {
         const row = el('div', 'row'), go = el('button', 'btn primary buy', id === 'capital' ? 'Build the Capital' : 'Start ' + TOWNS[id].name); go.id = 'mapFound';
         go.addEventListener('click', () => {
           if (id === 'capital') { if (foundCapital(game)) paintCard(); return; } // the card itself shows it is built, no toast
-          if (foundTown(game, id)) { shell.toast(TOWNS[id].name + ' is open.'); shell.play(id); }
+          const from = game.towns[TOWNS[id].found.from], held = !!(from && from.waves && from.waves.hold && !from.waves.autoHold);
+          if (foundTown(game, id)) { shell.toast(TOWNS[id].name + ' is open.' + (held ? ' The waves in ' + from.def.name + ' start again.' : '')); shell.play(id); }
         });
         row.append(go); kids.push(row);
       }

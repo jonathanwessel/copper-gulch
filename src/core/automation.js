@@ -4,11 +4,12 @@
      that stands, never a new tower and never past level 4 until the player picks that tower's path.
    - Auto-research (opened by the University): when the lab is idle, the cheapest next level of an item the player has
      researched at least once.
-   - Keep trying the boss (opened with Auto-towers, owner 2026-11-17): a town that lost a boss wave holds its waves as
-     always, then starts them again by itself once a tower has gone up a level (or a new one stands) since the loss, so
+   - Keep trying the boss (opened with Auto-towers, owner 2026-11-17): a town that lost a boss wave, or whose vault fell
+     on any wave (since 2026.11.19-1), holds its waves as always, then starts them again by itself once a tower has gone up a level (or a new one stands) since the loss, so
      it drops back, climbs and tries the boss again. One coin loss per try, and every try meets stronger towers.
    Each buys only when the price is at most AUTO.share of the coins on hand, so half the purse always stays.
-   State: game.shared.auto[town id] = { towers, research, retry, wait, last, boss } where boss is the try in progress
+   State: game.shared.auto[town id] = { towers, research, retry, wait, last, boss, raids } where raids (a won outpost
+   only, optional, 0 when missing) is its breaches at the last raise (raidsHeld) and boss is the try in progress
    { wave, power, at, tries } (power: the town's tower levels when it lost); it survives a charter (the switches are the
    player's settings). It keeps working out of play and while time away is caught up.
    Events: 'auto:set' { town, kind, on }, 'auto:tower' { town, spot, level }, 'auto:research' { town, id, level },
@@ -56,6 +57,7 @@ export function nextTowerUp(town) {
    waits for a path), 'coins' (the raise costs more than half the coins, or its goods are short), or null. */
 export function towerBlock(game, town) {
   if (!autoOn(game, town, 'towers')) return 'off';
+  if (raidsHeld(game, town)) return 'won';
   const n = nextTowerUp(town);
   if (!n) return 'none';
   if (!n.tower) return 'path';
@@ -63,6 +65,12 @@ export function towerBlock(game, town) {
   if (autoOf(game, town).wait > 1e-9) return 'wait';
   return null;
 }
+
+/* A won outpost only meets light raids at its wave-10 strength, which its towers already beat, so Auto-towers raises
+   one there only after a raid got through, one raise per raid lost (Evaluation 2, 2026-11-19: in the 12-hour idle run
+   its biggest buys, up to 393K at once, went to Pine Hollow and Dry Creek while the Gulch waited for coins). The raids
+   it has answered: autoOf(...).raids, the outpost's breaches at its last raise. */
+export const raidsHeld = (game, town) => !!town.won && (town.breaches || 0) <= (autoOf(game, town).raids || 0);
 
 /* The item Auto-research starts next: the cheapest next level of an item done at least once that can start now. */
 export function nextResearch(town) {
@@ -79,14 +87,18 @@ export function nextResearch(town) {
    on it. towerPower counts a tower's levels (a new tower counts too), so any raise or new tower since the loss shows. */
 export const towerPower = town => (town.towers || []).reduce((n, t) => n + (t.level || 0) + 1, 0);
 export const lostBoss = town => !!(town.waves && town.waves.autoHold && town.lost && (town.lost.why === 'boss' || bossWave(town, town.lost.wave)));
+/* What Keep trying the boss takes up: any loss that holds the waves, a boss that got through or a vault that fell on a
+   plain wave (Evaluation 2, 2026-11-19: in the 24 h idle run the Gulch's vault fell on wave 26-33 while away on every
+   seed, and the town sat on hold for the whole day while Auto-towers kept raising its towers). */
+export const lostTry = town => !!(town.waves && town.waves.autoHold && town.lost);
 /* The town in play just lost its boss and will try again by itself. */
-export const willRetry = (game, town) => autoOn(game, town, 'retry') && lostBoss(town);
+export const willRetry = (game, town) => autoOn(game, town, 'retry') && lostTry(town);
 /* Where a try stands: null (no try, or the switch is off), 'wait' (on hold until a tower goes up a level, which
    Auto-towers will do), 'stuck' (on hold, and Auto-towers cannot raise one: it is off, there is no tower, or every
    tower waits for its path), or 'climb' (playing back up to the boss wave). */
 export function retryState(game, town) {
   if (!autoOn(game, town, 'retry')) return null;
-  if (lostBoss(town)) {
+  if (lostTry(town)) {
     const b = towerBlock(game, town);
     return b === 'off' || b === 'none' || b === 'path' ? 'stuck' : 'wait';
   }
@@ -94,7 +106,7 @@ export function retryState(game, town) {
   return a && !town.waves.autoHold && town.bestWave < a.wave ? 'climb' : null;
 }
 function retry(game, town, a) {
-  if (lostBoss(town)) {
+  if (lostTry(town)) {
     const l = town.lost;
     if (!a.boss || a.boss.at !== l.at || a.boss.wave !== l.wave) a.boss = { wave: l.wave, power: towerPower(town), at: l.at, tries: (a.boss && a.boss.wave === l.wave ? a.boss.tries : 0) + 1 };
     if (towerPower(town) > a.boss.power) {
@@ -118,6 +130,7 @@ function work(game, town, dt) {
       const { tower } = nextTowerUp(town);
       if (upgradeTower(game, town, tower.spot)) {
         a.wait = towerEvery(game); a.last = { kind: tower.kind, level: tower.level };
+        if (town.won) a.raids = town.breaches || 0;
         game.bus.emit('auto:tower', { town: town.id, spot: tower.spot, level: tower.level });
       }
     }

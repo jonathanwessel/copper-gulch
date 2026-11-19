@@ -134,7 +134,7 @@ export function capitalSheet(game, toast = () => {}) {
     b.addEventListener('click', () => { if (foundCapital(game)) paint(); }); // the sheet itself shows it is built, no toast
     const paint = () => {
       if (!capitalOpen(game)) {
-        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Your towns send goods here for coins and Influence. Spend Influence on upgrades for every town.'), wave, coins, row); }
+        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'), wave, coins, row); }
         const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
         setText(wave, 'Beat wave ' + f.wave + ' in ' + townName(f.from) + (w >= f.wave ? ' · Done' : ' · Best so far ' + w));
         setText(coins, fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c)));

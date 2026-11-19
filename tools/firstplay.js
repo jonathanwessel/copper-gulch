@@ -7,9 +7,10 @@
 //     raiders get through (the vault bar) or its towers are few for the wave number, and the building that pays best
 //     when they are not;
 //   - it makes a wrong buy 30% of the time: any other thing it can pay for, on any pad, with any path.
-// It saves up and holds the waves only when the goal strip asks (for Iron Ridge), calls a wave early only when the
+// It saves up and holds the waves only when the goal strip asks (for Iron Ridge), taps Resume waves when the strip asks
+// (or 45 s after a lost boss in play), calls a wave early only when the
 // strip asks, hires no foremen and does not sign a charter.
-// Targets (GDD.md, Pacing targets; PLAN.md M2): Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
+// Targets (GDD.md, Pacing targets; PLAN.md M2): no town on hold over 10 min unless saving for its next town, Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
 // it opens, and never stuck for more than 3 min in the first hour. Skill pays: the careful player of tools/balance.js,
 // who calls waves early, is at least 20% faster on both (medians over the seeds). "Stuck" is a stretch with nothing it can pay for
 // and nothing new on screen (a goal done, a new tower kind, a new town, a new button).
@@ -31,6 +32,10 @@ const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ?
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 140); // long enough to found Iron Ridge
 export const WAIT = [3, 8], WRONG = .3, FOLLOW = .7;
 export const STUCK_LIMIT = 180;
+/* Waves on hold (Evaluation 2, 2026-11-19): from about an hour in, every seed's Gulch and Ridge sat on hold for the
+   rest of the run (the Gulch held to save for the Ridge, the Ridge's vault fell while away). No town may hold its waves
+   longer than HELD_LIMIT seconds at a stretch while the strip is not asking it to save for its next town. */
+export const HELD_LIMIT = 600;
 /* The newcomer cannot see how strong the next wave is. It adds a tower when it has none, when a raider reached the
    vault in this wave or the last one, when the vault bar is below VAULT_LOW, and about every WAVES_PER_TOWER waves
    as the wave number climbs. */
@@ -59,6 +64,7 @@ export function goalTap(game, town, rng) {
     if (!game.towns[id]) return canFound(game, id) ? { what: 'go', label: id, run: () => !!foundTown(game, id) && game.go(id) } : null;
     return { what: 'go', label: id, run: () => game.go(id) };
   }
+  if (g.resume) return town.waves.hold ? { what: 'resume', label: 'waves', run: () => { setHold(game, town, false); return true; } } : null;
   if (at.el && at.el.includes('holdWaves')) return town.waves.hold ? null : { what: 'hold', label: 'waves', run: () => { setHold(game, town, true); return true; } };
   if (at.el && at.el.includes('callWave')) return town.waves.phase === 'break' ? { what: 'call', label: 'wave ' + town.wave, run: () => callEarly(game, town) >= 0 } : null;
   if (at.el && at.el.includes('research')) {
@@ -80,7 +86,8 @@ export function goalTap(game, town, rng) {
 /* One newcomer's first session: a new game in Dry Creek, then the Gulch once it opens, for `minutes` of play. */
 export function newcomer(seed, minutes = MINUTES) {
   const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
-  const r = { seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
+  const heldFrom = {};
+  const r = { held2: { longest: 0, town: null, at: 0 }, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
   let next = rng.range(...WAIT), lastNews = 0, lastLeak = { drycreek: -99, gulch: -99 }, lastGap = 0;
   const now = () => g.stats.steps * .25;
   const news = () => { lastNews = now(); };
@@ -104,6 +111,12 @@ export function newcomer(seed, minutes = MINUTES) {
       if (can) lastGap = at;
       const idle = at - Math.max(lastGap, lastNews);
       if (idle > r.stuck.longest) r.stuck = { longest: idle, at: Math.max(lastGap, lastNews) };
+    }
+    if (s % 4 === 0) for (const x of Object.values(g.towns)) {
+      const held = x.waves && x.waves.hold && !x.won && !nextTowns(g).some(n => n.from === x.id && n.waveOk);
+      if (!held) { delete heldFrom[x.id]; continue; }
+      heldFrom[x.id] ??= at;
+      if (at - heldFrom[x.id] > r.held2.longest) r.held2 = { longest: at - heldFrom[x.id], town: x.id, at: heldFrom[x.id] };
     }
     if (at < next) continue;
     // the newcomer looks at what the dots point to (the screen calls these when a sheet opens)
@@ -134,7 +147,7 @@ export function newcomer(seed, minutes = MINUTES) {
     if (tap.run()) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
-      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt = at; else if (tap.label === 'ridge') r.ridgeAt = at; news(); }
+      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; news(); } // the first time: the resume step sends it back later
       else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
@@ -167,6 +180,7 @@ export function misses(r) {
   const m = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   if (r.dcWon === null || r.dcWon > DC_WON) m.push(`seed ${r.seed}: Dry Creek won at ${mm(r.dcWon)} (want within 20 min)`);
   if (r.wave10 === null || r.wave10 > GULCH_WAVE10) m.push(`seed ${r.seed}: Copper Gulch wave 10 at ${mm(r.wave10)} after it opened (want within 14 min)`);
+  if (r.held2.longest > HELD_LIMIT) m.push(`seed ${r.seed}: ${r.held2.town} held its waves for ${mm(r.held2.longest)} from minute ${(r.held2.at / 60).toFixed(1)} (want under ${HELD_LIMIT / 60} min)`);
   if (r.stuck.longest > STUCK_LIMIT) m.push(`seed ${r.seed}: stuck for ${mm(r.stuck.longest)} from minute ${(r.stuck.at / 60).toFixed(1)} (want under 3 min)`);
   if (r.ridgeAt === null || r.ridgeAt > RIDGE_AT) m.push(`seed ${r.seed}: Iron Ridge founded at ${mm(r.ridgeAt)} of play (want within 2 h 15 min)`);
   return m;
@@ -174,10 +188,10 @@ export function misses(r) {
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/firstplay.js')) {
   const all = [], runs = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
-  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch)');
+  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch) | longest hold not saving (town)');
   for (let s = 1; s <= SEEDS; s++) {
     const r = newcomer(s);
-    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')}`);
+    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'})`);
     all.push(...misses(r)); runs.push(r);
   }
   const careful = []; for (let s = 1; s <= SEEDS; s++) careful.push(campaign(s, 'active', 15));
