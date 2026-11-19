@@ -321,9 +321,10 @@ export function menuSheet(ctx) {
     // Save slots
     const slots = el('div', 'slots'), mine = activeSlot();
     for (let n = 1; n <= SLOTS; n++) {
-      const s = slotSummary(n), row = el('div', 'option slot'), txt = el('div');
+      // the slot in play shows the game as it is now, not its last save (review of 2026.11.19-8: 999K beside the top bar's 9.99M)
+      const live = n === mine && game && game.town, s = live ? { n, town: game.active, wave: game.town.wave, coins: game.town.coins } : slotSummary(n), row = el('div', 'option slot'), txt = el('div');
       txt.append(el('b', null, 'Slot ' + n + (n === mine ? ' · playing' : '')),
-        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins · ' + ago(Date.now() - s.at)));
+        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins' + (live ? '' : ' · ' + ago(Date.now() - s.at))));
       row.append(txt);
       if (n !== mine) {
         const go = btn(s.empty ? 'New game' : 'Play'); go.dataset.slot = n; go.classList.add('slotgo');

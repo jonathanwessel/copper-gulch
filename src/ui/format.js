@@ -9,6 +9,9 @@ export function fmt(n) {
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(a) / 3)), v = n / 10 ** (i * 3);
   return (v < 10 ? +v.toFixed(2) : v < 100 ? +v.toFixed(1) : Math.floor(v)).toString() + SUFFIX[i]; // 1.8K, not 1.80K
 }
+/* Damage: the nearest whole number from 10 to 999 (review of 2026.11.19-8: 13 × 3.05 × 1.15 × 3 × 1.3 read 177, since
+   fmt rounds down, and a reader rounds to 178). Coins keep rounding down, so a cost never reads as paid too soon. */
+export const fmtDmg = n => (isFinite(n) && Math.abs(n) >= 10 && Math.abs(n) < 999.5 ? String(Math.round(n)) : fmt(n));
 /* A price in coins, rounded for a player (review 2026-11-18: "0.93 coins"): under 10 coins one decimal, from 10 up as
    fmt. Under 0.1 it keeps one digit that is not 0 ("0.04 coins", "0.003 coins"), so a flooded good never reads
    "0 coins" and its price breakdown multiplies to it as written (review of 2026.11.19-4: "× under 0.01" next to

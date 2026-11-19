@@ -170,7 +170,8 @@ export const rushOf = town => (town.wave === 1 && !town.bestWave) || oldGround(t
    tower card's breakdown shows it), so those waves fall fast and the town can call the next one at once. */
 export const OLD_GROUND = { dmg: 3 };
 /* Its row on the tower card says where it comes from (review of 2026.11.19-4: "Waves you beat before" did not). */
-export const OLD_LABEL = 'Beat before you signed';
+/* (review of 2026.11.19-8: "Beat before you signed × 3" was unclear; the explainer says "Until you pass your old best wave") */
+export const OLD_LABEL = 'Until you beat your best wave';
 export const canCall = town => town.waves.phase === 'break';
 /* Start the next wave now, for a bonus of coins for the time skipped. Returns the bonus, or -1 when no break is on
    (a wave is already on the road). town.flags.called counts the calls (the goal strip asks for one). */

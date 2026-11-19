@@ -25,7 +25,7 @@ import { lostToast, lostCard } from './lost.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtLive, sellsFor, perSecond, oneOf } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf } from './format.js';
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
@@ -163,7 +163,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
     const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
     const grid = gridOf(town), gridShort = L > 0 && (onGrid(id) || isGrid(b.makes)) && grid.share < .999;
-    const made = L ? explainMade(town, id) : null, madeText = perSecond(made ? made.value : b.rate, g);
+    // a short workshop that makes none says so (review of 2026.11.19-8: "Makes 0 boilers a second")
+    const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'None right now' : perSecond(made ? made.value : b.rate, g);
     if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
     const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
@@ -191,7 +192,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a workshop on the grid says how much power there is (review of 2026.11.19-7: power was named but never counted)
     else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' a second.'));
     // the numbers above already show a workshop is short, so its warning only says what that does and what to tap
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Every workshop here runs slower. Upgrade the Water Wheel.'));
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Not enough power. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] && L && shortImp.length) {
@@ -286,7 +287,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
     const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
-    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmt(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level)), haveSig(towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k) + haveSig(towerCost(town, k, 0)))), JSON.stringify(shorts)].join();
+    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmtDmg(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level)), haveSig(towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k) + haveSig(towerCost(town, k, 0)))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -318,7 +319,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
       r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; paintCard(); });
     };
-    line('Damage', fmt(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmt(st.poison) + '/s poison' : ''), 'dmg');
+    line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmtDmg(st.poison) + '/s poison' : ''), 'dmg');
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', st.splash < 1.2 ? 'Small' : 'Wide');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
@@ -396,6 +397,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // the goal strip: a finished goal shows Done for a moment, then the next one comes in
   let goalId = null, goalCur = null, doneFor = 0;
+  // a goal that saves coins adds have / need, written with the top bar; heldText changes the words once the waves are held
+  const goalWordsOf = g => goalText(game, town, g) + (g.need ? ' · ' + fmtLive(town.coins) + ' / ' + fmt(g.need) : '');
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
@@ -406,14 +409,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
-      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.text); goalId = null; goalCur = null;
+      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.heldText || goalCur.text); goalId = null; goalCur = null;
       if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000);
       return;
     }
     goalId = now ? now.id : null; goalCur = now;
     goal.hidden = !now;
     if (!now) return;
-    setText(goalWords, goalText(game, town, now));
+    setText(goalWords, goalWordsOf(now));
     goal.classList.remove('new'); void goal.offsetWidth; goal.classList.add('new');
   }
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
@@ -511,7 +514,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the Income sheet explains the same few seconds as the number at the top
   // the Income sheet shows the very numbers the top bar last wrote, so the two never disagree (screenshot review 2026-11-19: +28/s and +25/s)
   let lastIncome = null;
-  const incomeNow = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0); };
+  const incomeNow = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0, shell.meter ? shell.meter.income : null); };
   const income = () => lastIncome || (lastIncome = incomeNow());
   function frame(dt) {
     acc += dt; cardAcc += dt;
@@ -543,6 +546,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
+    if (goalCur && (goalCur.need || goalCur.heldText) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
     paintStrip(); paintCoinCosts();
     sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;

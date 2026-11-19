@@ -6,10 +6,10 @@ import { newGame } from '../src/core/setup.js';
 import { buildTower, upgradeTower, sellTower, towerAt, towerCost, fitsSpot } from '../src/core/defense.js';
 import { explainTower } from '../src/core/explain.js';
 import { mulShown, mulText } from '../src/ui/explain.js';
-import { fmt } from '../src/ui/format.js';
+import { fmt, fmtDmg } from '../src/ui/format.js';
 import { TOWERS, PATHS, SELL_BACK } from '../src/data/towers.js';
 
-const written = (ex, vals) => fmt(ex.rows.reduce((v, x, i) => (x.base !== undefined ? x.base : v * (vals ? vals[i] : +mulText(x.mul).slice(2))), 1));
+const written = (ex, vals) => fmtDmg(ex.rows.reduce((v, x, i) => (x.base !== undefined ? x.base : v * (vals ? vals[i] : +mulText(x.mul).slice(2))), 1));
 
 test('every damage breakdown multiplies, as written, to the total as written', () => {
   const g = newGame('rv1', 'gulch'), t = g.town;
@@ -20,9 +20,9 @@ test('every damage breakdown multiplies, as written, to the total as written', (
     const ex = explainTower(t, { kind: k, level: L, path: L >= 5 ? path : null });
     for (const e of [ex.dmg, ex.poison].filter(Boolean)) {
       const vals = mulShown(e);
-      assert.equal(written(e, vals), fmt(e.value), k + ' level ' + L + ' ' + path);
+      assert.equal(written(e, vals), fmtDmg(e.value), k + ' level ' + L + ' ' + path);
       for (const [i, x] of e.rows.entries()) if (x.base === undefined) assert.ok(Math.abs(vals[i] - x.mul) <= .0501, k + ' ' + L + ' ' + x.label + ' ' + x.mul + ' shown ' + vals[i]);
-      if (written(e) !== fmt(e.value)) fixed++;
+      if (written(e) !== fmtDmg(e.value)) fixed++;
       checked++;
     }
   }

@@ -86,7 +86,9 @@ export function goalNow(game, held = true) {
 
 /* The words the strip shows for a goal: its text, or, for a goal with wait: kind while that tower can't be paid yet,
    what is still missing ("Wait for 5 more coins and 3 more timber, then tap a stone pad"), counting down as it comes. */
+/* heldText: the words once the waves are held. need: coins the goal saves for; the screen adds have / need. */
 export function goalText(game, town, g) {
+  if (g.heldText && town.waves && town.waves.hold) return g.heldText;
   if (!g.wait) return g.text;
   const c = goalContext(game, town);
   return c.canBuild(g.wait) ? g.text : 'Wait for ' + c.shortText(g.wait) + ', then tap a stone pad';

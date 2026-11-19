@@ -130,12 +130,15 @@ export function incomeSnap(game) {
 }
 /* The purse's income: the town in play by source, then one row for each other town and outpost. A town that signed its
    charter between the snapshots starts again from 0, so it shows nothing until the next snapshot. */
-export function explainEmpireIncome(game, before, now, seconds) {
+/* others: { id: coins a second } for the other towns, from the map's meter (src/core/map.js FlowMeter), so a town's row
+   reads as its map label does (review of 2026.11.19-8: Pine Hollow +1/s here and +9/s on the map, since an outpost's
+   bounties come in bursts a few seconds miss). Without it, the lifetime coins between the snapshots. */
+export function explainEmpireIncome(game, before, now, seconds, others = null) {
   const ex = explainIncome(game.town, before.active === now.active ? before.tally : now.tally, now.tally, before.active === now.active ? seconds : 0);
   for (const [id, n] of Object.entries(now.life)) {
     if (id === now.active) continue;
-    const d = n - ((before.life && before.life[id]) || 0);
-    if (d > 1e-9 && seconds > 0) ex.rows.push({ key: 'town:' + id, label: townName(id), value: d / seconds });
+    const d = n - ((before.life && before.life[id]) || 0), v = others ? others[id] || 0 : seconds > 0 ? d / seconds : 0;
+    if (v > 1e-9) ex.rows.push({ key: 'town:' + id, label: incomeLabel('town:' + id), value: v });
   }
   ex.rows.sort((a, b) => b.value - a.value);
   ex.value = ex.rows.reduce((s, r) => s + r.value, 0);

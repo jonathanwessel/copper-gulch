@@ -41,8 +41,9 @@ export function retryLine(game, town) {
   if (st === 'stuck') return 'Go to ' + here + ' and raise a tower one level. Then it fights ' + what + ' again.';
   return 'Auto-towers will raise a tower. Then ' + here + ' fights ' + what + ' again.';
 }
-/* The warning line on the town's map card while its waves are on hold. */
+/* The warning line on the town's map card while its waves are on hold. It says the vault is full again, since the card
+   shows it at 100% beside "got through" (review of 2026.11.19-8). */
 export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
-  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.';
+  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through. The ' + storeOf(town) + ' is full again.' : 'The ' + storeOf(town) + ' fell and filled up again.') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.';
 }

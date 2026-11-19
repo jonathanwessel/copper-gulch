@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
-import { goalNow, goalText } from '../src/core/goals.js';
+import { goalNow, goalText, goalContext } from '../src/core/goals.js';
 import { setHold, wavesOf } from '../src/core/defense.js';
 import { canFound, foundTown } from '../src/core/empire.js';
 import { WAVE } from '../src/data/foes.js';
@@ -29,9 +29,12 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   g = gulch('rb1', 20, 500);
   const save = goalNow(g);
   assert.equal(save.id, 'g-save');
-  assert.equal(goalText(g, g.town, save), 'Tap Hold waves and save 15K coins for Iron Ridge');
-  assert.equal(TOWNS.ridge.found.coins, 15000, 'the line names the real price');
-  assert.deepEqual(save.at(), { el: '#holdWaves' });
+  assert.equal(goalText(g, g.town, save), 'Save coins to open Iron Ridge');
+  assert.equal(save.need, TOWNS.ridge.found.coins, 'the strip counts up to the real price');
+  assert.deepEqual(save.at(goalContext(g, g.town)), { el: '#holdWaves' });
+  g.town.waves.hold = true; // held: no spotlight on Hold waves
+  assert.equal(save.at(goalContext(g, g.town)), null);
+  g.town.waves.hold = false;
   g.town.coins = 15000;
   const go = goalNow(g);
   assert.equal(go.id, 'g-found');

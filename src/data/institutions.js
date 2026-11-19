@@ -63,4 +63,22 @@ export const INSTITUTIONS = [
     ],
   },
 ];
+/* What an institution does before it is built, with amounts: its first two kinds of upgrade, each with all its
+   upgrades bought ("You earn up to 39% more coins.", review of 2026.11.19-8: "More coins from everything you earn" said
+   no amount). Worked out from the nodes, so it never drifts from them. */
+const SAYS = {
+  price: p => 'Goods sell for up to ' + p + '% more.', influence: p => 'Contracts pay up to ' + p + '% more Influence.',
+  'prod:outpost': p => 'Your outposts make up to ' + p + '% more goods.', prod: p => 'Every building makes up to ' + p + '% more goods.',
+  'cost:build': p => 'Buildings cost up to ' + p + '% less.', income: p => 'You earn up to ' + p + '% more coins.',
+  cost: p => 'Everything costs up to ' + p + '% less.', research: p => 'Research is up to ' + p + '% faster.',
+  'cost:research': p => 'Research costs up to ' + p + '% less.', towerRange: p => 'Towers reach up to ' + p + '% farther.',
+  towerDmg: p => 'Towers hit up to ' + p + '% harder.', vault: p => 'Your vault takes up to ' + p + '% more hits.',
+  bounty: p => 'Raiders drop up to ' + p + '% more coins.', towerRate: p => 'Towers shoot up to ' + p + '% faster.',
+};
+export function aboutWithAmounts(inst, kinds = 2) {
+  const all = new Map();
+  for (const n of inst.nodes) for (const e of n.effects) { const k = e.stat + (e.where ? ':' + e.where : ''); all.set(k, (all.get(k) || 1) * e.mul); }
+  return [...all].slice(0, kinds).map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))).join(' ');
+}
+for (const i of INSTITUTIONS) i.about = aboutWithAmounts(i);
 export const INSTITUTION = Object.fromEntries(INSTITUTIONS.map(i => [i.id, i]));

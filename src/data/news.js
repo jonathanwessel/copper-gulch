@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-9',
+    lines: [
+      'In Income, other towns read Earned in and the town name, with the same coins a second as the map.',
+      'Tower damage rounds the way you would, so its parts multiply to the total.',
+      'Before you build them, the Capital buildings say how much they give, like You earn up to 39% more coins.',
+      'The Iron Ridge goal asks for one thing at a time and counts your coins up to the price.',
+      'A workshop that makes nothing right now says None right now.',
+      'After a lost wave, the map says the vault is full again.',
+    ],
+  },
+  {
     v: '2026.11.19-8',
     lines: [
       'In Silver Falls, a workshop card shows how much power the Water Wheel makes and how much your workshops use.',

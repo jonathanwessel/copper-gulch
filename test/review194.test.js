@@ -29,7 +29,7 @@ test('a workshop short of its input shows what it really makes, and the breakdow
 });
 
 test('the old-ground bonus on the tower card says where it comes from', () => {
-  assert.match(OLD_LABEL, /before you signed/);
+  assert.match(OLD_LABEL, /beat your best wave/); // the explainer's words (review of 2026.11.19-8)
 });
 
 test('the update line has no doubled or clipped dots', async () => {

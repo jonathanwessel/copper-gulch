@@ -2,7 +2,7 @@
    works out: the starting value, one row per level, path, market or bonus, and the total. Also the Income sheet
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
-import { fmt, fmtPrice, fmtLive, priceNum, splitLive } from './format.js';
+import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -19,6 +19,7 @@ export function unitText(unit, v, extra = {}) {
   if (unit === 'hits') return Math.round(v) + (Math.round(v) === 1 ? ' hit' : ' hits');
   if (unit === 'shots') return shotsWord(v);
   if (unit === 'reach') return reachWord(v, extra.minRange);
+  if (unit === 'dmg') return fmtDmg(v);
   return fmt(v);
 }
 /* A factor, written as one ("× 1.15", "× 3.7", "× 0.82"): the parts multiply, so they never read as if they add. */
@@ -31,8 +32,10 @@ export function mulText(m, digits) {
 }
 /* A factor as written. A factor under 0.01 keeps a digit (see places), so it never reads "× 0" (review 2026-11-18). */
 const mulWord = v => '× ' + (v < 1e-6 ? 'almost 0' : String(+v.toFixed(7))); // a factor is never 0: one too small to write reads "almost 0"
+/* A factor under 0.01 as "÷ 2,000" (review of 2026.11.19-8: "× almost 0" put a factor in words). Two digits that count. */
+export const divText = m => '÷ ' + (m > 0 ? Number((1 / m).toPrecision(2)).toLocaleString('en-US') : 'a lot');
 /* A total as written, the way unitText shows it. */
-const shownNum = (unit, v) => (unit === 'coins' && v > 0 && v < 10 ? (v < .0095 ? 'almost' : priceNum(v)) : fmt(v));
+const shownNum = (unit, v) => (unit === 'coins' && v > 0 && v < 10 ? (v < .0095 ? 'almost' : priceNum(v)) : unit === 'dmg' ? fmtDmg(v) : fmt(v));
 /* The factors as written, so that the start times them gives the total as written (a level 6 tower read
    "36 × 1.3 × 1.3 = 59", owner review 2026-11-18). Each factor is its value rounded to 1 or 2 decimals, or 2 or 3 if
    needed, and at 3 decimals up or down, whichever makes the product read right. Returns one number per row (null for a starting value). */
@@ -62,9 +65,9 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
   const box = el('div', 'explain why');
   const row = (a, b, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, b)); box.append(r); };
   const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
-  // a price that reads "almost 0 coins": a factor under 0.01 reads "× almost 0" with it, so the box adds up in words
+  // a price that reads "almost 0 coins": a factor under 0.01 reads "÷ 2,000" with it
   const almost = ex.unit === 'coins' && shownNum('coins', ex.value) === 'almost';
-  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? '× almost 0' : vals ? mulWord(vals[i]) : mulText(r.mul));
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul));
   if (ex.rows.length > 1 || ex.unit === 'reach') row(total, unitText(ex.unit, ex.value, extra), 'total');
   return box;
 }
