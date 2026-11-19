@@ -36,7 +36,7 @@ test('a building\'s output is its level, milestones and every bonus, multiplied'
     assert.equal(ex.unit, 'rate');
   }
   const camp = explainOutput(t, 'camp');
-  assert.equal(camp.rows[0].label, 'Base at level 25');
+  assert.equal(camp.rows[0].label, 'Before bonuses'); // the level is on the card already (review of 2026.11.19-5)
   assert.ok(camp.rows.some(r => r.label === 'Level 10 and 25 bonuses' && r.mul === 4));
   assert.ok(explainOutput(t, 'saw').rows.some(r => r.label === 'Level 10 bonus' && r.mul === 2));
   assert.ok(camp.rows.some(r => r.label === 'Sharp Saws research' && near(r.mul, 1.5)));

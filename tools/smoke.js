@@ -460,6 +460,24 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(reveal)) if (!v) bad.push('buttons and toasts: not ' + k);
+      // a toast never covers the top bar (Pause, the wave row, the coins) or an open sheet: with no room it waits until the
+      // sheet closes (review of 2026.11.19-5: a toast over Pause on the Perks sheet)
+      const overSheet = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), { toast } = await import(new URL('src/ui/play.js', location.href));
+        for (let i = 0; i < 40 && document.querySelector('.toast'); i++) await wait(100); // the lines before it go first
+        CG.play.openPerks(); await wait(300);
+        toast('Smoke sheet line.', 1200);
+        let t = null; for (let i = 0; i < 20 && !t; i++) { await wait(100); t = [...document.querySelectorAll('.toast')].find(n => n.textContent === 'Smoke sheet line.'); }
+        if (!t) return 'no toast';
+        const hit = (a, r) => a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top;
+        const covers = t.classList.contains('wait') ? [] : [...document.querySelectorAll('.hud .hudleft, .hud .hudright, .sheet, #pauseBtn, #holdWaves')].filter(n => { const r = n.getBoundingClientRect(); return r.width && hit(t.getBoundingClientRect(), r); }).map(n => n.id || n.className);
+        const waited = t.classList.contains('wait');
+        document.getElementById('sheetClose').click(); await wait(600);
+        if (covers.length) return 'covers ' + covers.join(', ');
+        if (waited && (!t.isConnected || t.classList.contains('wait'))) return 'did not show once the sheet closed';
+        return '';
+      });
+      if (overSheet) bad.push('a toast over the Perks sheet: ' + overSheet);
       // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
       await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));
@@ -763,8 +781,9 @@ async function run() {
       const onBadge = await page.evaluate(async () => {
         const { toast } = await import('./src/ui/play.js'); toast('Smoke map line.', 2000); await new Promise(r => setTimeout(r, 500));
         const t = [...document.querySelectorAll('.toast')].find(n => n.textContent === 'Smoke map line.'); if (!t) return 'no toast';
+        if (t.classList.contains('wait')) return ''; // no free place: it waits, covering nothing
         const a = t.getBoundingClientRect();
-        return [...document.querySelectorAll('.mapbadge')].filter(n => { const r = n.getBoundingClientRect(); return r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top; }).map(n => n.textContent.slice(0, 20)).join(' | ');
+        return [...document.querySelectorAll('.mapbadge:not(.undertoast)')].filter(n => { const r = n.getBoundingClientRect(); return r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top; }).map(n => n.textContent.slice(0, 20)).join(' | ');
       });
       if (onBadge) bad.push('a toast on the map covers ' + onBadge);
       const m = await page.evaluate(() => ({

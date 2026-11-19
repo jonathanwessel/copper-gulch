@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
-import { fmt, fmtLive } from './format.js';
+import { fmt, fmtLive, splitLive } from './format.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
@@ -100,7 +100,7 @@ export function mountMap(root, game, view, shell) {
     badge[s.id].line.append(badge[s.id].wave, vault);
   }
 
-  let openId = null, cardAcc = 0, acc = 1, lastTap = { id: null, t: 0 }, cap = null;
+  let openId = null, acc = 1, lastTap = { id: null, t: 0 }, cap = null;
   function openSite(id) {
     if (!id) { close(); return; }
     const now = performance.now();
@@ -110,7 +110,7 @@ export function mountMap(root, game, view, shell) {
     openId = id; card.hidden = false; card.dataset.site = id; paintCard();
     view.select(id === 'income' ? null : id); acc = 1;
   }
-  function close() { view.select(null); openId = null; cap = null; card.hidden = true; card.replaceChildren(); delete card.dataset.site; delete card.dataset.sig; }
+  function close() { cardBox = null; view.select(null); openId = null; cap = null; card.hidden = true; card.replaceChildren(); delete card.dataset.site; delete card.dataset.sig; }
   const head = (text, sub) => { const h = el('div', 'cardhead'), x = el('button', 'btn small', 'Close'); x.id = 'mapClose'; x.addEventListener('click', close); h.append(el('h2', '', text)); if (sub) h.append(el('span', 'lv', sub)); h.append(x); return h; };
   const stat = (label, value, cls = '') => { const r = el('div', 'stat static ' + cls); r.append(el('span', '', label), el('b', '', value)); return r; };
   function paintCard() {
@@ -122,9 +122,9 @@ export function mountMap(root, game, view, shell) {
     if (id === 'income') {
       kids.push(head('Income', 'Coins a second'));
       const rows = Object.keys(game.towns).map(t => [t, shell.meter ? shell.meter.income[t] || 0 : 0]).sort((a, b) => b[1] - a[1]);
-      const box = el('div', 'explain why');
-      for (const [t, n] of rows) { const r = el('div'); r.append(el('span', '', nameOf(t)), el('b', '', fmtLive(n))); box.append(r); }
-      const tot = el('div', 'total'); tot.append(el('span', '', 'All your towns'), el('b', '', fmtLive(shell.meter ? shell.meter.total : 0))); box.append(tot);
+      const box = el('div', 'explain why'), sp = splitLive(shell.meter ? shell.meter.total : 0, rows.map(r => r[1])); // rows add up as written
+      for (const [i, [t]] of rows.entries()) { const r = el('div'); r.append(el('span', '', nameOf(t)), el('b', '', sp.rows[i] || '0')); box.append(r); }
+      const tot = el('div', 'total'); tot.append(el('span', '', 'All your towns'), el('b', '', sp.total)); box.append(tot);
       kids.push(box);
     } else if (game.towns[id]) {
       const t = game.towns[id], info = siteInfo(game, id, shell.meter), d = TOWNS[id];
@@ -165,7 +165,9 @@ export function mountMap(root, game, view, shell) {
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
-          const have = r.kind === 'coins' ? fmt(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Best wave ' + (from ? from.bestWave || 0 : 0);
+          // the wave the town's own label shows, out of the one it needs ("Best wave 9" beside its "Wave 10" label read as
+          // wrong, and "21 waves to go" did not match 30 minus 10, review of 2026.11.19-5); coins as the top bar writes them
+          const have = r.kind === 'coins' ? fmtLive(from ? from.coins : 0) + ' / ' + fmt(r.coins) : 'Wave ' + (from ? from.wave : 1) + ' / ' + r.wave;
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : have, r.done ? 'done' : 'short'));
         } else kids.push(el('p', 'uses', ruleText(game, r)));
       }
@@ -222,7 +224,7 @@ export function mountMap(root, game, view, shell) {
   // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
   // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
   // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
-  const widths = {}, heights = {}; let bar = [];
+  const widths = {}, heights = {}; let bar = [], cardBox = null;
   function placeBadges() {
     const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
@@ -232,6 +234,10 @@ export function mountMap(root, game, view, shell) {
       shown.push({ B, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
     }
     for (const r of liftBadges(shown, bar)) {
+      // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
+      const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
+      if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;
+      if (under) continue;
       const tr = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px) translate(-50%, -100%)`;
       if (r.B.b.style.transform !== tr) r.B.b.style.transform = tr;
     }
@@ -246,11 +252,12 @@ export function mountMap(root, game, view, shell) {
         acc = 0; paintBadges(); paintPause();
         for (const s of view.sites) if (!badge[s.id].b.hidden) { widths[s.id] = badge[s.id].b.offsetWidth; heights[s.id] = badge[s.id].b.offsetHeight; }
         const c = card.hidden ? null : card.getBoundingClientRect();
+        cardBox = c && c.height ? { l: c.left, t: c.top, r: c.right, b: c.bottom } : null;
         bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
-      if (openId && (cardAcc += dt) > .5) { cardAcc = 0; paintCard(); }
+      if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)
     },
     destroy() { offLost(); offDone(); ui.remove(); },
   };

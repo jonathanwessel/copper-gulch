@@ -417,7 +417,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
   let cardTop = 0;
-  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '';
+  let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
+  const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
     // a card at the bottom opens above the goods strip, so the counts stay in view (owner rule: you can always see what
     // you have; review of 2026.11.19-4: the mortar pit card cut off the timber count)
@@ -445,6 +446,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null);
     }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
+    { const b = left.getBoundingClientRect(); leftBox = b.height ? { l: b.left, r: b.right, b: b.bottom } : null; }
+    for (const t of Object.values(tag)) if (!t.hidden) tagSize.set(t, [t.offsetWidth, t.offsetHeight]);
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
     markBox = null;
@@ -501,7 +504,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const flat = !p && document.documentElement.classList.contains('flat');
       if ((!p && !flat) || (!L && !un)) { t.hidden = true; continue; }
       const px = p && markTg && markTg.plot === id && markW ? Math.min(Math.max(p.x, markW / 2), innerWidth - markW / 2) : p && p.x;
-      t.hidden = false; if (p) t.style.transform = `translate(${px.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
+      // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
+      // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
+      let py = p && p.y;
+      if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; if (px - tw / 2 < leftBox.r && px + tw / 2 > leftBox.l && py > leftBox.b && py - th < leftBox.b + 2) py = leftBox.b + 2 + th; } // (only while its building shows below the bar)
+      t.hidden = false; if (p) t.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
       const txt = (flat || (markTg && markTg.plot === id) ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
       if (t.textContent !== txt) t.textContent = txt;
       t.classList.toggle('short', !!(L && town.starved[id]));
@@ -549,14 +556,20 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
    waiting is not added again. While others wait, each one stays up a little shorter. first: it goes to the front of the
-   line (the Welcome back line, which comes after catching up and would wait behind the news of the time away). */
-const toasts = { queue: [], up: null, el: null };
-export function placeToasts() { if (toasts.el) placeToast(toasts.el); }
+   line (the Welcome back line, which comes after catching up and would wait behind the news of the time away).
+   A toast only shows where it covers nothing the player needs: not the top bar (with Pause and the wave row), not an
+   open card or sheet, not a town's label on the map. On the map, when the labels leave no place, it shows under the top
+   bar and the labels it would cut in half hide until it goes. When there is no place at all (a sheet as tall as the
+   phone), it waits, hidden, with its time stopped, until there is one (review of 2026.11.19-5: a toast over Pause on
+   the Perks sheet, and over the labels round the Capital). */
+const toasts = { queue: [], up: null, el: null, left: 0, tick: null, last: 0 };
+const TICK = 200;
+export function placeToasts() { if (toasts.el) showIfRoom(toasts.el); }
 /* Take away every toast of one kind, showing or waiting (review of 2026.11.19-3: the lost toast from the town sat over the
    map's town labels when the map opened, and the map already shows that town on hold). */
 export function dropToasts(kind) {
   toasts.queue = toasts.queue.filter(q => q.kind !== kind);
-  if (toasts.up && toasts.up.kind === kind && toasts.el) { const t = toasts.el; toasts.el = null; t.remove(); clearTimeout(toasts.timer); nextToast(); }
+  if (toasts.up && toasts.up.kind === kind && toasts.el) { const t = toasts.el; toasts.el = null; t.remove(); unhide(); clearTimeout(toasts.tick); nextToast(); }
 }
 export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
@@ -564,56 +577,69 @@ export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if (toasts.queue.length > 3) { if (first) toasts.queue.pop(); else toasts.queue.shift(); }
   if (!toasts.up) nextToast();
 }
+const boxes = sel => [...document.querySelectorAll(sel)].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
 /* The lowest edge of the top bar's two columns (one read per toast), or null to keep the place in the stylesheet. */
 function underHud() {
   let y = 0;
-  for (const n of document.querySelectorAll('.hud .hudleft, .hud .hudright')) { const b = n.getBoundingClientRect(); if (b.height) y = Math.max(y, b.bottom); }
+  for (const b of boxes('.hud .hudleft, .hud .hudright')) y = Math.max(y, b.bottom);
   return y && y + 8 < innerHeight * .6 ? Math.round(y + 8) : null;
 }
 /* A toast never covers an open card (review 2026-11-18: "The Capital is built." sat on the card's title in landscape).
-   A card on the right side (landscape) moves the toast into the space left of it; a card below (portrait) keeps the
-   toast above the card's top edge when there is room. Exported for the smoke test. */
+   A card on the right side (landscape) moves the toast into the space left of it. Exported for the smoke test. */
 export function clearOfCards(t) {
   if (!t.isConnected) return;
-  const cards = [...document.querySelectorAll('.card, .sheet')].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
-  const hit = (a, r) => a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top;
-  for (const r of cards) {
-    const a = t.getBoundingClientRect();
-    if (!hit(a, r)) continue;
-    if (r.left > innerWidth * .35) { // a side card: center the toast in the space to its left
-      const room = r.left - 20;
-      t.style.maxWidth = Math.max(120, room - 12) + 'px'; t.style.left = Math.round(Math.max(10, room / 2 + 10 - Math.min(a.width, room - 12) / 2)) + 'px'; t.style.transform = 'none';
-    } else if (r.top - a.height - 8 > 0) t.style.top = Math.round(Math.max(8, Math.min(a.top, r.top - a.height - 8))) + 'px';
+  const a = t.getBoundingClientRect();
+  for (const r of boxes('.card, .sheet')) {
+    if (!(r.left > innerWidth * .35 && a.left < r.right && a.right > r.left)) continue; // a side card: center the toast in the space to its left
+    const room = r.left - 20;
+    t.style.maxWidth = Math.max(120, room - 12) + 'px'; t.style.left = Math.round(Math.max(10, room / 2 + 10 - Math.min(a.width, room - 12) / 2)) + 'px'; t.style.transform = 'none';
+    return;
   }
 }
-/* On the map and the Capital, a toast never covers a town's label (review of 2026.11.19-4): it moves down to the first
-   place where it covers no label and no card, or stays where it is when there is none. Exported for the smoke test. */
-export function clearOfBadges(t) {
-  if (!t.isConnected) return;
-  const rects = sel => [...document.querySelectorAll(sel)].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
-  const badges = rects('.mapbadge');
-  if (!badges.length) return;
-  const all = [...badges, ...rects('.card, .sheet')], a = t.getBoundingClientRect();
+/* The first height, from just under the top bar down, where the toast covers no part of the top bar, no card or sheet
+   and no town label, or null when there is none. Exported for the smoke test. */
+export function clearOfBadges(t, labels = true) {
+  if (!t.isConnected) return null;
+  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet' + (labels ? ', .mapbadge' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
+  const a = t.getBoundingClientRect(), from = underHud() ?? a.top;
   const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
-  if (!hitAt(a.top)) return;
-  for (let y = Math.ceil(a.top) + 6; y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) { t.style.top = y + 'px'; return; }
+  for (let y = Math.ceil(from); y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) return y;
+  return null;
 }
-/* Below the top bar (measured again later: a toast from a town switch comes before the new town's bar), then clear of
-   cards and of the map's labels. */
+/* Place it: under the top bar, beside a side card, then at the first free height. False when there is no room. */
 function placeToast(t) {
-  if (!t.isConnected) return;
+  if (!t.isConnected) return false;
   t.style.left = ''; t.style.transform = ''; t.style.maxWidth = '';
   const below = underHud(); t.style.top = below ? below + 'px' : '';
   clearOfCards(t);
-  clearOfBadges(t);
+  for (const n of document.querySelectorAll('.mapbadge.undertoast')) n.classList.remove('undertoast');
+  let y = clearOfBadges(t), hide = false;
+  if (y === null && document.querySelector('.mapbadge')) { y = clearOfBadges(t, false); hide = true; }
+  if (y === null) return false;
+  t.style.top = y + 'px';
+  if (hide) {
+    const a = t.getBoundingClientRect();
+    for (const n of document.querySelectorAll('.mapbadge')) { const r = n.getBoundingClientRect(); if (r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top) n.classList.add('undertoast'); }
+  }
+  return true;
 }
+const unhide = () => { for (const n of document.querySelectorAll('.mapbadge.undertoast')) n.classList.remove('undertoast'); };
+function showIfRoom(t) { const ok = placeToast(t); t.classList.toggle('wait', !ok); return ok; }
 function nextToast() {
+  clearTimeout(toasts.tick);
   const q = toasts.queue.shift();
-  if (!q) { toasts.up = null; return; }
+  if (!q) { toasts.up = null; toasts.el = null; return; }
   const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
   document.body.append(t);
-  placeToast(t); setTimeout(() => placeToast(t), 350); // a card opened by the same tap, or the new town's top bar after a switch
-  toasts.up = q; toasts.el = t;
-  const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;
-  toasts.timer = setTimeout(() => { t.classList.add('out'); toasts.timer = setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);
+  toasts.up = q; toasts.el = t; toasts.left = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms; toasts.last = performance.now();
+  showIfRoom(t);
+  // placed again every tick: a card opened by the same tap, the new town's top bar after a switch, a sheet closing
+  const tick = () => {
+    if (toasts.el !== t) return;
+    const now = performance.now(), dt = now - toasts.last; toasts.last = now;
+    if (showIfRoom(t)) toasts.left -= dt; // its time only runs while it shows
+    if (toasts.left > 0) { toasts.tick = setTimeout(tick, TICK); return; }
+    t.classList.add('out'); toasts.tick = setTimeout(() => { t.remove(); unhide(); if (toasts.el === t) nextToast(); }, 400);
+  };
+  toasts.tick = setTimeout(tick, TICK);
 }

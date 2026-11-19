@@ -92,6 +92,7 @@ test('a contract taken: its town sends the goods before the market, the Sell swi
   assert.ok(t.lifetime - life >= o.coins, 'its coins are the town\'s own earnings');
   assert.ok(t.tally.contract >= o.coins);
   assert.equal(incomeLabel('contract'), 'Contracts for the Capital');
+  assert.equal(incomeLabel('town:gulch'), 'Earned in Copper Gulch'); // says what the row is (review of 2026.11.19-5)
   assert.ok(s / 4 / 60 < o.minutes * 2.5, 'it took about as long as it said (' + (s / 240).toFixed(1) + ' min for ' + o.minutes + ')');
 });
 

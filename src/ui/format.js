@@ -54,3 +54,26 @@ export function perSecond(n, good) {
   const v = fmt(n);
   return v + ' ' + (v === '1' ? oneOf(good) : good.name.toLowerCase()) + ' a second';
 }
+
+/* Rows that add up to their total as written (review of 2026.11.19-5: "4.7 + 0.6 + 0.0" under "+5.4/s"). The total is
+   written as fmtLive writes it, rounding down; the rows share its last digit's steps by the largest remainder, so the
+   written rows always sum to the written total. A row too small for one step reads "under 0.1" (or "under 10" and so on
+   at a bigger total), never 0. */
+const liveStep = n => {
+  if (n < 1000) return 1;
+  const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(n) / 3)), v = n / 10 ** (i * 3);
+  return 10 ** (i * 3) * (v < 10 ? .01 : v < 100 ? .1 : 1);
+};
+export function splitLive(total, values) {
+  total = isFinite(total) && total > 0 ? total : 0;
+  const tenths = total < 10, step = tenths ? 1 : liveStep(total);
+  const units = tenths ? Math.floor(total * 10 + 1e-9) : Math.floor(total / step + 1e-9); // the same rounding as fmtLive
+  const raw = values.map(v => (isFinite(v) && v > 0 ? (tenths ? v * 10 : v / step) : 0)), got = raw.map(r => Math.floor(r + 1e-9));
+  let left = units - got.reduce((s, g) => s + g, 0);
+  const order = raw.map((r, i) => [r - got[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  for (let k = 0; left > 0 && order.length; k = (k + 1) % order.length, left--) got[order[k][1]]++;
+  while (left < 0) { const i = got.indexOf(Math.max(...got)); got[i]--; left++; } // only from float slack
+  const write = u => (tenths ? (u / 10).toFixed(1) : fmtLive(u * step * (1 + 1e-9)));
+  const under = 'under ' + (tenths ? '0.1' : fmtLive(step * (1 + 1e-9)));
+  return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? under : null)) };
+}

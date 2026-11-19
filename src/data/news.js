@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-6',
+    lines: [
+      'The coins you earn from each place now add up to the total shown.',
+      'A message waits while a menu fills the screen, so it never covers Pause.',
+      'Building levels stay in view under the goal at the top.',
+      'A locked town on the map shows its wave next to the wave it needs.',
+    ],
+  },
+  {
     v: '2026.11.19-5',
     lines: [
       'A workshop that runs short shows how much it really makes, and tapping it shows what it is short of.',

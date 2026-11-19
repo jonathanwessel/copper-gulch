@@ -2,7 +2,7 @@
    works out: the starting value, one row per level, path, market or bonus, and the total. Also the Income sheet
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
-import { fmt, fmtPrice, fmtLive, priceNum } from './format.js';
+import { fmt, fmtPrice, fmtLive, priceNum, splitLive } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -78,9 +78,11 @@ export function incomeSheet(income) {
     body.append(parts, bsec);
     let sig = '';
     const paint = () => {
-      const ex = income(), rows = ex.rows.map(r => [r.label, '+' + unitText('rate', r.value)]);
+      // the rows add up to the total as written (review of 2026.11.19-5: 4.7 + 0.6 + 0.0 under +5.4/s)
+      const ex = income(), sp = splitLive(ex.value, ex.rows.map(r => r.value));
+      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, (v.startsWith('under') ? '' : '+') + v + '/s']);
       if (!rows.length) rows.push(['No coins in the last few seconds', '']);
-      else rows.push(['Total', '+' + unitText('rate', ex.value), 'total']);
+      else rows.push(['Total', '+' + sp.total + '/s', 'total']);
       const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), mulText(r.mul)]);
       const s = JSON.stringify([rows, b]);
       if (s === sig) return; sig = s;
@@ -88,8 +90,10 @@ export function incomeSheet(income) {
       fill(parts, rows); fill(bonus, b); bsec.hidden = !b.length;
     };
     paint();
-    let acc = 0;
-    return dt => { if ((acc += dt) < .5) return; acc = 0; paint(); };
+    // painted whenever the top bar writes a new number (it keeps the object until then), so the two always agree
+    // (review of 2026.11.19-5: the sheet painted every 0.5 s and the bar every 0.2 s, +28/s beside +25/s)
+    let last = income();
+    return () => { const ex = income(); if (ex === last) return; last = ex; paint(); };
   };
 }
 

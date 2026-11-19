@@ -258,6 +258,7 @@ html.flat .tag { position: static; transform: none !important; }
   box-shadow: 3px 3px 0 rgba(22, 15, 11, .6); animation: riseX .3s both; transition: opacity .4s; pointer-events: none;
 }
 .toast.out { opacity: 0; }
+.toast.wait, .mapbadge.undertoast { visibility: hidden; } /* no room to show it yet: it waits with its time stopped (src/ui/play.js) */
 /* a dot on a button: something there wants you (src/core/reveal.js) */
 .btn.dot { position: relative; }
 .btn.dot::after { content: ""; position: absolute; top: -6px; right: -6px; width: 12px; height: 12px; border-radius: 50%; background: #e8392c; border: 2px solid var(--line); animation: dotPulse 1.2s ease-in-out infinite; }

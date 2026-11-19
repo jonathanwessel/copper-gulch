@@ -28,7 +28,7 @@ const done = (unit, rows) => ({ unit, rows, value: total(rows) });
 /* A building's output a second at full supply. */
 export function explainOutput(town, id) {
   const b = BUILDINGS[id], L = town.level(id), m = milestonesAt(L);
-  const rows = [{ label: 'Base at level ' + L, base: b.rate * L }];
+  const rows = [{ label: 'Before bonuses', base: b.rate * L }]; // the card shows the level, so this row does not say it again (review of 2026.11.19-5)
   // each milestone level reached doubles it: "Level 10 bonus", "Level 10 and 25 bonuses"
   const at = MILESTONES.filter(x => L >= x), list = at.length > 1 ? at.slice(0, -1).join(', ') + ' and ' + at[at.length - 1] : String(at[0]);
   if (m) rows.push({ label: 'Level ' + list + (m === 1 ? ' bonus' : ' bonuses'), mul: 2 ** m });
@@ -107,7 +107,7 @@ const townName = id => (TOWNS[id] ? TOWNS[id].name : id);
 export function incomeLabel(key) {
   const [kind, id] = key.split(':');
   if (kind === 'sale') return 'Selling ' + (GOODS[id] ? GOODS[id].name.toLowerCase() : id);
-  if (kind === 'town') return townName(id);
+  if (kind === 'town') return 'Earned in ' + townName(id); // a town's name alone did not say what the row was (review of 2026.11.19-5)
   if (kind === 'bounty') return 'Raiders beaten';
   if (kind === 'call') return 'Waves called early';
   if (kind === 'contract') return 'Contracts for the Capital';
