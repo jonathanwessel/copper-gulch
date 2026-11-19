@@ -22,6 +22,7 @@ export function goalContext(game, town) {
     built: kind => towers.some(t => t.kind === kind), pathed: () => towers.some(t => t.path),
     topLevel: () => towers.reduce((a, t) => Math.max(a, t.level), 0),
     called: () => !!(town.flags && town.flags.called),
+    wonIn: id => !!(game.towns[id] && game.towns[id].won), inPlay: game.active === town.id,
     founded: id => !!game.towns[id], lvIn: (tid, id) => game.towns[tid] ? game.towns[tid].level(id) : 0, canFound: id => canFound(game, id), held: () => !!(town.waves && town.waves.hold),
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
     visited: id => !!sh.visited[id] || game.active === id,

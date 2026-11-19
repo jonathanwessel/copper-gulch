@@ -127,7 +127,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
   ui.append(tags, hud, strip, card, mark, banner);
   root.append(ui);
-  const sheets = createSheets(ui, { onOpen: () => close() });
+  requestAnimationFrame(placeToasts); // a toast from the switch here came before this top bar
+  const sheets = createSheets(ui, { onOpen: () => { close(); requestAnimationFrame(placeToasts); } });
   const openGoods = (focus = null) => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
   const menuCtx = { game, audio: shell.audio || null, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
@@ -322,10 +323,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
     card.append(...whyBox);
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
+    // the main action stays at the card's bottom edge while the card scrolls (Evaluation 2, landscape): the path choice,
+    // or the cost, what is short and the Upgrade button
+    const path = t.level + 1 === PATH_LEVEL, bar = el('div', path ? 'buybar pathbar' : 'buybar');
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      ph.append(pt, costRow(c)); card.append(ph);
+      ph.append(pt, costRow(c)); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
@@ -335,20 +339,23 @@ export function mountPlay(root, game, viewApi, shell = {}) {
           armed = { spot: i, path: key, at: Date.now() }; paintCard();
           setTimeout(() => { if (armed && Date.now() - armed.at >= 4000) { armed = null; paintCard(); } }, 4100);
         });
-        opt.append(txt, go); card.append(opt);
+        opt.append(txt, go); bar.append(opt);
       }
+      head.after(bar); // too tall to pin on a short screen: the choice comes first, right under the name
     } else {
       const up = el('button', 'btn primary buy', 'Upgrade'); up.id = 'buy'; up.disabled = !canPay(town, c);
       up.addEventListener('click', () => { if (upgradeTower(game, town, i)) paintCard(); });
-      card.append(costRow(c));
+      bar.append(costRow(c));
       row.append(up);
     }
     const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
-    if (sh.length) for (const s of sh) card.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
-    else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
+    const lines = path ? card : bar;
+    if (sh.length) for (const s of sh) lines.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
+    else if (keepText(c)) lines.append(el('p', 'uses', keepText(c)));
     const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    row.append(sell); card.append(row);
+    row.append(sell);
+    if (path) card.append(row); else { bar.append(row); card.append(bar); }
   }
 
   // news from the road
@@ -376,7 +383,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     layer.id = 'lostCard';
     for (const l of c.lines) body.append(el('p', null, l));
     const ok = el('button', 'btn primary', 'Got it'); ok.id = 'lostOk';
-    ok.addEventListener('click', () => layer.remove());
+    ok.addEventListener('click', () => { layer.remove(); paintGoal(0); });
     card.append(el('b', 'newstitle', c.title), body, ok); layer.append(card); root.append(layer);
     paintCtl();
   }
@@ -385,8 +392,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let goalId = null, goalCur = null, doneFor = 0;
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
-    const g0 = goalNow(game), now = boss && sendsAway(g0) ? null : g0, sh = game.shared.goals || { done: {} }; // a boss fight here: no goal that sends you away
-    if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); }
+    const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), now = (boss && sendsAway(g0)) || lostUp ? null : g0, sh = game.shared.goals || { done: {} }; // a boss fight here: no goal that sends you away
+    if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
       doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.text); goalId = null; goalCur = null;
@@ -402,6 +409,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
+  let cardTop = 0;
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null;
   function measure() {
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
@@ -410,6 +418,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (viewApi.setView) {
       let top = 0;
       for (const n of hud.querySelectorAll('.hudleft, .hudright')) { const b = n.getBoundingClientRect(); if (b.height) top = Math.max(top, b.bottom); }
+      // landscape cards and sheets start below Pause, Hold waves and the coins (Evaluation 2: a side card covered them)
+      let ct = 0;
+      for (const n of [right, ctl]) { const b = n.getBoundingClientRect(); if (b.height) ct = Math.max(ct, b.bottom); }
+      ct = Math.round(ct + 6);
+      if (ct > 6 && ct !== cardTop) { cardTop = ct; ui.style.setProperty('--cardtop', ct + 'px'); }
       const cb = openId && !card.hidden ? card.getBoundingClientRect() : null;
       viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null);
     }
@@ -514,7 +527,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
    waiting is not added again. While others wait, each one stays up a little shorter. first: it goes to the front of the
    line (the Welcome back line, which comes after catching up and would wait behind the news of the time away). */
-const toasts = { queue: [], up: null };
+const toasts = { queue: [], up: null, el: null };
+export function placeToasts() { if (toasts.el) placeToast(toasts.el); }
 export function toast(text, ms = 4000, { first = false } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
   if (first) toasts.queue.unshift({ text, ms }); else toasts.queue.push({ text, ms });
@@ -532,7 +546,7 @@ function underHud() {
    toast above the card's top edge when there is room. Exported for the smoke test. */
 export function clearOfCards(t) {
   if (!t.isConnected) return;
-  const cards = [...document.querySelectorAll('.card')].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
+  const cards = [...document.querySelectorAll('.card, .sheet')].map(n => n.getBoundingClientRect()).filter(r => r.width && r.height);
   const hit = (a, r) => a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top;
   for (const r of cards) {
     const a = t.getBoundingClientRect();
@@ -543,14 +557,20 @@ export function clearOfCards(t) {
     } else if (r.top - a.height - 8 > 0) t.style.top = Math.round(Math.max(8, Math.min(a.top, r.top - a.height - 8))) + 'px';
   }
 }
+/* Below the top bar (measured again later: a toast from a town switch comes before the new town's bar), then clear of cards. */
+function placeToast(t) {
+  if (!t.isConnected) return;
+  t.style.left = ''; t.style.transform = ''; t.style.maxWidth = '';
+  const below = underHud(); t.style.top = below ? below + 'px' : '';
+  clearOfCards(t);
+}
 function nextToast() {
   const q = toasts.queue.shift();
   if (!q) { toasts.up = null; return; }
   const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
-  const below = underHud(); if (below) t.style.top = below + 'px';
   document.body.append(t);
-  clearOfCards(t); setTimeout(() => clearOfCards(t), 350); // a card opened by the same tap
-  toasts.up = q;
+  placeToast(t); setTimeout(() => placeToast(t), 350); // a card opened by the same tap, or the new town's top bar after a switch
+  toasts.up = q; toasts.el = t;
   const ms = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms;
   setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); nextToast(); }, 400); }, ms);
 }

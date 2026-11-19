@@ -103,6 +103,7 @@ export function newcomer(seed, minutes = MINUTES) {
     // a lost boss holds the waves: the newcomer reads the card, builds a while, then taps Resume waves
     if (t.waves.autoHold && s % 4 === 0) { r.heldAt ??= at; if (at - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; } }
     if (r.dcWon === null && g.towns.drycreek.won) { r.dcWon = at; news(); }
+    if (r.pineWon == null && g.towns.pinehollow && g.towns.pinehollow.won) r.pineWon = at;
     const tb = tabs(g, t), shown = Object.keys(tb).filter(k => tb[k]).join(',');
     if (shown !== seenTabs) { seenTabs = shown; news(); } // a new button came out
     // stuck: nothing to pay for and nothing new on screen (measured each second, first hour only)
@@ -147,7 +148,7 @@ export function newcomer(seed, minutes = MINUTES) {
     if (tap.run()) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
-      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; news(); } // the first time: the resume step sends it back later
+      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; else if (tap.label === 'pinehollow') r.pineAt ??= at; news(); } // the first time: the resume step sends it back later
       else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
@@ -156,6 +157,7 @@ export function newcomer(seed, minutes = MINUTES) {
       next = at + rng.range(...WAIT);
     } else next = at + 1;
   }
+  r.end = now();
   r.final = Object.fromEntries(Object.entries(g.towns).map(([id, t]) => [id, { wave: t.wave, best: t.bestWave, towers: t.towers.map(x => x.kind + x.level + (x.path || '')), buildings: { ...t.buildings } }]));
   r.game = g;
   return r;
@@ -175,6 +177,9 @@ export function skillGap(nc, careful) {
 }
 
 /* The checks: Dry Creek won within 20 min, the Gulch's wave 10 within 14 min after it opens, never stuck 3 min. */
+/* Pine Hollow (Evaluation 2: the newcomer never went there): once the Ridge stands it goes there by the strip, and
+   wins it within PINE_WON of getting there. Checked when the run leaves that long after the Ridge was founded. */
+export const PINE_WON = 40 * 60;
 export const DC_WON = 20 * 60, GULCH_WAVE10 = 14 * 60, RIDGE_AT = 135 * 60; // Iron Ridge founded within 2 h 15 min of play
 export function misses(r) {
   const m = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
@@ -182,16 +187,20 @@ export function misses(r) {
   if (r.wave10 === null || r.wave10 > GULCH_WAVE10) m.push(`seed ${r.seed}: Copper Gulch wave 10 at ${mm(r.wave10)} after it opened (want within 14 min)`);
   if (r.held2.longest > HELD_LIMIT) m.push(`seed ${r.seed}: ${r.held2.town} held its waves for ${mm(r.held2.longest)} from minute ${(r.held2.at / 60).toFixed(1)} (want under ${HELD_LIMIT / 60} min)`);
   if (r.stuck.longest > STUCK_LIMIT) m.push(`seed ${r.seed}: stuck for ${mm(r.stuck.longest)} from minute ${(r.stuck.at / 60).toFixed(1)} (want under 3 min)`);
+  if (r.ridgeAt !== null && r.end - r.ridgeAt > PINE_WON + 15 * 60) {
+    if (r.pineAt == null) m.push(`seed ${r.seed}: never went to Pine Hollow (want the strip to send it there)`);
+    else if (r.pineWon == null || r.pineWon - r.pineAt > PINE_WON) m.push(`seed ${r.seed}: Pine Hollow won at ${mm(r.pineWon == null ? null : r.pineWon - r.pineAt)} after getting there (want within ${PINE_WON / 60} min)`);
+  }
   if (r.ridgeAt === null || r.ridgeAt > RIDGE_AT) m.push(`seed ${r.seed}: Iron Ridge founded at ${mm(r.ridgeAt)} of play (want within 2 h 15 min)`);
   return m;
 }
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/firstplay.js')) {
   const all = [], runs = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
-  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch) | longest hold not saving (town)');
+  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch) | longest hold not saving (town) | Pine Hollow (went at, won after)');
   for (let s = 1; s <= SEEDS; s++) {
     const r = newcomer(s);
-    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'})`);
+    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'}) | ${mm(r.pineAt ?? null)}, ${r.pineWon != null && r.pineAt != null ? mm(r.pineWon - r.pineAt) : 'never'}`);
     all.push(...misses(r)); runs.push(r);
   }
   const careful = []; for (let s = 1; s <= SEEDS; s++) careful.push(campaign(s, 'active', 15));

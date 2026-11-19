@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-3',
+    lines: [
+      'On a phone turned sideways, cards and menus open below Pause, Hold waves and your coins.',
+      'The Upgrade and Build buttons stay at the bottom of a card while you scroll it.',
+      'In Iron Ridge, the goal at the top now sends you to win Pine Hollow, then back.',
+      'Messages at the top move out of the way of open menus.',
+      'On the map, a locked town says when it opens, like Opens at wave 20 in Copper Gulch.',
+    ],
+  },
+  {
     v: '2026.11.19-2',
     lines: [
       'Tower cards show the coins you have next to the coins you need, red when you are short.',

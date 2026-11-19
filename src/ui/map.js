@@ -30,7 +30,7 @@ export const makesWords = id => TOWNS[id].makesText || goodsLower(makesOf(id));
 
 /* A rule a town not open yet has, in words; the badge gets the short form. */
 function ruleText(game, r, short = false) {
-  if (r.kind === 'wave') return (short ? 'Wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
+  if (r.kind === 'wave') return (short ? 'Opens at wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
   if (r.kind === 'deeds') return short ? r.deeds + ' deeds' : 'Deeds';
   if (r.kind === 'with') return short ? 'Needs ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
@@ -63,7 +63,7 @@ export function liftBadges(rs, bar = [], gap = 2) {
 /* shell: { meter, play(id) (fly into a town), back() (fly into the town in play), toast(text) } */
 export function mountMap(root, game, view, shell) {
   // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
-  const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false, game), 6000); });
+  const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false, game, true), 6000); });
   const offDone = game.bus.on('contract:done', e => { if (!game.catching && shell.toast) shell.toast(contractDone(e), 5000); });
   const ui = el('section', 'play mapui'); ui.id = 'map-ui';
   const hud = el('header', 'hud');

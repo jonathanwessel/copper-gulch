@@ -13,13 +13,13 @@ const storeOf = town => town.def.store || 'vault';
 
 /* The toast when it happens. here: the player is in this town now (it lost during time away). game: given, a town with
    Keep trying the boss on says it tries again by itself. */
-export function lostToast(town, here = false, game = null) {
+export function lostToast(town, here = false, game = null, onMap = false) {
   const l = town.lost || { why: 'vault', back: town.wave };
   if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' Its waves ' + AGAIN;
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
   return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.')
-    + ' Tap Map, then ' + town.def.name + ', then Resume waves.';
+    + (onMap ? ' Tap ' + town.def.name + ', then Play ' + (town.def.short || town.def.name) + ', then Resume waves.' : ' Tap Map, then ' + town.def.name + ', then Resume waves.');
 }
 /* The card when the boss gets through in the town in play (boss waves are gates, owner rule 2026-11-17): what
    happened, and what to do. The waves are on hold until the player taps Resume waves or Call now. */

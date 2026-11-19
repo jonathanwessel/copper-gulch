@@ -57,6 +57,9 @@ export const GOALS = [
   { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },
   // Iron Ridge
   { id: 'r-furnace', town: 'ridge', text: 'Tap the Blast Furnace, then tap Build', done: c => c.lv('furnace') >= 1, ready: c => c.unlocked('furnace'), at: () => ({ plot: 'furnace' }), within: RIDGE_GOAL },
+  // Pine Hollow (Evaluation 2): the newcomer never went there, since nothing on the strip sent it. Once the first
+  // workshop stands, the Ridge's strip sends the player to win Pine Hollow (and its bounties), then back.
+  { id: 'r-pine', town: 'ridge', text: 'Tap Map, Pine Hollow, then Play Pine Hollow', done: c => c.wonIn('pinehollow'), ready: c => c.lv('furnace') >= 1 && c.founded('pinehollow'), at: goTo('pinehollow'), away: true, within: RIDGE_GOAL },
   { id: 'r-boiler', town: 'ridge', text: 'Tap the Boiler Shop, then tap Build', done: c => c.lv('boilershop') >= 1, ready: c => c.unlocked('boilershop'), at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-steel5', town: 'ridge', text: 'Tap the Steel Mill and upgrade it to level 5', done: c => c.lv('steelmill') >= 5, ready: c => c.lv('steelmill') >= 1, at: () => ({ plot: 'steelmill' }), within: RIDGE_GOAL },
   { id: 'r-rolling', town: 'ridge', text: 'Tap the Rolling Mill, then tap Build', done: c => c.lv('rolling') >= 1, ready: c => c.unlocked('rolling'), at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
@@ -64,6 +67,12 @@ export const GOALS = [
   { id: 'r-rolling5', town: 'ridge', text: 'Tap the Rolling Mill and upgrade it to level 5', done: c => c.lv('rolling') >= 5, ready: c => c.lv('rolling') >= 1, at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
   { id: 'r-boiler5', town: 'ridge', text: 'Tap the Boiler Shop and upgrade it to level 5', done: c => c.lv('boilershop') >= 5, ready: c => c.lv('boilershop') >= 1, at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-loco', town: 'ridge', text: 'Tap the Locomotive Works, then tap Build', done: c => c.lv('loco') >= 1, ready: c => c.unlocked('loco'), at: () => ({ plot: 'loco' }), within: RIDGE_GOAL },
+  // Pine Hollow: a few towers, the Clay Bank, the win, then back to Iron Ridge
+  { id: 'p-tower', town: 'pinehollow', text: 'Tap a stone pad and build a Crossbow', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }), within: RIDGE_GOAL },
+  { id: 'p-clay', town: 'pinehollow', text: 'Tap the Clay Bank, then tap Build', done: c => c.lv('claybank') >= 1, ready: early(c => c.unlocked('claybank')), at: () => ({ plot: 'claybank' }), within: RIDGE_GOAL },
+  { id: 'p-three', town: 'pinehollow', text: 'Build Crossbows on 3 stone pads', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }), within: RIDGE_GOAL },
+  { id: 'p-win', town: 'pinehollow', text: 'Beat wave 15 to win Pine Hollow', done: c => c.won, within: RIDGE_GOAL },
+  { id: 'p-back', town: 'pinehollow', text: 'Tap Map, Iron Ridge, then Play Iron Ridge', done: c => c.won && !c.inPlay, ready: c => c.won, at: goTo('ridge'), away: true, within: RIDGE_GOAL },
   // Silver Falls (M5): the way up its chain to the Telegraph Works. The Wire Mill uses Gulch copper and the Dynamo and
   // Telegraph Works use Ridge steel and rails, so a missing maker there sends the player to that town.
   { id: 'f-sand4', town: 'falls', text: 'Tap the Sand Pit and upgrade it to level 4', done: c => c.lv('sandpit') >= 4, at: () => ({ plot: 'sandpit' }), within: FALLS_GOAL },

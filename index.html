@@ -204,7 +204,7 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
-  .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; }
+  .card { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
@@ -234,6 +234,11 @@ html.flat .tag { position: static; transform: none !important; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
 .card .row { justify-content: stretch; }
+/* the Build or Upgrade row never scrolls out of view: it sticks to the card's bottom edge while the card scrolls */
+.card > .row:has(> #buy), .card > .buybar { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px; padding: 6px 12px; background: var(--panel); }
+.card > .buybar { display: grid; gap: 6px; }
+.card > .buybar.pathbar { position: static; margin: 0; padding: 0; }
+.card > .buybar .costrow { margin-top: 0; }
 .card .buy { flex: 1; font-size: 1.05rem; text-wrap: balance; }
 .card .keeprow { align-items: center; justify-content: space-between; gap: 8px; }
 .card .keeprow .uses { flex: 1; font-size: .85rem; }
@@ -364,7 +369,7 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .slotline { color: var(--copper-hi); }
 @media (orientation: landscape) and (max-height: 500px) {
-  .sheet { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(56%, 460px); max-height: calc(100% - 8px); animation-name: rise; }
+  .sheet { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; width: min(56%, 460px); max-height: calc(100% - var(--cardtop, 8px)); animation-name: rise; }
   .side { grid-auto-flow: column; }
   .side .btn { min-width: 0; padding: 4px 9px; } /* a short screen: the side row stays narrow, so the wave keeps its countdown */
 }

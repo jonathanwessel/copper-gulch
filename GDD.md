@@ -303,6 +303,8 @@ Skill pays. Waves come on a clock, and Call now lets a strong defense beat it. T
 
 **Saving for a town.** Founding a town is the one big purchase the player saves toward. Once the Gulch has beaten wave 20, the goal strip says "Tap Hold waves and save 15K coins for Iron Ridge", then "Tap Map, Iron Ridge, then Start Iron Ridge". The careful bots (`tools/balance.js`, `empire`) sign the Gulch's first charter when it pays a deed, climb back, and once the price is no more than 6 minutes of the Gulch's income they hold the waves, switch the foremen off and buy only buildings that pay back within 2 minutes until they can found it (about 6-10 minutes held). Then they win Pine Hollow and play the Ridge for an hour, raising the Gulch's Kiln (or what feeds it) when the Ridge runs short of bricks. The newcomer bot (`tools/firstplay.js`) follows the strip: it holds the waves when the strip says so and taps Start; it never signs a charter, so it gets there sooner (about 49-58 min). Decision: a player who skips the charter reaches the Ridge first, and one who signs it gets the deeds; both are fine.
 
+**Pine Hollow on the strip** (2026-11-19). Once the Ridge has its Blast Furnace, its strip says "Tap Map, Pine Hollow, then Play Pine Hollow" until Pine Hollow is won. Pine Hollow's own strip asks for a Crossbow, the Clay Bank and 3 Crossbows, then "Beat wave 15 to win Pine Hollow", then "Tap Map, Iron Ridge, then Play Iron Ridge". The newcomer gets there about 47-59 minutes in and wins it in 15-18 minutes (before this, it never went).
+
 ## Look and sound
 - **Models.** Low-poly 3D built in code, on vendored three.js.
   - One model file per town.

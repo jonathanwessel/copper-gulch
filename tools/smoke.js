@@ -15,6 +15,26 @@ async function waitFor(page, expr, ms = 15000) {
   return false;
 }
 
+/* With a card or sheet open: it never covers Pause, Hold waves or the coins, and its Build or Upgrade button is on
+   screen inside it (Evaluation 2: in landscape a side card covered the coins, cut Hold waves and pushed Upgrade off). */
+export async function uncovered(page) {
+  return page.evaluate(() => {
+    const bad = [], vis = n => n && !n.hidden && n.getClientRects().length, R = n => n.getBoundingClientRect();
+    const hit = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+    const panes = [...document.querySelectorAll('#card, .sheet')].filter(vis);
+    for (const p of panes) {
+      const r = R(p);
+      for (const [name, sel] of [['Pause', '#pauseBtn'], ['Hold waves', '#holdWaves'], ['the coins', '.play .coins']]) {
+        const n = document.querySelector(sel); if (vis(n) && hit(R(n), r)) bad.push((p.id === 'card' ? 'the card' : 'a sheet') + ' covers ' + name);
+      }
+      if (r.bottom > innerHeight + 1 || r.top < -1) bad.push((p.id === 'card' ? 'the card' : 'a sheet') + ' runs off the screen');
+    }
+    const buy = document.querySelector('#card #buy'), card = document.getElementById('card');
+    if (vis(buy) && vis(card)) { const b = R(buy), c = R(card); if (b.top < c.top - 1 || b.bottom > c.bottom + 1 || b.bottom > innerHeight) bad.push('the card\'s ' + buy.textContent.split(' ')[0] + ' button is out of view'); }
+    return bad;
+  });
+}
+
 export async function check(page) {
   return page.evaluate(() => {
     const bad = [], vw = innerWidth;
@@ -128,6 +148,12 @@ async function run() {
         return { built, wave: t.waves.phase === 'wave' };
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins
+      await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
+      bad.push(...(await uncovered(page)).map(b => 'tower card: ' + b));
+      await page.evaluate(async () => { CG.play.close(); CG.play.open('camp'); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card .stat'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
+      bad.push(...(await uncovered(page)).map(b => 'building card: ' + b));
+      await page.evaluate(() => CG.play.close());
       // Call now is never locked (owner rule): with the whole wait still ahead it is lit and starts the wave, paying for the wait
       const callGate = await page.evaluate(async () => {
         const t = CG.game.town, ws = t.waves, keep = JSON.stringify(ws), bw = t.bestWave, b = document.getElementById('callWave');
@@ -967,6 +993,7 @@ async function run() {
       const sh = await page.evaluate(() => ({ rows: [...document.querySelectorAll('[data-auto]')].map(b => b.dataset.auto + (b.disabled ? '-' : '+')).join(), text: (document.querySelector('.sheet') || document.body).textContent, dot: document.getElementById('autoBtn').classList.contains('dot') }));
       if (sh.rows !== 'foremen-,towers+,retry+,research-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
       bad.push(...(await check(page)).map(b => 'automation: ' + b));
+      bad.push(...(await uncovered(page)).map(b => 'automation: ' + b));
       const before = await page.evaluate(() => CG.game.town.towers[0].level);
       await page.evaluate(() => document.querySelector('[data-auto="towers"]').click());
       if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next raise in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
