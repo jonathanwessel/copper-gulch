@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-7',
+    lines: [
+      'On the map, the coins each town earns add up to the total at the top. A town on hold still shows what it earns.',
+      'Menus open below the buttons on the right, so none is cut in half.',
+      'A message hides the building levels under it until it goes.',
+      'Menus and cards never cover your goods at the bottom, and every good shows its full name.',
+      'A building level is never shown cut in half.',
+    ],
+  },
+  {
     v: '2026.11.19-6',
     lines: [
       'The coins you earn from each place now add up to the total shown.',

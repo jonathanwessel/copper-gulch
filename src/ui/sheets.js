@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { fmt, ago, sellsFor, fmtPrice } from './format.js';
+import { fmt, fmtLive, ago, sellsFor, fmtPrice } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -90,13 +90,13 @@ export function goodsSheet(game, town, focus = null) {
     };
     const paint = () => {
       for (const [g, r] of Object.entries(rows)) {
-        if (r.good) { const t = fmt(Math.floor(town.goods[r.good] || 0)) + ' in stock · sent by ' + (TOWN_NAMES[GOODS[r.good].town] || 'another town'); if (r.line.textContent !== t) r.line.textContent = t; continue; }
+        if (r.good) { const t = fmtLive(Math.floor(town.goods[r.good] || 0)) + ' in stock · sent by ' + (TOWN_NAMES[GOODS[r.good].town] || 'another town'); if (r.line.textContent !== t) r.line.textContent = t; continue; }
         const kept = Math.ceil((town.keep || {})[g] || 0);
         const ex = explainPrice(game, town, g);
         const selling = town.sell[g] !== false, have = town.goods[g] || 0;
         // every unit kept for towers: nothing is sold now, so no price (review 2026-11-18: "sells for 0 coins each" next to Sell On)
         const all = selling && kept > 0 && kept + .5 >= have, saved = all ? ' · all kept for towers' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
-        const txt = fmt(have) + ' in stock' + saved + (open[g] || all ? '' : ' · ' + (selling ? sellsFor(ex.value) : 'worth ' + fmtPrice(ex.value) + ' each')); // Sell Off: not sold, so what it is worth (screenshot review 2026-11-19) // open, the box says it
+        const txt = fmtLive(have) + ' in stock' + saved + (open[g] || all ? '' : ' · ' + (selling ? sellsFor(ex.value) : 'worth ' + fmtPrice(ex.value) + ' each')); // Sell Off: not sold, so what it is worth (screenshot review 2026-11-19) // open, the box says it
         if (r.line.textContent !== txt) r.line.textContent = txt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const ws = open[g] ? JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) : '';
@@ -320,7 +320,7 @@ export function menuSheet(ctx) {
     for (let n = 1; n <= SLOTS; n++) {
       const s = slotSummary(n), row = el('div', 'option slot'), txt = el('div');
       txt.append(el('b', null, 'Slot ' + n + (n === mine ? ' · playing' : '')),
-        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmt(s.coins) + ' coins · ' + ago(Date.now() - s.at)));
+        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins · ' + ago(Date.now() - s.at)));
       row.append(txt);
       if (n !== mine) {
         const go = btn(s.empty ? 'New game' : 'Play'); go.dataset.slot = n; go.classList.add('slotgo');

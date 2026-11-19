@@ -73,7 +73,8 @@ export function splitLive(total, values) {
   const order = raw.map((r, i) => [r - got[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
   for (let k = 0; left > 0 && order.length; k = (k + 1) % order.length, left--) got[order[k][1]]++;
   while (left < 0) { const i = got.indexOf(Math.max(...got)); got[i]--; left++; } // only from float slack
-  const write = u => (tenths ? (u / 10).toFixed(1) : fmtLive(u * step * (1 + 1e-9)));
-  const under = 'under ' + (tenths ? '0.1' : fmtLive(step * (1 + 1e-9)));
+  // whole coins from 10 to 999 are written as whole numbers (the 2026.11.19-6 map read "+9.0/s" and "under 1.0/s" beside +37/s)
+  const write = u => (tenths ? (u / 10).toFixed(1) : step === 1 ? String(u) : fmtLive(u * step * (1 + 1e-9)));
+  const under = 'under ' + (tenths ? '0.1' : step === 1 ? '1' : fmtLive(step * (1 + 1e-9)));
   return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? under : null)) };
 }

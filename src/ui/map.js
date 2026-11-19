@@ -18,10 +18,23 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 const nameOf = id => id === 'capital' ? 'The Capital' : TOWNS[id].name;
 const shortOf = id => id === 'capital' ? 'Capital' : TOWNS[id].short || TOWNS[id].name;
-const rate = n => '+' + fmtLive(n) + '/s'; // as the top bar writes it (the small labels on the map)
 /* A won outpost out of play sends its goods to the town in play and earns next to nothing itself (review 2026-11-18:
    Dry Creek's label read +0/s once won). */
 const sendsOnly = info => !!(info.won && !info.inPlay && info.income < .1);
+/* A place's card says what it is, before and after it opens, so the word outpost is known wherever it shows
+   (review of 2026.11.19-6: "Outposts" on the Capital meant nothing next to open outposts that never said it). */
+const whatIs = id => (TOWNS[id].kind === 'outpost' ? 'An outpost that makes ' : 'A town that makes ');
+/* Each label's words for what it earns: its share of the top bar's total, so the labels add up to it (review of
+   2026.11.19-6). infos: { id: siteInfo }. A won outpost that only sends goods says so and takes no share. */
+export function badgeRates(total, infos) {
+  const ids = Object.keys(infos).filter(id => infos[id]);
+  const sp = splitLive(total, ids.map(id => (sendsOnly(infos[id]) ? 0 : infos[id].income))), out = {}, nums = {};
+  ids.forEach((id, i) => {
+    const v = sp.rows[i]; nums[id] = v || '0';
+    out[id] = v ? (v.startsWith('under') ? v + '/s' : '+' + v + '/s') : sendsOnly(infos[id]) ? 'Sends goods' : '+0/s';
+  });
+  return { words: out, nums, total: '+' + sp.total + '/s' };
+}
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
@@ -131,9 +144,9 @@ export function mountMap(root, game, view, shell) {
       kids.push(head(d.name, info.inPlay ? 'Playing now' : ''));
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', fmtLive(info.income) + ' a second'));
+      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, Math.round(info.vault * 100) + '%', info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', (rates.nums[id] || '0') + ' a second'));
       kids.push(grid);
-      kids.push(el('p', 'uses', 'Makes ' + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
+      kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
       for (const l of mapRoutes(game)) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
@@ -156,8 +169,7 @@ export function mountMap(root, game, view, shell) {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? '' : (id === 'capital' ? 'Not built yet' : 'Not open yet'))); // ready: the Start button says it
       if (id === 'capital') kids.push(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'));
-      else if (TOWNS[id].found) kids.push(el('p', 'uses', 'A town that makes ' + makesWords(id) + '.'));
-      else if (id !== 'capital') kids.push(el('p', 'uses', 'An outpost that makes ' + makesWords(id) + '.'));
+      else kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
@@ -196,17 +208,23 @@ export function mountMap(root, game, view, shell) {
   coins.addEventListener('click', () => openSite('income'));
   coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openSite('income'); });
 
+  // each label's rate is its share of the top bar's +N/s, so the labels add up to it (review of 2026.11.19-6); a town on
+  // hold still earns from its buildings, so it shows its rate too and says On hold after its wave
+  let rates = { words: {}, nums: {} };
   function paintBadges() {
+    const infos = {}; for (const s of view.sites) infos[s.id] = siteInfo(game, s.id, shell.meter);
+    rates = badgeRates(shell.meter ? shell.meter.total : 0, infos);
     for (const s of view.sites) {
-      const B = badge[s.id], info = siteInfo(game, s.id, shell.meter);
+      const B = badge[s.id], info = infos[s.id];
       B.b.classList.toggle('on', !!(info && info.inPlay));
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)));
       if (info) {
-        setText(B.wave, info.won ? 'Won' : 'Wave ' + info.wave);
+        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Retry soon' : info.alert === 'retrying' ? ' · Retrying' : '';
+        setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
         B.vault.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
-        setText(B.extra, info.alert === 'lost' ? 'On hold' : info.alert === 'retry' ? 'Retry soon' : info.alert === 'retrying' ? 'Retrying' : sendsOnly(info) ? 'Sends goods' : rate(info.income));
+        setText(B.extra, rates.words[s.id]);
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;

@@ -28,11 +28,19 @@ export async function uncovered(page) {
         const n = document.querySelector(sel); if (vis(n) && hit(R(n), r)) bad.push((p.id === 'card' ? 'the card' : 'a sheet') + ' covers ' + name);
       }
       if (r.bottom > innerHeight + 1 || r.top < -1) bad.push((p.id === 'card' ? 'the card' : 'a sheet') + ' runs off the screen');
+      // a sheet never shows a side button cut in half (review of 2026.11.19-6: the Perks sheet cut Perks and hid Menu)
+      if (p.id === 'sheet') for (const n of document.querySelectorAll('.side .btn')) if (vis(n) && getComputedStyle(n).visibility !== 'hidden' && hit(R(n), r)) bad.push('a sheet cuts ' + n.textContent.trim());
     }
     const buy = document.querySelector('#card #buy'), card = document.getElementById('card');
     // a card at the bottom opens above the goods strip, so the counts stay in view (review of 2026.11.19-4)
     const strip = document.getElementById('goodsStrip');
     if (vis(card) && vis(strip) && hit(R(card), R(strip))) bad.push('the card covers the goods strip');
+    for (const p of panes) if (p.id !== 'card' && vis(strip) && hit(R(p), R(strip))) bad.push('a sheet covers the goods strip'); // (review of 2026.11.19-7)
+    // no level tag shows cut by a card, a sheet, the strip or the top bar
+    { const boxes = [...panes, strip, ...document.querySelectorAll('.hud .hudleft, .hud .hudright')].filter(vis).map(R);
+      for (const n of document.querySelectorAll('.tags .tag')) { if (!vis(n) || getComputedStyle(n).visibility === 'hidden' || document.documentElement.classList.contains('flat')) continue; const r = R(n); if (boxes.some(b => hit(r, b))) bad.push('a level tag is cut: ' + n.textContent); } }
+    // and beside it every good's name shows whole (review of 2026.11.19-6: "Copper ..." beside a side card)
+    if (vis(strip)) for (const n of strip.querySelectorAll('.gname')) if (n.scrollWidth > n.clientWidth + 1) bad.push('the goods strip cuts ' + n.textContent);
     if (vis(buy) && vis(card)) { const b = R(buy), c = R(card); if (b.top < c.top - 1 || b.bottom > c.bottom + 1 || b.bottom > innerHeight) bad.push('the card\'s ' + buy.textContent.split(' ')[0] + ' button is out of view'); }
     return bad;
   });
@@ -79,8 +87,9 @@ export async function tapEverything(page) {
       return [...B.spots.map((_, i) => ({ id: 'spot:' + i, spot: i, tower: t.towers.some(x => x.spot === i) })), ...Object.keys(B.plots).map(id => ({ id, plot: id }))];
     });
     for (const o of list) {
-      const p = await page.evaluate(o => {
+      const p = await page.evaluate(async o => {
         CG.play.close();
+        for (let k = 0; k < 2; k++) await new Promise(r => requestAnimationFrame(r)); // the tags a card covered show again on the next frame
         const B = CG.game.town.def.board, [x, z] = o.plot ? B.plots[o.plot] : B.spots[o.spot];
         const q = CG.town.projectPoint(x, o.plot ? .5 : o.tower ? .6 : .1, z);
         if (!q) return { skip: 'behind' };
@@ -152,7 +161,7 @@ async function run() {
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
       // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins
-      await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
+      await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 4321); CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
       bad.push(...(await uncovered(page)).map(b => 'tower card: ' + b));
       await page.evaluate(async () => { CG.play.close(); CG.play.open('camp'); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card .stat'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
       bad.push(...(await uncovered(page)).map(b => 'building card: ' + b));
@@ -309,7 +318,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /The foreman is waiting because timber sells for very little now and no workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /The foreman waits. Timber sells low and no workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -462,6 +471,11 @@ async function run() {
       for (const [k, v] of Object.entries(reveal)) if (!v) bad.push('buttons and toasts: not ' + k);
       // a toast never covers the top bar (Pause, the wave row, the coins) or an open sheet: with no room it waits until the
       // sheet closes (review of 2026.11.19-5: a toast over Pause on the Perks sheet)
+      for (const open of ['openPerks', 'openMenu', 'openGoods']) { // every side button shows whole or not at all under a sheet
+        await page.evaluate(o => { CG.play[o](); }, open); await sleep(700);
+        bad.push(...(await uncovered(page)).map(b => open + ': ' + b));
+        await page.evaluate(() => document.getElementById('sheetClose').click()); await sleep(200);
+      }
       const overSheet = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), { toast } = await import(new URL('src/ui/play.js', location.href));
         for (let i = 0; i < 40 && document.querySelector('.toast'); i++) await wait(100); // the lines before it go first
@@ -470,7 +484,7 @@ async function run() {
         let t = null; for (let i = 0; i < 20 && !t; i++) { await wait(100); t = [...document.querySelectorAll('.toast')].find(n => n.textContent === 'Smoke sheet line.'); }
         if (!t) return 'no toast';
         const hit = (a, r) => a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top;
-        const covers = t.classList.contains('wait') ? [] : [...document.querySelectorAll('.hud .hudleft, .hud .hudright, .sheet, #pauseBtn, #holdWaves')].filter(n => { const r = n.getBoundingClientRect(); return r.width && hit(t.getBoundingClientRect(), r); }).map(n => n.id || n.className);
+        const covers = t.classList.contains('wait') ? [] : [...document.querySelectorAll('.hud .hudleft, .hud .hudright, .sheet, #pauseBtn, #holdWaves, #goodsStrip')].filter(n => { const r = n.getBoundingClientRect(); return r.width && hit(t.getBoundingClientRect(), r); }).map(n => n.id || n.className);
         const waited = t.classList.contains('wait');
         document.getElementById('sheetClose').click(); await wait(600);
         if (covers.length) return 'covers ' + covers.join(', ');
@@ -478,6 +492,20 @@ async function run() {
         return '';
       });
       if (overSheet) bad.push('a toast over the Perks sheet: ' + overSheet);
+      // a toast in the town covers no building's level tag: the tags under it hide until it goes (review of 2026.11.19-6)
+      const onTag = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), { toast } = await import(new URL('src/ui/play.js', location.href));
+        for (let i = 0; i < 40 && document.querySelector('.toast'); i++) await wait(100);
+        toast('Smoke tag line.', 1500); await wait(500);
+        const t = [...document.querySelectorAll('.toast')].find(n => n.textContent === 'Smoke tag line.'); if (!t) return 'no toast';
+        if (t.classList.contains('wait')) return '';
+        const a = t.getBoundingClientRect();
+        const under = [...document.querySelectorAll('.tags .tag')].filter(n => { const r = n.getBoundingClientRect(); return r.width && !n.hidden && getComputedStyle(n).visibility !== 'hidden' && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top; }).map(n => n.textContent);
+        await wait(2400);
+        const left = document.querySelectorAll('.tag.undertoast').length;
+        return (under.length ? 'covers ' + under.join(', ') : '') + (left ? ' tags stay hidden after it' : '');
+      });
+      if (onTag) bad.push('a toast over level tags: ' + onTag);
       // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
       await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));
@@ -786,6 +814,15 @@ async function run() {
         return [...document.querySelectorAll('.mapbadge:not(.undertoast)')].filter(n => { const r = n.getBoundingClientRect(); return r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top; }).map(n => n.textContent.slice(0, 20)).join(' | ');
       });
       if (onBadge) bad.push('a toast on the map covers ' + onBadge);
+      // the labels' rates add up to the top bar's +N/s (review of 2026.11.19-6), read in the same paint
+      const sums = await page.evaluate(async () => {
+        const num = t => { const m = /\+?([\d.]+)(K|M|B)?\/s/.exec(t); return m ? +m[1] * ({ K: 1e3, M: 1e6, B: 1e9 }[m[2]] || 1) : 0; };
+        for (let i = 0; i < 30; i++) { await new Promise(r => setTimeout(r, 100)); if (num(document.querySelector('.mapui .inc').textContent) > 0) break; }
+        const total = num(document.querySelector('.mapui .inc').textContent), rows = [...document.querySelectorAll('.mapbadge .minc')].map(n => n.textContent);
+        const sum = rows.filter(t => !t.startsWith('under')).reduce((a, t) => a + num(t), 0);
+        return Math.abs(sum - total) <= Math.max(.051, total * .002) ? '' : rows.join(' + ') + ' is not ' + document.querySelector('.mapui .inc').textContent;
+      });
+      if (sums) bad.push('map labels: ' + sums);
       const m = await page.evaluate(() => ({
         canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
         badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),

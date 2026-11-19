@@ -244,9 +244,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   /* Why a working foreman is not buying (src/core/foremen.js, foremanWait), in plain words. */
   const waitText = w => {
     const n = GOODS[w.good].name.toLowerCase();
-    if (w.why === 'short') return 'The foreman is waiting for more ' + n + '.';
-    if (w.why === 'flooded') return 'The foreman is waiting because ' + n + ' sells for very little now and no workshop needs more.';
-    return 'The foreman is waiting because the next level would take over an hour to earn back its price.';
+    if (w.why === 'short') return 'The foreman waits for more ' + n + '.';
+    if (w.why === 'flooded') return 'The foreman waits. ' + n[0].toUpperCase() + n.slice(1) + ' sells low and no workshop needs more.';
+    return 'The foreman waits. The next level would take over an hour to pay for itself.';
   };
 
   let armed = null; // a path tapped once, waiting for the second tap
@@ -416,7 +416,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
-  let cardTop = 0;
+  let cardTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1;
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
   const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
@@ -424,12 +424,23 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // you have; review of 2026.11.19-4: the mortar pit card cut off the timber count)
     const sh = strip.hidden ? 0 : Math.round(strip.getBoundingClientRect().height + 4);
     if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); }
+    // how far up from the screen's bottom edge the strip reaches: a sheet sits on it (bottom is 0 with no strip)
+    const su = strip.hidden ? 0 : Math.max(0, Math.round(innerHeight - strip.getBoundingClientRect().top + 4));
+    if (su !== stripUp) { stripUp = su; ui.style.setProperty('--stripup', su + 'px'); }
     // a side card (a short landscape screen) leaves the strip the room to its left, so it covers no count
     let sw = '';
-    if (!strip.hidden && openId && !card.hidden) {
-      const c = card.getBoundingClientRect(), s0 = strip.getBoundingClientRect();
-      if (c.width && c.left > innerWidth * .35 && c.bottom > s0.top) sw = Math.max(160, Math.floor(c.left - s0.left - 8)) + 'px';
+    // (a side sheet too: review of 2026.11.19-7, the Perks and Menu sheets cut "Clay 40" in landscape)
+    const sheetEl = sheets.current ? document.getElementById('sheet') : null;
+    if (!strip.hidden) for (const p of [openId && !card.hidden ? card : null, sheetEl]) {
+      if (!p) continue;
+      const c = p.getBoundingClientRect(), s0 = strip.getBoundingClientRect();
+      if (c.width && c.left > innerWidth * .35 && c.bottom > s0.top) { const w = Math.max(160, Math.floor(c.left - s0.left - 8)); if (!sw || w < parseInt(sw)) sw = w + 'px'; }
     }
+    // a sheet starts below the side buttons when that leaves it room, and a side button it would still cut hides while
+    // it is open, so none shows cut in half (review of 2026.11.19-6: the Perks sheet cut Perks and hid Menu)
+    { const b = side.getBoundingClientRect(), sb = b.height ? Math.round(b.bottom + 6) : 0; if (sb !== sideBot) { sideBot = sb; ui.style.setProperty('--sidebot', sb + 'px'); } }
+    { const sh0 = sheets.current && document.getElementById('sheet'), r = sh0 && sh0.getBoundingClientRect();
+      for (const n of side.children) { const c = r && r.height && !n.hidden ? n.getBoundingClientRect() : null, cut = !!(c && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top); if (n.classList.contains('undersheet') !== cut) n.classList.toggle('undersheet', cut); } }
     if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('narrow', !!sw); } // three columns there, so every name and count fits
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
@@ -447,6 +458,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
     { const b = left.getBoundingClientRect(); leftBox = b.height ? { l: b.left, r: b.right, b: b.bottom } : null; }
+    // what a level tag may never show cut in half under: the top bar's two columns, the goods strip and an open card or
+    // sheet (review of 2026.11.19-7: "Lv 5" cut by a card's edge, "Lv 13" by the strip, "Lv 8" by Pause)
+    coverBoxes = [left, right, strip.hidden ? null : strip, openId && !card.hidden ? card : null, sheets.current ? document.getElementById('sheet') : null]
+      .filter(Boolean).map(n => [n, n.getBoundingClientRect()]).filter(([, b]) => b.width && b.height).map(([n, b]) => ({ n, l: b.left, r: b.right, t: b.top, b: b.bottom }));
     for (const t of Object.values(tag)) if (!t.hidden) tagSize.set(t, [t.offsetWidth, t.offsetHeight]);
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
@@ -508,6 +523,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
       let py = p && p.y;
       if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; if (px - tw / 2 < leftBox.r && px + tw / 2 > leftBox.l && py > leftBox.b && py - th < leftBox.b + 2) py = leftBox.b + 2 + th; } // (only while its building shows below the bar)
+      if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; continue; } }
       t.hidden = false; if (p) t.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
       const txt = (flat || (markTg && markTg.plot === id) ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
       if (t.textContent !== txt) t.textContent = txt;
@@ -600,7 +616,7 @@ export function clearOfCards(t) {
    and no town label, or null when there is none. Exported for the smoke test. */
 export function clearOfBadges(t, labels = true) {
   if (!t.isConnected) return null;
-  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet' + (labels ? ', .mapbadge' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
+  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip' + (labels ? ', .mapbadge' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
   const a = t.getBoundingClientRect(), from = underHud() ?? a.top;
   const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
   for (let y = Math.ceil(from); y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) return y;
@@ -612,18 +628,18 @@ function placeToast(t) {
   t.style.left = ''; t.style.transform = ''; t.style.maxWidth = '';
   const below = underHud(); t.style.top = below ? below + 'px' : '';
   clearOfCards(t);
-  for (const n of document.querySelectorAll('.mapbadge.undertoast')) n.classList.remove('undertoast');
+  unhide();
   let y = clearOfBadges(t), hide = false;
   if (y === null && document.querySelector('.mapbadge')) { y = clearOfBadges(t, false); hide = true; }
   if (y === null) return false;
   t.style.top = y + 'px';
-  if (hide) {
-    const a = t.getBoundingClientRect();
-    for (const n of document.querySelectorAll('.mapbadge')) { const r = n.getBoundingClientRect(); if (r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top) n.classList.add('undertoast'); }
-  }
+  // a building's level tag under it hides until it goes (review of 2026.11.19-6). In the town the toast never moves
+  // down for the tags: they follow the camera, so it would hop about, and it never waits for them
+  const a = t.getBoundingClientRect();
+  for (const n of document.querySelectorAll(hide ? '.mapbadge, .tags .tag' : '.tags .tag')) { const r = n.getBoundingClientRect(); if (r.width && a.left < r.right && a.right > r.left && a.top < r.bottom && a.bottom > r.top) n.classList.add('undertoast'); }
   return true;
 }
-const unhide = () => { for (const n of document.querySelectorAll('.mapbadge.undertoast')) n.classList.remove('undertoast'); };
+const unhide = () => { for (const n of document.querySelectorAll('.undertoast')) n.classList.remove('undertoast'); };
 function showIfRoom(t) { const ok = placeToast(t); t.classList.toggle('wait', !ok); return ok; }
 function nextToast() {
   clearTimeout(toasts.tick);
