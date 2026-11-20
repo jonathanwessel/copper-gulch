@@ -56,7 +56,7 @@ test('the strip asks for Resume waves first in the town in play, but not while i
   assert.notEqual((goalNow(g) || {}).id, 'resume');
   // saving for the Ridge: no Resume waves
   const s = gulch('h4', 20, 500);
-  setHold(s, s.town, true);
+  setHold(s, s.town, true); s.step(.25); // the Tap Hold waves step is done on the next step
   assert.equal(goalNow(s).id, 'g-save');
 });
 

@@ -40,7 +40,7 @@ test('the old-waves damage row says up to which wave', () => {
   const rows = explainTower(t, t.towers[0]).dmg.rows;
   assert.ok(!rows.some(r => r.label === OLD_LABEL));
   const row = rows.find(r => r.label === oldWavesLabel(t));
-  assert.equal(row.label, 'Stronger on waves you beat before, up to wave 57'); assert.equal(row.mul, 3);
+  assert.equal(row.label, 'Beaten waves 1-57'); assert.equal(row.mul, 3);
 });
 
 test('institutions name the outposts they help', () => {
@@ -51,7 +51,7 @@ test('institutions name the outposts they help', () => {
 test('the Perks card says what signing pays, not "more" beside the deeds held', () => {
   const src = fs.readFileSync(new URL('../src/ui/sheets.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /' more ' \+ \(p\.total/);
-  assert.match(src, /'Sign now and get '/);
+  assert.match(src, /'Sign now and you have '/);
   assert.doesNotMatch(src, /More deeds let you pick more perks/); // the pairs already say what each needs
 });
 

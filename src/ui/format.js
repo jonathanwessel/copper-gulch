@@ -27,16 +27,30 @@ export function fmtPrice(v) {
   const s = priceNum(v);
   return s + (s === '1' ? ' coin' : ' coins');
 }
-/* "sells for 0.9 coins each", "sells for 0.004 coins each" */
-export const sellsFor = v => 'sells for ' + fmtPrice(v) + ' each';
+/* A price in words: "4.6 coins each", or under 1 coin what 10 or 100 of it pay, "6 coins per 10" (review of
+   2026.11.19-12: "0.6 coins each" is a coin nobody can hold). The open price breakdown keeps one unit's price, so its
+   rows multiply as written. */
+export function each(v) {
+  if (!isFinite(v) || v < .0095 || v >= .95) return fmtPrice(v) + ' each';
+  const n = v >= .095 ? 10 : 100, c = Math.round(v * n);
+  return c + (c === 1 ? ' coin' : ' coins') + ' per ' + n;
+}
+/* "sells for 4.6 coins each", "sells for 6 coins per 10" */
+export const sellsFor = v => 'sells for ' + each(v);
 /* A good's line on the Goods sheet. Every unit kept for towers: nothing is sold now, so no price (review 2026-11-18:
    "sells for 0 coins each" next to Sell On), and it says there is none to sell, since "all kept" beside Sell On read
    as a contradiction (review of 2026.11.19-7). Sell Off says it is not sold and what it would sell for, so it never sits
    as "worth 0.9" beside another good's "sells for 13" with nothing saying why. open: its price box says the price. */
 export function goodsLine({ have, kept = 0, selling = true, price = 0, open = false }) {
   const all = selling && kept > 0 && kept + .5 >= have;
-  const saved = all ? ' · none to sell, towers need it all' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
-  return fmtLive(have) + ' in stock' + saved + (open || all ? '' : ' · ' + (selling ? sellsFor(price) : 'not sold, ' + fmtPrice(price) + ' each if sold'));
+  // (review of 2026.11.19-12: "none to sell" beside a lit Sell · On; the switch now reads Sell extra, goodsSwitch)
+  const saved = all ? ' · all kept for towers' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
+  return fmtLive(Math.floor(have + 1e-9)) + ' in stock' + saved + (open || all ? '' : ' · ' + (selling ? sellsFor(price) : 'not sold, ' + each(price) + ' if sold'));
+}
+/* The Goods sheet's switch for a good. While towers keep every unit it says it sells only what they leave. */
+export function goodsSwitch({ have, kept = 0, selling = true }) {
+  if (!selling) return 'Sell · Off';
+  return kept > 0 && kept + .5 >= have ? 'Sell extra · On' : 'Sell · On';
 }
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a
@@ -46,7 +60,7 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
 export function priceNote({ have, kept = 0, price = 0 }) {
   const none = have - kept < 1;
   if (price < .0095) return (none ? 'It pays almost nothing now.' : 'You sold a lot of it lately, so it pays almost nothing now.') + ' The price comes back over time.';
-  if (none) return 'Pays ' + fmtPrice(price) + ' each once you have some to sell.';
+  if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;
 }
 /* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level

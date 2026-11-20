@@ -92,8 +92,9 @@ export function explainTower(town, t) {
 }
 
 /* The tower card's row for the old-waves bonus: "Already beaten, up to wave 57". */
-/* It says what happens and why (review of 2026.11.19-11: "Already beaten, up to wave 23 × 3" did not say why damage triples). */
-export const oldWavesLabel = town => 'Stronger on waves you beat before, up to wave ' + (town.record || 0);
+/* Short, so "× 3" stays on its line on a phone (review of 2026.11.19-12: "Stronger on waves you beat before, up to wave 23"
+   wrapped and read as a sentence). The wave number on the play screen turns gold while it lasts. */
+export const oldWavesLabel = town => 'Beaten waves 1-' + (town.record || 0);
 
 /* The vault's strength in hits (a stockpile's too), and how many hits each raider that gets there takes. */
 export function explainVault(town) {

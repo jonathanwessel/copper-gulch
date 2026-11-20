@@ -17,6 +17,23 @@ import { anyAuto } from './automation.js';
    shows it). */
 export const listedGoods = town => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
 
+/* The goods strip in its room of `max` chips: { list, more }, `more` goods left for the Goods sheet. */
+export function stripFit(town, max = Infinity) {
+  const all = stripGoods(town);
+  if (all.length <= max) return { list: all, more: 0 };
+  // too many for the room: the goods the towers pay with, then what the town makes, then what it ships in, with the
+  // last place a "more" chip that opens the Goods sheet (always room for the tower goods: the owner rule)
+  const tower = towerGoods(town), made = new Set(listedGoods(town));
+  const rank = g => (tower.has(g) ? 0 : made.has(g) ? 1 : 2);
+  const keep = all.slice().sort((a, b) => rank(a) - rank(b)).slice(0, Math.max(tower.size, max - 1));
+  return { list: all.filter(g => keep.includes(g)), more: all.length - keep.length };
+}
+/* The goods the town's open or standing towers pay with. */
+function towerGoods(town) {
+  const s = new Set();
+  for (const [k, d] of Object.entries(TOWERS)) if (towerIn(town, k) && (towerOpen(town, k) || (town.towers || []).some(t => t.kind === k))) for (const g of Object.keys(d.goods[town.id] || {})) s.add(g);
+  return s;
+}
 /* The goods strip (owner rule: the player can always see how much of each good they have): every good this town makes
    with a built building, has in stock, or pays for an open tower kind or the next upgrade of a tower it has, in the
    order of the goods list. */
@@ -25,7 +42,7 @@ export function stripGoods(town) {
   for (const [g, n] of Object.entries(town.goods || {})) if (n >= 1) want.add(g);
   // goods shipped in for a built workshop stay on the strip at 0 (review of 2026.11.19-7: the Ridge's bricks came and went)
   for (const g of (town.def && town.def.imports) || []) if (Object.entries(BUILDINGS).some(([id, b]) => b.town === town.id && town.level(id) > 0 && g in b.inputs)) want.add(g);
-  for (const [k, d] of Object.entries(TOWERS)) if (towerIn(town, k) && (towerOpen(town, k) || (town.towers || []).some(t => t.kind === k))) for (const g of Object.keys(d.goods[town.id] || {})) want.add(g);
+  for (const g of towerGoods(town)) want.add(g);
   return Object.keys(GOODS).filter(g => want.has(g) && !GOODS[g].grid);
 }
 

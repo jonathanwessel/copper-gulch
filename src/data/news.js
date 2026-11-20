@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-13',
+    lines: [
+      'On a tower, the old waves bonus is shorter, and the wave number turns gold while it is on.',
+      'Prices under 1 coin say what 10 or 100 bring, like 6 coins per 10.',
+      'The goods strip keeps to two rows. Tap the last box to see the rest.',
+      'Perks shows your deeds now and after you sign.',
+      'Building upgrades show the coins you have and need. Crowded map labels show just the name.',
+      'Saving for Iron Ridge starts with Tap Hold waves. Then the goal points at your coins.',
+    ],
+  },
+  {
     v: '2026.11.19-12',
     lines: [
       'On a tower, the old waves bonus says your towers are stronger on waves you beat before.',

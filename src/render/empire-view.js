@@ -250,6 +250,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   rig.min = 5; rig.max = 110;
   rig.frame(center.x, center.z, x1 - x0, z1 - z0);
   let raf = 0, last = performance.now(), frames = 0, t = 0, sync = 0, opened = false;
+  const size = { w: 0, h: 0 }; // the canvas as measured at the top of this frame (the badges read it, never the page)
   const api = {
     view: v, rig, game, holds: new Set(), sites,
     get paused() { return api.holds.size > 0; },
@@ -280,11 +281,11 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       if (id === 'capital' && dio.capital) _v.set(s[0] + CITY.capitol.at[0], 2.35, s[1] + CITY.capitol.at[1]).project(v.cam);
       else _v.set(s[0] - Math.sin(yaw) * r, 0, s[1] - Math.cos(yaw) * r).project(v.cam);
       if (_v.z > 1) return null;
-      return { x: (_v.x + 1) / 2 * canvas.clientWidth, y: (1 - _v.y) / 2 * canvas.clientHeight };
+      return { x: (_v.x + 1) / 2 * (size.w || canvas.clientWidth), y: (1 - _v.y) / 2 * (size.h || canvas.clientHeight) }; // this frame's size: no layout per badge
     },
     projectSite(id) {
       const s = at[id]; _v.set(s[0], .6, s[1]).project(v.cam);
-      return _v.z > 1 ? null : { x: (_v.x + 1) / 2 * canvas.clientWidth, y: (1 - _v.y) / 2 * canvas.clientHeight };
+      return _v.z > 1 ? null : { x: (_v.x + 1) / 2 * (size.w || canvas.clientWidth), y: (1 - _v.y) / 2 * (size.h || canvas.clientHeight) };
     },
     /* Ring a site (its card is open), or null. */
     select(id) { selected = id && at[id] ? id : null; if (!selected) rig.keep(null); },
@@ -312,6 +313,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     if (meter) meter.update(game);
     t += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
     if (!opened && rig.fitted) { // coming out of a town: start low over it and rise to the whole map
       opened = true;

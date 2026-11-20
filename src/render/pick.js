@@ -63,10 +63,13 @@ export function nearest(cam, el, board, clientX, clientY, near = NEAR, skip = nu
   return best;
 }
 
-/* Where a world point lands on screen, in CSS pixels; null when behind the camera. */
+/* Where a world point lands on screen, in CSS pixels; null when behind the camera. size: the canvas's { w, h } as the
+   view measured it this frame. Reading el.clientWidth here instead, between the screen's tag moves, made the browser lay
+   the page out again for every tag, every frame (perf, 2026-11-19). */
 const _p = new THREE.Vector3();
-export function project(cam, el, v) {
+export function project(cam, el, v, size = null) {
   const p = _p.copy(v).project(cam);
   if (p.z > 1) return null;
-  return { x: (p.x + 1) / 2 * el.clientWidth, y: (1 - p.y) / 2 * el.clientHeight };
+  const w = size && size.w ? size.w : el.clientWidth, h = size && size.h ? size.h : el.clientHeight;
+  return { x: (p.x + 1) / 2 * w, y: (1 - p.y) / 2 * h };
 }

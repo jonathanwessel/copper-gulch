@@ -25,8 +25,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // software WebGL (SwiftShader): its cost grows with pixels, passes, lights and shadow taps the way a phone GPU's does
 const srv = await start(0), b = await chromium.launch({ args: ['--use-angle=swiftshader', '--use-gl=angle', '--disable-gpu-compositing'] });
 let out = null, startTier = null;
+const errs = []; // a page that throws every frame skips its work and reads fast: any error fails the run (2026-11-19)
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
+  p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' || TOWN === 'falls-empire' ? 'gulch' : TOWN)));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
@@ -138,6 +140,11 @@ try {
     (profile.samples || []).forEach((id, i) => { const c = byId.get(id).callFrame, k = (c.functionName || '(anon)') + ' ' + c.url.split('/').slice(-2).join('/') + ':' + (c.lineNumber + 1);
       self.set(k, (self.get(k) || 0) + (dt[i] || 0)); total += dt[i] || 0; });
     for (const [k, v] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 30)) console.log((100 * v / total).toFixed(1).padStart(5) + '%  ' + k);
+    // and by file, the game's own files only, as a share of the time spent in them (where the script part goes)
+    const files = new Map(); let own = 0;
+    for (const [k, v] of self) { const f = k.slice(k.lastIndexOf(' ') + 1).split(':')[0]; if (!/^(core|ui|render|data|audio|assets|models|art|src)\//.test(f)) continue; files.set(f, (files.get(f) || 0) + v); own += v; }
+    console.log('game files (' + (100 * own / total).toFixed(1) + '% of all):');
+    for (const [f, v] of [...files].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log((100 * v / own).toFixed(1).padStart(5) + '%  ' + f);
   }
   // the software GPU is noisy on a busy machine: a near miss (within 15%) is measured once more, and the better run counts
   if (out.median > LIMIT && out.median <= LIMIT * 1.15) {
@@ -157,8 +164,8 @@ const SCRIPT = +arg('script', 0); // --script ms: the median script part of a fr
 const slowScript = SCRIPT && out.script > SCRIPT;
 const CALLS = +arg('calls', 0), manyCalls = CALLS && out.calls >= CALLS; // --calls n: fewer draw calls than n
 
-const ok = out && out.median <= LIMIT && !slowScript && !manyCalls && out.tier === startTier && !jerky;
+const ok = out && !errs.length && out.median <= LIMIT && !slowScript && !manyCalls && out.tier === startTier && !jerky;
 console.log(JSON.stringify({ ...out, median: +out.median.toFixed(1), script: +out.script.toFixed(1), p90: +out.p90.toFixed(1), fps: +out.fps.toFixed(1), dpr: DPR, throttle: THROTTLE }));
-console.log(ok ? 'ok' : manyCalls ? `FAIL ${out.calls} draw calls, not fewer than ${CALLS}` : slowScript ? `FAIL the script part of a frame is ${out.script.toFixed(1)} ms, over ${SCRIPT} ms` : jerky ? 'FAIL not smooth: ' + jerky : out.tier !== startTier ? `FAIL frames were slow enough to step down from ${startTier} to ${out.tier}` : `FAIL median frame ${out.median.toFixed(1)} ms is over ${LIMIT} ms`);
+console.log(ok ? 'ok' : errs.length ? 'FAIL the page threw: ' + errs[0].split('\n')[0] : manyCalls ? `FAIL ${out.calls} draw calls, not fewer than ${CALLS}` : slowScript ? `FAIL the script part of a frame is ${out.script.toFixed(1)} ms, over ${SCRIPT} ms` : jerky ? 'FAIL not smooth: ' + jerky : out.tier !== startTier ? `FAIL frames were slow enough to step down from ${startTier} to ${out.tier}` : `FAIL median frame ${out.median.toFixed(1)} ms is over ${LIMIT} ms`);
 process.exitCode = ok ? 0 : 1;
 setTimeout(() => process.exit(), 100);

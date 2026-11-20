@@ -23,6 +23,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
   const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
+  const size = { w: 0, h: 0 }; // the canvas as measured at the top of this frame (project reads it, never the page)
   const api = {
     view: v, board, battle, rig, game, selection, holds: new Set(),
     /* Highlight what a card is open for: { plot }, { spot } or null. */
@@ -46,9 +47,9 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       if (choice === 'auto') { q.auto = true; q.tier = deviceTier(); } else { q.auto = false; q.tier = choice; }
       saveQuality({ tier: q.tier, auto: q.auto }); v.setQuality(q.tier);
     },
-    project: id => project(v.cam, canvas, board.anchor(id, _a)),
-    projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z)),
-    projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z)); },
+    project: id => project(v.cam, canvas, board.anchor(id, _a), size),
+    projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),
+    projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z), size); },
     /* Stop drawing and free the GPU memory; lose: also let go of the GPU context (the canvas is being replaced). */
     stop(lose = false) { cancelAnimationFrame(raf); selection.dispose(); battle.dispose(); board.dispose(); v.dispose(); if (lose) v.renderer.forceContextLoss(); },
   };
@@ -60,6 +61,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     if (!api.paused) game.advance(dt);
     t += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
     // the board only changes when the simulation steps: check then, not every frame
     const stepped = game.stats.steps !== lastStep; lastStep = game.stats.steps;

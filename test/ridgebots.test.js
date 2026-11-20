@@ -27,13 +27,16 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   let g = gulch('rb1', 19, 0);
   assert.equal(goalNow(g), null, 'nothing before wave 20');
   g = gulch('rb1', 20, 500);
+  const hold = goalNow(g);
+  assert.equal(hold.id, 'g-hold');
+  assert.equal(hold.text, 'Tap Hold waves');
+  assert.deepEqual(hold.at(goalContext(g, g.town)), { el: '#holdWaves' });
+  g.town.waves.hold = true; g.step(.25); // held: that step is done, and the next one counts the coins
   const save = goalNow(g);
   assert.equal(save.id, 'g-save');
   assert.equal(goalText(g, g.town, save), 'Save coins to open Iron Ridge');
   assert.equal(save.need, TOWNS.ridge.found.coins, 'the strip counts up to the real price');
-  assert.deepEqual(save.at(goalContext(g, g.town)), { el: '#holdWaves' });
-  g.town.waves.hold = true; // held: no spotlight on Hold waves
-  assert.equal(save.at(goalContext(g, g.town)), null);
+  assert.deepEqual(save.at(goalContext(g, g.town)), { el: '#coins' });
   g.town.waves.hold = false;
   g.town.coins = 15000;
   const go = goalNow(g);

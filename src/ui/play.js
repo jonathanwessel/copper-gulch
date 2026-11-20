@@ -7,7 +7,7 @@ import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } 
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
@@ -16,16 +16,22 @@ import { isOutpost } from '../core/economy.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, leftWord } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen } from '../core/research.js';
-import { FOREMAN_LEVEL, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
+import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
 import { autoOn, retryState } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
-import { tabs, dots, look, lookGoods, lookPerks, stripGoods } from '../core/reveal.js';
+import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '../core/reveal.js';
+/* How many chips the goods strip holds in two rows: its columns (the stylesheet's, or as many 84 px chips as fit beside
+   a side card) times 2. */
+const stripRoom = strip => 2 * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((strip.clientWidth || innerWidth) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf } from './format.js';
+const cap = s => s[0].toUpperCase() + s.slice(1);
+/* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
+const GOAL_LIFT = 18;
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
@@ -104,9 +110,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
   const strip = el('div', 'goodstrip'); strip.id = 'goodsStrip'; strip.hidden = true;
-  let stripSig = '', stripNums = {};
+  let stripSig = '', stripNums = {}, room = 0, viewW = innerWidth;
+  const tagTr = new WeakMap(); // the transform each level tag was last given, so a still tag is not written again
   const paintStrip = () => {
-    const list = stripGoods(town), s = list.join();
+    const { list, more } = stripFit(town, room || (room = stripRoom(strip))), s = list.join() + '+' + more + '/' + room; // room: kept by measure(). The tower goods always show, and the more box only fits in a free place
     if (s !== stripSig) {
       stripSig = s; stripNums = {}; strip.hidden = !list.length;
       strip.replaceChildren(...list.map(g => {
@@ -115,6 +122,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         b.addEventListener('click', () => openGoods(g));
         return b;
       }));
+      if (more && list.length < room) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
   };
@@ -204,7 +212,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the power grid (Silver Falls): the Water Wheel says how much of its power the workshops use
     if (isGrid(b.makes) && L) card.append(el('p', 'uses', 'Your workshops use ' + fmt(grid.want) + ' power a second.'));
     // a workshop on the grid says how much power there is (review of 2026.11.19-7: power was named but never counted)
-    else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' a second.'));
+    else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' power a second.'));
     // the numbers above already show a workshop is short, so its warning only says what that does and what to tap
     if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
@@ -220,16 +228,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
     const row = el('div', 'row sellrow');
     const c = cost(town, id), buy = el('button', 'btn primary buy');
-    buy.id = 'buy'; buy.textContent = (L ? 'Upgrade' : 'Build') + ' · ' + fmt(c) + ' coins';
+    buy.id = 'buy'; buy.textContent = L ? 'Upgrade' : 'Build';
+    const bcost = el('div', 'buybar'); bcost.append(costRow({ coins: c, goods: {} }));
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
     const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off')); // one line, under Upgrade when both do not fit (.sellrow)
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
-    sell.title = 'S' + sellsFor(paysEach(game, town, b.makes)).slice(1);
+    sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     if (!isGrid(b.makes)) row.append(sell); // power is never sold
-    card.append(row);
+    bcost.append(row); card.append(bcost);
     // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
       const kr = el('div', 'row keeprow');
@@ -242,14 +251,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
       const fr = el('div', 'row keeprow');
       if (!hasForeman(town, id)) {
-        fr.append(el('span', 'uses', 'A foreman buys the next level when you have twice its cost.'));
         const h = el('button', 'btn small', 'Hire foreman · ' + fmt(hireCost(town, id)) + ' coins'); h.id = 'hireForeman';
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
         fr.append(h);
       } else {
         const on = foremanOn(town, id);
-        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Buys the next level when you have twice its cost.'));
+        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Buys level ' + (L + 1) + ' when you have ' + fmt(cost(town, id) / SHARE) + ' coins.'));
         const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
         sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
@@ -462,6 +470,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     { const sh0 = sheets.current && document.getElementById('sheet'), r = sh0 && sh0.getBoundingClientRect();
       for (const n of side.children) { const c = r && r.height && !n.hidden ? n.getBoundingClientRect() : null, cut = !!(c && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top); if (n.classList.contains('undersheet') !== cut) n.classList.toggle('undersheet', cut); } }
     if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('narrow', !!sw); } // three columns there, so every name and count fits
+    room = stripRoom(strip); // the strip's two rows, read here with the other measures (the layout is fresh)
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
     // what covers the board: the camera fits its home view under the top bar and keeps the selection clear of the card
@@ -504,7 +513,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     let r = null;
     if (!tg || (tg.plot && openId === tg.plot)) r = null; // its card is open: the selection shows it
     else if (tg.el) r = markBox;
-    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) { const x = Math.min(Math.max(p.x, markW / 2), innerWidth - markW / 2); r = { x: x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } } // the tag sits above its point, kept on screen
+    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) { const x = Math.min(Math.max(p.x, markW / 2), viewW - markW / 2); r = { x: x - markW / 2, y: p.y - GOAL_LIFT - markH + 5, w: markW, h: markH }; } } // the tag sits above its point (lifted, GOAL_LIFT), kept on screen
     else if (openId !== 'spot:' + (tg.spot ?? tg.tower)) {
       const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
       if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
@@ -536,6 +545,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const income = () => lastIncome || (lastIncome = incomeNow());
   function frame(dt) {
     acc += dt; cardAcc += dt;
+    viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
     sheets.frame(dt);
     paintGoal(dt); placeMark();
     for (const [id, t] of Object.entries(tag)) {
@@ -545,17 +555,19 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { t.hidden = true; continue; }
       // a tag stays whole on screen while its building shows (review of 2026.11.19-11: "Lv 1" cut at the right edge)
       const marked = markTg && markTg.plot === id && markW, half = marked ? markW / 2 : ((tagSize.get(t) || [56])[0] / 2 + 2);
-      if (p && !marked && (p.x < -half || p.x > innerWidth + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
-      const px = p && Math.min(Math.max(p.x, half), innerWidth - half);
+      if (p && !marked && (p.x < -half || p.x > viewW + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
+      const px = p && Math.min(Math.max(p.x, half), viewW - half);
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
-      let py = p && p.y;
+      let py = p && (marked ? p.y - GOAL_LIFT : p.y);
       if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; if (px - tw / 2 < leftBox.r && px + tw / 2 > leftBox.l && py > leftBox.b && py - th < leftBox.b + 2) py = leftBox.b + 2 + th; } // (only while its building shows below the bar)
       if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; continue; } }
-      t.hidden = false; if (p) t.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; // sub-pixel: whole pixels make tags step as the camera glides
+      if (t.hidden) t.hidden = false;
+      if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
       const txt = (flat || (markTg && markTg.plot === id) ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
       if (t.textContent !== txt) t.textContent = txt;
       t.classList.toggle('short', !!(L && town.starved[id]));
+      t.classList.toggle('goaltag', !!marked);
       t.classList.toggle('can', town.coins >= cost(town, id));
       t.classList.toggle('boss', foremanOn(town, id));
     }
@@ -573,6 +585,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);
+    wave.classList.toggle('old', oldGround(town)); // gold while the towers hit harder on waves beaten before (review of 2026.11.19-12)
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
     measure();

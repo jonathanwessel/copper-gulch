@@ -89,6 +89,19 @@ export function liftBadges(rs, bar = [], gap = 2, { W = Infinity, first = null }
   return rs;
 }
 
+/* Which badges are crowded: those whose town sits within a full-size badge of another shown badge's town. They show only
+   their name, so they cover less of the map. rs: [{ x, y, w, h, keep }] at full size (keep: the open card's place,
+   never shrunk). Returns a Set of indexes. Decided from the towns' points, not from where the badges land, so a badge
+   does not flip size as it moves. */
+export function crowdedBadges(rs) {
+  const out = new Set();
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+    const a = rs[i], b = rs[j];
+    if (Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < Math.max(a.h, b.h) * 1.5) { if (!a.keep) out.add(i); if (!b.keep) out.add(j); }
+  }
+  return out;
+}
+
 /* shell: { meter, play(id) (fly into a town), back() (fly into the town in play), toast(text) } */
 export function mountMap(root, game, view, shell) {
   // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
@@ -263,15 +276,18 @@ export function mountMap(root, game, view, shell) {
   // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
   // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
   // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
-  const widths = {}, heights = {}; let bar = [], cardBox = null;
+  const widths = {}, heights = {}, full = {}; let bar = [], cardBox = null;
   function placeBadges() {
     const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
       const B = badge[s.id], p = view.badgePoint(s.id), w = widths[s.id] || 80;
       if (!p || p.x < -w || p.x > W + w || p.y < -40 || p.y > H + 40) { B.b.hidden = true; continue; }
       B.b.hidden = false;
-      shown.push({ B, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
+      shown.push({ B, id: s.id, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
     }
+    // crowded labels show only their name, judged at full size so a label does not flip between the two
+    const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
+    shown.forEach((r, i) => { const c = crowd.has(i); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
     for (const r of liftBadges(shown, bar, 2, { W, first: shown.find(r => r.B === badge[openId]) })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
       const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
@@ -289,7 +305,10 @@ export function mountMap(root, game, view, shell) {
       placeBadges();
       if ((acc += dt) >= .25) {
         acc = 0; paintBadges(); paintPause();
-        for (const s of view.sites) if (!badge[s.id].b.hidden) { widths[s.id] = badge[s.id].b.offsetWidth; heights[s.id] = badge[s.id].b.offsetHeight; }
+        for (const s of view.sites) if (!badge[s.id].b.hidden) {
+          const b = badge[s.id].b; widths[s.id] = b.offsetWidth; heights[s.id] = b.offsetHeight;
+          if (!b.classList.contains('small')) full[s.id] = [b.offsetWidth, b.offsetHeight]; // its full size, for crowdedBadges
+        }
         const c = card.hidden ? null : card.getBoundingClientRect();
         cardBox = c && c.height ? { l: c.left, t: c.top, r: c.right, b: c.bottom } : null;
         bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));

@@ -106,6 +106,7 @@ const RIDGE = [
   ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 3, yaw: 0, pitch: .32, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['ridge-built', () => {
     CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e8;
+    const G = CG.game.towns.gulch; G.buildings.pit = Math.max(5, G.level('pit')); G.buildings.kiln = Math.max(3, G.level('kiln')); // as for any player who reached the Ridge (review of 2026.11.19-12: "Build a Kiln" beside a Gulch that had one)
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 6, boilershop: 5, loco: 2 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); }
     CG.play.close();
   }],

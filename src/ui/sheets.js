@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, goodsSwitch, levelsDone, priceNote } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -76,8 +76,9 @@ export function goodsSheet(game, town, focus = null) {
       if (!goods.length) list.append(el('p', 'uses', 'Build a Lumber Camp to make your first good.'));
       for (const g of goods) {
         const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
-        bar.append(fill); bar.title = 'How much the price has dropped';
-        txt.append(name, line, bar, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
+        bar.append(fill); bar.title = 'Price now, against its full price';
+        const barRow = el('span', 'depthrow'); barRow.append(el('small', null, 'Price'), bar); // the bar says what it is (review of 2026.11.19-12)
+        txt.append(name, line, barRow, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
@@ -105,7 +106,7 @@ export function goodsSheet(game, town, focus = null) {
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
         const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
-        const s = selling ? 'Sell · On' : 'Sell · Off'; if (r.sw.textContent !== s) r.sw.textContent = s;
+        const s = goodsSwitch({ have, kept, selling }); if (r.sw.textContent !== s) r.sw.textContent = s;
         r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', selling);
       }
     };
@@ -229,7 +230,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Keep trying the boss', 'After a boss gets through or the vault falls, waves start again when a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Keep trying the boss', 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -245,7 +246,7 @@ export function autoSheet(game, town) {
       const tLine = !autoOpen(game, 'towers') ? 'Build the ' + INSTITUTION[AUTO.opens.towers].name + ' at the Capital first.'
         : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
         : tb === 'won' ? 'Raises a tower when a raid gets through.'
-        : tb === 'none' ? 'Waiting for a tower. Build one first.'
+        : tb === 'none' ? 'No towers here yet.'
         : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
         : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
         : tb === 'wait' ? 'Next raise in ' + wait(a.wait)
@@ -395,16 +396,20 @@ export function perksSheet(ctx) {
     sec('Charter', now, prog, el('p', 'warn', town.def.name + ' starts over at wave 1. Its buildings, towers, research and foremen go. You keep your coins and deeds, and pick perks again.'), r);
     // the deeds held
     const held = el('p', 'uses'); held.id = 'deedsHeld';
-    sec('Deeds', held);
+    const after = el('p', 'uses'); after.id = 'deedsAfter';
+    sec('Deeds', held, after);
     // the perk pairs
     const pairs = el('div', 'goods perks'); body.append(pairs);
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
-      const t1 = p.total ? 'Sign now and get ' + plural(p.total, 'deed') + '.' : 'You can sign once you earn a deed here.'; // what signing pays, never beside the deeds held (review of 2026.11.19-10)
+      // what signing pays is in Deeds, as the deeds now and after (review of 2026.11.19-12); this line only says when it opens
+      const t1 = p.total ? '' : 'You can sign once you earn a deed here.';
       if (now.textContent !== t1) now.textContent = t1;
-      const w = 'Wave ' + town.bestWave + ' reached. ' + plural(p.wave, 'deed') + '. Next at wave ' + n.wave + '.';
-      const k = fmt(town.ownEarned) + ' coins earned here. ' + plural(p.coins, 'deed') + '. Next at ' + fmt(n.coins) + '.';
+      now.hidden = !t1;
+      // "Best wave", so it never reads as the wave on the top bar after a lost boss (review of 2026.11.19-12)
+      const w = 'Best wave ' + town.bestWave + ' gives ' + plural(p.wave, 'deed') + '. Next at wave ' + n.wave + '.';
+      const k = fmt(town.ownEarned) + ' coins earned here give ' + plural(p.coins, 'deed') + '. Next at ' + fmt(n.coins) + '.';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;
@@ -412,12 +417,15 @@ export function perksSheet(ctx) {
       const h = c.deeds ? 'You have ' + plural(c.deeds, 'deed') + ', so you earn ' + Math.round(DEEDS.income * 100 * c.deeds) + '% more coins.'
         : 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.';
       if (held.textContent !== h) held.textContent = h;
+      const t = c.deeds + p.total, a = p.total ? 'Sign now and you have ' + plural(t, 'deed') + ', so you earn ' + Math.round(DEEDS.income * 100 * t) + '% more coins.' : '';
+      if (after.textContent !== a) after.textContent = a;
+      after.hidden = !a;
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;
       sig = s; pairs.replaceChildren();
       for (const pair of PERKS) {
         const st = perkState(game, pair.id), box = el('div', 'pair'); box.dataset.pair = pair.id;
-        box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : st === 'open' ? 'Pick one' : 'You picked one'));
+        box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : st === 'open' ? 'Pick one' : 'Your perk'));
         for (const side of ['a', 'b']) {
           const x = pair[side], row = el('div', 'option'), txt = el('div');
           txt.append(el('b', null, x.name), el('span', null, x.about)); row.append(txt);
@@ -425,7 +433,7 @@ export function perksSheet(ctx) {
             const go = btn('Pick', 'btn small build'); go.dataset.perk = pair.id + ':' + side;
             confirmTap(go, 'Tap again', () => { if (pickPerk(game, pair.id, side)) paint(); });
             row.append(go);
-          } else if (st === side) row.classList.add('running'); // the heading says You picked one
+          } else if (st === side) row.classList.add('running'); // the heading says Your perk
           else row.classList.add('off'); // the side not picked, or a pair still locked, is dimmed
           box.append(row);
         }

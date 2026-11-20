@@ -218,9 +218,9 @@ export const EXPLAINERS = [
   {
     id: 'back', covers: ['back'],
     title: 'Go back',
-    text: 'Tap the ◂ button beside Map to go back to the town you played last.',
+    text: 'Tap ◂ to go back to the town you played last.',
     // the button as it reads, "◂ Dry Creek" (review 2026-11-19)
-    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' next to Map to go back to the town you played last.' : null),
+    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' to go back there.' : null),
     when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {

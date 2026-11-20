@@ -119,6 +119,7 @@ html.no3d body { background: var(--bg); }
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 3px 3px 0 rgba(22, 15, 11, .5); font-size: .85rem;
 }
 .wave b { color: var(--copper-hi); white-space: nowrap; min-width: 7ch; } /* room for "Wave 99" */
+.wave.old b { color: var(--gold); } /* towers hit harder on waves beaten before (the tower card's "Beaten waves" row) */
 .vault { width: 44px; height: 10px; background: var(--line); border: 1px solid #000; display: block; }
 .vault i { display: block; height: 100%; background: var(--good); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; width: 8em; } /* one width whatever it says, so Call now stays put */
@@ -192,6 +193,7 @@ html.no3d body { background: var(--bg); }
 }
 .tag.can { background: var(--copper); color: #1d120c; }
 .tag.boss { border-left: 4px solid var(--gold); }
+.tag.goaltag::after { content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 18px; margin: 2px 0 0 -1px; background: var(--gold); pointer-events: none; } /* the stem down to the building (GOAL_LIFT) */
 .tag.short { box-shadow: inset 0 -3px 0 var(--bad), 2px 2px 0 rgba(22, 15, 11, .6); }
 html.flat .tags { position: absolute; inset: 64px 12px auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 html.flat .tag { position: static; transform: none !important; }
@@ -293,6 +295,8 @@ html.flat .tag { position: static; transform: none !important; }
 .mapbadge .vault { width: 30px; height: 8px; }
 .mapbadge .minc { color: var(--good); }
 .mapbadge .minc:empty { display: none; }
+.mapbadge.small .mline, .mapbadge.small .minc { display: none; } /* crowded: just the name (src/ui/map.js, crowdedBadges) */
+.mapbadge.small { min-width: 0; align-content: center; }
 .mapbadge.on { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 2px 2px 0 rgba(22, 15, 11, .6); }
 .mapbadge.locked { background: #2e211a; border-style: dashed; color: var(--muted); }
 .mapbadge.locked b { color: var(--muted); }
@@ -350,7 +354,8 @@ html.flat .tag { position: static; transform: none !important; }
   display: grid; grid-template-columns: repeat(3, minmax(0, auto)); gap: 4px; padding: 3px; /* columns line up, and only labels can give way */
   background: var(--line); border: 2px solid #000; box-shadow: 3px 3px 0 rgba(22, 15, 11, .5); pointer-events: none;
 }
-.goodstrip .goodchip { pointer-events: auto; }
+.goodstrip .goodchip, .goodstrip .morechip { pointer-events: auto; }
+.goodstrip .morechip { min-height: 30px; padding: 2px 6px; font: inherit; font-size: .78rem; color: var(--ink); background: var(--panel-2); border: 2px solid var(--line); cursor: pointer; white-space: nowrap; }
 .goodstrip::-webkit-scrollbar { display: none; }
 .goodstrip[hidden] { display: none; }
 /* a phone: three even columns, the count under the name, so names like Locomotives fit */
@@ -387,6 +392,9 @@ html.flat .tag { position: static; transform: none !important; }
 .pathhead { flex-wrap: wrap; }
 .pathhead .costrow { margin-top: 0; flex-basis: 100%; }
 .option .depth { display: block; height: 6px; margin-top: 3px; background: var(--line); }
+.option .depthrow { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.option .depthrow small { font-size: .7rem; color: var(--muted); }
+.option .depthrow .depth { flex: 1 1 auto; margin-top: 0; }
 .option .depth i { display: block; height: 100%; background: var(--copper); }
 .option .btn { flex: none; min-width: 84px; }
 .captabs { display: flex; gap: 6px; }

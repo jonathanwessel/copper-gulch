@@ -52,9 +52,13 @@ export const GOALS = [
   { id: 'g-wave10', town: 'gulch', text: 'Stop the war wagon at wave 10', doneText: 'War wagon stopped', done: c => c.bestWave >= 10 },
   { id: 'g-mortar', town: 'gulch', text: 'Tap a Mortar pit and build a Mortar', doneText: 'Mortar built', kind: 'mortar', done: c => c.built('mortar'), ready: c => c.open('mortar'), at: c => ({ spot: c.freePit() }) },
   // later goals: within (minutes from a new game) is how soon the careful bot must do them (tools/balance.js)
-  // one act, with the coins as have / need, and the spotlight on Hold waves until they are held (review of 2026.11.19-8:
+  // one act, with the coins as have / need, and the spotlight on the coins it counts (review of 2026.11.19-12; of 2026.11.19-8:
   // "Tap Hold waves and save 15K coins" joined two acts, and "Tap Hold waves to save coins" read as if holding saved coins)
-  { id: 'g-save', town: 'gulch', text: 'Save coins to open Iron Ridge', doneText: 'Iron Ridge is open', need: RIDGE.found.coins, done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: c => (c.held() ? null : { el: '#holdWaves' }), within: 85 },
+  // the hold is its own step, so the save step can point at the coins it counts (review of 2026.11.19-12: the save goal
+  // spotlit Hold waves while it said save coins)
+  // (a hold after a lost boss does not count: Resume waves comes first, then this step)
+  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
+  { id: 'g-save', town: 'gulch', text: 'Save coins to open Iron Ridge', doneText: 'Iron Ridge is open', need: RIDGE.found.coins, done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#coins' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap the Toolsmith, then tap Build', doneText: 'Toolsmith built', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
   { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', doneText: 'Iron Ridge is open', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },
   // Iron Ridge
