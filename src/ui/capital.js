@@ -16,6 +16,9 @@ const labeled = (label, text) => { const s = el('span', 'lbline'); s.append(el('
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 const lower = g => GOODS[g].name.toLowerCase();
 const townName = id => (TOWNS[id] && (TOWNS[id].short || TOWNS[id].name)) || id;
+/* The Influence you hold, the same words on the card and the map label (review of 2026.11.20-8: "10 Influence" on the
+   label read as a contract's pay beside "Influence to spend"). */
+export const influenceWords = n => fmt(Math.floor(n)) + ' Influence';
 const pays = (game, o) => 'Pays ' + fmt(o.coins) + ' coins and ' + influenceFor(game, o.influence) + ' Influence';
 /* The tab the card shows; kept while the card is rebuilt. */
 let tab = 'contracts';
@@ -48,7 +51,7 @@ function confirmTap(b, ask, go) {
 export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}) {
   const c = capitalOf(game), box = el('div', 'capital');
   const inf = el('div', 'stat static'), infN = el('b');
-  inf.append(el('span', '', 'Influence to spend'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
+  inf.append(el('span', '', 'You have'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
   const tabs = el('div', 'captabs');
   for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Buildings']]) {
     const b = el('button', 'btn small', label); b.id = id === 'contracts' ? 'capTabContracts' : 'capTabInst';
@@ -58,7 +61,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
   }
   box.append(tabs);
   const live = [];
-  const paint = () => { setText(infN, fmt(c.influence)); for (const f of live) f(); };
+  const paint = () => { setText(infN, influenceWords(c.influence)); for (const f of live) f(); };
   const treeSig = () => treeOf(game).founded.join(',') + ':' + INSTITUTIONS.map(i => nodesOf(game, i.id)).join(',');
   if (tab === 'institutions') {
     box.append(institutions(game, live, changed, toast));
@@ -82,7 +85,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
   } else box.append(el('p', 'uses', 'No contract running.')); // a state, not a how-to in warning red (review of 2026.11.19-10)
   box.append(el('h3', '', 'Offers')); // not Contracts again under the Contracts tab (review of 2026.11.20-7)
   const list = el('div', 'goods research');
-  if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build more workshops in your towns.'));
+  if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build new kinds of buildings in your towns.'));
   for (const o of c.offers) {
     const row = el('div', 'option'), txt = el('div'), when = el('small');
     txt.append(el('b', '', fmt(o.need) + ' ' + lower(o.good) + ' from ' + townName(o.town)), el('span', '', pays(game, o)), when);
@@ -112,18 +115,18 @@ function institutions(game, live, changed, toast) {
     if (!founded(game, inst.id)) {
       txt.append(el('b', '', inst.name), labeled('First upgrade', inst.about), small);
       const b = el('button', 'btn small build', 'Build'); b.dataset.found = inst.id;
-      b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built. Buy its upgrades with Influence.', 4000); changed(); } });
+      b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built. Its upgrades cost Influence.', 4000); changed(); } });
       row.append(txt, b);
       live.push(() => { cost(small, game.shared.purse.coins, foundCost(game), 'coins'); b.disabled = foundBlock(game, inst.id) !== null; });
     } else {
       const n = nodesOf(game, inst.id), node = nextNode(game, inst.id);
-      txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' bought'));
+      txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' upgrades'));
       if (n) txt.append(labeled('Now', boughtText(inst, n))); // what was bought stays on the card (review of 2026.11.19-11)
-      if (!node) { txt.append(el('span', '', 'All upgrades bought.')); row.append(txt); row.classList.add('off'); }
+      if (!node) { txt.append(el('span', '', 'All upgrades done.')); row.append(txt); row.classList.add('off'); }
       else {
         txt.append(labeled('Next', node.about), small);
-        const b = el('button', 'btn small build', 'Buy'); b.dataset.node = inst.id;
-        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgrade bought. ' + node.about, 4000); changed(); } });
+        const b = el('button', 'btn small build', 'Upgrade'); b.dataset.node = inst.id; // Build, then Upgrade, as a town's buildings (review of 2026.11.20-8: Buy against Build)
+        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgraded. ' + node.about, 4000); changed(); } });
         row.append(txt, b);
         live.push(() => { cost(small, game.shared.capital.influence, nodeCost(game, inst.id), 'Influence'); b.disabled = nodeBlock(game, inst.id) !== null; });
       }

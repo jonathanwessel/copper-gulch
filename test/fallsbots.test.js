@@ -75,7 +75,7 @@ test('the Falls goal strip walks up the chain and sends the player to the town t
   g.step(.25);
   gl = goalNow(g);
   assert.equal(gl.id, 'f-copper');
-  assert.equal(gl.text, 'Go to Copper Gulch and build a Smelter there');
+  assert.equal(gl.text, 'Tap Map, Copper Gulch, then build a Smelter');
   assert.deepEqual(gl.at({ back: 'ridge' }), { el: '#mapBtn', go: 'gulch' });
   const gb = goalBuilding(g, t);
   assert.equal(gb.town, g.towns.gulch, 'the bot reads the town the goal names');

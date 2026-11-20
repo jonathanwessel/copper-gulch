@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-9',
+    lines: [
+      'In Goods, the town switch is now Keep for each tower, and the price bar ends in Full price down to Very low price.',
+      'Every price under 1 coin now reads under 1 coin each.',
+      'Perks says what a charter does before you sign, and what each deed gives you.',
+      'Sandy Bend has its own goals, and the Dry Creek mine is now the Copper Camp.',
+      'In landscape, a building you tap slides clear of the goods strip.',
+    ],
+  },
+  {
     v: '2026.11.20-8',
     lines: [
       'In Goods, each good shows how many are saved for towers and how many are spare to sell.',

@@ -6,7 +6,7 @@ export const RIDGE = {
   name: 'Iron Ridge',
   short: 'Iron Ridge',
   era: 'Iron and rail',
-  makesText: 'iron, steel and rails', // on the sheet that founds it
+  makesText: 'iron, steel, rails, boilers and locomotives', // on the sheet that founds it (review of 2026.11.20-8: the Capital asks it for boilers and locomotives)
   goods: ['stone', 'iron', 'coal', 'pigiron', 'steel', 'rails', 'boilers', 'locos'],
   buildings: ['rquarry', 'ironmine', 'colliery', 'furnace', 'steelmill', 'rolling', 'boilershop', 'loco'],
   top: 'locos',

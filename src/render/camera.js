@@ -72,8 +72,8 @@ export class CameraRig {
     if (first) { this.c.x = x; this.c.z = z; this.fitted = false; } // the opening view starts framed, without a glide
   }
   /* What covers the board: top, the lower edge of the top bar; cover, the open card's box { l, t, r, b } or null. */
-  setView(top, cover) {
-    this.view.cover = cover;
+  setView(top, cover, low = null) {
+    this.view.cover = cover; this.view.low = low; // low: the goods strip's box at the bottom, or null
     if (Math.abs(top - this.view.top) > 4) { this.view.top = top; this.fitKey = ''; }
     if (this.fitCover) { const k = coverSide(cover, this.el); if (k !== this.coverKey) { this.coverKey = k; this.fitKey = ''; } }
   }
@@ -167,11 +167,14 @@ export class CameraRig {
     // the circle's reach on screen from q: left, right, up and down (8 points round it, so a turned map counts)
     const e = { l: 0, r: 0, u: 0, d: 0 };
     if (rad > 0) for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, c = this.proj(this.t, p.x + Math.cos(a) * rad, 0, p.z + Math.sin(a) * rad); e.l = Math.max(e.l, q.x - c.x); e.r = Math.max(e.r, c.x - q.x); e.u = Math.max(e.u, q.y - c.y); e.d = Math.max(e.d, c.y - q.y); }
+    const lw = this.view.low;
     const raw = [
       { l: r.left, r: W, t: top, b: cv.t },   // above the card
       { l: r.left, r: cv.l, t: top, b: H },   // left of it
       { l: cv.r, r: W, t: top, b: H },        // right of it
     ];
+    // a part the goods strip runs across ends at the strip's top (review of 2026.11.20-8)
+    if (lw) for (const a of raw) if (lw.l < a.r && lw.r > a.l && lw.t < a.b && lw.t > a.t) a.b = lw.t - 28; // room for the building under its point
     const fits = a => e.l + e.r + 16 <= a.r - a.l && e.u + e.d + 16 <= a.b - a.t; // the whole circle fits in this part
     const parts = raw.map(a => {
       const s = Math.max(SIDE_GAP, (a.r - a.l) * .28), o = fits(a);
@@ -191,7 +194,7 @@ export class CameraRig {
       }
     }
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
-    const clear = q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20;
+    const clear = (q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20) && !(lw && q.x > lw.l - 20 && q.x < lw.r + 20 && q.y > lw.t - 20 && q.y < lw.b + 20);
     // a circle that fits in no part even after the step back: its middle goes to the middle of the roomiest part, so it
     // runs off both sides alike (review of 2026.11.20-7: an empty pit's Mortar circle on a desktop ran off the left edge
     // only, with the map at its farthest)

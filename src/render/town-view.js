@@ -30,8 +30,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     select: target => { selection.set(target); if (!target) rig.keep(null); },
     /* What covers the board (client pixels): the top bar's lower edge, and the open card's box or null. Read by the
        interface five times a second; the camera refits its home view and keeps the selected thing clear of the card. */
-    setView(top, cover) {
-      rig.setView(top, cover);
+    setView(top, cover, low = null) {
+      rig.setView(top, cover, low);
       const tg = selection.target, B = town.def.board;
       if (!tg) return;
       const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];

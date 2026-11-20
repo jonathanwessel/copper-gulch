@@ -14,7 +14,7 @@ export const BUILDINGS = {
   wagonworks: { name: 'Wagon Works', town: 'gulch', makes: 'wagons', inputs: { planks: 2, tools: 1, copper: 1 }, rate: .2, cost: 40000, growth: 1.2, needs: { toolsmith: 10 }, model: 'wagonworks' },
   // Dry Creek Outpost: raw goods only. An outpost may make a good a town makes too (GDD.md, Outposts).
   quarry:  { name: 'Stone Camp', town: 'drycreek', makes: 'stone', inputs: {}, rate: .8, cost: 10, growth: 1.15, model: 'quarry' },
-  dmine:   { name: 'Mining Camp', town: 'drycreek', makes: 'ore', inputs: {}, rate: .6, cost: 30, growth: 1.15, needs: { quarry: 2 }, model: 'dmine' },
+  dmine:   { name: 'Copper Camp', town: 'drycreek', makes: 'ore', inputs: {}, rate: .6, cost: 30, growth: 1.15, needs: { quarry: 2 }, model: 'dmine' },
   // Iron Ridge: iron and rail. Its Boiler Shop needs bricks and its Locomotive Works tools, both shipped from the Gulch.
   rquarry: { name: 'Quarry', town: 'ridge', makes: 'stone', inputs: {}, rate: 1, cost: 15, growth: 1.15, model: 'rquarry' },
   ironmine: { name: 'Iron Mine', town: 'ridge', makes: 'iron', inputs: {}, rate: .8, cost: 60, growth: 1.15, needs: { rquarry: 3 }, model: 'ironmine' },

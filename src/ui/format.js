@@ -31,10 +31,9 @@ export function fmtPrice(v) {
    2026.11.19-12: "0.6 coins each" is a coin nobody can hold). The open price breakdown keeps one unit's price, so its
    rows multiply as written. */
 export function each(v) {
-  if (!isFinite(v) || v < .0095) return fmtPrice(v) + ' each';
+  if (!isFinite(v) || v <= 0) return fmtPrice(v) + ' each';
   if (v >= .95) { const c = v < 1000 ? Math.round(v) : v; return fmt(c) + (c === 1 ? ' coin' : ' coins') + ' each'; } // whole coins (review of 2026.11.20-6: "1.5 coins each")
-  const n = v >= .095 ? 10 : 100, c = Math.round(v * n);
-  return c + (c === 1 ? ' coin' : ' coins') + ' per ' + n;
+  return 'under 1 coin each'; // one form in every list (review of 2026.11.20-8: "7 coins per 10" beside "2 coins each"); the price bar shows how low
 }
 /* "sells for 4.6 coins each", "sells for 6 coins per 10" */
 export const sellsFor = v => 'sells for ' + each(v);

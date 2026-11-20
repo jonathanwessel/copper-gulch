@@ -27,7 +27,7 @@ test('the map card says Full or the hits left, and the contract names its good',
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'You beat this wave');
+  assert.equal(s, 'Beaten wave bonus');
   assert.deepEqual(textIssues(s), []);
 });
 

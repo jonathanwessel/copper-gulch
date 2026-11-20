@@ -40,7 +40,7 @@ test('the old-waves damage row says up to which wave', () => {
   const rows = explainTower(t, t.towers[0]).dmg.rows;
   assert.ok(!rows.some(r => r.label === OLD_LABEL));
   const row = rows.find(r => r.label === oldWavesLabel(t));
-  assert.equal(row.label, 'You beat this wave'); assert.equal(row.mul, 3);
+  assert.equal(row.label, 'Beaten wave bonus'); assert.equal(row.mul, 3);
 });
 
 test('institutions name the outposts they help', () => {

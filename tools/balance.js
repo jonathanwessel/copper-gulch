@@ -609,7 +609,7 @@ export function tendImports(game, town, imp) {
    new game on every seed. Returns { rows: [{ id, text, times }], misses }. */
 export const GOAL_MINUTES = 40;
 export function goalCheck(camps, later = false) {
-  const rows = GOALS.filter(x => !!x.within === later).map(x => ({ id: x.id, text: x.text, within: x.within || GOAL_MINUTES, times: camps.map(c => c.goals[x.id] ?? null) }));
+  const rows = GOALS.filter(x => !x.side && !!x.within === later).map(x => ({ id: x.id, text: x.text, within: x.within || GOAL_MINUTES, times: camps.map(c => c.goals[x.id] ?? null) }));
   const misses = [];
   for (const r of rows) {
     const late = r.times.map((t, i) => [t, camps[i].dc.seed]).filter(([t]) => t === null || t > r.within * 60);

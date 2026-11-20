@@ -29,7 +29,7 @@ test('a new game starts in Dry Creek Outpost with a Stone Camp, and the Gulch is
   assert.equal(t.coins, TOWNS.drycreek.start.coins);
 });
 
-test('the outpost chain: the Stone Camp cuts stone, the Mining Camp opens at Stone Camp level 2 and digs copper ore', () => {
+test('the outpost chain: the Stone Camp cuts stone, the Copper Camp opens at Stone Camp level 2 and digs copper ore', () => {
   const g = newGame('o2'), t = g.town;
   t.coins = 1000;
   assert.equal(unlocked(t, 'dmine'), false);

@@ -29,6 +29,7 @@ import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowe
 import { TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
+import { bossName } from './lost.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -63,10 +64,13 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = (s, price = 1) => (price < .0095 ? '' : s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low'); // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
+export const priceWord = s => (s >= .9 ? 'Full price' : s >= .6 ? 'High price' : s >= .35 ? 'Half price' : s >= .1 ? 'Low price' : 'Very low price'); // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
 export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades';
+/* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
+   which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
+export const STOCK_LABEL = 'Keep for each tower';
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -77,7 +81,7 @@ export function goodsSheet(game, town, focus = null) {
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
     const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => setSwitch(stockBtn, 'Save for towers', stockWords(town), null); // review of 2026.11.20-7: "Some" did not say how much
+    const paintStock = () => setSwitch(stockBtn, STOCK_LABEL, stockWords(town), null); // review of 2026.11.20-7: "Some" did not say how much
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
     paintStock(); stockRow.append(stockBtn);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
@@ -134,7 +138,7 @@ export function goodsSheet(game, town, focus = null) {
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
         const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
-        const pw = priceWord(sat, ex.value); if (r.level.textContent !== pw) r.level.textContent = pw;
+        const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
         const pl = priceLabel(ex.value); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
         setSwitch(r.sw, 'Sell spare', selling ? 'On' : 'Off', selling);
       }
@@ -274,7 +278,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Raises one tower a level every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Keep trying the boss', 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Keep trying the ' + bossName(town), 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -440,12 +444,14 @@ export function perksSheet(ctx) {
     const prog = el('div', 'explain why charterline'), wave = rowOf(prog), coins = rowOf(prog), next = el('p', 'uses');
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and deeds.') /* review of 2026.11.20-7: the warning was long; perks are picked again right below */, r);
+    // what a charter is comes first, then what signing pays under its own small heading (review of 2026.11.20-8:
+    // "Charter" and "deed" were not explained and the deed rows were hard to read)
+    sec('Charter', el('p', 'uses', 'A charter starts ' + town.def.name + ' over at wave 1 with nothing built. You keep your coins and get deeds.'), now, el('small', 'pairhead', 'Sign now and get'), prog, next, r);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';
     const each = el('p', 'uses');
-    sec('Deeds', held, each);
+    sec('Deeds', each, held);
     // the perk pairs
     const pairs = el('div', 'goods perks'); body.append(pairs);
     let sig = '';
@@ -455,8 +461,8 @@ export function perksSheet(ctx) {
       const t1 = p.total ? '' : 'You can sign once you earn a deed here.';
       set(now, t1); now.hidden = !t1;
       // "Best wave", so it never reads as the wave on the top bar after a lost boss (review of 2026.11.19-12)
-      set(wave.l, 'For best wave ' + town.bestWave); /* "For": how deeds are earned (review of 2026.11.20-7) */ set(wave.v, plural(p.wave, 'deed'));
-      set(coins.l, 'For ' + fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
+      set(wave.l, 'Best wave ' + town.bestWave); /* "For": how deeds are earned (review of 2026.11.20-7) */ set(wave.v, plural(p.wave, 'deed'));
+      set(coins.l, fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
       set(next, 'Next deed at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins.');
       sign.disabled = !p.total;
       const more = d => plural(d, 'deed') + ', ' + Math.round(DEEDS.income * 100 * d) + '% more coins';
@@ -465,7 +471,7 @@ export function perksSheet(ctx) {
       set(after.l, 'Sign now and you have'); set(after.v, p.total ? more(t) : '');
       after.r.hidden = !p.total;
       set(each, 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.');
-      each.hidden = c.deeds > 0;
+      // always shown: it says what a deed is (review of 2026.11.20-8)
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;
       sig = s; pairs.replaceChildren();

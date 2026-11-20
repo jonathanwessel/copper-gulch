@@ -20,14 +20,14 @@ test('every goods row has one pattern and a price, and never keeps more than the
     assert.deepEqual(textIssues(t), []);
   }
   // the Goods sheet's town switch has its own name, apart from each building's "Keep 84 timber for towers"
-  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, 'Save for towers'/);
+  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, STOCK_LABEL/);
 });
 
 test('the foreman, old-waves, research and lost lines read as plain statuses', () => {
   const f = foremanLine('flooded', 'timber');
-  assert.equal(f, 'Waiting. Timber sells for too little now.');
+  assert.equal(f, 'Waiting for timber to sell for more.');
   assert.doesNotMatch(f, /better .* price/);
-  assert.equal(oldWavesLabel({ record: 22 }), 'You beat this wave');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Beaten wave bonus');
   assert.ok(oldWavesLabel({ record: 22 }).length <= 20);
   assert.equal(levelsDone(0, 5), '0 of 5 done');
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss', back: 18 } };
@@ -44,7 +44,7 @@ test('the map card says what the vault takes, and the Capital shows its figure o
   assert.match(map, /stat\(store \+ ' can take', vaultHits\(t\)/);
   assert.match(map, /B\.line\.hidden = openId === 'capital'/); // the label is just its name while its card is open
   const cap = read('src/ui/capital.js');
-  assert.match(cap, /'Influence to spend'/);
+  assert.match(cap, /'You have'/);
   assert.match(cap, /'Sent ' \+ fmt\(Math\.floor\(a\.got\)\) \+ ' so far'/);
 });
 

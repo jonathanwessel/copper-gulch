@@ -28,11 +28,11 @@ export const GOALS = [
   // Dry Creek Outpost, where a new game starts
   { id: 'dc-tower', town: 'drycreek', text: 'Tap a stone pad and build a Crossbow', doneText: 'Crossbow built', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
   { id: 'dc-stone2', town: 'drycreek', text: 'Tap the Stone Camp, then tap Upgrade', doneText: 'Stone Camp is level 2', done: c => c.lv('quarry') >= 2, ready: early(), at: () => ({ plot: 'quarry' }) },
-  { id: 'dc-mine', town: 'drycreek', text: 'Tap the Mining Camp, then tap Build', doneText: 'Mining Camp built', done: c => c.lv('dmine') >= 1, ready: early(c => c.unlocked('dmine')), at: () => ({ plot: 'dmine' }) },
+  { id: 'dc-mine', town: 'drycreek', text: 'Tap the Copper Camp, then tap Build', doneText: 'Copper Camp built', done: c => c.lv('dmine') >= 1, ready: early(c => c.unlocked('dmine')), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-three', town: 'drycreek', text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }) },
   { id: 'dc-up', town: 'drycreek', text: 'Tap a Crossbow, then tap Upgrade', doneText: 'Crossbow is level 2', done: c => c.topLevel() >= 2, ready: early(), at: c => ({ tower: c.lowTower() }) },
   { id: 'dc-call', town: 'drycreek', text: 'Tap Call now for bonus coins and an early wave', doneText: 'Wave called early', done: c => c.called(), ready: early(c => c.towers.length >= 3 && c.bestWave >= 2), at: () => ({ el: '#callWave' }) },
-  { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Mining Camp and upgrade it to level 5', doneText: 'Mining Camp is level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
+  { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Copper Camp and upgrade it to level 5', doneText: 'Copper Camp is level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-path', town: 'drycreek', text: 'Upgrade a Crossbow to level 5 and pick a path', doneText: 'Crossbow path picked', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', doneText: 'Copper Gulch is open', done: c => c.won },
   { id: 'dc-go', town: 'drycreek', text: 'Tap Map, Copper Gulch, then Play Copper Gulch', doneText: 'You are in Copper Gulch', done: c => c.visited('gulch'), ready: c => c.won, at: goTo('gulch'), away: true },
@@ -57,7 +57,7 @@ export const GOALS = [
   // the hold is its own step, so the save step can point at the coins it counts (review of 2026.11.19-12: the save goal
   // spotlit Hold waves while it said save coins)
   // (a hold after a lost boss does not count: Resume waves comes first, then this step)
-  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
+  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves to save coins for Iron Ridge', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
   { id: 'g-save', town: 'gulch', text: 'Save coins to open Iron Ridge', doneText: 'Iron Ridge is open', need: RIDGE.found.coins, done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#coins' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap the Toolsmith, then tap Build', doneText: 'Toolsmith built', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
   { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', doneText: 'Iron Ridge is open', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },
@@ -69,7 +69,7 @@ export const GOALS = [
   { id: 'r-boiler', town: 'ridge', text: 'Tap the Boiler Shop, then tap Build', doneText: 'Boiler Shop built', done: c => c.lv('boilershop') >= 1, ready: c => c.unlocked('boilershop'), at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-steel5', town: 'ridge', text: 'Tap the Steel Mill and upgrade it to level 5', doneText: 'Steel Mill is level 5', done: c => c.lv('steelmill') >= 5, ready: c => c.lv('steelmill') >= 1, at: () => ({ plot: 'steelmill' }), within: RIDGE_GOAL },
   { id: 'r-rolling', town: 'ridge', text: 'Tap the Rolling Mill, then tap Build', doneText: 'Rolling Mill built', done: c => c.lv('rolling') >= 1, ready: c => c.unlocked('rolling'), at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
-  { id: 'r-tools', town: 'ridge', text: 'Go to Copper Gulch and build a Toolsmith there', doneText: 'Toolsmith built in Copper Gulch', done: ridgeTools, ready: c => c.lv('rolling') >= 1, at: goTo('gulch'), there: ['gulch', 'toolsmith'], within: RIDGE_GOAL },
+  { id: 'r-tools', town: 'ridge', text: 'Tap Map, Copper Gulch, then build a Toolsmith', doneText: 'Toolsmith built in Copper Gulch', done: ridgeTools, ready: c => c.lv('rolling') >= 1, at: goTo('gulch'), there: ['gulch', 'toolsmith'], within: RIDGE_GOAL },
   { id: 'r-rolling5', town: 'ridge', text: 'Tap the Rolling Mill and upgrade it to level 5', doneText: 'Rolling Mill is level 5', done: c => c.lv('rolling') >= 5, ready: c => c.lv('rolling') >= 1, at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
   { id: 'r-boiler5', town: 'ridge', text: 'Tap the Boiler Shop and upgrade it to level 5', doneText: 'Boiler Shop is level 5', done: c => c.lv('boilershop') >= 5, ready: c => c.lv('boilershop') >= 1, at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-loco', town: 'ridge', text: 'Tap the Locomotive Works, then tap Build', doneText: 'Locomotive Works built', done: c => c.lv('loco') >= 1, ready: c => c.unlocked('loco'), at: () => ({ plot: 'loco' }), within: RIDGE_GOAL },
@@ -79,6 +79,13 @@ export const GOALS = [
   { id: 'p-three', town: 'pinehollow', text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }), within: RIDGE_GOAL },
   { id: 'p-win', town: 'pinehollow', text: 'Beat wave 15 to win Pine Hollow', doneText: 'Pine Hollow won', done: c => c.won, within: RIDGE_GOAL },
   { id: 'p-back', town: 'pinehollow', text: 'Tap Map, Iron Ridge, then Play Iron Ridge', doneText: 'Back in Iron Ridge', done: c => c.won && !c.inPlay, ready: c => c.won, at: goTo('ridge'), away: true, within: RIDGE_GOAL },
+  // Sandy Bend (review of 2026.11.20-8: it had no goal strip): a few towers, the Quartz Diggings, the win, then back to
+  // Silver Falls. side: no bot is sent here, so the bots' goal timing check leaves these out (tools/balance.js goalCheck).
+  { id: 's-tower', town: 'sandybend', side: true, text: 'Tap a stone pad and build a Crossbow', doneText: 'Crossbow built', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  { id: 's-quartz', town: 'sandybend', side: true, text: 'Tap the Quartz Diggings, then tap Build', doneText: 'Quartz Diggings built', done: c => c.lv('quartzdig') >= 1, ready: early(c => c.unlocked('quartzdig')), at: () => ({ plot: 'quartzdig' }) },
+  { id: 's-three', town: 'sandybend', side: true, text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  { id: 's-win', town: 'sandybend', side: true, text: 'Beat wave 15 to win Sandy Bend', doneText: 'Sandy Bend won', done: c => c.won },
+  { id: 's-back', town: 'sandybend', side: true, text: 'Tap Map, Silver Falls, then Play Silver Falls', doneText: 'Back in Silver Falls', done: c => c.won && !c.inPlay, ready: c => c.won, at: goTo('falls'), away: true },
   // Silver Falls (M5): the way up its chain to the Telegraph Works. The Wire Mill uses Gulch copper and the Dynamo and
   // Telegraph Works use Ridge steel and rails, so a missing maker there sends the player to that town.
   { id: 'f-sand4', town: 'falls', text: 'Tap the Sand Pit and upgrade it to level 4', doneText: 'Sand Pit is level 4', done: c => c.lv('sandpit') >= 4, at: () => ({ plot: 'sandpit' }), within: FALLS_GOAL },
@@ -86,10 +93,10 @@ export const GOALS = [
   { id: 'f-glass', town: 'falls', text: 'Tap the Glassworks, then tap Build', doneText: 'Glassworks built', done: c => c.lv('glassworks') >= 1, ready: c => c.unlocked('glassworks'), at: () => ({ plot: 'glassworks' }), within: FALLS_GOAL },
   { id: 'f-wheel5', town: 'falls', text: 'Tap the Water Wheel and upgrade it to level 5', doneText: 'Water Wheel is level 5', done: c => c.lv('waterwheel') >= 5, ready: c => c.lv('glassworks') >= 1, at: () => ({ plot: 'waterwheel' }), within: FALLS_GOAL },
   { id: 'f-wire', town: 'falls', text: 'Tap the Wire Mill, then tap Build', doneText: 'Wire Mill built', done: c => c.lv('wiremill') >= 1, ready: c => c.unlocked('wiremill'), at: () => ({ plot: 'wiremill' }), within: FALLS_GOAL },
-  { id: 'f-copper', town: 'falls', text: 'Go to Copper Gulch and build a Smelter there', doneText: 'Smelter built in Copper Gulch', done: c => c.lvIn('gulch', 'smelter') >= 1, ready: c => c.lv('wiremill') >= 1, at: goTo('gulch'), there: ['gulch', 'smelter'], within: FALLS_GOAL },
+  { id: 'f-copper', town: 'falls', text: 'Tap Map, Copper Gulch, then build a Smelter', doneText: 'Smelter built in Copper Gulch', done: c => c.lvIn('gulch', 'smelter') >= 1, ready: c => c.lv('wiremill') >= 1, at: goTo('gulch'), there: ['gulch', 'smelter'], within: FALLS_GOAL },
   { id: 'f-bulbs', town: 'falls', text: 'Tap the Bulb Works, then tap Build', doneText: 'Bulb Works built', done: c => c.lv('bulbworks') >= 1, ready: c => c.unlocked('bulbworks'), at: () => ({ plot: 'bulbworks' }), within: FALLS_GOAL },
   { id: 'f-dynamo', town: 'falls', text: 'Tap the Dynamo Works, then tap Build', doneText: 'Dynamo Works built', done: c => c.lv('dynamo') >= 1, ready: c => c.unlocked('dynamo'), at: () => ({ plot: 'dynamo' }), within: FALLS_GOAL },
-  { id: 'f-steel', town: 'falls', text: 'Go to Iron Ridge and build a Steel Mill there', doneText: 'Steel Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'steelmill') >= 1, ready: c => c.lv('dynamo') >= 1, at: goTo('ridge'), there: ['ridge', 'steelmill'], within: FALLS_GOAL },
-  { id: 'f-rails', town: 'falls', text: 'Go to Iron Ridge and build a Rolling Mill there', doneText: 'Rolling Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'rolling') >= 1, ready: c => c.unlocked('telegraph'), at: goTo('ridge'), there: ['ridge', 'rolling'], within: FALLS_GOAL },
+  { id: 'f-steel', town: 'falls', text: 'Tap Map, Iron Ridge, then build a Steel Mill', doneText: 'Steel Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'steelmill') >= 1, ready: c => c.lv('dynamo') >= 1, at: goTo('ridge'), there: ['ridge', 'steelmill'], within: FALLS_GOAL },
+  { id: 'f-rails', town: 'falls', text: 'Tap Map, Iron Ridge, then build a Rolling Mill', doneText: 'Rolling Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'rolling') >= 1, ready: c => c.unlocked('telegraph'), at: goTo('ridge'), there: ['ridge', 'rolling'], within: FALLS_GOAL },
   { id: 'f-telegraph', town: 'falls', text: 'Tap the Telegraph Works, then tap Build', doneText: 'Telegraph Works built', done: c => c.lv('telegraph') >= 1, ready: c => c.unlocked('telegraph'), at: () => ({ plot: 'telegraph' }), within: FALLS_GOAL },
 ];

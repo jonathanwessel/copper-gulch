@@ -327,7 +327,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /Waiting. Timber sells for too little now./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Waiting for timber to sell for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -711,10 +711,10 @@ async function run() {
         document.querySelector('#card .build[data-kind="crossbow"]').click(); CG.play.close();
         out.tower = t.towers.some(x => x.spot === 0);
         out.noPlaces = document.getElementById('backBtn').hidden && document.getElementById('mapBtn').hidden; // one town: no Map, no back
-        // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Mining Camp, its tag spotlit
+        // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Copper Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
-        out.goalNext = gt() === 'Tap the Mining Camp, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        out.goalNext = gt() === 'Tap the Copper Camp, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
@@ -942,7 +942,7 @@ async function run() {
         await sleep(500);
         await page.evaluate(() => document.querySelector('#mapCard [data-found="bank"]').click()); await sleep(600);
         // its toast may wait behind the contract's one
-        const toasted = await waitFor(page, () => [...document.querySelectorAll('.toast')].some(n => /is built. Buy/.test(n.textContent)), 8000);
+        const toasted = await waitFor(page, () => [...document.querySelectorAll('.toast')].some(n => /is built. Its upgrades cost Influence/.test(n.textContent)), 8000);
         const buy = await page.evaluate(() => ({ founded: CG.game.shared.tree.founded.join(','), buy: !!document.querySelector('#mapCard [data-node="bank"]') }));
         buy.toast = toasted;
         if (buy.founded !== 'bank' || !buy.buy || !buy.toast) bad.push('founding the Bank did not work (' + JSON.stringify(buy) + ')');
@@ -950,7 +950,7 @@ async function run() {
           const before = await page.evaluate(() => CG.game.towns.gulch.mods.factor('income'));
           await page.evaluate(() => document.querySelector('#mapCard [data-node="bank"]').click()); await sleep(600);
           const after = await page.evaluate(() => ({ income: CG.game.towns.gulch.mods.factor('income'), n: CG.game.shared.tree.nodes.bank, left: CG.game.shared.capital.influence, line: document.getElementById('mapCard').textContent }));
-          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 50 - NODE_COST[0] || !/1 of 5 bought/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
+          if (after.n !== 1 || !(Math.abs(after.income / before - 1.1) < 1e-6) || after.left !== 50 - NODE_COST[0] || !/1 of 5 upgrades/.test(after.line)) bad.push('buying a Bank upgrade did not work (' + JSON.stringify({ ...after, line: after.line.slice(0, 160) }) + ')');
         }
         bad.push(...(await check(page)).map(b => 'institutions bought: ' + b));
         // the city: the Bank stands on its lot (risen and merged back in), the capitol's badge floats over it, and no

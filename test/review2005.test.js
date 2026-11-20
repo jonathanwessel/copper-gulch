@@ -17,8 +17,7 @@ test('a price of almost 0 is said once, by the price bar', () => {
   const line = goodsLine({ have: 40, kept: 5, selling: true, price: .001 });
   assert.equal(line, '40 in stock · 5 for towers · 35 spare');
   assert.doesNotMatch(line, /almost/);
-  assert.equal(priceWord(.02, .001), ''); // since 2026.11.20-8 the price at the bar's front says it
-  assert.equal(priceWord(.02, .5), 'Very low');
+  assert.equal(priceWord(.02), 'Very low price'); // since 2026.11.20-9 the front says "Under 1 coin each" and the end how low
 });
 
 test('no dot stands where a colon would go, and raider names are lowercase in a sentence', () => {

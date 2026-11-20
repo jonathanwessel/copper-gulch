@@ -37,17 +37,16 @@ test('Save for towers names the upgrades it saves for, and 4 upgrades counts 4 l
   assert.equal(stockWords(t), '4 upgrades');
   assert.equal(reserves(t).use.timber, lv(RESERVE.levels * RESERVE.lots) + newPart * RESERVE.lots, 'four levels of every tower and four new towers');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
-  assert.equal(ex.title, 'Save for towers');
-  assert.match(ex.text, /Tap Save for towers/);
+  assert.equal(ex.title, 'Keep for each tower');
+  assert.match(ex.text, /Tap Keep for each tower/);
   assert.doesNotMatch(ex.text, /Tower stock/);
 });
 
 test('the price bar starts with the price in one form, and its end word is only how high it stands', () => {
   assert.equal(priceLabel(2), '2 coins each');
-  assert.equal(priceLabel(.7), '7 coins per 10');
-  assert.equal(priceLabel(.001), 'Almost 0 coins each');
-  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Top', 'High', 'Half', 'Low', 'Very low'].includes(priceWord(s)));
-  assert.equal(priceWord(.02, .001), '', 'almost 0 is said once, at the front');
+  assert.equal(priceLabel(.7), 'Under 1 coin each');
+  assert.equal(priceLabel(.001), 'Under 1 coin each');
+  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Full price', 'High price', 'Half price', 'Low price', 'Very low price'].includes(priceWord(s)));
   const sheets = read('src/ui/sheets.js');
   assert.match(sheets, /priceLabel\(ex\.value\)/);
   assert.match(sheets, /explainBox\(ex, \{ total: null \}\)/);
@@ -55,7 +54,7 @@ test('the price bar starts with the price in one form, and its end word is only 
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'You beat this wave');
+  assert.equal(s, 'Beaten wave bonus');
   assert.ok(s.length <= 20);
   assert.deepEqual(textIssues(s), []);
 });
@@ -73,11 +72,11 @@ test('the Capital has a Buildings tab, an Offers heading under Contracts, and a 
 
 test('the charter rows say what earns a deed, the warning is short, and Hire foreman says what it does', () => {
   const s = read('src/ui/sheets.js');
-  assert.match(s, /'For best wave ' \+ town\.bestWave/);
-  assert.match(s, /'For ' \+ fmt\(town\.ownEarned\) \+ ' coins earned here'/);
-  const warn = 'Copper Gulch starts over at wave 1 with nothing built. You keep your coins and deeds.';
-  assert.match(s, /' starts over at wave 1 with nothing built\. You keep your coins and deeds\.'/);
-  assert.ok(warn.length < 90);
+  assert.match(s, /'Best wave ' \+ town\.bestWave/);
+  assert.match(s, /fmt\(town\.ownEarned\) \+ ' coins earned here'/);
+  const warn = 'A charter starts Copper Gulch over at wave 1 with nothing built. You keep your coins and get deeds.';
+  assert.match(s, /' over at wave 1 with nothing built\. You keep your coins and get deeds\.'/);
+  assert.ok(warn.length < 100);
   assert.match(read('src/ui/play.js'), /'A foreman buys its levels for you.'/);
 });
 

@@ -8,7 +8,7 @@ export const FALLS = {
   name: 'Silver Falls',
   short: 'Silver Falls',
   era: 'Electricity',
-  makesText: 'glass, wire and light bulbs', // on the sheet that founds it
+  makesText: 'glass, wire, light bulbs, dynamos and telegraphs', // on the sheet that founds it
   goods: ['sand', 'quartz', 'power', 'glass', 'wire', 'bulbs', 'dynamos', 'telegraphs'],
   buildings: ['sandpit', 'quartzmine', 'waterwheel', 'glassworks', 'wiremill', 'bulbworks', 'dynamo', 'telegraph'],
   top: 'telegraphs',

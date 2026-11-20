@@ -10,7 +10,7 @@ import { fmt, fmtLive, splitLive } from './format.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
-import { capitalPanel, contractDone, sentWords } from './capital.js';
+import { capitalPanel, contractDone, sentWords, influenceWords } from './capital.js';
 import { treeCalls } from '../core/tree.js';
 import { retryState } from '../core/automation.js';
 
@@ -209,7 +209,7 @@ export function mountMap(root, game, view, shell) {
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
-          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town, then tap Sign the charter.'));
+          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town and sign its charter. That town starts over at wave 1, and you keep your coins.'));
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
@@ -257,7 +257,7 @@ export function mountMap(root, game, view, shell) {
       B.b.classList.toggle('on', openId && badge[openId] ? openId === s.id : !!(info && info.inPlay));
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)));
       if (info) {
-        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Retry soon' : info.alert === 'retrying' ? ' · Retrying' : '';
+        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Tries again soon' : info.alert === 'retrying' ? ' · Retrying' : '';
         setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
         B.vault.hidden = false; B.line.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
@@ -267,7 +267,7 @@ export function mountMap(root, game, view, shell) {
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, openId === 'capital' ? '' : c.influence + ' Influence'); // its open card says these (review of 2026.11.20-4: the figure three times on one screen)
+        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, openId === 'capital' ? '' : 'You have ' + influenceWords(c.influence)); // its open card says these (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
         const lr = lockedRules(game, s.id);

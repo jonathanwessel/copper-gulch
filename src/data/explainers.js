@@ -30,8 +30,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'dc-mine', town: 'drycreek', covers: ['building:dmine'],
-    title: 'The Mining Camp',
-    text: 'You can build a Mining Camp now. It digs copper ore, which sells for more than stone. Tap it to build it.',
+    title: 'The Copper Camp',
+    text: 'You can build a Copper Camp now. It digs copper ore, which sells for more than stone. Tap it to build it.',
     when: h => h.unlocked('dmine'), at: () => ({ plot: 'dmine' }),
   },
   {
@@ -43,7 +43,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Go to Copper Gulch',
     title: 'Copper Gulch is open',
-    text: 'You beat wave 10 at Dry Creek. Copper Gulch has more buildings and towers. Dry Creek keeps making coins while you are away.',
+    text: 'You beat wave 10 at Dry Creek. Tap Go to Copper Gulch to start your first town. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
   },
   // Copper Gulch
@@ -86,13 +86,13 @@ export const EXPLAINERS = [
   {
     id: 'reserve', covers: ['reserve'],
     title: 'Saved for towers',
-    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and workshops leave them alone. To use all of a good, tap its building and switch Keep for towers off.",
+    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and other buildings leave them alone. To use all of a good, tap its building and switch Keep for towers off.",
     when: h => h.towers.length > 0 && h.keptPlot !== null && h.t > 45, at: h => ({ plot: h.keptPlot }),
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Save for towers',
-    text: 'Tap Save for towers to switch it to 4 upgrades. Your town then keeps goods for the next 4 upgrades of every tower and sells less.',
+    title: 'Keep for each tower',
+    text: 'Tap Keep for each tower to switch it to 4 upgrades. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -158,7 +158,7 @@ export const EXPLAINERS = [
   {
     id: 'cannon', covers: ['tower:cannon'],
     title: 'Cannon',
-    text: 'Your Copper Mine digs ore, so you can build a Cannon. Tap a stone pad to build one. It\'s slow, but each shot hits a whole group of raiders.',
+    text: 'Your Copper Mine digs ore, so you can build a Cannon. Tap a stone pad to build one. It\'s slow, but each shot also hits the raiders around the one it aims at.',
     when: h => h.can('cannon') && (h.made.ore || 0) > 0, at: () => ({ spot: 1 }),
   },
   {
@@ -310,14 +310,15 @@ export const EXPLAINERS = [
   },
   {
     id: 'retry', covers: ['retry'],
-    title: 'Keep trying the boss',
+    title: 'Keep trying',
     text: 'Tap Auto and turn on Keep trying the boss. After a boss gets through or the vault falls, this town starts its waves again by itself once a tower goes up a level.',
+    say: h => 'Tap Auto and turn on Keep trying the ' + h.boss + '. After the ' + h.boss + ' gets through or the vault falls, this town starts its waves again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {
     id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
-    text: 'Raiders come out of the railway tunnel and ride past every row of workshops. Start with the Quarry. Crossbows here are built with stone.',
+    text: 'Raiders come out of the railway tunnel and ride past every row of buildings. Start with the Quarry. Crossbows here are built with stone.',
     when: () => true, at: () => ({ plot: 'rquarry' }),
   },
   {
@@ -354,7 +355,7 @@ export const EXPLAINERS = [
   {
     id: 'falls-power', town: 'falls', covers: ['power'],
     title: 'Power',
-    text: 'The Water Wheel makes power for every workshop here. When they need more than it makes, they all slow down. Tap it and upgrade it to keep up.',
+    text: 'The Water Wheel makes power for the buildings here that need it. When they need more than it makes, they all slow down. Tap it and upgrade it to keep up.',
     when: h => h.level('glassworks') > 0, at: () => ({ plot: 'waterwheel' }),
   },
   {

@@ -16,15 +16,15 @@ import { textIssues } from '../tools/audit.js';
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the foreman and kept-goods lines are short statuses', () => {
-  assert.equal(foremanLine('flooded', 'timber'), 'Waiting. Timber sells for too little now.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for timber to sell for more.');
   assert.equal(foremanLine('short', 'timber'), 'Waiting for more timber.');
   assert.equal(keepLine(['copper ore'], 'upgrade'), 'Saving copper ore for this upgrade.');
   for (const t of [foremanLine('slow', 'timber'), keepLine(['copper', 'bricks'], 'path')]) assert.deepEqual(textIssues(t), []);
-  assert.equal(oldWavesLabel({ record: 22 }), 'You beat this wave');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Beaten wave bonus');
 });
 
 test('the price bar ends in a word for where the price stands', () => {
-  assert.deepEqual([1, .7, .5, .2, .02].map(s => priceWord(s)), ['Top', 'High', 'Half', 'Low', 'Very low']);
+  assert.deepEqual([1, .7, .5, .2, .02].map(s => priceWord(s)), ['Full price', 'High price', 'Half price', 'Low price', 'Very low price']);
 });
 
 test('Drop and Switch say the goods already sent are lost', () => {

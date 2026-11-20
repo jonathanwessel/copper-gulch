@@ -15,21 +15,19 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the old-waves row is short enough to sit beside its × 3', () => {
   const s = oldWavesLabel({ record: 23 });
-  assert.equal(s, 'You beat this wave');
+  assert.equal(s, 'Beaten wave bonus');
   assert.ok(s.length <= 20);
   assert.match(read('src/ui/play.js'), /wave\.classList\.toggle\('old', oldGround\(town\)\)/); // the wave number turns gold
 });
 
 test('under 1 coin a price says what 10 or 100 pay', () => {
-  assert.equal(each(.6), '6 coins per 10');
-  assert.equal(each(.12), '1 coin per 10');
-  assert.equal(each(.06), '6 coins per 100');
-  assert.equal(each(.012), '1 coin per 100');
+  // since 2026.11.20-9 every price under 1 coin reads one way (review of 2026.11.20-8: two forms in one list)
+  for (const v of [.6, .12, .06, .012]) assert.equal(each(v), 'under 1 coin each');
   assert.equal(each(4.56), '5 coins each'); // whole coins from 1 up (review of 2026.11.20-6)
   assert.equal(each(.97), '1 coin each');
-  assert.equal(sellsFor(.004), 'sells for almost 0 coins each');
-  assert.equal(sellsFor(.6), 'sells for 6 coins per 10');
-  assert.equal(priceNote({ have: 0, price: .6 }), 'Pays 6 coins per 10 once you have some to sell.');
+  assert.equal(sellsFor(.004), 'sells for under 1 coin each');
+  assert.equal(sellsFor(.6), 'sells for under 1 coin each');
+  assert.equal(priceNote({ have: 0, price: .6 }), 'Pays under 1 coin each once you have some to sell.');
 });
 
 test('a good the towers keep all of says so, and its switch sells only the extra', () => {
@@ -70,7 +68,7 @@ test('one foreman line, the Perks card says Best wave and the deeds after signin
   const play = read('src/ui/play.js'), sheets = read('src/ui/sheets.js');
   assert.doesNotMatch(play, /A foreman buys the next level when you have twice its cost/);
   assert.match(play, /'Buys level ' \+ \(L \+ 1\) \+ ' when you have '/);
-  assert.match(sheets, /'For best wave ' \+ town\.bestWave/);
+  assert.match(sheets, /'Best wave ' \+ town\.bestWave/);
   assert.match(sheets, /'Sign now and you have'/);
   assert.doesNotMatch(sheets, /Waiting for a tower\. Build one first\./);
   assert.match(sheets, /'Starts the waves again after a loss\.'/);

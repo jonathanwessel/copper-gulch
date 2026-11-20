@@ -8,7 +8,7 @@ import { bossWave } from '../core/defense.js';
 
 const AGAIN = 'start again by themselves after a tower goes up a level.';
 
-const bossName = town => ((FOES[town.def.boss || 'wagon'] || FOES.wagon).name).toLowerCase();
+export const bossName = town => ((FOES[town.def.boss || 'wagon'] || FOES.wagon).name).toLowerCase();
 const storeOf = town => town.def.store || 'vault';
 
 /* The toast when it happens. here: the player is in this town now (it lost during time away). game: given, a town with

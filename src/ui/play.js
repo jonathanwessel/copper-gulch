@@ -236,10 +236,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // red when short (review of 2026.11.19-7: power was named but never counted)
     if ((isGrid(b.makes) || onGrid(id)) && L) {
       const want = Math.ceil(grid.want - 1e-9), pr = el('p', 'uses powerline'), n = el('span', 'need' + (gridShort ? ' low' : ''), isGrid(b.makes) ? want + ' power' : Math.floor(grid.made + 1e-9) + ' / ' + want);
-      pr.append(isGrid(b.makes) ? 'Workshops need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
+      pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
     }
     // the line above shows the shortage, so the warning only says what it does and what to upgrade
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Workshops here run slower.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Buildings that use power run slower.' : 'Buildings that use power run slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
@@ -308,10 +308,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:
      coins showed only a price). The coins cell keeps up with the purse 5 times a second (paintCoinCosts), so the card is
      not rebuilt for it. */
-  const coinCost = need => fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // the purse as the top bar writes it
-  const costRow = c => {
-    const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins));
-    cc.dataset.need = c.coins; r.append(cc);
+  const coinCost = (need, lead = false) => lead ? fmt(need) + ' coins · you have ' + fmtLive(town.coins) : fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // lead: the price first, after "Each path costs" (review of 2026.11.20-8: it read as a 9.99M price) // the purse as the top bar writes it
+  const costRow = (c, lead = false) => {
+    const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins, lead));
+    cc.dataset.need = c.coins; if (lead) cc.dataset.lead = '1'; r.append(cc);
     for (const [g, n] of Object.entries(c.goods)) {
       const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need goodneed' + (have < n ? ' low' : ''));
       p.dataset.good = g; p.dataset.need = n;
@@ -396,7 +396,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      const pc = costRow(c); pc.prepend(el('small', 'costfor', 'Each path costs')); // one price above two Choose buttons (review of 2026.11.19-13)
+      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Each path costs')); // one price above two Choose buttons (review of 2026.11.19-13)
       ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
@@ -535,7 +535,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const ht = Math.round(Math.max(top, ct - 6) + 6);
       if (ht > 6 && ht !== hudTop) { hudTop = ht; ui.style.setProperty('--hudtop', ht + 'px'); }
       const cb = openId && !card.hidden ? card.getBoundingClientRect() : null;
-      viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null);
+      // the goods strip too: a selection never slides under it (review of 2026.11.20-8: in landscape the strip covered
+      // the selected Lumber Camp)
+      const sb = strip.hidden ? null : strip.getBoundingClientRect();
+      viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null, sb && sb.height ? { l: sb.left, t: sb.top, r: sb.right, b: sb.bottom } : null);
     }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
     { const b = left.getBoundingClientRect(); leftBox = b.height ? { l: b.left, r: b.right, b: b.bottom } : null; }
@@ -583,7 +586,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   function paintCoinCosts() {
     if (card.hidden) return;
-    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need)); n.classList.toggle('low', town.coins + 1e-9 < need); }
+    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need, !!n.dataset.lead)); n.classList.toggle('low', town.coins + 1e-9 < need); }
     // each good's have / need too, so it reads the same as the goods strip (review of 2026.11.19-4: the card said 5 / 9 while the strip said 6)
     for (const n of card.querySelectorAll('.goodneed')) {
       const need = +n.dataset.need, have = Math.floor((town.goods[n.dataset.good] || 0) + 1e-9), h = n.querySelector('.hn');
