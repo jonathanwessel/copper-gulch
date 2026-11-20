@@ -76,6 +76,17 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     v.render(); frames++;
     onFrame(dt);
   }
+  // the dive in from the map: the town waits until the camera settles, so its wave clock never runs out while the player
+  // is still flying in (review of 2026.11.19-13: "in 1s" before the camera settled). At most 3 seconds.
+  if (flyIn) {
+    api.holds.add('fly');
+    const t0 = performance.now(), land = () => {
+      if (!api.holds.has('fly')) return;
+      const near = rig.fitted && Math.abs(rig.c.dist - rig.t.dist) < rig.t.dist * .03 && Math.abs(rig.c.pitch - rig.t.pitch) < .02;
+      if (near || performance.now() - t0 > 3000) api.holds.delete('fly'); else requestAnimationFrame(land);
+    };
+    requestAnimationFrame(land);
+  }
   raf = requestAnimationFrame(frame);
   return api;
 }

@@ -9,6 +9,8 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 
 /* Reach in words a player can compare (the circles on the map show the rest). */
 export const reachWord = (range, minRange = 0) => (minRange ? 'Long, not up close' : range < 2.3 ? 'Short' : range < 3.2 ? 'Medium' : 'Long');
+/* Blast in words, Small or Wide (the circles on the map show the rest). */
+export const blastWord = r => (r < 1.2 ? 'Small' : 'Wide');
 /* Shots in words: "1.3 a second", "One every 3 seconds". */
 export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Math.round(1 / r) + ' seconds');
 
@@ -18,7 +20,7 @@ export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Ma
    workshop needs more" read as narrator reasoning beside a cheap upgrade). */
 export function foremanLine(why, good) {
   if (why === 'short') return 'The foreman buys the next level once there is more ' + good + '.';
-  if (why === 'flooded') return 'The foreman buys the next level when ' + good + ' pays more or a workshop needs more.';
+  if (why === 'flooded') return 'The foreman buys the next level once ' + good + ' sells for more.'; // what it does (review of 2026.11.19-13: "pays more or a workshop needs more" was vague)
   return 'The foreman buys the next level when it would earn its price back within an hour.';
 }
 /* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line
@@ -36,6 +38,7 @@ export function unitText(unit, v, extra = {}) {
   if (unit === 'hits') return Math.round(v) + (Math.round(v) === 1 ? ' hit' : ' hits');
   if (unit === 'shots') return shotsWord(v);
   if (unit === 'reach') return reachWord(v, extra.minRange);
+  if (unit === 'blast') return blastWord(v);
   if (unit === 'dmg') return fmtDmg(v);
   return fmt(v);
 }

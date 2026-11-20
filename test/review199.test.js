@@ -30,7 +30,7 @@ test('a foreman that is not buying reads as a status, not a story', () => {
     assert.match(t, /^The foreman buys the next level /); // says who and what it does (review of 2026.11.19-11)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'The foreman buys the next level when timber pays more or a workshop needs more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'The foreman buys the next level once timber sells for more.');
 });
 
 test('the lost toast has one step', () => {

@@ -11,7 +11,7 @@ import { priceNote } from '../src/ui/format.js';
 import { foremanLine } from '../src/ui/explain.js';
 
 test('the old-waves row says the towers are stronger and why', () => {
-  assert.equal(oldWavesLabel({ record: 23 }), 'Beaten waves 1-23');
+  assert.equal(oldWavesLabel({ record: 23 }), 'Best wave 23 bonus');
 });
 
 test('the foreman line says when it buys, never its reasons', () => {
@@ -41,6 +41,6 @@ test('a bought Price Lists shows on the card and as a row in the price breakdown
 
 test('the Capital says what Influence is and its toast names a building the card shows', () => {
   const cap = fs.readFileSync(new URL('../src/ui/capital.js', import.meta.url), 'utf8'), map = fs.readFileSync(new URL('../src/ui/map.js', import.meta.url), 'utf8');
-  for (const s of [cap, map]) assert.match(s, /Send goods here for coins and Influence, the Capital's own money./);
+  for (const s of [cap, map]) assert.match(s, /Send goods here for coins and Influence. Spend Influence on upgrades/);
   assert.match(cap, /toast\(inst\.name \+ ' upgrade bought\. '/);
 });

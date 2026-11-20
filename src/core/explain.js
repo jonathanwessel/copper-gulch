@@ -87,16 +87,20 @@ export function explainTower(town, t) {
     range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range'),
   };
   if (d.poison) out.poison = part('towerDmg', d.poison, PER_LEVEL.poison ** (L - 1), p && p.poison, 'dmg', 'Base poison');
+  // the blast opens like Damage, Shots and Range (review of 2026.11.20-1: Blast had no ">")
+  if (d.splash) out.splash = part('blast', d.splash, 1, p && p.splash, 'blast', 'Base blast');
   const st = towerStats(town, t); // the same numbers the battle uses
   out.dmg.value = st.dmg; out.rate.value = st.rate; out.range.value = st.range;
   if (out.poison) out.poison.value = st.poison;
+  if (out.splash) out.splash.value = st.splash;
   return out;
 }
 
 /* The tower card's row for the old-waves bonus: "Already beaten, up to wave 57". */
 /* Short, so "× 3" stays on its line on a phone (review of 2026.11.19-12: "Stronger on waves you beat before, up to wave 23"
    wrapped and read as a sentence). The wave number on the play screen turns gold while it lasts. */
-export const oldWavesLabel = town => 'Beaten waves 1-' + (town.record || 0);
+/* (review of 2026.11.19-13: "Beaten waves 1-23 × 3" on wave 3 read as a mystery; the wave number turns gold while it lasts) */
+export const oldWavesLabel = town => 'Best wave ' + (town.record || 0) + ' bonus';
 
 /* The vault's strength in hits (a stockpile's too), and how many hits each raider that gets there takes. */
 export function explainVault(town) {

@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-2',
+    lines: [
+      'With the phone turned sideways the goods strip keeps to one row.',
+      'The wave bar stays in place when the Map button shows up.',
+      'Goods has one Sell switch for each good, and Keep for towers says how much it saves.',
+      'Research shows the coins you have and need, and says what it waits for.',
+      'The Blast row on a Cannon or Mortar opens like Damage does.',
+    ],
+  },
+  {
     v: '2026.11.20-1',
     lines: [
       'Your towns keep more goods for towers. Each town saves enough for the next two upgrades of every tower and two new towers.',

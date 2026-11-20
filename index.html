@@ -128,7 +128,7 @@ html.no3d body { background: var(--bg); }
 .hudrow { display: flex; gap: 6px; pointer-events: none !important; } /* only its buttons take taps, never the gap between them */
 .hudrow > * { pointer-events: auto; }
 /* the place bar: the town's name, Map, and one back button to the last place (owner rule: it never grows with the towns) */
-.place { display: flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; pointer-events: none; }
+.place { display: flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; min-height: 34px; pointer-events: none; } /* as tall as its buttons, so the wave bar never drops when Map appears */
 .place > * { pointer-events: auto; }
 .place .townname { pointer-events: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
 .place .btn { flex: none; min-height: 34px; padding: 4px 10px; white-space: nowrap; }
@@ -261,6 +261,7 @@ html.flat .tag { position: static; transform: none !important; }
 .card .row.sellrow > #sell { white-space: nowrap; flex: 1 0 auto; }
 .card .keeprow { align-items: center; justify-content: space-between; gap: 8px; }
 .card .keeprow .uses { flex: 1; font-size: .85rem; }
+.card .keeprow .costrow { margin: 0 0 0 auto; } /* a price sits right beside its button (Hire foreman) */
 /* a short landscape screen: a tighter card, so a tower's stats, its kept goods line and the pinned Upgrade row fit
    without scrolling (review of 2026.11.19-10: the kept goods line sat half under the pinned cost row) */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -326,6 +327,8 @@ html.flat .tag { position: static; transform: none !important; }
 .hudright > * { pointer-events: auto; }
 .side { display: grid; gap: 6px; justify-items: stretch; pointer-events: none; }
 .side .btn { pointer-events: auto; min-height: 36px; min-width: 76px; padding: 4px 10px; }
+.side .btn .btime { display: block; font-size: .72rem; line-height: 1; margin-top: 1px; }
+.side .btn .btime[hidden] { display: none; }
 .side .btn.undersheet { visibility: hidden; } /* an open sheet would cut it in half (src/ui/play.js, measure) */
 .play .scrim, .play .sheet { pointer-events: auto; }
 .scrim { position: absolute; inset: 0; background: rgba(14, 9, 6, .45); z-index: 24; animation: fade .2s both; }
@@ -338,7 +341,11 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .sheethead { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; border-bottom: 2px solid var(--line); }
 .sheethead h2 { margin: 0; flex: 1; font-size: 1.2rem; color: var(--copper-hi); letter-spacing: .04em; }
-.sheetbody { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 10px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 12px; }
+.sheetbody { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 10px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--copper) var(--line); }
+/* a sheet that scrolls shows it (review of 2026.11.19-13: the Goods sheet's last row ran off a landscape screen) */
+.sheetbody::-webkit-scrollbar { width: 8px; }
+.sheetbody::-webkit-scrollbar-track { background: var(--line); }
+.sheetbody::-webkit-scrollbar-thumb { background: var(--copper); border: 2px solid var(--line); }
 .sec { display: grid; gap: 6px; }
 .sec h3 { margin: 0; font-size: .95rem; color: var(--gold); letter-spacing: .04em; }
 .sec .row { justify-content: flex-start; }
@@ -386,6 +393,13 @@ html.flat .tag { position: static; transform: none !important; }
 .goodstrip.narrow .goodchip .gicon { grid-row: 1; grid-column: 1; }
 .goodstrip.narrow .goodchip b { grid-row: 1; grid-column: 2; margin-left: 0; line-height: 1.15; }
 .goodstrip.narrow .goodchip .gname { grid-row: 2; grid-column: 1 / 3; line-height: 1.15; font-size: .74rem; }
+/* a phone turned sideways with no side card: one row (src/ui/play.js, shortLand), as many small chips as fit. Beside a
+   side card it keeps two rows, so every name shows whole. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .goodstrip.oneline { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(76px, 110px); }
+}
+/* the more box when the tower goods fill every place: a tab on the strip's top edge */
+.goodstrip .morechip.tab { position: absolute; right: -2px; bottom: 100%; margin-bottom: 2px; border-color: #000; background: var(--line); box-shadow: 3px 3px 0 rgba(22, 15, 11, .5); }
 .goodchip .gname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; text-align: left; }
 .goodchip {
   flex: none; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;

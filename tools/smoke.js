@@ -323,7 +323,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /The foreman buys the next level when timber pays more or a workshop needs more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /The foreman buys the next level once timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -612,7 +612,7 @@ async function run() {
         document.querySelector('#sheet [data-research="saws"]').click(); await wait(400);
         out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         out.oneAtATime = document.querySelector('#sheet [data-research="walls"]').disabled;
-        out.label = /Research · [0-9]+ (sec|min)$/.test(btn.textContent);
+        out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /burn one more timber/.test(sheet.textContent);
         return out;
       });
@@ -825,8 +825,11 @@ async function run() {
       await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5, 10000);
       await sleep(400);
       if (await page.evaluate(() => !document.getElementById('mapBtn').hidden)) bad.push('Map shows with one town');
+      const waveTop = () => page.evaluate(() => Math.round(document.getElementById('wave').getBoundingClientRect().top)); // the wave bar never drops when Map appears (review of 2026.11.19-14)
+      const wt0 = await waveTop();
       await page.evaluate(async () => { const { foundTown } = await import('./src/core/empire.js'); const t = CG.game.town; t.bestWave = 20; t.coins = 1e6; foundTown(CG.game, 'ridge'); t.drawn = { ore: 5 }; CG.game.towns.ridge.shipped = { bricks: 5 }; });
       if (!await waitFor(page, () => !document.getElementById('mapBtn').hidden, 3000)) bad.push('no Map button with three towns');
+      { await sleep(300); const wt1 = await waveTop(); if (wt1 !== wt0) bad.push('the wave bar moved from ' + wt0 + ' to ' + wt1 + ' px when Map appeared'); }
       // a lost toast from the town goes when the map opens (review of 2026.11.19-3: it covered the town labels)
       await page.evaluate(async () => { const { toast } = await import('./src/ui/play.js'); toast('Smoke lost line.', 6000, { kind: 'lost' }); });
       await page.evaluate(() => document.getElementById('mapBtn').click());
@@ -882,6 +885,9 @@ async function run() {
       const after = await page.evaluate(() => ({ paused: CG.town && CG.town.holds.has('player'), canvases: document.querySelectorAll('canvas#view').length, ui: !!document.getElementById('map-ui') }));
       if (!after.paused || after.canvases !== 1 || after.ui) bad.push('after flying in (' + JSON.stringify(after) + ')');
       await page.evaluate(() => document.getElementById('pauseBtn').click());
+      // the town waits while the camera dives in, then runs (review of 2026.11.19-13: "in 1s" before the camera settled)
+      if (!await waitFor(page, () => CG.town && !CG.town.holds.has('fly'), 4000)) bad.push('the fly-in hold never let go');
+      { const t1 = await page.evaluate(() => CG.game.town.t); await sleep(600); if (!((await page.evaluate(() => CG.game.town.t)) > t1)) bad.push('the town did not run after flying in'); }
       // zooming the town all the way out opens the map; Back returns to the town in play
       await page.evaluate(async () => {
         const cv = document.getElementById('view'), wait = ms => new Promise(r => setTimeout(r, ms));
@@ -914,7 +920,7 @@ async function run() {
         bad.push(...(await check(page)).map(b => 'capital card: ' + b));
         await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(700);
         const run = await page.evaluate(() => ({ active: !!CG.game.shared.capital.active, drop: !!document.getElementById('contractDrop'), badge: document.querySelector('.mapbadge[data-site="capital"]').textContent }));
-        if (!run.active || !run.drop || !/%/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
+        if (!run.active || !run.drop || !/Sent [0-9]/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
         await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
         if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
         bad.push(...(await check(page)).map(b => 'capital contract: ' + b));

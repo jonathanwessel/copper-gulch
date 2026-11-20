@@ -5,7 +5,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
-import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, foremanLine, keepLine } from './explain.js';
+import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
@@ -22,7 +22,10 @@ import { RESEARCH } from '../data/research.js';
 import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '../core/reveal.js';
 /* How many chips the goods strip holds in two rows: its columns (the stylesheet's, or as many 84 px chips as fit beside
    a side card) times 2. */
-const stripRoom = strip => 2 * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((strip.clientWidth || innerWidth) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
+/* A phone turned sideways (the stylesheet's landscape max-height 500px): the strip keeps to one row there (review of
+   2026.11.19-13: two rows of up to 10 goods covered a quarter of a 400 px high screen). */
+const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
+const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
 import { waveSheet, waveTimer } from './wave.js';
@@ -107,6 +110,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn'; goodsBtn.hidden = true;
   const menuBtn = el('button', 'btn small', 'Menu'); menuBtn.id = 'menuBtn';
   const labBtn = el('button', 'btn small', 'Research'); labBtn.id = 'researchBtn'; labBtn.hidden = true;
+  // the time left sits on a small second line, so the side column keeps its width (the 2026.11.20-2 screenshots:
+  // "Research · 13 sec" pushed the column over Call now on a phone)
+  const labLeft = el('small', 'btime'); labLeft.hidden = true; labBtn.append(labLeft);
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
   const autoBtn = el('button', 'btn small', 'Auto'); autoBtn.id = 'autoBtn'; autoBtn.hidden = true;
   side.append(goodsBtn, labBtn, perksBtn, autoBtn, menuBtn);
@@ -126,7 +132,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         b.addEventListener('click', () => openGoods(g));
         return b;
       }));
-      if (more && list.length < room) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
+      // no free place (the tower goods fill the room): the more box sits on the strip's top edge, so no good is hidden
+      // without a way to it (review of 2026.11.19-14: six tower goods on a phone hid Tools with no more box). In one row
+      // (a phone turned sideways) it stays inline.
+      if (more) { const m = el('button', 'morechip' + (list.length < room || strip.classList.contains('oneline') ? '' : ' tab'), more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
   };
@@ -262,7 +271,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
       const fr = el('div', 'row keeprow');
       if (!hasForeman(town, id)) {
-        const h = el('button', 'btn small', 'Hire foreman · ' + fmt(hireCost(town, id)) + ' coins'); h.id = 'hireForeman';
+        const h = el('button', 'btn small', 'Hire foreman'); h.id = 'hireForeman'; // its price as have / need beside it (review of 2026.11.19-13)
+        fr.append(costRow({ coins: hireCost(town, id), goods: {} }));
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
         fr.append(h);
@@ -351,7 +361,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     };
     line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmtDmg(st.poison) + '/s poison' : ''), 'dmg');
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
-    if (st.splash) line('Blast', st.splash < 1.2 ? 'Small' : 'Wide');
+    if (st.splash) line('Blast', blastWord(st.splash), 'splash');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
     if (d.bestText) line('Best against', d.bestText);
@@ -480,7 +490,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     { const b = side.getBoundingClientRect(), sb = b.height ? Math.round(b.bottom + 6) : 0; if (sb !== sideBot) { sideBot = sb; ui.style.setProperty('--sidebot', sb + 'px'); } }
     { const sh0 = sheets.current && document.getElementById('sheet'), r = sh0 && sh0.getBoundingClientRect();
       for (const n of side.children) { const c = r && r.height && !n.hidden ? n.getBoundingClientRect() : null, cut = !!(c && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top); if (n.classList.contains('undersheet') !== cut) n.classList.toggle('undersheet', cut); } }
-    if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('narrow', !!sw); } // three columns there, so every name and count fits
+    if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; } // three columns there, so every name and count fits
+    { const nw = !!sw || shortLand(), one = !sw && shortLand(); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips
     room = stripRoom(strip); // the strip's two rows, read here with the other measures (the layout is fresh)
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
@@ -579,8 +590,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
       // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)
       const full = !!(flat || marked || openId === id);
-      const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build') : (L ? String(L) : 'Build');
-      const tl = t.firstChild; if (tl.textContent !== txt) tl.textContent = txt;
+      const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Level ' + L : 'Build') : (L ? String(L) : 'Build'); // "Level" as the cards say it (review of 2026.11.20-1)
+      const tl = t.firstChild; if (tl.textContent !== txt) { tl.textContent = txt; if (p) tagSize.set(t, [t.offsetWidth, t.offsetHeight]); } // a new width now, so the next frame keeps it whole at the edge (review of 2026.11.19-13: "Sand Pit · Lv 1" cut at the left)
       if (t.classList.contains('quiet') === full) t.classList.toggle('quiet', !full);
       t.classList.toggle('short', !!(L && town.starved[id] === true)); // held for towers is not a problem to fix
       t.classList.toggle('goaltag', !!marked);
@@ -614,7 +625,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     goodsBtn.hidden = !T.goods; goodsBtn.classList.toggle('dot', D.goods);
     labBtn.hidden = !T.research; labBtn.classList.toggle('dot', D.research);
     menuBtn.classList.toggle('dot', !!document.getElementById('updateBar'));
-    setText(labBtn, town.lab ? 'Research · ' + leftWord(town.lab.left).replace(' left', '') : 'Research'); // the same unit as the button on its card
+    { const s = town.lab ? leftWord(town.lab.left).replace(' left', '') : ''; setText(labLeft, s); if (labLeft.hidden !== !s) labLeft.hidden = !s; } // the same unit as the button on its card
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter

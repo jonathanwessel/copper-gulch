@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { setStock } from '../core/defense.js';
+import { setStock, RESERVE } from '../core/defense.js';
 import { fmt, fmtLive, ago, goodsLine, goodsSwitch, levelsDone, priceNote } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
@@ -67,10 +67,15 @@ export function goodsSheet(game, town, focus = null) {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
-    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => { const lots = town.stock === 'lots', s = 'Keep for towers · ' + (lots ? 'Lots' : 'Normal'); if (stockBtn.textContent !== s) stockBtn.textContent = s; stockBtn.classList.toggle('on', lots); stockBtn.setAttribute('aria-pressed', String(lots)); };
+    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers'), stockWhat = el('small', 'uses'); stockWhat.id = 'stockWhat';
+    // what Normal and Lots keep, in towers and levels (review of 2026.11.20-1: "Normal" did not say how much)
+    const paintStock = () => {
+      const lots = town.stock === 'lots', s = 'Keep for towers · ' + (lots ? 'Lots' : 'Normal'); if (stockBtn.textContent !== s) stockBtn.textContent = s; stockBtn.classList.toggle('on', lots); stockBtn.setAttribute('aria-pressed', String(lots));
+      const k = lots ? RESERVE.lots : 1, w = 'Enough for ' + RESERVE.levels * k + ' more levels on every tower and ' + RESERVE.towers * k + ' new towers.';
+      if (stockWhat.textContent !== w) stockWhat.textContent = w;
+    };
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
-    paintStock(); stockRow.append(stockBtn);
+    paintStock(); stockRow.append(stockBtn, stockWhat);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
     body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
@@ -189,30 +194,38 @@ export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
 export function researchSheet(game, town) {
   return body => {
-    const list = el('div', 'goods research'), rows = {};
-    body.append(list);
+    const list = el('div', 'goods research'), rows = {}, one = el('p', 'note'); one.id = 'labOne';
+    body.append(one, list); // while one runs, the others say why they wait (the 2026.11.20-2 screenshots: "after Thick Walls" read as a need)
     for (const id of itemsOf(town)) {
       const r = RESEARCH[id], row = el('div', 'option'), txt = el('div');
-      const name = el('b'), info = el('small'), bar = el('i', 'depth'), fill = el('i');
+      const name = el('b'), info = el('small'), price = el('span', 'need coinneed'), bar = el('i', 'depth'), fill = el('i');
       bar.append(fill); txt.append(name, el('span', null, r.about));
       if (r.worse) txt.append(el('span', 'worse', r.worse));
-      txt.append(info, bar);
+      const costs = el('span', 'costrow'); costs.append(price); txt.append(info, costs, bar);
       const go = btn('Research', 'btn small build timer'); go.dataset.research = id;
       go.addEventListener('click', () => { if (startResearch(game, town, id)) paint(); });
       row.append(txt, go); list.append(row);
-      rows[id] = { row, name, info, bar, fill, go };
+      rows[id] = { row, name, info, price, costs, bar, fill, go };
     }
     const paint = () => {
+      const o = town.lab ? 'One at a time. ' + RESEARCH[town.lab.id].name + ' is done in ' + leftWord(town.lab.left).replace(' left', '') + '.' : '';
+      if (one.textContent !== o) one.textContent = o; one.hidden = !o;
       for (const [id, x] of Object.entries(rows)) {
         const r = RESEARCH[id], L = researchLevel(town, id), lab = town.lab && town.lab.id === id ? town.lab : null, block = researchBlock(town, id);
         const n = r.name; if (x.name.textContent !== n) x.name.textContent = n;
+        // the price as have / need, red when short, like every other cost (review of 2026.11.19-13), and while another
+        // item runs it says so in place of a grayed button with no reason
         const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : [levelsDone(L, r.max), fmt(researchCost(town, id)) + ' coins', wait(researchTime(town, id))].map(keep).join(' · ');
+          : [levelsDone(L, r.max), wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
+        const need = researchCost(town, id), pt = fmtLive(town.coins) + ' / ' + fmt(need) + ' coins';
+        x.costs.hidden = !!lab || block === 'max';
+        if (x.price.textContent !== pt) x.price.textContent = pt;
+        x.price.classList.toggle('low', town.coins + 1e-9 < need);
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
-        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : 'Research';
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : block === 'busy' ? 'Busy' : 'Research';
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
       }
@@ -236,7 +249,7 @@ export function autoSheet(game, town) {
       return rows[id];
     };
     add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
-    add('towers', 'Auto-towers', "Raises one tower a level every few minutes. You still pick each tower's path.").sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
+    add('towers', 'Auto-towers', 'Raises one tower a level every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
     add('retry', 'Keep trying the boss', 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
@@ -253,7 +266,7 @@ export function autoSheet(game, town) {
       const tLine = !autoOpen(game, 'towers') ? 'Build the ' + INSTITUTION[AUTO.opens.towers].name + ' at the Capital first.'
         : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
         : tb === 'won' ? 'Raises a tower when a raid gets through.'
-        : tb === 'none' ? 'No towers here yet.'
+        : tb === 'none' ? 'Nothing to raise yet. Build a tower first.'
         : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
         : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
         : tb === 'wait' ? 'Next raise in ' + wait(a.wait)
@@ -308,7 +321,7 @@ export function menuSheet(ctx) {
         row.append(b);
       }
       paint();
-      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best. Auto picks the best one for this device.'));
+      sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best.'));
     }
 
     // Sound: two sliders, kept on this device (src/audio/audio.js)

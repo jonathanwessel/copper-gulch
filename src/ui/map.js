@@ -199,7 +199,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? '' : (id === 'capital' ? 'Not built yet' : 'Not open yet'))); // ready: the Start button says it
-      if (id === 'capital') kids.push(el('p', 'uses', "Send goods here for coins and Influence, the Capital's own money. Influence buys upgrades for every town."));
+      if (id === 'capital') kids.push(el('p', 'uses', 'Send goods here for coins and Influence. Spend Influence on upgrades for every town.'));
       else kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
@@ -261,7 +261,7 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, a ? 'Contract ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '% done' : 'Take a contract'); // it names the contract (review 2026-11-18)
+        setText(B.wave, a ? 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
         B.vault.hidden = true; B.line.hidden = false; setText(B.extra, c.influence + ' Influence');
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {

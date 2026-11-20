@@ -70,7 +70,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
     confirmTap(drop, 'Tap again', () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
-      setText(got, fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) + ' sent');
+      setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need)); // the map label's words
       const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (fill.style.width !== w) fill.style.width = w;
       setText(when, eta(game, a));
     });
@@ -135,7 +135,7 @@ export function capitalSheet(game, toast = () => {}) {
     b.addEventListener('click', () => { if (foundCapital(game)) paint(); }); // the sheet itself shows it is built, no toast
     const paint = () => {
       if (!capitalOpen(game)) {
-        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', "Send goods here for coins and Influence, the Capital's own money. Influence buys upgrades for every town."), wave, coins, row); }
+        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Send goods here for coins and Influence. Spend Influence on upgrades for every town.'), wave, coins, row); }
         const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
         setText(wave, 'Beat wave ' + f.wave + ' in ' + townName(f.from) + (w >= f.wave ? ' · Done' : ' · Best so far ' + w));
         setText(coins, fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c)));

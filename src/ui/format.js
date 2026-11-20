@@ -37,20 +37,23 @@ export function each(v) {
 }
 /* "sells for 4.6 coins each", "sells for 6 coins per 10" */
 export const sellsFor = v => 'sells for ' + each(v);
-/* A good's line on the Goods sheet. Every unit kept for towers: nothing is sold now, so no price (review 2026-11-18:
-   "sells for 0 coins each" next to Sell On), and it says there is none to sell, since "all kept" beside Sell On read
-   as a contradiction (review of 2026.11.19-7). Sell Off says it is not sold and what it would sell for, so it never sits
-   as "worth 0.9" beside another good's "sells for 13" with nothing saying why. open: its price box says the price. */
+/* A good's line on the Goods sheet: the stock, how many the towers keep first, and the price as "13 coins each" (one
+   pattern, review of 2026.11.20-1). Every unit kept for towers: nothing is sold now, so no price (review 2026-11-18:
+   "sells for 0 coins each" next to Sell On). The same words whether some or all are kept, so "first 19 kept" beside
+   19 in stock says why nothing sells (review of 2026.11.20-1: "all kept for towers" beside "Sell extra · On" read as
+   broken). open: its price box says the price. */
 export function goodsLine({ have, kept = 0, selling = true, price = 0, open = false }) {
   const all = selling && kept > 0 && kept + .5 >= have;
-  // (review of 2026.11.19-12: "none to sell" beside a lit Sell · On; the switch now reads Sell extra, goodsSwitch)
-  const saved = all ? ' · all kept for towers' : !kept || !selling ? '' : ' · ' + kept + ' kept for towers';
-  return fmtLive(Math.floor(have + 1e-9)) + ' in stock' + saved + (open || all ? '' : ' · ' + (selling ? sellsFor(price) : 'not sold, ' + each(price) + ' if sold'));
+  // ("not sold, 1.5 coins each if sold" repeated the Sell · Off switch beside it)
+  // (the 2026.11.20-2 screenshots: "first 84 kept" beside Sell · On still read as selling, and "first 226 kept" beside
+  // 122 in stock kept more than there was)
+  if (all) return fmtLive(Math.floor(have + 1e-9)) + ' in stock · all kept for towers, none to sell';
+  const saved = !kept || !selling ? '' : ' · ' + fmtLive(kept) + ' kept for towers';
+  return fmtLive(Math.floor(have + 1e-9)) + ' in stock' + saved + (open ? '' : ' · ' + each(price));
 }
-/* The Goods sheet's switch for a good. While towers keep every unit it says it sells only what they leave. */
-export function goodsSwitch({ have, kept = 0, selling = true }) {
-  if (!selling) return 'Sell · Off';
-  return kept > 0 && kept + .5 >= have ? 'Sell extra · On' : 'Sell · On';
+/* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
+export function goodsSwitch({ selling = true }) {
+  return selling ? 'Sell · On' : 'Sell · Off';
 }
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a
@@ -70,7 +73,7 @@ export const levelsDone = (L, max) => (L ? L + ' of ' + max + ' levels done' : '
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
    rate under 10), then 1.00K-9.99K, 10.0K-99.9K, 100K-999K, 1.00M... It rounds down, so 999.96 never shows as 1000. */
 export function fmtLive(n) {
-  if (!isFinite(n) || n <= 0) return '0';
+  if (!isFinite(n) || n < .1) return '0'; // never 0.0 (review of 2026.11.19-14: +0.6/s flipped to +0.0/s beside +0/s)
   if (n < 10 && n % 1) return (Math.floor(n * 10 + 1e-9) / 10).toFixed(1);
   if (n < 1000) return String(Math.floor(n + 1e-9));
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(n) / 3)), v = n / 10 ** (i * 3);
