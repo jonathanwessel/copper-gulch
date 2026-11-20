@@ -28,6 +28,7 @@ const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
 const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
+import { setSwitch } from './switch.js';
 import { waveSheet, waveTimer } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
@@ -135,7 +136,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // no free place (the tower goods fill the room): the more box sits on the strip's top edge, so no good is hidden
       // without a way to it (review of 2026.11.19-14: six tower goods on a phone hid Tools with no more box). In one row
       // (a phone turned sideways) it stays inline.
-      if (more) { const m = el('button', 'morechip' + (list.length < room || strip.classList.contains('oneline') ? '' : ' tab'), more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
+      if (more) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
   };
@@ -256,8 +257,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off')); // one line, under Upgrade when both do not fit (.sellrow)
-    sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
+    const selling = town.sell[b.makes] !== false, sell = setSwitch(el('button', 'btn small'), 'Sell ' + g.name.toLowerCase(), selling ? 'On' : 'Off', selling); // one line, under Upgrade when both do not fit (.sellrow)
+    sell.id = 'sell';
     sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
     bcost.append(row); card.append(bcost);
@@ -266,8 +267,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' + g.name.toLowerCase() + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
-      ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
+      const ks = setSwitch(el('button', 'btn small'), 'Keep ' + (keepOn && kept ? kept + ' ' + g.name.toLowerCase() + ' ' : '') + 'for towers', keepOn ? 'On' : 'Off', keepOn);
+      ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
     }
@@ -284,8 +285,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       } else {
         const on = foremanOn(town, id);
         fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Buys level ' + (L + 1) + ' when you have ' + fmt(cost(town, id) / SHARE) + ' coins.'));
-        const sw = el('button', 'btn small', on ? 'Foreman · On' : 'Foreman · Off'); sw.id = 'foremanSwitch';
-        sw.setAttribute('aria-pressed', String(on)); sw.classList.toggle('on', on);
+        const sw = setSwitch(el('button', 'btn small'), 'Foreman buys levels', on ? 'On' : 'Off', on); sw.id = 'foremanSwitch'; // says what it does (review of 2026.11.20-3: "Foreman · On" said nothing)
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
         fr.append(sw);
       }
@@ -500,7 +500,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     { const sh0 = sheets.current && document.getElementById('sheet'), r = sh0 && sh0.getBoundingClientRect();
       for (const n of side.children) { const c = r && r.height && !n.hidden ? n.getBoundingClientRect() : null, cut = !!(c && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top); if (n.classList.contains('undersheet') !== cut) n.classList.toggle('undersheet', cut); } }
     if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; } // three columns there, so every name and count fits
-    { const nw = !!sw || shortLand(), one = !sw && shortLand(); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips
+    // a phone held upright with more goods than three columns hold: four smaller chips a row, name under the count, so
+    // fewer goods hide behind a more box (review of 2026.11.20-3: "more boxes hide goods")
+    const dense = !sw && !shortLand() && innerWidth < 600 && stripGoods(town).length > 6;
+    { const nw = !!sw || shortLand() || dense, one = !sw && shortLand(); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips
     room = stripRoom(strip); // the strip's two rows, read here with the other measures (the layout is fresh)
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid

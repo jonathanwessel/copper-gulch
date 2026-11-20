@@ -285,6 +285,13 @@ html.flat .tag { position: static; transform: none !important; }
   .card .row > .buy { min-height: 38px; padding-block: 4px; font-size: 1.1rem; }
   .card .row > .btn.small { min-height: 34px; }
   .card > p.uses { font-size: .82rem; line-height: 1.25; }
+  /* a wider card, and the two paths side by side, so both paths and the stats under them show without scrolling
+     (review of 2026.11.20-3: Shrapnel and the stats were below the fold while most of the screen was map) */
+  .card { width: min(54%, 480px); }
+  .card > .pathbar { grid-template-columns: 1fr 1fr; }
+  .card > .pathbar > .pathhead { grid-column: 1 / -1; }
+  .card > .pathbar > .option { flex-direction: column; align-items: stretch; gap: 4px; }
+  .card > .pathbar > .option > .btn { min-height: 32px; }
 }
 .option small.short { color: var(--bad); }
 .option small.soon, .soon { color: var(--ink); }
@@ -376,6 +383,13 @@ html.flat .tag { position: static; transform: none !important; }
 .slider input::-moz-range-thumb { width: 22px; height: 28px; background: var(--copper); border: 2px solid var(--line); border-radius: 0; }
 .slider input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .btn[aria-pressed="true"], .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
+/* an On / Off switch (src/ui/switch.js): the button keeps its plain look and only the small state box lights, so a card
+   with three switches is not three gold buttons (review of 2026.11.20-3) */
+.btn.switch, .btn.switch[aria-pressed="true"], .btn.switch.on { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; background: var(--panel-2); color: var(--ink); box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 2px 2px 0 var(--line); }
+.btn.switch .sep { display: none; }
+.btn.switch .pip { min-width: 3.2ch; padding: 1px 5px; font-size: .78rem; text-align: center; color: var(--muted); background: #24170f; border: 2px solid var(--line); }
+.btn.switch .pip.lit { color: #10210b; background: var(--good); }
+.btn.switch .pip.pick { color: #1d120c; background: var(--copper-hi, #e0a060); }
 .goods { display: grid; gap: 6px; }
 .goods .focus { outline: 2px solid var(--gold); outline-offset: 2px; }
 /* the goods strip along the bottom: wraps onto a second line when there are many goods, so every good shows */
@@ -412,8 +426,6 @@ html.flat .tag { position: static; transform: none !important; }
 @media (orientation: landscape) and (max-height: 500px) {
   .goodstrip.oneline { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(76px, 110px); }
 }
-/* the more box when the tower goods fill every place: a tab on the strip's top edge */
-.goodstrip .morechip.tab { position: absolute; right: -2px; bottom: 100%; margin-bottom: 2px; border-color: #000; background: var(--line); box-shadow: 3px 3px 0 rgba(22, 15, 11, .5); }
 .goodchip .gname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; text-align: left; }
 .goodchip {
   flex: none; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;

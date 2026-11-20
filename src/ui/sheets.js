@@ -15,8 +15,9 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { setStock, RESERVE } from '../core/defense.js';
-import { fmt, fmtLive, ago, goodsLine, goodsSwitch, levelsDone, priceNote } from './format.js';
+import { setStock } from '../core/defense.js';
+import { setSwitch } from './switch.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -70,15 +71,12 @@ export function goodsSheet(game, town, focus = null) {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
-    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers'), stockWhat = el('small', 'uses'); stockWhat.id = 'stockWhat';
-    // what Normal and Lots keep, in towers and levels (review of 2026.11.20-1: "Normal" did not say how much)
-    const paintStock = () => {
-      const lots = town.stock === 'lots', s = 'Keep for towers · ' + (lots ? 'Lots' : 'Normal'); if (stockBtn.textContent !== s) stockBtn.textContent = s; stockBtn.classList.toggle('on', lots); stockBtn.setAttribute('aria-pressed', String(lots));
-      const k = lots ? RESERVE.lots : 1, w = 'Enough for ' + RESERVE.levels * k + ' more levels on every tower and ' + RESERVE.towers * k + ' new towers.';
-      if (stockWhat.textContent !== w) stockWhat.textContent = w;
-    };
+    // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
+    // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
+    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
+    const paintStock = () => setSwitch(stockBtn, 'Keep for towers', town.stock === 'lots' ? 'Lots' : 'Normal', null);
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
-    paintStock(); stockRow.append(stockBtn, stockWhat);
+    paintStock(); stockRow.append(stockBtn);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
     body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
@@ -123,8 +121,7 @@ export function goodsSheet(game, town, focus = null) {
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
         const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
-        const s = goodsSwitch({ have, kept, selling }); if (r.sw.textContent !== s) r.sw.textContent = s;
-        r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', selling);
+        setSwitch(r.sw, 'Sell', selling ? 'On' : 'Off', selling);
       }
     };
     build();

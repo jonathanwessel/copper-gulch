@@ -15,7 +15,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the old-waves row is short enough to sit beside its × 3', () => {
   const s = oldWavesLabel({ record: 23 });
-  assert.equal(s, 'Catch-up to wave 23');
+  assert.equal(s, 'Replay waves 1-23');
   assert.ok(s.length <= 20);
   assert.match(read('src/ui/play.js'), /wave\.classList\.toggle\('old', oldGround\(town\)\)/); // the wave number turns gold
 });
@@ -33,7 +33,7 @@ test('under 1 coin a price says what 10 or 100 pay', () => {
 });
 
 test('a good the towers keep all of says so, and its switch sells only the extra', () => {
-  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · all kept for towers, none to sell');
+  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · all kept for towers · extra gets sold');
   assert.equal(goodsSwitch({ have: 19, kept: 19, selling: true }), 'Sell · On');
   assert.equal(goodsSwitch({ have: 40, kept: 19, selling: true }), 'Sell · On');
   assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell · Off');

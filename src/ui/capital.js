@@ -27,6 +27,9 @@ function eta(game, o) {
 }
 
 /* The toast when a contract is full. */
+/* A running contract's figure, on the card and the map label: "Sent 108 of 270 timber" (review of 2026.11.20-3: the
+   label did not say what is sent). */
+export const sentWords = a => 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) + ' ' + lower(a.good);
 export const contractDone = e => GOODS[e.good].name + ' delivered. You got ' + fmt(e.coins) + ' coins and ' + e.influence + ' Influence.';
 
 /* Two taps for something that throws work away: the first changes the label, the second does it. */
@@ -43,7 +46,7 @@ function confirmTap(b, ask, go) {
 export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}) {
   const c = capitalOf(game), box = el('div', 'capital');
   const inf = el('div', 'stat static'), infN = el('b');
-  inf.append(el('span', '', 'Influence'), infN); box.append(inf);
+  inf.append(el('span', '', 'Influence, for upgrades'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
   const tabs = el('div', 'captabs');
   for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Institutions']]) {
     const b = el('button', 'btn small', label); b.id = id === 'contracts' ? 'capTabContracts' : 'capTabInst';
@@ -70,7 +73,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
     confirmTap(drop, () => lostAsk(a), () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
-      setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need)); // the map label's words
+      setText(got, sentWords(a)); // the map label's words
       const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (fill.style.width !== w) fill.style.width = w;
       setText(when, eta(game, a));
     });

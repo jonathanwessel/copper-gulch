@@ -6,7 +6,7 @@ import { lostToast } from '../src/ui/lost.js';
 
 test('a good with every unit kept says there is none to sell, not "all kept" beside Sell On', () => {
   const t = goodsLine({ have: 19, kept: 19, selling: true, price: 2 });
-  assert.equal(t, '19 in stock · all kept for towers, none to sell');
+  assert.equal(t, '19 in stock · all kept for towers · extra gets sold');
   assert.doesNotMatch(t, /sells for/);
 });
 

@@ -90,6 +90,10 @@ export async function tapEverything(page) {
       const p = await page.evaluate(async o => {
         CG.play.close();
         for (let k = 0; k < 2; k++) await new Promise(r => requestAnimationFrame(r)); // the tags a card covered show again on the next frame
+        // a card that covered its object slid the camera, and closing it slides back: aim once it holds still (a tap aimed
+        // mid-slide landed on the next pad at the top edge of a landscape screen with the wider card of 2026.11.20-4)
+        { const r = CG.town.rig, key = () => [r.c.x, r.c.z, r.c.dist, r.c.yaw, r.c.pitch].map(v => v.toFixed(4)).join();
+          for (let i = 0, last = key(); i < 40; i++) { await new Promise(res => setTimeout(res, 50)); const k = key(); if (k === last) break; last = k; } }
         const B = CG.game.town.def.board, [x, z] = o.plot ? B.plots[o.plot] : B.spots[o.spot];
         const q = CG.town.projectPoint(x, o.plot ? .5 : o.tower ? .6 : .1, z);
         if (!q) return { skip: 'behind' };

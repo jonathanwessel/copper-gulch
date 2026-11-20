@@ -25,6 +25,10 @@ export function bestTower(town, kind) {
   return best;
 }
 
+/* A raider row's tower line: the best tower, or Any when no tower hits it harder (review of 2026.11.20-3: the Bandit
+   row looked empty). */
+export const bestLine = (town, kind) => { const b = bestTower(town, kind); return 'Best tower · ' + (b ? TOWERS[b].name : 'Any'); };
+
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
 export function waveInfo(town) {
@@ -68,10 +72,10 @@ export function waveSheet(town) {
       const out = lines.map((t, i) => el('p', i ? 'uses' : 'note', t));
       if (can) out.push(el('h3', '', 'Can bring'));
       for (const { kind, n } of kinds) {
-        const row = el('div', 'option foe'), pic = drawFoe(kind), txt = el('div'), best = bestTower(town, kind);
+        const row = el('div', 'option foe'), pic = drawFoe(kind), txt = el('div');
         pic.className = 'foepic'; row.dataset.foe = kind;
         txt.append(el('b', null, n === null ? FOES[kind].name : plural(n, FOES[kind].name)));
-        if (best) txt.append(el('span', 'uses', 'Best tower · ' + TOWERS[best].name));
+        txt.append(el('span', 'uses', bestLine(town, kind)));
         row.append(pic, txt); out.push(row);
       }
       box.replaceChildren(...out);

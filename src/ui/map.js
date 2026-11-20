@@ -10,7 +10,7 @@ import { fmt, fmtLive, splitLive } from './format.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
-import { capitalPanel, contractDone } from './capital.js';
+import { capitalPanel, contractDone, sentWords } from './capital.js';
 import { treeCalls } from '../core/tree.js';
 import { retryState } from '../core/automation.js';
 
@@ -23,7 +23,7 @@ const shortOf = id => id === 'capital' ? 'Capital' : TOWNS[id].short || TOWNS[id
 const sendsOnly = info => !!(info.won && !info.inPlay && info.income < .1);
 /* A place's card says what it is, before and after it opens, so the word outpost is known wherever it shows
    (review of 2026.11.19-6: "Outposts" on the Capital meant nothing next to open outposts that never said it). */
-const whatIs = id => (TOWNS[id].kind === 'outpost' ? 'An outpost that makes ' : 'A town that makes ');
+const whatIs = id => (TOWNS[id].kind === 'outpost' ? 'An outpost that makes ' : 'Makes '); // a town: its name is the heading (review of 2026.11.20-3: "A town that makes")
 /* Each label's words for what it earns: its share of the top bar's total, so the labels add up to it (review of
    2026.11.19-6). infos: { id: siteInfo }. A won outpost that only sends goods says so and takes no share. */
 export function badgeRates(total, infos) {
@@ -35,8 +35,9 @@ export function badgeRates(total, infos) {
   });
   return { words: out, nums, total: '+' + sp.total + '/s' };
 }
-/* A town's vault as hits left of its full strength ("20 / 20 hits"), the words of its Vault sheet. */
-export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }; return Math.max(0, Math.ceil(v.hp)) + ' / ' + Math.round(v.max) + ' hits'; };
+/* A town's vault on its map card: Full, or the hits left as its Vault sheet counts them (review of 2026.11.20-3:
+   "20 / 20 hits" read as a score). */
+export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }, n = Math.max(0, Math.ceil(v.hp)); return n >= Math.round(v.max) && n > 0 ? 'Full' : n + (n === 1 ? ' hit left' : ' hits left'); };
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
@@ -263,7 +264,7 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, a ? 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
+        setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
         B.vault.hidden = true; B.line.hidden = false; setText(B.extra, c.influence + ' Influence');
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
@@ -283,7 +284,9 @@ export function mountMap(root, game, view, shell) {
     const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
       const B = badge[s.id], p = view.badgePoint(s.id), w = widths[s.id] || 80;
-      if (!p || p.x < -w || p.x > W + w || p.y < -40 || p.y > H + 40) { B.b.hidden = true; continue; }
+      // a town off the screen has no label: clamped to the edge, they piled up under the coins (review of 2026.11.20-3, the
+      // Capital close-up)
+      if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }
       B.b.hidden = false;
       shown.push({ B, id: s.id, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
     }

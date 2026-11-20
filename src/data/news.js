@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-4',
+    lines: [
+      'Switches like Sell and Keep for towers light a small green On box, so a card is not full of yellow buttons.',
+      'The foreman switch now says Foreman buys levels.',
+      'With the phone turned sideways, cards are wider and both tower paths show side by side.',
+      'The goods strip fits more goods on a phone, and the more box stays inside the strip.',
+      'On the map, a town card says Vault Full, and the Capital names the good you are sending.',
+    ],
+  },
+  {
     v: '2026.11.20-3',
     lines: [
       'Tap the wave number to see a picture of each raider and the tower that beats it best.',

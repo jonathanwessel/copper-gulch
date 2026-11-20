@@ -47,7 +47,7 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   // ("not sold, 1.5 coins each if sold" repeated the Sell · Off switch beside it)
   // (the 2026.11.20-2 screenshots: "first 84 kept" beside Sell · On still read as selling, and "first 226 kept" beside
   // 122 in stock kept more than there was)
-  if (all) return fmtLive(Math.floor(have + 1e-9)) + ' in stock · all kept for towers, none to sell';
+  if (all) return fmtLive(Math.floor(have + 1e-9)) + ' in stock · all kept for towers · extra gets sold';
   const saved = !kept || !selling ? '' : ' · ' + fmtLive(kept) + ' kept for towers';
   return fmtLive(Math.floor(have + 1e-9)) + ' in stock' + saved + (open ? '' : ' · ' + each(price));
 }
