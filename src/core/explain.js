@@ -100,7 +100,7 @@ export function explainTower(town, t) {
 /* Short, so "× 3" stays on its line on a phone (review of 2026.11.19-12: "Stronger on waves you beat before, up to wave 23"
    wrapped and read as a sentence). The wave number on the play screen turns gold while it lasts. */
 /* (review of 2026.11.19-13: "Beaten waves 1-23 × 3" on wave 3 read as a mystery; the wave number turns gold while it lasts) */
-export const oldWavesLabel = town => 'Replay waves 1-' + (town.record || 0); // what it is for (review of 2026.11.20-2: "Best wave 22 bonus" was unclear, 2026.11.20-3: "Catch-up" read as jargon)
+export const oldWavesLabel = () => 'Wave beaten before'; // review of 2026.11.20-4: "Replay waves 1-22 × 3" did not say why // what it is for (review of 2026.11.20-2: "Best wave 22 bonus" was unclear, 2026.11.20-3: "Catch-up" read as jargon)
 
 /* The vault's strength in hits (a stockpile's too), and how many hits each raider that gets there takes. */
 export function explainVault(town) {

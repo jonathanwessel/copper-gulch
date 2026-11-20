@@ -91,8 +91,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Keep for towers',
-    text: 'Tap Keep for towers to switch it to Lots. Your town then keeps twice as many goods for towers and sells less.',
+    title: 'Tower stock',
+    text: 'Tap Tower stock to switch it to Lots. Your town then keeps twice as many goods for towers and sells less.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {

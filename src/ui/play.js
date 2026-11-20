@@ -202,7 +202,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
     const grid = gridOf(town), gridShort = L > 0 && (onGrid(id) || isGrid(b.makes)) && grid.share < .999;
     // a short workshop that makes none says so (review of 2026.11.19-8: "Makes 0 boilers a second")
-    const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'None right now' : perSecond(made ? made.value : b.rate, g);
+    const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'None right now' : isGrid(b.makes) ? Math.floor((made ? made.value : b.rate) + 1e-9) + ' power' : perSecond(made ? made.value : b.rate, g); // power as the workshops count it (review of 2026.11.20-4: "6 power a second" beside "need 9 power")
     if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
     const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
@@ -743,7 +743,7 @@ function nextToast() {
     const now = performance.now(), dt = now - toasts.last; toasts.last = now;
     if (showIfRoom(t)) toasts.left -= dt; // its time only runs while it shows
     if (toasts.left > 0) { toasts.tick = setTimeout(tick, TICK); return; }
-    t.classList.add('out'); toasts.tick = setTimeout(() => { t.remove(); unhide(); if (toasts.el === t) nextToast(); }, 400);
+    t.classList.add('out'); toasts.tick = setTimeout(() => { t.remove(); unhide(); if (toasts.el === t) nextToast(); }, 220);
   };
   toasts.tick = setTimeout(tick, TICK);
 }

@@ -74,7 +74,7 @@ export function goodsSheet(game, town, focus = null) {
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
     const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => setSwitch(stockBtn, 'Keep for towers', town.stock === 'lots' ? 'Lots' : 'Normal', null);
+    const paintStock = () => setSwitch(stockBtn, 'Tower stock', town.stock === 'lots' ? 'Lots' : 'Normal', null);
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
     paintStock(); stockRow.append(stockBtn);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
@@ -210,7 +210,7 @@ export function researchSheet(game, town) {
       rows[id] = { row, name, info, price, costs, bar, fill, go };
     }
     const paint = () => {
-      const o = town.lab ? 'One at a time. ' + RESEARCH[town.lab.id].name + ' is done in ' + leftWord(town.lab.left).replace(' left', '') + '.' : '';
+      const o = ''; // no line: the running item's button counts down and the others read Busy (reviews of 2026.11.20-4 and -5: "One at a time." read as a rule, then the time said three times)
       if (one.textContent !== o) one.textContent = o; one.hidden = !o;
       for (const [id, x] of Object.entries(rows)) {
         const r = RESEARCH[id], L = researchLevel(town, id), lab = town.lab && town.lab.id === id ? town.lab : null, block = researchBlock(town, id);
@@ -219,7 +219,7 @@ export function researchSheet(game, town) {
         // item runs it says so in place of a grayed button with no reason
         const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : [levelsDone(L, r.max), wait(researchTime(town, id))].map(keep).join(' · ');
+          : [levelsDone(L, r.max), 'takes ' + wait(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         const need = researchCost(town, id), pt = fmtLive(town.coins) + ' / ' + fmt(need) + ' coins';
         x.costs.hidden = !!lab || block === 'max';

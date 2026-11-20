@@ -43,13 +43,12 @@ export const sellsFor = v => 'sells for ' + each(v);
    19 in stock says why nothing sells (review of 2026.11.20-1: "all kept for towers" beside "Sell extra · On" read as
    broken). open: its price box says the price. */
 export function goodsLine({ have, kept = 0, selling = true, price = 0, open = false }) {
-  const all = selling && kept > 0 && kept + .5 >= have;
-  // ("not sold, 1.5 coins each if sold" repeated the Sell · Off switch beside it)
-  // (the 2026.11.20-2 screenshots: "first 84 kept" beside Sell · On still read as selling, and "first 226 kept" beside
-  // 122 in stock kept more than there was)
-  if (all) return fmtLive(Math.floor(have + 1e-9)) + ' in stock · all kept for towers · extra gets sold';
-  const saved = !kept || !selling ? '' : ' · ' + fmtLive(kept) + ' kept for towers';
-  return fmtLive(Math.floor(have + 1e-9)) + ' in stock' + saved + (open ? '' : ' · ' + each(price));
+  // one pattern on every row, the price always shown (review of 2026.11.20-4: "all kept for towers · extra gets sold" on
+  // every row read as a rule, and rows came with no price, "1.5 coins each" or "7 coins per 10"). Never more kept than
+  // there is (the 2026.11.20-2 screenshots: "226 kept" beside 122 in stock).
+  const n = Math.floor(have + 1e-9), k = Math.min(n, Math.ceil(kept - 1e-9));
+  const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' kept for towers';
+  return fmtLive(n) + ' in stock' + saved + (open ? '' : ' · ' + each(price));
 }
 /* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
 export function goodsSwitch({ selling = true }) {
@@ -68,7 +67,7 @@ export function priceNote({ have, kept = 0, price = 0 }) {
 }
 /* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level
    you had, review of 2026.11.19-7). */
-export const levelsDone = (L, max) => (L ? L + ' of ' + max + ' levels done' : 'No levels yet');
+export const levelsDone = (L, max) => L + ' of ' + max + ' done'; // review of 2026.11.20-4: "No levels yet · 20 seconds"
 /* A live count on the HUD (owner rule: live numbers never change the size or place of anything on screen). Never
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
    rate under 10), then 1.00K-9.99K, 10.0K-99.9K, 100K-999K, 1.00M... It rounds down, so 999.96 never shows as 1000. */

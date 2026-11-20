@@ -6,7 +6,7 @@ import { lostToast } from '../src/ui/lost.js';
 
 test('a good with every unit kept says there is none to sell, not "all kept" beside Sell On', () => {
   const t = goodsLine({ have: 19, kept: 19, selling: true, price: 2 });
-  assert.equal(t, '19 in stock · all kept for towers · extra gets sold');
+  assert.equal(t, '19 in stock · 19 kept for towers · 2 coins each');
   assert.doesNotMatch(t, /sells for/);
 });
 
@@ -19,8 +19,8 @@ test('a good not for sale says so and what it would sell for', () => {
 });
 
 test('research says how many levels are done', () => {
-  assert.equal(levelsDone(0, 5), 'No levels yet');
-  assert.equal(levelsDone(2, 5), '2 of 5 levels done');
+  assert.equal(levelsDone(0, 5), '0 of 5 done');
+  assert.equal(levelsDone(2, 5), '2 of 5 done');
 });
 
 test('the lost toast is one step, and the map card says the rest', () => {

@@ -43,10 +43,10 @@ test('every institution says how much it gives in amounts a player can check', (
   assert.equal(boughtText(bank, 3), 'You earn 21% more coins. Everything costs 5% less.'); // two bought kinds, added up
 });
 
-test('the map line after a loss says the vault is full again', () => {
+test('the map line after a loss says what happened and the wave it went back to', () => {
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss' } };
-  assert.match(lostLine(town), /got through\. The vault is full again\. Tap Play Copper Gulch, then Resume waves\./);
-  assert.match(lostLine({ ...town, lost: { why: 'vault' } }), /^The vault fell and filled up again\./);
+  assert.match(lostLine(town), /got through\. Tap Play Copper Gulch, then Resume waves\./);
+  assert.match(lostLine({ ...town, lost: { why: 'vault' } }), /^The vault fell\./);
 });
 
 test('no goal joins two acts with "and save"', () => {

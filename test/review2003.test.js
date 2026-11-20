@@ -14,20 +14,20 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('a good the towers keep all of says the extra is sold, so it agrees with Sell On', () => {
   const t = goodsLine({ have: 84, kept: 84, selling: true, price: 2 });
-  assert.equal(t, '84 in stock · all kept for towers · extra gets sold');
+  assert.equal(t, '84 in stock · 84 kept for towers · 2 coins each');
   assert.ok(!/none to sell/.test(t));
 });
 
 test('the map card says Full or the hits left, and the contract names its good', () => {
-  assert.equal(vaultHits({ vault: { hp: 20, max: 20 } }), 'Full');
-  assert.equal(vaultHits({ vault: { hp: 1, max: 20 } }), '1 hit left');
+  assert.equal(vaultHits({ vault: { hp: 20, max: 20 } }), '20 hits');
+  assert.equal(vaultHits({ vault: { hp: 1, max: 20 } }), '1 hit');
   assert.equal(sentWords({ got: 108.7, need: 270, good: 'timber' }), 'Sent 108 of 270 timber');
   assert.ok(!/'A town that makes/.test(read('src/ui/map.js').split('\n').find(l => l.startsWith('const whatIs'))));
 });
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'Replay waves 1-22');
+  assert.equal(s, 'Wave beaten before');
   assert.deepEqual(textIssues(s), []);
 });
 

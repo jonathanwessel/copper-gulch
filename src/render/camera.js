@@ -17,6 +17,8 @@ import * as THREE from 'three';
 const _cam = new THREE.PerspectiveCamera(), _ray = new THREE.Raycaster(), _v2 = new THREE.Vector2(), _hit = new THREE.Vector3();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const ang = (x, z) => Math.atan2(x, z); // a ground direction's angle; turning the rig by f adds f to it
+/* pixels a selection keeps below the top bar (review of 2026.11.20-4: a selected Mortar pit sat under the goal strip) */
+const TOP_GAP = 56;
 export const MIN_PAD = 32;  // pixels across the smallest stone pad at home (the touch rule is 30)
 const PAD_R = .5;           // a stone pad's radius in world units (src/render/battle.js)
 const _pv = new THREE.Vector3();
@@ -112,7 +114,9 @@ export class CameraRig {
     // the empire map with a card open: the whole map fits in the part the card leaves, so no town's label sits under it
     // (review of 2026.11.19-9: Dry Creek's label under the card, so the labels in view did not add up to the top bar)
     const side = this.fitCover && this.coverKey;
-    if (side) { const [k, v] = side.split(':'); if (k === 'b') R.b = Math.max(R.t + 120, +v - m); else R.r = Math.max(R.l + 120, +v - m); }
+    // a side card (a phone turned sideways) keeps the zoom and only slides the chosen town clear of it (keep): shrunk
+    // into the space left of the card, the towns sat in a small patch with their labels touching (review of 2026.11.20-4)
+    if (side) { const [k, v] = side.split(':'); if (k === 'b') R.b = Math.max(R.t + 120, +v - m); }
     const corners = [];
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [0, 1.2]) corners.push([cx + sx * fw / 2, y, cz + sz * fd / 2]);
     const box = st => {
@@ -159,10 +163,10 @@ export class CameraRig {
       { l: r.left, r: W, t: top, b: cv.t },   // above the card
       { l: r.left, r: cv.l, t: top, b: H },   // left of it
       { l: cv.r, r: W, t: top, b: H },        // right of it
-    ].map(a => ({ l: a.l + pad, r: a.r - pad, t: a.t + pad * .8, b: a.b - pad * .8 }));
+    ].map(a => ({ l: a.l + pad, r: a.r - pad, t: a.t + TOP_GAP, b: a.b - pad * .8 }));
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
     const clear = q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20;
-    if (clear && q.y > top + 10 && q.y < H - 20 && q.x > r.left + 20 && q.x < W - 20) return; // on screen and not under the card
+    if (clear && q.y > top + TOP_GAP && q.y < H - 20 && q.x > r.left + 20 && q.x < W - 20) return; // on screen and not under the card
     let best = null, bd = Infinity;
     for (const a of parts) {
       if (a.r - a.l < 10 || a.b - a.t < 4) { // too small for the margin: use its middle line

@@ -30,7 +30,7 @@ test('a foreman that is not buying reads as a status, not a story', () => {
     assert.ok(t.length < 60, t); // short as a sign, beside the Foreman switch (review of 2026.11.20-2)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for a better timber price.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Waiting. Timber sells for too little now.');
 });
 
 test('the lost toast has one step', () => {
@@ -39,9 +39,9 @@ test('the lost toast has one step', () => {
 });
 
 test('the map card writes the vault in hits and the coins as the label does', () => {
-  assert.equal(vaultHits({ vault: { hp: 19.2, max: 20 } }), 'Full');
-  assert.equal(vaultHits({ vault: { hp: 12, max: 20 } }), '12 hits left');
-  assert.equal(vaultHits({ vault: { hp: 0, max: 20 } }), '0 hits left');
+  assert.equal(vaultHits({ vault: { hp: 19.2, max: 20 } }), '20 hits');
+  assert.equal(vaultHits({ vault: { hp: 12, max: 20 } }), '12 hits');
+  assert.equal(vaultHits({ vault: { hp: 0, max: 20 } }), '0 hits');
   const r = badgeRates(.4, { gulch: { income: .4 } });
   assert.equal(r.words.gulch, '+0.4/s'); // the card shows this same word
 });

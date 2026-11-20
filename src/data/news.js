@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-5',
+    lines: [
+      'Goods shows every good the same way, with how many are kept for towers and the price.',
+      'Tap a stone pad on a phone and its card leaves room to see the pad.',
+      'The town switch on Goods is now called Tower stock.',
+      'On the map, a town card says how many hits its vault can take.',
+    ],
+  },
+  {
     v: '2026.11.20-4',
     lines: [
       'Switches like Sell and Keep for towers light a small green On box, so a card is not full of yellow buttons.',

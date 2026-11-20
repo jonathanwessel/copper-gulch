@@ -37,7 +37,7 @@ export function badgeRates(total, infos) {
 }
 /* A town's vault on its map card: Full, or the hits left as its Vault sheet counts them (review of 2026.11.20-3:
    "20 / 20 hits" read as a score). */
-export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }, n = Math.max(0, Math.ceil(v.hp)); return n >= Math.round(v.max) && n > 0 ? 'Full' : n + (n === 1 ? ' hit left' : ' hits left'); };
+export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }, n = Math.max(0, Math.ceil(v.hp)); return n + (n === 1 ? ' hit' : ' hits'); }; // beside "Vault can take" (review of 2026.11.20-4: "Vault Full" never said what a vault is)
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
@@ -176,7 +176,7 @@ export function mountMap(root, game, view, shell) {
       kids.push(head(d.name, info.inPlay ? 'Playing now' : ''));
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store, vaultHits(t), info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
+      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store + ' can take', vaultHits(t), info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
       // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);
@@ -265,7 +265,7 @@ export function mountMap(root, game, view, shell) {
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; B.line.hidden = false; setText(B.extra, c.influence + ' Influence');
+        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, openId === 'capital' ? '' : c.influence + ' Influence'); // its open card says these (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
         const lr = lockedRules(game, s.id);
@@ -288,7 +288,10 @@ export function mountMap(root, game, view, shell) {
       // Capital close-up)
       if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }
       B.b.hidden = false;
-      shown.push({ B, id: s.id, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
+      // a town left of a side card keeps its label left of the card, never pushed under it (review of 2026.11.20-4: the
+      // open card's own town lost its label in landscape)
+      const R = cardBox && cardBox.l > W * .35 && p.x < cardBox.l ? cardBox.l - 4 : W;
+      shown.push({ B, id: s.id, w, h: heights[s.id] || 40, x: Math.max(w / 2 + 4, Math.min(p.x, R - w / 2 - 4)), y: p.y });
     }
     // crowded labels show only their name, judged at full size so a label does not flip between the two
     const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));

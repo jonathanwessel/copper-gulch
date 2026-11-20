@@ -46,7 +46,7 @@ function confirmTap(b, ask, go) {
 export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}) {
   const c = capitalOf(game), box = el('div', 'capital');
   const inf = el('div', 'stat static'), infN = el('b');
-  inf.append(el('span', '', 'Influence, for upgrades'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
+  inf.append(el('span', '', 'Influence to spend'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
   const tabs = el('div', 'captabs');
   for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Institutions']]) {
     const b = el('button', 'btn small', label); b.id = id === 'contracts' ? 'capTabContracts' : 'capTabInst';
@@ -73,7 +73,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
     confirmTap(drop, () => lostAsk(a), () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
-      setText(got, sentWords(a)); // the map label's words
+      setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' so far'); // the heading above names the amount and the good (review of 2026.11.20-4)
       const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (fill.style.width !== w) fill.style.width = w;
       setText(when, eta(game, a));
     });
