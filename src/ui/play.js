@@ -76,7 +76,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
   vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
   const waveBtn = el('button', 'wavebtn'); waveBtn.id = 'waveBtn'; waveBtn.append(waveNum);
-  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(vault); // tap it: the vault's strength explained
+  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(el('i', store === 'vault' ? 'safe' : 'safe crate'), vault); // tap it: the vault's strength explained; a strongbox (or a crate) says what the bar is (review of 2026.11.19-14)
   vaultBtn.setAttribute('aria-label', store[0].toUpperCase() + store.slice(1));
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
@@ -225,11 +225,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
     if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
     // the power grid (Silver Falls): the Water Wheel says how much of its power the workshops use
-    if (isGrid(b.makes) && L) card.append(el('p', 'uses', 'Your workshops use ' + fmt(grid.want) + ' power a second.'));
-    // a workshop on the grid says how much power there is (review of 2026.11.19-7: power was named but never counted)
-    else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' power a second.'));
-    // the numbers above already show a workshop is short, so its warning only says what that does and what to tap
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
+    // power as have / need in whole numbers, one short line (review of 2026.11.19-14: four sentences and "8.4 power"),
+    // red when short (review of 2026.11.19-7: power was named but never counted)
+    if ((isGrid(b.makes) || onGrid(id)) && L) {
+      const want = Math.ceil(grid.want - 1e-9), pr = el('p', 'uses powerline'), n = el('span', 'need' + (gridShort ? ' low' : ''), isGrid(b.makes) ? want + ' power' : Math.floor(grid.made + 1e-9) + ' / ' + want);
+      pr.append(isGrid(b.makes) ? 'Workshops need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
+    }
+    // the line above shows the shortage, so the warning only says what it does and what to upgrade
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Workshops here run slower.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
@@ -257,16 +260,18 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
     sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
-    if (!isGrid(b.makes)) row.append(sell); // power is never sold
     bcost.append(row); card.append(bcost);
-    // the tower reserve: what auto-sell keeps back for the towers, and the switch to sell it anyway
+    // the Sell switch sits under the pinned bar, away from the price, so the price reads as Upgrade's alone (review of
+    // 2026.11.19-13: "401 / 12 coins" sat above both Upgrade and Sell), with the tower reserve's switch beside it
+    const kr = el('div', 'row keeprow switchrow');
+    if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const kr = el('div', 'row keeprow');
       const ks = el('button', 'btn small', 'Keep ' + (keepOn && kept ? kept + ' ' + g.name.toLowerCase() + ' ' : '') + 'for towers' + (keepOn ? ' · On' : ' · Off'));
       ks.id = 'keepTowers'; ks.setAttribute('aria-pressed', String(keepOn)); ks.classList.toggle('on', keepOn);
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
-      kr.append(ks); card.append(kr);
+      kr.append(ks);
     }
+    if (kr.children.length) card.append(kr);
     // a foreman: hired once the building reaches level 10, then it buys levels by itself until switched off
     if (L >= FOREMAN_LEVEL || hasForeman(town, id)) {
       const fr = el('div', 'row keeprow');
@@ -377,7 +382,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      ph.append(pt, costRow(c)); bar.append(ph);
+      const pc = costRow(c); pc.prepend(el('small', 'costfor', 'Either path')); // one price above two Choose buttons (review of 2026.11.19-13)
+      ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
@@ -401,11 +407,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (sh.length) for (const s of sh) lines.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
     // the kept goods line sits over the pinned bar, not in it, so the bar stays short and the stats stay in view (review
     // of 2026.11.19-9: in landscape the Cannon card's Blast row was cut by its cost row)
-    else if (keepText(c)) card.append(el('p', 'uses', keepText(c)));
+    // only while the buy is still short of something: once it can be paid the line says nothing (screenshot review of 2026.11.20-3)
+    else if (!canPay(town, c) && keepText(c)) card.append(el('p', 'uses', keepText(c)));
     const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    row.append(sell);
-    if (path) card.append(row); else { bar.append(row); card.append(bar); }
+    // Sell sits above the pinned bar, never beside Upgrade under its price (review of 2026.11.19-13)
+    const sr = el('div', 'row'); sr.append(sell);
+    if (path) card.append(sr); else { card.append(sr); bar.append(row); card.append(bar); }
   }
 
   // news from the road
@@ -466,6 +474,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
   let cardTop = 0, hudTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1;
+  let markAt = null; // the goal's tag's point this frame (frame), for the mark around it (placeMark)
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
   const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
@@ -535,7 +544,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     let r = null;
     if (!tg || (tg.plot && openId === tg.plot)) r = null; // its card is open: the selection shows it
     else if (tg.el) r = markBox;
-    else if (tg.plot) { const p = markW && viewApi.project(tg.plot); if (p) { const x = Math.min(Math.max(p.x, markW / 2), viewW - markW / 2); r = { x: x - markW / 2, y: p.y - GOAL_LIFT - markH + 5, w: markW, h: markH }; } } // the tag sits above its point (lifted, GOAL_LIFT), kept on screen
+    else if (tg.plot) { const p = markW && markAt; if (p) r = { x: p.x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } // where its tag went this frame (lifted, GOAL_LIFT, kept on screen and under the top bar)
     else if (openId !== 'spot:' + (tg.spot ?? tg.tower)) {
       const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
       if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
@@ -544,6 +553,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (r && !tg.el && stripBox && over(r, stripBox)) r = null; // the thing is under the strip: show the words, not the frame
     if (mark.hidden !== !r) mark.hidden = !r;
     if (!r) return;
+    const onTag = !!(tg.plot && !tg.el); if (mark.classList.contains('ontag') !== onTag) mark.classList.toggle('ontag', onTag); // the goal's tag has its own gold frame: the mark only pulses around it (review of 2026.11.19-14: a loud double frame)
     mark.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;
     const sig = Math.round(r.w) + ',' + Math.round(r.h);
     if (sig !== markSig) { markSig = sig; mark.style.width = Math.round(r.w) + 'px'; mark.style.height = Math.round(r.h) + 'px'; }
@@ -569,7 +579,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     acc += dt; cardAcc += dt;
     viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
     sheets.frame(dt);
-    paintGoal(dt); placeMark();
+    paintGoal(dt); markAt = null;
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
@@ -583,7 +593,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
       let py = p && (marked ? p.y - GOAL_LIFT : p.y);
       if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; if (px - tw / 2 < leftBox.r && px + tw / 2 > leftBox.l && py > leftBox.b && py - th < leftBox.b + 2) py = leftBox.b + 2 + th; } // (only while its building shows below the bar)
-      if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; continue; } }
+      // the goal's tag never hides under the top bar: it sits just below it, over its building (review of 2026.11.20-2:
+      // in landscape the Sawmill's lifted tag went under the goal strip, and the goal named a tag no one could see)
+      if (p && marked) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of coverBoxes) if ((c.n === left || c.n === right) && px - tw / 2 < c.r && px + tw / 2 > c.l && py - th < c.b + 2) py = Math.max(py, c.b + 2 + th); markAt = { x: px, y: py }; }
+      if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; if (marked) markAt = null; continue; } }
       if (t.hidden) t.hidden = false;
       if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
       // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
@@ -598,6 +611,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       t.classList.toggle('can', !!L && town.coins >= cost(town, id)); // an up mark only on a building, never on an empty plot's Build
       t.classList.toggle('boss', full && foremanOn(town, id));
     }
+    placeMark(); // after the tags, so the mark sits on the goal's tag where it went this frame
     if (document.documentElement.classList.contains('flat')) spotTags.forEach((t, i) => {
       const tw = towerAt(town, i), txt = (isPit(town, i) ? 'Mortar pit ' : 'Spot ') + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
       t.hidden = false; if (t.textContent !== txt) t.textContent = txt;
@@ -618,6 +632,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     measure();
     setText(waveInfo, waveTimer(ws)); // one fixed box: "in 28s", "On hold" or "Fighting"
     const away = ws.phase !== 'break'; if (call.classList.contains('away') !== away) call.classList.toggle('away', away); // kept in place, so the bar never changes width
+    if (ui.classList.contains('fighting') !== away) ui.classList.toggle('fighting', away); // quiet tags fade while raiders are on the road (review of 2026.11.19-13: a tag covered raiders)
     const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
     look(town);
@@ -686,7 +701,7 @@ export function clearOfCards(t) {
    and no town label, or null when there is none. Exported for the smoke test. */
 export function clearOfBadges(t, labels = true) {
   if (!t.isConnected) return null;
-  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip' + (labels ? ', .mapbadge' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
+  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip' + (labels ? ', .mapbadge, .mapkeep' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
   const a = t.getBoundingClientRect(), from = underHud() ?? a.top;
   const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
   for (let y = Math.ceil(from); y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) return y;

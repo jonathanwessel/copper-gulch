@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-3',
+    lines: [
+      'Tap the wave number to see a picture of each raider and the tower that beats it best.',
+      'On tower and building cards, Sell moved away from Upgrade, so the price above Upgrade is only for Upgrade.',
+      'Only one button shows a red dot at a time.',
+      'With the phone turned sideways, your goal label stays in view.',
+      'Goods shows how high each price is, from Very low to Top.',
+    ],
+  },
+  {
     v: '2026.11.20-2',
     lines: [
       'With the phone turned sideways the goods strip keeps to one row.',

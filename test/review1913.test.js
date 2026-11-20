@@ -36,9 +36,9 @@ test('a live rate under 0.1 reads 0, never 0.0', () => {
 });
 
 test('the foreman says when it buys, and the old-waves row is short', () => {
-  assert.equal(foremanLine('flooded', 'timber'), 'The foreman buys the next level once timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for a better timber price.');
   assert.doesNotMatch(foremanLine('flooded', 'timber'), / or /);
-  assert.equal(oldWavesLabel({ record: 23 }), 'Best wave 23 bonus');
+  assert.equal(oldWavesLabel({ record: 23 }), 'Catch-up to wave 23');
 });
 
 test('the words the review flagged are gone', () => {

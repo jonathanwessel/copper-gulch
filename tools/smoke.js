@@ -323,7 +323,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /The foreman buys the next level once timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Waiting for a better timber price./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;

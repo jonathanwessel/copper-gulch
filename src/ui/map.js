@@ -122,7 +122,9 @@ export function mountMap(root, game, view, shell) {
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
   const badges = el('div', 'tags'); badges.id = 'mapBadges';
   const card = el('div', 'card'); card.id = 'mapCard'; card.hidden = true;
-  ui.append(badges, hud, card, banner);
+  // the capitol's place on screen, for toasts to keep off (placeToast in src/ui/play.js); never takes a touch
+  const keep = el('div', 'mapkeep'); keep.setAttribute('aria-hidden', 'true');
+  ui.append(badges, hud, card, banner, keep);
   root.append(ui);
 
   back.addEventListener('click', () => shell.back());
@@ -312,6 +314,7 @@ export function mountMap(root, game, view, shell) {
         const c = card.hidden ? null : card.getBoundingClientRect();
         cardBox = c && c.height ? { l: c.left, t: c.top, r: c.right, b: c.bottom } : null;
         bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));
+        { const k = view.capitolBox ? view.capitolBox() : null; keep.hidden = !k; if (k) Object.assign(keep.style, { left: Math.round(k.l) + 'px', top: Math.round(k.t) + 'px', width: Math.round(k.r - k.l) + 'px', height: Math.round(k.b - k.t) + 'px' }); }
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }

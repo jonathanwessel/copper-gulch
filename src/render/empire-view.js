@@ -283,6 +283,19 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       if (_v.z > 1) return null;
       return { x: (_v.x + 1) / 2 * (size.w || canvas.clientWidth), y: (1 - _v.y) / 2 * (size.h || canvas.clientHeight) }; // this frame's size: no layout per badge
     },
+    /* The built capitol's box on screen (client pixels), or null: toasts keep off it (review of 2026.11.19-13: "upgrade
+       bought" sat on the dome). */
+    capitolBox() {
+      if (!dio.capital) return null;
+      const s = at.capital, C = CITY.capitol, W = size.w || canvas.clientWidth, H = size.h || canvas.clientHeight;
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of [0, 2.4]) {
+        _v.set(s[0] + C.at[0] + dx * C.w / 2, y, s[1] + C.at[1] + dz * C.d / 2).project(v.cam);
+        if (_v.z > 1) return null;
+        const x = (_v.x + 1) / 2 * W, yy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
+      }
+      return x1 < 0 || x0 > W || y1 < 0 || y0 > H ? null : { l: x0, t: y0, r: x1, b: y1 };
+    },
     projectSite(id) {
       const s = at[id]; _v.set(s[0], .6, s[1]).project(v.cam);
       return _v.z > 1 ? null : { x: (_v.x + 1) / 2 * (size.w || canvas.clientWidth), y: (1 - _v.y) / 2 * (size.h || canvas.clientHeight) };

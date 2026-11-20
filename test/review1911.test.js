@@ -11,13 +11,13 @@ import { priceNote } from '../src/ui/format.js';
 import { foremanLine } from '../src/ui/explain.js';
 
 test('the old-waves row says the towers are stronger and why', () => {
-  assert.equal(oldWavesLabel({ record: 23 }), 'Best wave 23 bonus');
+  assert.equal(oldWavesLabel({ record: 23 }), 'Catch-up to wave 23');
 });
 
 test('the foreman line says when it buys, never its reasons', () => {
   for (const why of ['short', 'flooded', 'slow']) {
     const t = foremanLine(why, 'timber');
-    assert.match(t, /^The foreman buys the next level (once|when) /);
+    assert.match(t, /^Waiting (for|until) /); // a status (review of 2026.11.20-2)
     assert.doesNotMatch(t, /sells low|not buying/);
   }
 });

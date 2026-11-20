@@ -123,6 +123,9 @@ export function createScene(canvas, opt = {}) {
     },
     render() {
       r.info.reset();
+      // the sky dome rides with the camera, so its far side is never past the far plane (review of 2026.11.19-13: with a
+      // card open the map's camera pulled back and a black wedge showed at the top of the screen)
+      sky.position.set(cam.position.x, 0, cam.position.z);
       if (composer) composer.render(); else r.render(scene, cam);
       view.stats = { calls: r.info.render.calls, triangles: r.info.render.triangles, w: W, h: H, tier };
     },

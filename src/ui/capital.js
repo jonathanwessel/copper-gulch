@@ -34,7 +34,7 @@ function confirmTap(b, ask, go) {
   const label = b.textContent; let armed = 0;
   b.addEventListener('click', () => {
     if (armed && Date.now() - armed < 4000) { armed = 0; b.textContent = label; b.classList.remove('arm'); go(); return; }
-    armed = Date.now(); b.textContent = ask; b.classList.add('arm');
+    armed = Date.now(); b.textContent = typeof ask === 'function' ? ask() : ask; b.classList.add('arm');
     setTimeout(() => { if (armed && Date.now() - armed >= 4000) { armed = 0; b.textContent = label; b.classList.remove('arm'); } }, 4100);
   });
 }
@@ -67,7 +67,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
     const got = el('small'), bar = el('i', 'depth'), fill = el('i'), when = el('span');
     bar.append(fill); txt.append(name, el('span', '', pays(game, a)), got, bar, when);
     const drop = el('button', 'btn small', 'Drop'); drop.id = 'contractDrop';
-    confirmTap(drop, 'Tap again', () => { if (dropContract(game)) changed(); });
+    confirmTap(drop, () => lostAsk(a), () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
       setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need)); // the map label's words
@@ -83,7 +83,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
     txt.append(el('b', '', fmt(o.need) + ' ' + lower(o.good) + ' from ' + townName(o.town)), el('span', '', pays(game, o)), when);
     const take = el('button', 'btn small build', a ? 'Switch' : 'Take'); take.dataset.contract = o.id;
     const go = () => { if (takeContract(game, o.id)) changed(); };
-    if (a) confirmTap(take, 'Tap again', go); else take.addEventListener('click', go);
+    if (a) confirmTap(take, () => lostAsk(a), go); else take.addEventListener('click', go); // says what the running one loses (review of 2026.11.20-2)
     row.append(txt, take); list.append(row);
     live.push(() => setText(when, eta(game, o)));
   }
@@ -91,6 +91,9 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
   paint();
   return { el: box, paint, sig: () => 'c|' + (c.active ? c.active.id : 0) + '|' + c.offers.map(o => o.id).join(',') };
 }
+
+/* What the second tap on Drop or Switch costs: the goods already sent stay at the Capital, unpaid. */
+export const lostAsk = a => (a.got >= 1 ? 'Lose ' + fmt(Math.floor(a.got)) + ' sent?' : 'Tap again');
 
 /* "12 / 35 Influence", red when short. */
 function cost(small, have, need, unit) { setText(small, fmt(Math.floor(have)) + ' / ' + fmt(need) + ' ' + unit); small.classList.toggle('short', have + 1e-9 < need); }

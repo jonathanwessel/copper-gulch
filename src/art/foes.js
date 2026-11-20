@@ -1,0 +1,136 @@
+/* Small pixel pictures of each raider, for the raiders card (review of 2026.11.19-14: the card had no picture).
+   Each is 12x12 font-sized pixels, one letter per pixel; '.' is empty. Drawn onto a small canvas with a 1-pixel dark
+   outline; show it scaled up with image-rendering: pixelated, at a whole-number scale. */
+const PAL = {
+  k: '#1d120c', h: '#5a3a22', s: '#e0a878', r: '#b8402e', b: '#3d5a80', n: '#8a5a32', w: '#a0703c', d: '#6b4426',
+  g: '#6b6f78', l: '#a9adb5', y: '#e8c050', c: '#e8dcc0', u: '#3a7ab8', o: '#2b2830', e: '#e38d4e',
+};
+
+export const FOE_ART = {
+  raider: [ // a bandit: a wide hat, a red bandana, a blue shirt
+    '....hhhh....',
+    '...hhhhhh...',
+    '.hhhhhhhhhh.',
+    '....ssss....',
+    '....rrrr....',
+    '...bbbbbb...',
+    '..bbbbbbbb..',
+    '..sbbbbbbs..',
+    '...bbbbbb...',
+    '...dd..dd...',
+    '...dd..dd...',
+    '..ddd..ddd..',
+  ],
+  runner: [ // a rider on a horse
+    '.....hhh....',
+    '....hhhhh...',
+    '.....ss.....',
+    '.....bb.....',
+    '....bbbb..nn',
+    '.nnnnbbnnnnn',
+    'nnnnnnnnnnn.',
+    'n.nnnnnnnn..',
+    '..nnnnnnnn..',
+    '..n.n..n.n..',
+    '..n.n..n.n..',
+    '.kk.k..k.kk.',
+  ],
+  brute: [ // a big man in a plate vest
+    '...hhhhhh...',
+    '.hhhhhhhhhh.',
+    '...ssssss...',
+    '...ssssss...',
+    '.gggggggggg.',
+    'sggllggllggs',
+    'sgggggggggs.',
+    'sggllggllggs',
+    '.gggggggggg.',
+    '..ddd..ddd..',
+    '..ddd..ddd..',
+    '.dddd..dddd.',
+  ],
+  wagon: [ // a war wagon with an iron front
+    '............',
+    '..cccccccc..',
+    '.cccccccccc.',
+    '.cccccccccc.',
+    'gwwwwwwwwwww',
+    'gwdwdwdwdwdw',
+    'gwwwwwwwwwww',
+    'ggwwwwwwwwww',
+    '.kk......kk.',
+    'kddk....kddk',
+    'kddk....kddk',
+    '.kk......kk.',
+  ],
+  bandits: [ // a small bandit wagon
+    '............',
+    '............',
+    '...cccccc...',
+    '..cccccccc..',
+    '..cccccccc..',
+    '.wwwwwwwwww.',
+    '.wdwdwdwdww.',
+    '.wwwwwwwwww.',
+    '..kk....kk..',
+    '.kddk..kddk.',
+    '.kddk..kddk.',
+    '..kk....kk..',
+  ],
+  train: [ // an armored engine
+    '..o.........',
+    '.ooo...gggg.',
+    '.ooo...glgg.',
+    'ggggggggggg.',
+    'gllgggggggg.',
+    'ggggggggrrgg',
+    'gyyyyyyyyyyg',
+    'ggggggggggg.',
+    '.kk.kk.kk.k.',
+    'kddkddkddkd.',
+    '.kk.kk.kk.k.',
+    'oooooooooooo',
+  ],
+  boat: [ // a riverboat with a stack
+    '.....o......',
+    '.....o......',
+    '....ooo.....',
+    '...cccccc...',
+    '...cwcwcc...',
+    '.wwwwwwwwww.',
+    'wwddddddddww',
+    '.wwwwwwwwww.',
+    '..wwwwwwww..',
+    'uuuuuuuuuuuu',
+    '.uuu.uuu.uuu',
+    '............',
+  ],
+  steamer: [ // the ironclad steamer
+    '...oo..oo...',
+    '...oo..oo...',
+    '..gggggggg..',
+    '..glglglgg..',
+    'gggggggggggg',
+    'gllggggggllg',
+    'ggggrrrrgggg',
+    '.gggggggggg.',
+    '..gggggggg..',
+    'uuuuuuuuuuuu',
+    '.uuu.uuu.uuu',
+    '............',
+  ],
+};
+
+/* A raider's picture on a new canvas (14x14: the art and its outline). */
+export function drawFoe(kind) {
+  const art = FOE_ART[kind] || FOE_ART.raider, c = document.createElement('canvas');
+  c.width = 14; c.height = 14;
+  const g = c.getContext('2d'), on = (x, y) => y >= 0 && y < 12 && x >= 0 && x < 12 && art[y][x] !== '.';
+  g.fillStyle = PAL.k;
+  for (let y = -1; y <= 12; y++) for (let x = -1; x <= 12; x++) {
+    if (on(x, y)) continue;
+    if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) g.fillRect(x + 1, y + 1, 1, 1);
+  }
+  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const ch = art[y][x]; if (ch === '.') continue; g.fillStyle = PAL[ch] || PAL.k; g.fillRect(x + 1, y + 1, 1, 1); }
+  return c;
+}

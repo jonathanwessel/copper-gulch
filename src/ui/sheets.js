@@ -61,6 +61,9 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
   return api;
 }
 
+/* Where a good's price stands against its full price, in one word for the end of its bar. */
+export const priceWord = s => (s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low');
+
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
   return body => {
@@ -89,13 +92,14 @@ export function goodsSheet(game, town, focus = null) {
       for (const g of goods) {
         const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
         bar.append(fill); bar.title = 'Price now, against its full price';
-        const barRow = el('span', 'depthrow'); barRow.append(el('small', null, 'Price'), bar); // the bar says what it is (review of 2026.11.19-12)
+        // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
+        const level = el('small', 'pword'), barRow = el('span', 'depthrow'); barRow.append(el('small', null, 'Price'), bar, level);
         txt.append(name, line, barRow, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
         row.append(txt, sw); list.append(row);
-        rows[g] = { line, fill, sw, why, txt };
+        rows[g] = { line, fill, sw, why, txt, level };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -117,7 +121,8 @@ export function goodsSheet(game, town, focus = null) {
         const note = open[g] ? priceNote({ have, kept, price: ex.value }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
-        const w = Math.round(100 * saturation(game, g)) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
+        const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
+        const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
         const s = goodsSwitch({ have, kept, selling }); if (r.sw.textContent !== s) r.sw.textContent = s;
         r.sw.setAttribute('aria-pressed', String(selling)); r.sw.classList.toggle('on', selling);
       }

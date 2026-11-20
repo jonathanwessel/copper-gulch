@@ -1,8 +1,11 @@
 /* The raiders card: what the wave number on the play screen opens (owner, 2026-11-19: the next wave's raiders left
    the wave bar, which keeps one width). During a break it says when the next wave comes, whether it is a boss wave and
-   which raiders can ride in it. During a wave it counts the raiders still to come or on the road, by kind. */
+   which raiders can ride in it. During a wave it counts the raiders still to come or on the road, by kind. Each kind
+   has its picture and the tower that hits it hardest (review of 2026.11.19-14). */
 import { FOES, WAVE_TYPES } from '../data/foes.js'; // WAVE_TYPES: which raiders a wave can bring
-import { bossWave, wavesOf } from '../core/defense.js';
+import { TOWERS } from '../data/towers.js';
+import { bossWave, wavesOf, towerOpen } from '../core/defense.js';
+import { drawFoe } from '../art/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const plural = (n, name) => n + ' ' + (n === 1 ? name : name.endsWith('s') ? name : name + 's');
@@ -10,8 +13,21 @@ const plural = (n, name) => n + ' ' + (n === 1 ? name : name.endsWith('s') ? nam
 /* The wave bar's timer: what the next wave waits for, in a box of fixed width. */
 export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : 'in ' + Math.ceil(ws.timer) + 's');
 
-/* The card's lines, in plain words (pure, for the tests). */
-export function waveLines(town) {
+/* The tower open in this town that hits a raider kind hardest (its best factor), or null when none does. */
+export function bestTower(town, kind) {
+  const f = FOES[kind]; if (!f) return null;
+  let best = null, top = 1;
+  for (const [k, T] of Object.entries(TOWERS)) {
+    if (!T.best || !towerOpen(town, k)) continue;
+    const m = Math.max(T.best[kind] || 1, f.armor > 0 ? T.best.armored || 1 : 1, f.boss ? T.best.boss || 1 : 1);
+    if (m > top) { top = m; best = k; }
+  }
+  return best;
+}
+
+/* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
+   wave (n) or null during a break. */
+export function waveInfo(town) {
   const ws = town.waves, w = town.wave, boss = (town.def && town.def.boss) || 'wagon', lines = [];
   if (ws.phase !== 'break') {
     const n = {};
@@ -19,10 +35,9 @@ export function waveLines(town) {
     for (const f of ws.foes) n[f.kind] = (n[f.kind] || 0) + 1;
     const left = Object.values(n).reduce((a, b) => a + b, 0);
     const kinds = Object.entries(n).sort((a, b) => b[1] - a[1]);
-    if (kinds.length === 1) { lines.push(plural(left, FOES[kinds[0][0]].name) + ' left.'); return lines; } // one kind: no list beside it
+    if (kinds.length === 1) return { lines: [plural(left, FOES[kinds[0][0]].name) + ' left.'], kinds: [{ kind: kinds[0][0], n: null }] }; // one kind: the line says how many
     lines.push(plural(left, 'raider') + ' left.');
-    for (const [k, c] of kinds) lines.push(plural(c, FOES[k].name));
-    return lines;
+    return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
   lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : 'It comes in ' + Math.ceil(ws.timer) + ' seconds.');
   if (bossWave(town, w)) lines.push('A boss wave. The ' + FOES[boss].name.toLowerCase() + ' comes last. Stop it to pass.');
@@ -30,19 +45,36 @@ export function waveLines(town) {
   for (const [t, T] of Object.entries(WAVE_TYPES)) if (w >= T.from && (t === 'mixed' || w >= 4)) for (const k of Object.keys(T.mix)) if (w >= FOES[k].from) kinds.add(k);
   if (!kinds.size) kinds.add('raider');
   if (wavesOf(town).boatEvery && town.def.board && town.def.board.river) kinds.add('boat');
-  lines.push('Can bring ' + [...kinds].map(k => FOES[k].name + 's').join(', ').replace(/, ([^,]*)$/, ' and $1') + '.');
-  return lines;
+  if (bossWave(town, w)) kinds.add(boss);
+  return { lines, kinds: [...kinds].map(kind => ({ kind, n: null })), can: true };
 }
 
-/* The sheet body: the lines, kept up while it is open. */
+/* The card's lines as text (pure, for the tests and the audit). */
+export function waveLines(town) {
+  const { lines, kinds, can } = waveInfo(town);
+  if (can) return [...lines, 'Can bring ' + kinds.filter(k => !FOES[k.kind].boss).map(k => FOES[k.kind].name + 's').join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'];
+  return [...lines, ...kinds.filter(k => k.n !== null).map(k => plural(k.n, FOES[k.kind].name))];
+}
+
+/* The sheet body: the lines and one row per raider kind, kept up while it is open. */
 export function waveSheet(town) {
   return body => {
-    const box = el('div', 'goods'); body.append(box);
+    const box = el('div', 'goods foes'); body.append(box);
     let sig = '';
     const paint = () => {
-      const lines = waveLines(town), s = lines.join('|');
+      const { lines, kinds, can } = waveInfo(town), s = lines.join('|') + JSON.stringify(kinds);
       if (s === sig) return;
-      sig = s; box.replaceChildren(...lines.map((t, i) => el('p', i ? 'uses' : 'note', t)));
+      sig = s;
+      const out = lines.map((t, i) => el('p', i ? 'uses' : 'note', t));
+      if (can) out.push(el('h3', '', 'Can bring'));
+      for (const { kind, n } of kinds) {
+        const row = el('div', 'option foe'), pic = drawFoe(kind), txt = el('div'), best = bestTower(town, kind);
+        pic.className = 'foepic'; row.dataset.foe = kind;
+        txt.append(el('b', null, n === null ? FOES[kind].name : plural(n, FOES[kind].name)));
+        if (best) txt.append(el('span', 'uses', 'Best tower · ' + TOWERS[best].name));
+        row.append(pic, txt); out.push(row);
+      }
+      box.replaceChildren(...out);
     };
     paint();
     let acc = 0;

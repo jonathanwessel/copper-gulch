@@ -15,7 +15,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the old-waves row is short enough to sit beside its × 3', () => {
   const s = oldWavesLabel({ record: 23 });
-  assert.equal(s, 'Best wave 23 bonus');
+  assert.equal(s, 'Catch-up to wave 23');
   assert.ok(s.length <= 20);
   assert.match(read('src/ui/play.js'), /wave\.classList\.toggle\('old', oldGround\(town\)\)/); // the wave number turns gold
 });

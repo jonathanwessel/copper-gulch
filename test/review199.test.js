@@ -19,18 +19,18 @@ test('every goal says what was done beside the green Done tag', () => {
 
 test('the goods kept for a path are named without their amounts', () => {
   const t = keepLine(['copper', 'bricks'], 'path');
-  assert.equal(t, 'Copper and bricks are kept for this path, not sold.');
+  assert.equal(t, 'Saving copper and bricks for this path.');
   assert.doesNotMatch(t, /\d/);
-  assert.equal(keepLine(['timber'], 'upgrade'), 'Timber is kept for this upgrade, not sold.');
+  assert.equal(keepLine(['timber'], 'upgrade'), 'Saving timber for this upgrade.');
 });
 
 test('a foreman that is not buying reads as a status, not a story', () => {
   for (const why of ['short', 'flooded', 'slow']) {
     const t = foremanLine(why, 'timber');
-    assert.match(t, /^The foreman buys the next level /); // says who and what it does (review of 2026.11.19-11)
+    assert.ok(t.length < 60, t); // short as a sign, beside the Foreman switch (review of 2026.11.20-2)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'The foreman buys the next level once timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for a better timber price.');
 });
 
 test('the lost toast has one step', () => {

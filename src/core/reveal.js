@@ -60,7 +60,10 @@ export function tabs(game, town) {
   };
 }
 
-/* Which buttons carry a dot. towns: town id -> true for another town that wants a visit. */
+/* Which buttons carry a dot. towns: town id -> true for another town that wants a visit. Only one side button has a
+   dot at a time, the first of DOT_ORDER that wants one (review of 2026.11.19-14: red dots on Goods, Research and Perks
+   all at once said nothing); the next shows once that one is opened. */
+export const DOT_ORDER = ['perks', 'goods', 'auto', 'research']; // research last: it wants a visit most often
 export function dots(game, town) {
   const t = tabs(game, town), f = town.flags || {};
   const towns = {};
@@ -68,13 +71,15 @@ export function dots(game, town) {
     if (o === town) continue;
     if ((o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)) towns[id] = true; // raided while you were away
   }
-  return {
+  const want = {
     goods: t.goods && listedGoods(town).some(g => !f['listed:' + g]),
     research: t.research && !town.lab && itemsOf(town).some(id => !researchBlock(town, id)),
     perks: t.perks && (perksToPick(game) > 0 || deedsFor(town) > (f.deedsShown || 0)),
     auto: t.auto && !((game.shared.seen || {})['auto:sheet']), // never opened yet
-    towns,
   };
+  const first = DOT_ORDER.find(k => want[k]), out = { towns };
+  for (const k of DOT_ORDER) out[k] = k === first;
+  return out;
 }
 
 /* The player is looking at this town: what happened to it while away is now known. */

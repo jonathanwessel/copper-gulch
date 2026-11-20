@@ -19,16 +19,17 @@ export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Ma
 /* It says when the foreman buys again, what it does, not its reasons (review of 2026.11.19-11: "Timber sells low and no
    workshop needs more" read as narrator reasoning beside a cheap upgrade). */
 export function foremanLine(why, good) {
-  if (why === 'short') return 'The foreman buys the next level once there is more ' + good + '.';
-  if (why === 'flooded') return 'The foreman buys the next level once ' + good + ' sells for more.'; // what it does (review of 2026.11.19-13: "pays more or a workshop needs more" was vague)
-  return 'The foreman buys the next level when it would earn its price back within an hour.';
+  /* a status, as short as a sign (review of 2026.11.20-2: "buys the next level once timber sells for more" beside 1M coins and a 41-coin level read odd) */
+  if (why === 'short') return 'Waiting for more ' + good + '.';
+  if (why === 'flooded') return 'Waiting for a better ' + good + ' price.';
+  return 'Waiting until a level pays for itself within an hour.';
 }
 /* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line
    shows those (review of 2026.11.19-9: "20 copper and 20 bricks are set aside for this path" said the cost twice). Short,
    so a landscape tower card fits without scrolling (review of 2026.11.19-10). */
 export function keepLine(goods, what) {
   const n = goods.length > 1 ? goods.slice(0, -1).join(', ') + ' and ' + goods[goods.length - 1] : goods[0];
-  return n[0].toUpperCase() + n.slice(1) + (goods.length > 1 ? ' are' : ' is') + ' kept for this ' + what + ', not sold.';
+  return 'Saving ' + n + ' for this ' + what + '.'; // a status, not a rule (review of 2026.11.19-14: "is kept for this upgrade, not sold" read like a manual)
 }
 
 /* A value in its unit. */
