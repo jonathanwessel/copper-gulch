@@ -89,7 +89,7 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
   // a price that reads "almost 0 coins": a factor under 0.01 reads "÷ 2,000" with it
   const almost = ex.unit === 'coins' && shownNum('coins', ex.value) === 'almost';
   for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul));
-  if (ex.rows.length > 1 || ex.unit === 'reach') row(total, unitText(ex.unit, ex.value, extra), 'total');
+  if (total && (ex.rows.length > 1 || ex.unit === 'reach')) row(total, unitText(ex.unit, ex.value, extra), 'total'); // total null: the price bar above says it
   return box;
 }
 

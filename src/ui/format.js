@@ -48,14 +48,17 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   // every row read as a rule, and rows came with no price, "1.5 coins each" or "7 coins per 10"). Never more kept than
   // there is (the 2026.11.20-2 screenshots: "226 kept" beside 122 in stock).
   const n = Math.floor(have + 1e-9), k = Math.min(n, Math.ceil(kept - 1e-9));
-  const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' kept for towers';
+  // what the towers keep, then the spare that Sell spare sells (review of 2026.11.20-7: "84 kept for towers" beside a lit
+  // Sell spare read as a switch with nothing to do; "0 spare" says so)
+  const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' for towers · ' + fmtLive(n - k) + ' spare';
   // the price moved to the front of the price bar, priceLabel (review of 2026.11.20-6: "2 / coins each" wrapped on a
   // phone, and a price beside "122 kept for towers" read as selling what is kept)
   return fmtLive(n) + ' in stock' + saved;
 }
-/* The price at the front of a good's price bar: "2 coins each", or "Price" when it pays almost nothing (the bar's end
-   word says Almost 0, review of 2026.11.20-5) or its open breakdown says it. */
-export const priceLabel = (price, open = false) => (open || !(price >= .0095) ? 'Price' : each(price));
+/* The price at the front of a good's price bar, always the price in one form: "2 coins each", "7 coins per 10" or
+   "Almost 0 coins each" (review of 2026.11.20-7: the label changed between "Price" and a price, and "Almost 0" sat where
+   Top or High sit). The bar's end word is only ever how high it stands (priceWord). An open breakdown has no total row. */
+export const priceLabel = price => { const s = each(price); return s[0].toUpperCase() + s.slice(1); };
 /* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
 export function goodsSwitch({ selling = true }) {
   return selling ? 'Sell spare · On' : 'Sell spare · Off'; // spare: what the towers do not keep (review of 2026.11.20-6)

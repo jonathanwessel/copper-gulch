@@ -11,8 +11,8 @@ import fs from 'node:fs';
 test('the Goods sheet has one Sell label and one price pattern', () => {
   for (const kept of [0, 5, 19]) assert.equal(goodsSwitch({ have: 19, kept, selling: true }), 'Sell spare · On');
   assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · Off');
-  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 kept for towers');
-  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 kept for towers');
+  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 for towers · 0 spare');
+  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 for towers · 35 spare');
   assert.equal(goodsLine({ have: 40, selling: false, price: 1.5 }), '40 in stock');
   for (const t of [goodsLine({ have: 40, selling: false, price: .7 }), goodsLine({ have: 40, kept: 2, selling: true, price: 13 })]) {
     assert.doesNotMatch(t, /if sold|sells for|not sold/);
@@ -38,7 +38,7 @@ test('a live rate under 0.1 reads 0, never 0.0', () => {
 test('the foreman says when it buys, and the old-waves row is short', () => {
   assert.equal(foremanLine('flooded', 'timber'), 'Waiting. Timber sells for too little now.');
   assert.doesNotMatch(foremanLine('flooded', 'timber'), / or /);
-  assert.equal(oldWavesLabel({ record: 23 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 23 }), 'You beat this wave');
 });
 
 test('the words the review flagged are gone', () => {

@@ -15,7 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
-import { setStock } from '../core/defense.js';
+import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
 import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel } from './format.js';
 import { RESEARCH } from '../data/research.js';
@@ -63,7 +63,10 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = (s, price = 1) => (price < .0095 ? 'Almost 0' : s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low'); // price: one unit's, so the row says almost 0 once
+export const priceWord = (s, price = 1) => (price < .0095 ? '' : s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low'); // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
+
+/* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
+export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades';
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -74,7 +77,7 @@ export function goodsSheet(game, town, focus = null) {
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
     const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => setSwitch(stockBtn, 'Save for towers', town.stock === 'lots' ? 'Lots' : 'Some', null); // review of 2026.11.20-6: "Tower stock · Normal" said nothing
+    const paintStock = () => setSwitch(stockBtn, 'Save for towers', stockWords(town), null); // review of 2026.11.20-7: "Some" did not say how much
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
     paintStock(); stockRow.append(stockBtn);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
@@ -96,16 +99,16 @@ export function goodsSheet(game, town, focus = null) {
       list.replaceChildren();
       if (!goods.length) list.append(el('p', 'uses', 'Build a Lumber Camp to make your first good.'));
       for (const g of goods) {
-        const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
+        const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), line2 = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
         bar.append(fill); bar.title = 'Price now, against its full price';
         // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
         const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'); barRow.append(plabel, bar, level);
-        txt.append(name, line, barRow, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
+        txt.append(name, line, line2, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
         row.append(txt, sw); list.append(row);
-        rows[g] = { line, fill, sw, why, txt, level, plabel };
+        rows[g] = { line, line2, fill, sw, why, txt, level, plabel };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -122,14 +125,17 @@ export function goodsSheet(game, town, focus = null) {
         const selling = town.sell[g] !== false, have = town.goods[g] || 0;
         // every unit kept for towers: nothing is sold now, so no price (review 2026-11-18: "sells for 0 coins each" next to Sell On)
         const txt = goodsLine({ have, kept, selling, price: ex.value, open: !!open[g] });
-        if (r.line.textContent !== txt) r.line.textContent = txt;
+        const cut = txt.indexOf(' · '), a = cut < 0 ? txt : txt.slice(0, cut), b2 = cut < 0 ? '' : txt.slice(cut + 3);
+        if (r.line.textContent !== a) r.line.textContent = a;
+        if (r.line2.textContent !== b2) r.line2.textContent = b2;
+        if (r.line2.hidden !== !b2) r.line2.hidden = !b2;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const note = open[g] ? priceNote({ have, kept, price: ex.value }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
         const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const pw = priceWord(sat, ex.value); if (r.level.textContent !== pw) r.level.textContent = pw;
-        const pl = priceLabel(ex.value, !!open[g]); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
+        const pl = priceLabel(ex.value); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
         setSwitch(r.sw, 'Sell spare', selling ? 'On' : 'Off', selling);
       }
     };
@@ -434,7 +440,7 @@ export function perksSheet(ctx) {
     const prog = el('div', 'explain why charterline'), wave = rowOf(prog), coins = rowOf(prog), next = el('p', 'uses');
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1 with no buildings, towers, research or foremen. You keep your coins and deeds, and pick perks again.'), r);
+    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and deeds.') /* review of 2026.11.20-7: the warning was long; perks are picked again right below */, r);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';
@@ -449,8 +455,8 @@ export function perksSheet(ctx) {
       const t1 = p.total ? '' : 'You can sign once you earn a deed here.';
       set(now, t1); now.hidden = !t1;
       // "Best wave", so it never reads as the wave on the top bar after a lost boss (review of 2026.11.19-12)
-      set(wave.l, 'Best wave ' + town.bestWave); set(wave.v, plural(p.wave, 'deed'));
-      set(coins.l, fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
+      set(wave.l, 'For best wave ' + town.bestWave); /* "For": how deeds are earned (review of 2026.11.20-7) */ set(wave.v, plural(p.wave, 'deed'));
+      set(coins.l, 'For ' + fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
       set(next, 'Next deed at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins.');
       sign.disabled = !p.total;
       const more = d => plural(d, 'deed') + ', ' + Math.round(DEEDS.income * 100 * d) + '% more coins';

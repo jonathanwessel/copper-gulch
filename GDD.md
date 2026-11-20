@@ -39,7 +39,7 @@ The Empire map shows the 5-deed gate for Silver Falls in plain words: "Hold 5 de
 | Institution | What its upgrades do |
 |---|---|
 | Market Board | goods sell for 10%, 15% and 20% more, and contracts pay 25% more Influence twice (the only way to earn Influence faster) |
-| Department of Transportation | outposts make 25% and 50% more, buildings cost 10% and 15% less, every building makes 10% more |
+| Rail Office | outposts make 25% and 50% more, buildings cost 10% and 15% less, every building makes 10% more |
 | Bank | coins earned +10%, +10%, +15%, and everything costs 5% less twice |
 | University | research 30% faster twice, research costs 25% less, every building makes 10% more, towers reach 10% farther. It will also open Auto-research (Automation) |
 | War Office | towers hit 10% and 15% harder, the vault takes 25% more hits, raiders drop 25% more coins, towers shoot 10% faster. It will also open Auto-towers (Automation) |
@@ -220,7 +220,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 | 5 | Bounty Hunters: raiders drop 50% more coins | Stone Walls: the vault takes 50% more hits |
 - The Perks button appears at the first charter offer. Its sheet shows the deeds the charter would pay now, the best wave and coins earned with the next deed's mark for each, what signing takes away, the deeds held and the pairs. Sign the charter and Pick each need a second tap.
 
-- **Institutions**: Market Board, Department of Transportation, Bank, University, War Office (see Institutions and the Empire tree), and the Stock Exchange in M6. Each has its own branch in the Empire tree.
+- **Institutions**: Market Board, Rail Office, Bank, University, War Office (see Institutions and the Empire tree), and the Stock Exchange in M6. Each has its own branch in the Empire tree.
 - **Names** are never reused across institutions, tabs, branches, laws or sliders. `tools/audit.js` fails two goods, buildings, towns, tower kinds, paths, raiders, research items or perks with one name.
 - **Laws** come in three pairs:
   - Free Market vs Planned Economy;

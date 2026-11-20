@@ -240,7 +240,7 @@ async function run() {
         out.noScroll = document.documentElement.scrollWidth <= innerWidth;
         chip.click(); await wait(400);
         const f = document.querySelector('.sheet .goods .focus');
-        out.opens = !!f && f.dataset.why === 'timber' && /You get/.test(f.textContent);
+        out.opens = !!f && f.dataset.why === 'timber' && f.getAttribute('aria-expanded') === 'true' && !!f.querySelector('.explain, p.uses'); // opened with its price explained
         CG.play.sheets.close(); if (selling === undefined) delete t.sell.timber; else t.sell.timber = selling;
         return out;
       });
@@ -663,7 +663,7 @@ async function run() {
         const T = CG.game.town, was = T.goods.timber, mk = CG.game.shared.market, rate = mk.rate.timber; mk.rate.timber = 0; T.goods.timber = Math.ceil((T.keep || {}).timber || 0) + 60;
         document.getElementById('goodsBtn').click(); await wait(300);
         sheet.querySelector('[data-why="timber"]').click(); await wait(400);
-        out.price = /Base price/.test(sheet.textContent) && /You get/.test(sheet.textContent);
+        out.price = /Base price/.test(sheet.textContent) && /coins? (each|per)/.test(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || ''); // the price bar's front says the price (no total row, review of 2026.11.20-7)
         T.goods.timber = 0; await wait(600);
         out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Base price/.test(sheet.textContent);
         if (!out.price || !out.noneToSell) out.priceText = sheet.textContent.slice(0, 400);

@@ -76,6 +76,15 @@ async function startGame() {
     // a screen point for a 3D target (a plot, a stone pad, a tower or the vault), for the spotlights
     const locate = tg => !CG.town ? null : tg.plot ? CG.town.project(tg.plot) : tg.spot !== undefined ? CG.town.projectSpot(tg.spot)
       : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
+    // a stone pad's outline on the screen ({ x, y, w, h } round 8 points of its rim), so the goal's frame lies on the pad
+    // as the camera sees it (review of 2026.11.20-7: a fixed square sat flat on the screen beside a near pad)
+    locate.foot = i => {
+      if (!CG.town) return null;
+      const B = CG.game.town.def.board, s = B.spots[i]; if (!s) return null;
+      let l = Infinity, r = -Infinity, t = Infinity, d = -Infinity;
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, p = CG.town.projectPoint(s[0] + Math.cos(a) * .72, .1, s[1] + Math.sin(a) * .72); if (!p) return null; l = Math.min(l, p.x); r = Math.max(r, p.x); t = Math.min(t, p.y); d = Math.max(d, p.y); }
+      return { x: l, y: t, w: r - l, h: d - t };
+    };
     const town = startTownView(document.getElementById('view'), game, {
       flyIn, onZoomOut: () => openMap(),
       onTap: (id, x, y) => viewApi.onTap(id, x, y), onFrame: dt => { meter.update(game); if (CG.play) CG.play.frame(dt); if (CG.coach) CG.coach.frame(dt); },

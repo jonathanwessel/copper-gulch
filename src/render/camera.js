@@ -157,10 +157,10 @@ export class CameraRig {
     const cv = this.view.cover;
     if (!p || !cv) {
       if (!p && this.slid && this.slid.g === this.gestures) { this.t.x = this.slid.x; this.t.z = this.slid.z; this.t.dist = this.slid.dist ?? this.t.dist; } // back where it was
-      if (!p) { this.slid = null; this.keepKey = null; this.zoomKey = null; }
+      if (!p) { this.slid = null; this.keepKey = null; this.zoomKey = null; this.keepAt = null; }
       return;
     }
-    if (key !== this.keepKey) { this.keepKey = key; this.keepG = this.gestures; }
+    if (key !== this.keepKey) { this.keepKey = key; this.keepG = this.gestures; this.keepAt = { x: p.x, z: p.z }; }
     if (this.keepG !== this.gestures) return; // the player has taken the map
     const r = this.el.getBoundingClientRect(), W = r.left + (r.width || innerWidth), H = r.top + (r.height || innerHeight), top = r.top + this.view.top;
     const q = this.proj(this.t, p.x, p.y, p.z), pad = 44;
@@ -176,7 +176,7 @@ export class CameraRig {
     const parts = raw.map(a => {
       const s = Math.max(SIDE_GAP, (a.r - a.l) * .28), o = fits(a);
       // a slide lands well inside the free part, not on its edge, with the circle inside it when it fits
-      return { l: a.l + Math.max(s, o ? e.l + 8 : 0), r: a.r - Math.max(s, o ? e.r + 8 : 0), t: a.t + Math.max(TOP_GAP, o ? e.u + 8 : 0), b: a.b - Math.max(pad * .8, o ? e.d + 8 : 0), w: a.r - a.l, h: a.b - a.t };
+      return { l: a.l + Math.max(s, o ? e.l + 8 : 0), r: a.r - Math.max(s, o ? e.r + 8 : 0), t: a.t + Math.max(TOP_GAP, o ? e.u + 8 : 0), b: a.b - Math.max(pad * .8, o ? e.d + 8 : 0), w: a.r - a.l, h: a.b - a.t, o };
     });
     // a circle that fits in no part: step back a little (at most 1.8 times as far, once a selection) when that makes it
     // fit in the roomiest part; the map goes back on close (a desktop's Mortar circle ran off the screen's edge)
@@ -192,6 +192,19 @@ export class CameraRig {
     }
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
     const clear = q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20;
+    // a circle that fits in no part even after the step back: its middle goes to the middle of the roomiest part, so it
+    // runs off both sides alike (review of 2026.11.20-7: an empty pit's Mortar circle on a desktop ran off the left edge
+    // only, with the map at its farthest)
+    let room = null;
+    if (rad > 0 && !raw.some(fits)) for (const a of raw) if (a.r - a.l >= 120 && a.b - a.t >= 120 && (!room || (a.r - a.l) * (a.b - a.t) > room.area)) room = { x: (a.l + a.r) / 2, y: (top + TOP_GAP + a.b) / 2, area: (a.r - a.l) * (a.b - a.t) };
+    if (room) {
+      if (Math.hypot(q.x - room.x, q.y - room.y) < 40) return;
+      const g1 = this.ground(q.x, q.y, this.t), g2 = this.ground(room.x, room.y, this.t);
+      if (!g1 || !g2) return;
+      if (!this.slid || this.slid.g !== this.gestures) this.slid = { x: this.t.x, z: this.t.z, dist: this.t.dist, g: this.gestures };
+      this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
+      return;
+    }
     const ring = !raw.some(fits) || (q.x - e.l > r.left + 8 && q.x + e.r < W - 8 && q.y - e.u > top + 8 && q.y + e.d < H - 8 && (q.x + e.r < cv.l || q.x - e.l > cv.r || q.y + e.d < cv.t || q.y - e.u > cv.b)); // its circle is in view and clear of the card, or fits nowhere
     if (clear && ring && q.y > top + TOP_GAP && q.y < H - 20 && q.x > r.left + SIDE_GAP && q.x < W - SIDE_GAP) return; // well on screen and not under the card
     let best = null, bd = Infinity;
@@ -199,6 +212,7 @@ export class CameraRig {
       // too small to show the thing and its label in (review of 2026.11.20-6: on the landscape map the town slid into the
       // thin strip above a side card, near the horizon, and the screen filled with mesas)
       if (a.w < 120 || a.h < 120) continue;
+      if (rad > 0 && !a.o && parts.some(b => b.o && b.w >= 120 && b.h >= 120)) continue; // a part its circle fits in comes first (review of 2026.11.20-7: a pit inside the thin part left of a desktop card stayed with its circle off the edge)
       if (inside(a)) return;
       const x = a.r < a.l ? (a.l + a.r) / 2 : Math.min(a.r, Math.max(a.l, q.x)), y = a.b < a.t ? (a.t + a.b) / 2 : Math.min(a.b, Math.max(a.t, q.y));
       const d = Math.hypot(x - q.x, y - q.y);
@@ -234,8 +248,11 @@ export class CameraRig {
   /* Keep the view on the board and the zoom in range (applied to the drawn state and the target). */
   clamp(s = this.t) {
     const r = this.size * .6, cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z; // around the town's middle
-    s.x = Math.max(cx - r, Math.min(cx + r, s.x));
-    s.z = Math.max(cz - r * .8, Math.min(cz + r * .8, s.z));
+    // while a card is open the view may also go as far round the selected thing (review of 2026.11.20-7: a pit at the
+    // town's west edge could not slide clear of the screen's edge)
+    const k = this.keepAt, lx = k ? Math.min(cx - r, k.x - r) : cx - r, hx = k ? Math.max(cx + r, k.x + r) : cx + r, lz = k ? Math.min(cz - r * .8, k.z - r * .8) : cz - r * .8, hz = k ? Math.max(cz + r * .8, k.z + r * .8) : cz + r * .8;
+    s.x = Math.max(lx, Math.min(hx, s.x));
+    s.z = Math.max(lz, Math.min(hz, s.z));
     s.dist = Math.max(this.min, Math.min(this.max, s.dist));
   }
   /* Two fingers: put grabbed ground points A and B back under screen points a and b, by turning, zooming and

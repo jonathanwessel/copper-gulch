@@ -17,9 +17,10 @@ export class Selection {
     this.ring = new THREE.Mesh(new THREE.RingGeometry(.5, .64, 40).rotateX(-Math.PI / 2), mat('#ffd36a', .95));
     this.range = new THREE.Mesh(new THREE.RingGeometry(.965, 1, 96).rotateX(-Math.PI / 2), mat('#ffc58f', .7));
     this.fill = new THREE.Mesh(new THREE.CircleGeometry(1, 96).rotateX(-Math.PI / 2), mat('#ffd36a', .08));
-    // a Mortar's dead zone: a darker red disc inside a second ring, so the gap it cannot fire into is plain to see
-    this.dead = new THREE.Mesh(new THREE.CircleGeometry(1, 64).rotateX(-Math.PI / 2), mat('#7a1e12', .32));
-    this.inner = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 64).rotateX(-Math.PI / 2), mat('#ff7a5a', .85));
+    // a Mortar's dead zone: the ground inside a second ring of the same color as its reach, shaded dark, so the gap it
+    // cannot fire into reads as part of one highlight (review of 2026.11.20-7: a red ring read as a second thing)
+    this.dead = new THREE.Mesh(new THREE.CircleGeometry(1, 64).rotateX(-Math.PI / 2), mat('#1e140c', .34));
+    this.inner = new THREE.Mesh(new THREE.RingGeometry(.965, 1, 64).rotateX(-Math.PI / 2), mat('#ffc58f', .7));
     this.dead.position.y = this.inner.position.y = .004;
     // the reach circles stay visible where the ground beyond the yard rises over them
     for (const m of [this.range, this.fill, this.dead, this.inner]) m.material.depthTest = false;

@@ -50,7 +50,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
   const inf = el('div', 'stat static'), infN = el('b');
   inf.append(el('span', '', 'Influence to spend'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
   const tabs = el('div', 'captabs');
-  for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Institutions']]) {
+  for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Buildings']]) {
     const b = el('button', 'btn small', label); b.id = id === 'contracts' ? 'capTabContracts' : 'capTabInst';
     b.setAttribute('aria-pressed', String(tab === id));
     b.addEventListener('click', () => { if (tab !== id) { tab = id; changed(); } });
@@ -80,7 +80,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
       setText(when, eta(game, a));
     });
   } else box.append(el('p', 'uses', 'No contract running.')); // a state, not a how-to in warning red (review of 2026.11.19-10)
-  box.append(el('h3', '', 'Contracts'));
+  box.append(el('h3', '', 'Offers')); // not Contracts again under the Contracts tab (review of 2026.11.20-7)
   const list = el('div', 'goods research');
   if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build more workshops in your towns.'));
   for (const o of c.offers) {

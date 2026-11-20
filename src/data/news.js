@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-8',
+    lines: [
+      'In Goods, each good shows how many are saved for towers and how many are spare to sell.',
+      'Save for towers now says 2 upgrades or 4 upgrades, and 4 upgrades saves for 4 levels of every tower.',
+      'The price bar always starts with the price.',
+      'The Capital tabs are Contracts and Buildings, and the Department of Transportation is now the Rail Office.',
+      'A goal on a stone pad shows a ring lying on the pad, and a Mortar shows both of its circles in one color.',
+    ],
+  },
+  {
     v: '2026.11.20-7',
     lines: [
       'While one research runs, tap Do next on another and it starts as soon as the first is done.',

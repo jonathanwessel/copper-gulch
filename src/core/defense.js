@@ -427,7 +427,8 @@ export function skirmish(game, town, dt) {
        pads and, apart, for the mortar pits;
      - at least RESERVE.floor seconds of what the town's own buildings make of it, but never more than RESERVE.cap
        times the towers' own need above (a big camp's 2 minutes held back all its timber from the market).
-   "Keep for towers · Lots" on the Goods sheet (town.stock === 'lots') keeps RESERVE.lots times as much. A good whose "Keep for towers"
+   "Save for towers · 4 upgrades" on the Goods sheet (town.stock === 'lots') counts RESERVE.lots times the levels and new
+   towers (review of 2026.11.20-7: "Some" did not say how much, so the switch names the upgrades it saves for). A good whose "Keep for towers"
    switch is off (town.reserveOff[good]) keeps nothing. Coins still gate every buy.
    RESERVE.kind 'cheapest' with levels 1, towers 1 and floor 0 is the rule before 2026.11.19-15 (tools/reserve.js
    measures the two side by side). */
@@ -438,9 +439,9 @@ export function towerReserve(town) { return reserves(town).keep; }
    workshops leave alone: the towers' own need, without the floor, so a workshop is never held back by a big camp's
    2 minutes). */
 export function reserves(town) {
-  const keep = {}, R = RESERVE;
+  const keep = {}, R = RESERVE, mul = town.stock === 'lots' ? R.lots : 1, levels = R.levels * mul, towers = R.towers * mul; // Lots: twice the levels and new towers
   const add = (c, k = 1) => { for (const [g, n] of Object.entries(c.goods)) keep[g] = (keep[g] || 0) + n * k; };
-  for (const t of town.towers) for (let i = 0; i < R.levels; i++) add(towerCost(town, t.kind, t.level + i));
+  for (const t of town.towers) for (let i = 0; i < levels; i++) add(towerCost(town, t.kind, t.level + i));
   const spots = town.def && town.def.board ? town.def.board.spots : [];
   const taken = new Set(town.towers.map(t => t.spot));
   for (const pit of [false, true]) {
@@ -452,17 +453,17 @@ export function reserves(town) {
       const c = towerCost(town, kind, 0);
       for (const g of Object.keys(c.goods)) if (!pick[g] || (R.kind === 'cheapest' ? c.coins < pick[g].coins : c.coins > pick[g].coins)) pick[g] = c;
     }
-    for (const [g, c] of Object.entries(pick)) keep[g] = (keep[g] || 0) + c.goods[g] * Math.min(R.towers, free);
+    for (const [g, c] of Object.entries(pick)) keep[g] = (keep[g] || 0) + c.goods[g] * Math.min(towers, free);
   }
-  const mul = town.stock === 'lots' ? R.lots : 1, off = town.reserveOff || {}, use = {};
+  const off = town.reserveOff || {}, use = {};
   for (const g of Object.keys(keep)) {
     if (off[g]) { delete keep[g]; continue; }
-    use[g] = Math.ceil(keep[g] * mul);
+    use[g] = Math.ceil(keep[g]);
     if (R.floor) {
       const made = buildingsOf(town).reduce((a, id) => a + (BUILDINGS[id].makes === g ? output(town, id) : 0), 0);
       keep[g] = Math.max(keep[g], Math.min(made * R.floor, keep[g] * R.cap));
     }
-    keep[g] = Math.ceil(keep[g] * mul);
+    keep[g] = Math.ceil(keep[g]);
   }
   return { keep, use };
 }

@@ -83,18 +83,17 @@ test('a price reads in whole coins from 1 up and sits on the price bar, not in t
   assert.equal(each(1.02), '1 coin each');
   assert.equal(each(13.4), '13 coins each');
   assert.equal(each(.6), '6 coins per 10');
-  assert.equal(goodsLine({ have: 122, kept: 122, selling: true, price: 2 }), '122 in stock · 122 kept for towers');
+  assert.equal(goodsLine({ have: 122, kept: 122, selling: true, price: 2 }), '122 in stock · 122 for towers · 0 spare');
   assert.equal(priceLabel(2), '2 coins each');
-  assert.equal(priceLabel(.001), 'Price'); // the bar's end word says Almost 0
-  assert.equal(priceLabel(2, true), 'Price'); // the open breakdown says it
+  assert.equal(priceLabel(.001), 'Almost 0 coins each'); // since 2026.11.20-8 the bar's front is always the price
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · On');
   assert.match(read('src/ui/play.js'), /'Sell spare ' \+ g\.name\.toLowerCase\(\)/);
-  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, 'Save for towers', town\.stock === 'lots' \? 'Lots' : 'Some'/);
+  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, 'Save for towers', stockWords\(town\)/);
   for (const t of [goodsLine({ have: 40, kept: 5, selling: true, price: 2 }), priceLabel(3)]) assert.deepEqual(textIssues(t), []);
 });
 
 test('the charter line says what the town starts over without', () => {
   const s = read('src/ui/sheets.js');
   assert.doesNotMatch(s, /foremen go\./);
-  assert.match(s, /starts over at wave 1 with no buildings, towers, research or foremen\./);
+  assert.match(s, /starts over at wave 1 with nothing built\./);
 });

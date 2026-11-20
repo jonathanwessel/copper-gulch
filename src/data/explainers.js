@@ -91,8 +91,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Tower stock',
-    text: 'Tap Tower stock to switch it to Lots. Your town then keeps twice as many goods for towers and sells less.',
+    title: 'Save for towers',
+    text: 'Tap Save for towers to switch it to 4 upgrades. Your town then keeps goods for the next 4 upgrades of every tower and sells less.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -298,8 +298,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'tree', covers: ['system:tree', 'institution'],
-    title: 'Institutions',
-    text: 'Tap Map, then Capital, then Institutions. Build one with coins. Its upgrades cost Influence and help every town.',
+    title: 'Capital buildings',
+    text: 'Tap Map, then Capital, then Buildings. Build one with coins. Its upgrades cost Influence and help every town.',
     when: h => h.treeReady, at: () => ({ el: '#mapBtn' }),
   },
   {

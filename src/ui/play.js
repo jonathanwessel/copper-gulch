@@ -180,7 +180,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const bottom = pin ? Math.min(box.bottom, pin.getBoundingClientRect().top) : box.bottom;
       // the top stays below the card's sticky title row (review of 2026.11.20-5: the Damage row sliced under it)
       const head = card.querySelector(':scope > .cardhead'), roof = head ? Math.max(box.top, head.getBoundingClientRect().bottom) : box.top;
-      const top = first.getBoundingClientRect().top, end = last.getBoundingClientRect().bottom;
+      let top = first.getBoundingClientRect().top; const end = last.getBoundingClientRect().bottom;
+      // the row and its breakdown do not both fit: the breakdown whole, down to its Total, the row above it under the
+      // title (review of 2026.11.20-7: in landscape the Total sat under the cost bar)
+      if (last !== first && end - top > bottom - roof - 4) top = Math.max(top, last.getBoundingClientRect().top);
       const down = Math.min(end - bottom, top - roof - 4);
       if (down < 0 && top < roof) { card.scrollTop += top - roof - 4; return; } // already scrolled past it: back up to it
       if (down > 0) card.scrollTop += down;
@@ -281,6 +284,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const fr = el('div', 'row keeprow');
       if (!hasForeman(town, id)) {
         const h = el('button', 'btn small', 'Hire foreman'); h.id = 'hireForeman'; // its price as have / need beside it (review of 2026.11.19-13)
+        // what a foreman does, in a few words (review of 2026.11.20-7: Hire foreman alone did not say)
+        card.append(el('p', 'uses', 'A foreman buys its levels for you.')); // its own line, never wrapped beside the price
         fr.append(costRow({ coins: hireCost(town, id), goods: {} }));
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
@@ -559,8 +564,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (tg.plot) { const p = markW && markAt; if (p) r = { x: p.x - markW / 2, y: p.y - markH + 5, w: markW, h: markH }; } // where its tag went this frame (lifted, GOAL_LIFT, kept on screen and under the top bar)
     else if (openId !== 'spot:' + (tg.spot ?? tg.tower)) {
       const sp = tg.spot ?? tg.tower, p = sp !== null && sp !== undefined && shell.locate ? shell.locate({ spot: sp }) : null;
-      if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
+      // an empty pad: a ring lying on it, its rim as the camera sees it (padded a little, never tiny)
+      const f = tg.spot !== undefined && shell.locate && shell.locate.foot ? shell.locate.foot(tg.spot) : null;
+      if (f && f.w > 0) { const w = Math.max(40, f.w + 8), h = Math.max(24, f.h + 8); r = { x: f.x + f.w / 2 - w / 2, y: f.y + f.h / 2 - h / 2, w, h }; }
+      else if (p) r = { x: p.x - 26, y: p.y - 26, w: 52, h: 52 };
     }
+    { const onPad = !!(r && tg && !tg.el && !tg.plot && tg.spot !== undefined && shell.locate && shell.locate.foot); if (mark.classList.contains('onpad') !== onPad) mark.classList.toggle('onpad', onPad); }
     const over = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     if (r && !tg.el && stripBox && over(r, stripBox)) r = null; // the thing is under the strip: show the words, not the frame
     if (mark.hidden !== !r) mark.hidden = !r;

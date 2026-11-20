@@ -14,7 +14,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('a good the towers keep all of says the extra is sold, so it agrees with Sell On', () => {
   const t = goodsLine({ have: 84, kept: 84, selling: true, price: 2 });
-  assert.equal(t, '84 in stock · 84 kept for towers');
+  assert.equal(t, '84 in stock · 84 for towers · 0 spare');
   assert.ok(!/none to sell/.test(t));
 });
 
@@ -27,7 +27,7 @@ test('the map card says Full or the hits left, and the contract names its good',
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'Wave beaten before');
+  assert.equal(s, 'You beat this wave');
   assert.deepEqual(textIssues(s), []);
 });
 

@@ -23,7 +23,7 @@ export const INSTITUTIONS = [
     ],
   },
   {
-    id: 'transport', name: 'Department of Transportation', about: 'Your outposts make more goods. Buildings cost less.',
+    id: 'transport', name: 'Rail Office', about: 'Your outposts make more goods. Buildings cost less.',
     nodes: [
       { id: 'freight', name: 'Freight Office', about: 'Outposts like Dry Creek and Pine Hollow make 25% more goods.', effects: [{ stat: 'prod', mul: 1.25, where: 'outpost' }] },
       { id: 'survey', name: 'Survey Crews', about: 'Buildings cost 10% less.', effects: [{ stat: 'cost:build', mul: .9 }] },
