@@ -35,7 +35,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       const tg = selection.target, B = town.def.board;
       if (!tg) return;
       const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
-      rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot);
+      rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot, selection.reach || 0); // a tower's circle stays in view too
     },
     get paused() { return api.holds.size > 0; },
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */

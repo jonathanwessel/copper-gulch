@@ -6,7 +6,7 @@
    by boat. */
 export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
-  runner: { name: 'Rider', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
+  runner: { name: 'Horseman', many: 'Horsemen', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
   wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
   bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },

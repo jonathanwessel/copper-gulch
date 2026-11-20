@@ -260,7 +260,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = setSwitch(el('button', 'btn small'), 'Sell ' + g.name.toLowerCase(), selling ? 'On' : 'Off', selling); // one line, under Upgrade when both do not fit (.sellrow)
+    const selling = town.sell[b.makes] !== false, sell = setSwitch(el('button', 'btn small'), 'Sell spare ' + g.name.toLowerCase(), selling ? 'On' : 'Off', selling); // one line, under Upgrade when both do not fit (.sellrow)
     sell.id = 'sell';
     sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
@@ -377,6 +377,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
     card.append(...whyBox);
+    // the breakdown opens right under its row, and the rows after it carry on below (review of 2026.11.20-6: under the
+    // whole list it ran under the pinned cost bar, "Total 59" sliced)
+    if (whyBox.length && statRow[whyStat]) {
+      const rest = []; for (let n = statRow[whyStat].nextSibling; n; n = n.nextSibling) rest.push(n);
+      if (rest.length) { const more = el('div', 'explain'); more.append(...rest); card.append(more); }
+    }
     if (showWhy && whyBox.length) showAbovePin(statRow[whyStat] || whyBox[0], whyBox[whyBox.length - 1]); // from the tapped row (screenshot review of this release) // after the bar is in: see the end of paintSpot
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     // the main action stays at the card's bottom edge while the card scrolls (Evaluation 2, landscape): the path choice,
@@ -385,7 +391,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      const pc = costRow(c); pc.prepend(el('small', 'costfor', 'Either path')); // one price above two Choose buttons (review of 2026.11.19-13)
+      const pc = costRow(c); pc.prepend(el('small', 'costfor', 'Each path costs')); // one price above two Choose buttons (review of 2026.11.19-13)
       ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
@@ -542,7 +548,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const k = goalCur.kind, b = (k && card.querySelector('.build[data-kind="' + k + '"]')) || (!k && (card.querySelector('#buy') || card.querySelector('.build[data-path]')));
       markTg = b ? { el: b } : null;
     } else if (openId) markTg = null; // a card for something else is open: it has the player's attention
-    if (markTg && markTg.el) { const n = typeof markTg.el === 'string' ? document.querySelector(markTg.el) : markTg.el; if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); markBox = { x: b.left - 5, y: b.top - 5, w: b.width + 10, h: b.height + 10 }; } }
+    if (markTg && markTg.el) { const n = typeof markTg.el === 'string' ? document.querySelector(markTg.el) : markTg.el; if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); markBox = { x: b.left - 2, y: b.top - 2, w: b.width + 4, h: b.height + 4 }; } } // snug on the button, so it never covers the next one (review of 2026.11.20-6: the back button's frame sat on Map and its dot)
     else if (markTg && markTg.plot && tag[markTg.plot] && !tag[markTg.plot].hidden) { markW = tag[markTg.plot].offsetWidth + 10; markH = tag[markTg.plot].offsetHeight + 10; }
   }
   function placeMark() {
@@ -559,7 +565,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (r && !tg.el && stripBox && over(r, stripBox)) r = null; // the thing is under the strip: show the words, not the frame
     if (mark.hidden !== !r) mark.hidden = !r;
     if (!r) return;
-    const onTag = !!(tg.plot && !tg.el); if (mark.classList.contains('ontag') !== onTag) mark.classList.toggle('ontag', onTag); // the goal's tag has its own gold frame: the mark only pulses around it (review of 2026.11.19-14: a loud double frame)
+    const onTag = !!(tg.plot && !tg.el); if (mark.classList.contains('ontag') !== onTag) mark.classList.toggle('ontag', onTag);
+    const onEl = !!tg.el; if (mark.classList.contains('onel') !== onEl) mark.classList.toggle('onel', onEl); // the goal's tag has its own gold frame: the mark only pulses around it (review of 2026.11.19-14: a loud double frame)
     mark.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;
     const sig = Math.round(r.w) + ',' + Math.round(r.h);
     if (sig !== markSig) { markSig = sig; mark.style.width = Math.round(r.w) + 'px'; mark.style.height = Math.round(r.h) + 'px'; }

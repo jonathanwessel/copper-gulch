@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -143,6 +143,12 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t && t.stock !== 'lots') t.stock = 'normal';
     return { ...s, v: 19, game: g };
+  },
+  // v20: research can line up one item while another runs (src/core/research.js, town.labNext): none lined up yet
+  19: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t && t.labNext === undefined) t.labNext = null;
+    return { ...s, v: 20, game: g };
   },
 };
 

@@ -17,9 +17,9 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel } from './format.js';
 import { RESEARCH } from '../data/research.js';
-import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
+import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
@@ -74,11 +74,19 @@ export function goodsSheet(game, town, focus = null) {
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
     const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => setSwitch(stockBtn, 'Tower stock', town.stock === 'lots' ? 'Lots' : 'Normal', null);
+    const paintStock = () => setSwitch(stockBtn, 'Save for towers', town.stock === 'lots' ? 'Lots' : 'Some', null); // review of 2026.11.20-6: "Tower stock · Normal" said nothing
     stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
     paintStock(); stockRow.append(stockBtn);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
     body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
+    // a tapped good stays whole in view, below the pinned Save for towers row (review of 2026.11.20-6: the tap left
+    // Timber's name under it)
+    const inView = row => {
+      if (!row.isConnected) return;
+      const b = body.getBoundingClientRect(), r = row.getBoundingClientRect(), top = (stockRow.isConnected ? stockRow.getBoundingClientRect().bottom : b.top) + 4;
+      if (r.top < top) body.scrollTop -= top - r.top;
+      else if (r.bottom > b.bottom - 4) body.scrollTop += Math.min(r.bottom - b.bottom + 4, r.top - top);
+    };
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
     const shipped = () => ((town.def && town.def.imports) || []).filter(g => (town.shipped || {})[g] > 0);
@@ -91,13 +99,13 @@ export function goodsSheet(game, town, focus = null) {
         const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
         bar.append(fill); bar.title = 'Price now, against its full price';
         // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
-        const level = el('small', 'pword'), barRow = el('span', 'depthrow'); barRow.append(el('small', null, 'Price'), bar, level);
+        const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'); barRow.append(plabel, bar, level);
         txt.append(name, line, barRow, why); txt.dataset.why = g; txt.setAttribute('role', 'button'); txt.tabIndex = 0;
-        txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); }); // tap a good: what makes its price
+        txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
         row.append(txt, sw); list.append(row);
-        rows[g] = { line, fill, sw, why, txt, level };
+        rows[g] = { line, fill, sw, why, txt, level, plabel };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -121,11 +129,17 @@ export function goodsSheet(game, town, focus = null) {
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
         const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
         const pw = priceWord(sat, ex.value); if (r.level.textContent !== pw) r.level.textContent = pw;
-        setSwitch(r.sw, 'Sell', selling ? 'On' : 'Off', selling);
+        const pl = priceLabel(ex.value, !!open[g]); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
+        setSwitch(r.sw, 'Sell spare', selling ? 'On' : 'Off', selling);
       }
     };
     build();
-    if (focus && rows[focus]) { rows[focus].txt.classList.add('focus'); requestAnimationFrame(() => rows[focus].txt.scrollIntoView({ block: 'nearest' })); }
+    if (focus && rows[focus]) { rows[focus].txt.classList.add('focus'); requestAnimationFrame(() => {
+      // whole rows only: from the top when the good fits there, else with the good's row at the top (review of
+      // 2026.11.20-6: in landscape "nearest" left the Save for towers switch cut in half under the sheet's title)
+      const row = rows[focus].txt.closest('.option') || rows[focus].txt, at = row.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+      if (at + row.offsetHeight <= body.clientHeight) body.scrollTop = 0; else row.scrollIntoView({ block: 'start' }); // its snap point, so the row above is gone whole
+    }); }
     // painted only when the strip is (sync), so its counts always match the strip's
     const tick = () => {}; tick.sync = () => { if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
     return tick;
@@ -205,7 +219,7 @@ export function researchSheet(game, town) {
       if (r.worse) txt.append(el('span', 'worse', r.worse));
       const costs = el('span', 'costrow'); costs.append(price); txt.append(info, costs, bar);
       const go = btn('Research', 'btn small build timer'); go.dataset.research = id;
-      go.addEventListener('click', () => { if (startResearch(game, town, id)) paint(); });
+      go.addEventListener('click', () => { if (!startResearch(game, town, id) && town.lab) queueResearch(town, id); paint(); }); // while one runs: line it up next
       row.append(txt, go); list.append(row);
       rows[id] = { row, name, info, price, costs, bar, fill, go };
     }
@@ -227,9 +241,11 @@ export function researchSheet(game, town) {
         x.price.classList.toggle('low', town.coins + 1e-9 < need);
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
-        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : block === 'busy' ? 'Busy' : 'Research';
+        // while another runs, the others line up one next (review of 2026.11.20-6: "Busy" on a grayed button)
+        const next = town.labNext === id, lineUp = !lab && !!town.lab && block !== 'max';
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Do next' : 'Research'; // "Next" read as a next page (review of this release)
         if (x.go.textContent !== label) x.go.textContent = label;
-        x.go.disabled = !!block; x.row.classList.toggle('running', !!lab);
+        x.go.disabled = !!block && !lineUp; x.row.classList.toggle('running', !!lab); x.go.classList.toggle('on', next);
       }
     };
     paint();
@@ -418,7 +434,7 @@ export function perksSheet(ctx) {
     const prog = el('div', 'explain why charterline'), wave = rowOf(prog), coins = rowOf(prog), next = el('p', 'uses');
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1. Its buildings, towers, research and foremen go. You keep your coins and deeds, and pick perks again.'), r);
+    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1 with no buildings, towers, research or foremen. You keep your coins and deeds, and pick perks again.'), r);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';

@@ -42,7 +42,10 @@ export class Board {
       (B.spots || []).forEach(([sx, sz], i) => { const d = Math.hypot(x - sx, z - sz), a = i >= far ? 1.7 : .8, b = i >= far ? 2.8 : 1.4; if (d < b) h = lerp(Math.min(h, 0), h, sstep(a, b, d)); });
       return h;
     };
-    const sand = new THREE.Color(look.sand), sandD = new THREE.Color(look.sandD), dirt = new THREE.Color(look.dirt), rut = new THREE.Color(look.rut), pad = new THREE.Color('#c79b6b');
+    const sand = new THREE.Color(look.sand), sandD = new THREE.Color(look.sandD), dirt = new THREE.Color(look.dirt), rut = new THREE.Color(look.rut);
+    // a plot's yard: the town's own ground, a little toward its dirt (review of 2026.11.20-6: a fixed orange on the gray
+    // Ridge and Falls ground read as every building glowing at once); in Copper Gulch it is the old #c79b6b, near enough
+    const pad = sand.clone().lerp(dirt, .28);
     const color = (x, z, c) => {
       c.copy(sand).lerp(sandD, fbm(x * .5 + 3, z * .5));
       if (onPlot(x, z)) c.lerp(pad, .7);
@@ -51,7 +54,7 @@ export class Board {
       if (RIV) { const rd = riverD(x, z); if (rd < 1.4) c.lerp(GREEN, (1 - sstep(.7, 1.4, rd)) * .55); } // reeds and grass on the banks
     };
     this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color });
-    this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, new THREE.Color('#a57a52')]));
+    this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, sand.clone().lerp(dirt, .55)]));
     if (RIV) this.group.add(riverRibbon(RIV, look, (B.river.width || 1.1))), this.group.add(...bridges(B.road, RIV));
     const cx = B.cols / 2, cz = B.rows / 2;
     const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 11, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];

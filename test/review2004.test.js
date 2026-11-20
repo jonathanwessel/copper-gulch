@@ -12,15 +12,15 @@ import { textIssues } from '../tools/audit.js';
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('every goods row has one pattern and a price, and never keeps more than there is', () => {
-  assert.equal(goodsLine({ have: 84, kept: 84, selling: true, price: 2 }), '84 in stock · 84 kept for towers · 2 coins each');
-  assert.equal(goodsLine({ have: 122, kept: 226, selling: true, price: 13 }), '122 in stock · 122 kept for towers · 13 coins each');
-  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: .7 }), '40 in stock · 5 kept for towers · 7 coins per 10');
+  assert.equal(goodsLine({ have: 84, kept: 84, selling: true, price: 2 }), '84 in stock · 84 kept for towers');
+  assert.equal(goodsLine({ have: 122, kept: 226, selling: true, price: 13 }), '122 in stock · 122 kept for towers');
+  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: .7 }), '40 in stock · 5 kept for towers');
   for (const t of [goodsLine({ have: 84, kept: 84, selling: true, price: 2 }), goodsLine({ have: 3, kept: 0, selling: false, price: 4 })]) {
     assert.doesNotMatch(t, /all kept|extra gets sold|none to sell/);
     assert.deepEqual(textIssues(t), []);
   }
   // the Goods sheet's town switch has its own name, apart from each building's "Keep 84 timber for towers"
-  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, 'Tower stock'/);
+  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, 'Save for towers'/);
 });
 
 test('the foreman, old-waves, research and lost lines read as plain statuses', () => {

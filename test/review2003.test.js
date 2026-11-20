@@ -14,7 +14,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('a good the towers keep all of says the extra is sold, so it agrees with Sell On', () => {
   const t = goodsLine({ have: 84, kept: 84, selling: true, price: 2 });
-  assert.equal(t, '84 in stock · 84 kept for towers · 2 coins each');
+  assert.equal(t, '84 in stock · 84 kept for towers');
   assert.ok(!/none to sell/.test(t));
 });
 

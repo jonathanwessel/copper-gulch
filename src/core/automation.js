@@ -137,7 +137,7 @@ function work(game, town, dt) {
   }
   if (autoOn(game, town, 'retry')) retry(game, town, a);
   else if (a.boss) a.boss = null;
-  if (autoOn(game, town, 'research') && !town.lab) {
+  if (autoOn(game, town, 'research') && !town.lab && !town.labNext) { // a lined-up item is the player's pick
     const n = nextResearch(town);
     if (n && startResearch(game, town, n.id)) game.bus.emit('auto:research', { town: town.id, id: n.id, level: researchLevel(town, n.id) + 1 });
   }

@@ -8,7 +8,9 @@ import { bossWave, wavesOf, towerOpen } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const plural = (n, name) => n + ' ' + (n === 1 ? name : name.endsWith('s') ? name : name + 's');
+// a kind's plural: its own (Horsemen), or the name with an s (review of 2026.11.20-6: "Riders" read as "raiders")
+const many = name => { const f = Object.values(FOES).find(x => x.name === name); return (f && f.many) || (name.endsWith('s') ? name : name + 's'); };
+const plural = (n, name) => n + ' ' + (n === 1 ? name : many(name));
 
 /* The wave bar's timer: what the next wave waits for, in a box of fixed width. */
 export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : 'in ' + Math.ceil(ws.timer) + 's');
@@ -56,7 +58,7 @@ export function waveInfo(town) {
 /* The card's lines as text (pure, for the tests and the audit). */
 export function waveLines(town) {
   const { lines, kinds, can } = waveInfo(town);
-  if (can) return [...lines, 'Can bring ' + kinds.filter(k => !FOES[k.kind].boss).map(k => FOES[k.kind].name + 's').join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'];
+  if (can) return [...lines, 'Can bring ' + kinds.filter(k => !FOES[k.kind].boss).map(k => many(FOES[k.kind].name)).join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'];
   return [...lines, ...kinds.filter(k => k.n !== null).map(k => plural(k.n, FOES[k.kind].name))];
 }
 

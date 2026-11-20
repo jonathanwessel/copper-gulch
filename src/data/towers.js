@@ -7,7 +7,7 @@
    airships. opens: the wave at which the town opens it (remembered in town.flags).
    best: the raiders it hits hardest, as a damage factor by raider kind, 'armored' (any armor) or 'boss' (the wagons).
    The Still's applies to its poison. Each kind has a job no other does (CLAUDE.md, more than one way to win): the
-   Crossbow picks off Riders, the Still's poison eats armor, the Mortar cracks wagons and packed groups.
+   Crossbow picks off Horsemen, the Still's poison eats armor, the Mortar cracks wagons and packed groups.
    bestText: those raiders in words, for the tower card ("Best against").
    grow: its hit's growth per level, where it differs from PER_LEVEL.dmg. A tower that hits a whole group grows slower than
    one that hits one raider (M5, Pacing and Evaluation 2): by Silver Falls every tower stands at level 13 or so, and at
@@ -15,7 +15,7 @@
    down. */
 export const TOWERS = {
   crossbow: {
-    name: 'Crossbow', about: 'Fires fast, one shot at a time. Best against riders.', best: { runner: 2 }, bestText: 'Riders',
+    name: 'Crossbow', about: 'Fires fast, one shot at a time. Best against horsemen.', best: { runner: 2 }, bestText: 'Horsemen',
     coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {

@@ -6,7 +6,9 @@ import { start } from './serve.js';
 import { chromium } from './cdp.js';
 
 const dir = path.resolve(process.argv[2] || 'shots');
-const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
+const ALL = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
+// SHOT_SIZES=phone,land: only those sizes (for a quick look while fixing; a release takes them all)
+const SIZES = process.env.SHOT_SIZES ? Object.fromEntries(process.env.SHOT_SIZES.split(',').map(k => [k, ALL[k]])) : ALL;
 // each screen: a name and a function run in the page to reach it (screens grow with the game)
 const SCREENS = [
   ['title', () => { const n = document.getElementById('newsOk'); if (n) n.click(); }], // What's new is checked by smoke.js
@@ -71,7 +73,7 @@ const OUTPOST = [
   ['goal-done', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 200); t.goods.stone = Math.max(t.goods.stone || 0, 30); CG.play.openSpot(0); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); CG.play.close(); }],
   ['goal', () => {}],
   // the Call now goal: three Crossbows up, two waves beaten, the wait half gone, so the button is lit and spotlit
-  ['goal-call', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 500); t.goods.stone = Math.max(t.goods.stone || 0, 100); for (const s of [0, 1, 2]) if (!t.towers.some(x => x.spot === s)) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); for (const id of ['dc-tower', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) CG.game.shared.goals.done[id] = true; t.bestWave = Math.max(t.bestWave, 2); t.wave = Math.max(t.wave, 3); Object.assign(t.waves, { phase: 'break', timer: 30, hold: false, queue: [], foes: [] }); }],
+  ['goal-call', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 500); t.goods.stone = Math.max(t.goods.stone || 0, 100); for (const s of [0, 1, 2]) if (!t.towers.some(x => x.spot === s)) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); for (const id of ['dc-tower', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) CG.game.shared.goals.done[id] = true; t.bestWave = Math.max(t.bestWave, 2); t.wave = Math.max(t.wave, 3); Object.assign(t.waves, { phase: 'break', timer: 30, hold: false, queue: [], foes: [] }); setTimeout(() => { t.waves.timer = 30; }, 1400); }], // the timer is put back once the Done flash has gone; the shot waits for the ring (review of 2026.11.20-6: it was taken before the ring came)
   ['outpost-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['outpost-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.stone = 500; t.buildings.quarry = 6; t.buildings.dmine = 3; for (const s of [0, 1, 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   // Dry Creek's boss: the bandit wagon at wave 10, close up as it comes down the road
@@ -148,7 +150,7 @@ const RIDGE = [
   // institutions: one founded with an upgrade bought, one ready to buy, the rest with their founding price
   ['capital-institutions', async () => { document.getElementById('capTabInst').click(); await new Promise(r => setTimeout(r, 200)); const c = CG.game.shared.capital; CG.game.shared.purse.coins = Math.max(CG.game.shared.purse.coins, 2e5); c.influence = 20; document.querySelector('#mapCard [data-found="market"]').click(); await new Promise(r => setTimeout(r, 200)); document.querySelector('#mapCard [data-node="market"]').click(); await new Promise(r => setTimeout(r, 200)); CG.game.shared.purse.coins = 6e4; }],
   // the Capital's city up close: four institutions standing, then the University rising out of its lot
-  ['capital-city', async () => { CG.mapui.close(); (await import('./src/ui/play.js')).dropToasts('capital'); const T = await import('./src/core/tree.js'); CG.game.shared.purse.coins = 1e7; for (const id of ['bank', 'war', 'transport']) T.foundInstitution(CG.game, id); const r = CG.map.rig, v = { x: 0, z: -.3, yaw: 0, pitch: .78, dist: innerWidth < innerHeight ? 15 : 9 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; await new Promise(res => setTimeout(res, 1600)); for (let i = 0; i < 20 && document.querySelector('.toast.out'); i++) await new Promise(res => setTimeout(res, 50)); }], // never mid-fade (review of 2026.11.20-4)
+  ['capital-city', async () => { CG.mapui.close(); (await import('./src/ui/play.js')).dropToasts('capital'); const T = await import('./src/core/tree.js'); CG.game.shared.purse.coins = 1e7; for (const id of ['bank', 'war', 'transport']) T.foundInstitution(CG.game, id); const r = CG.map.rig, v = { x: 0, z: -.3, yaw: 0, pitch: .78, dist: innerWidth < innerHeight ? 15 : 7 }; await new Promise(res => setTimeout(res, 500)); Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; await new Promise(res => setTimeout(res, 1600)); for (let i = 0; i < 20 && document.querySelector('.toast.out'); i++) await new Promise(res => setTimeout(res, 50)); }], // never mid-fade (review of 2026.11.20-4)
   ['capital-rise', async () => { const T = await import('./src/core/tree.js'); setTimeout(() => T.foundInstitution(CG.game, 'university'), 1200 - 450); }],
   ['map-fly', () => { CG.mapui.close(); const r = CG.map.rig; Object.assign(r.c, r.home); Object.assign(r.t, r.home); r.flick = null; CG.flyTo('gulch'); }], // from the whole map, as a player flies (the capital close-up dove over bare ground)
   // Automation in the Gulch (the War Office and the University stand): Auto-towers on, Auto-research off
@@ -216,8 +218,9 @@ try {
     await q.goto(srv.url);
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
-      await q.evaluate(go); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'bandits' ? 150 : name === 'won' ? 2500 : 1500);
+      await q.evaluate(go); if (name === 'goal-call') for (let i = 0; i < 40 && await q.evaluate(() => document.getElementById('goalMark').hidden); i++) await sleep(100); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'bandits' ? 150 : name === 'won' ? 2500 : 1500);
       const f = path.join(dir, `${name}-${size}.png`); await q.screenshot({ path: f }); wrote.push(f);
+      if (process.env.SHOT_PROBE) console.log(name, size, JSON.stringify(await q.evaluate(new Function('return (' + process.env.SHOT_PROBE + ')'))));
     }
     await q.close();
     }

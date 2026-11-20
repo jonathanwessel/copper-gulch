@@ -48,7 +48,7 @@ test('the raiders card has a picture and the best tower for each kind', () => {
   t.wave = 10;
   const info = waveInfo(t);
   assert.ok(info.kinds.some(k => k.kind === 'wagon'), 'a boss wave lists its boss');
-  assert.ok(waveLines(t).some(l => l === 'Can bring Bandits, Riders and Brutes.'));
+  assert.ok(waveLines(t).some(l => l === 'Can bring Bandits, Horsemen and Brutes.'));
   Object.assign(t.waves, { phase: 'wave', queue: ['raider', 'raider'], foes: [] });
   assert.deepEqual(waveInfo(t), { lines: ['2 Bandits left.'], kinds: [{ kind: 'raider', n: null }] });
 });
@@ -64,6 +64,6 @@ test('the price on a card sits over Upgrade alone', () => {
   const play = read('src/ui/play.js');
   assert.match(play, /card\.append\(sr\); bar\.append\(row\); card\.append\(bar\)/); // the tower's Sell leaves the pinned bar
   assert.match(play, /kr\.append\(sell\)/); // the building's Sell switch sits under it, beside Keep for towers
-  assert.match(play, /'Either path'/);
+  assert.match(play, /'Each path costs'/);
   assert.match(read('src/render/scene.js'), /sky\.position\.set\(cam\.position\.x, 0, cam\.position\.z\)/);
 });

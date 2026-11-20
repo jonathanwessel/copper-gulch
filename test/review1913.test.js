@@ -9,11 +9,11 @@ import { foremanLine, unitText, blastWord } from '../src/ui/explain.js';
 import fs from 'node:fs';
 
 test('the Goods sheet has one Sell label and one price pattern', () => {
-  for (const kept of [0, 5, 19]) assert.equal(goodsSwitch({ have: 19, kept, selling: true }), 'Sell · On');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell · Off');
-  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 kept for towers · 2 coins each');
-  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 kept for towers · 13 coins each');
-  assert.equal(goodsLine({ have: 40, selling: false, price: 1.5 }), '40 in stock · 1.5 coins each');
+  for (const kept of [0, 5, 19]) assert.equal(goodsSwitch({ have: 19, kept, selling: true }), 'Sell spare · On');
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · Off');
+  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 kept for towers');
+  assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 kept for towers');
+  assert.equal(goodsLine({ have: 40, selling: false, price: 1.5 }), '40 in stock');
   for (const t of [goodsLine({ have: 40, selling: false, price: .7 }), goodsLine({ have: 40, kept: 2, selling: true, price: 13 })]) {
     assert.doesNotMatch(t, /if sold|sells for|not sold/);
   }

@@ -27,6 +27,7 @@ export class Town {
     this.vault = { hp: 100, max: 100 };
     this.research = {};           // item id -> level
     this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
+    this.labNext = null;          // one research lined up to start next (src/core/research.js)
     this.foremen = {};            // building id -> true (working) or false (switched off) (src/core/foremen.js)
     this.flags = {};              // one-time things that happened (first sale, coach cards seen...)
     this.tally = {};              // coins earned since load, by where they came from (src/core/explain.js); not saved

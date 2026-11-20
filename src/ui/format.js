@@ -31,7 +31,8 @@ export function fmtPrice(v) {
    2026.11.19-12: "0.6 coins each" is a coin nobody can hold). The open price breakdown keeps one unit's price, so its
    rows multiply as written. */
 export function each(v) {
-  if (!isFinite(v) || v < .0095 || v >= .95) return fmtPrice(v) + ' each';
+  if (!isFinite(v) || v < .0095) return fmtPrice(v) + ' each';
+  if (v >= .95) { const c = v < 1000 ? Math.round(v) : v; return fmt(c) + (c === 1 ? ' coin' : ' coins') + ' each'; } // whole coins (review of 2026.11.20-6: "1.5 coins each")
   const n = v >= .095 ? 10 : 100, c = Math.round(v * n);
   return c + (c === 1 ? ' coin' : ' coins') + ' per ' + n;
 }
@@ -48,13 +49,16 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   // there is (the 2026.11.20-2 screenshots: "226 kept" beside 122 in stock).
   const n = Math.floor(have + 1e-9), k = Math.min(n, Math.ceil(kept - 1e-9));
   const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' kept for towers';
-  // a price of almost 0 is left to the price bar's word, Almost 0 (review of 2026.11.20-5: "almost 0 coins each" beside
-  // Very low said it twice and wrapped "each" alone in landscape)
-  return fmtLive(n) + ' in stock' + saved + (open || price < .0095 ? '' : ' · ' + each(price));
+  // the price moved to the front of the price bar, priceLabel (review of 2026.11.20-6: "2 / coins each" wrapped on a
+  // phone, and a price beside "122 kept for towers" read as selling what is kept)
+  return fmtLive(n) + ' in stock' + saved;
 }
+/* The price at the front of a good's price bar: "2 coins each", or "Price" when it pays almost nothing (the bar's end
+   word says Almost 0, review of 2026.11.20-5) or its open breakdown says it. */
+export const priceLabel = (price, open = false) => (open || !(price >= .0095) ? 'Price' : each(price));
 /* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
 export function goodsSwitch({ selling = true }) {
-  return selling ? 'Sell · On' : 'Sell · Off';
+  return selling ? 'Sell spare · On' : 'Sell spare · Off'; // spare: what the towers do not keep (review of 2026.11.20-6)
 }
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a

@@ -268,7 +268,7 @@ export const EXPLAINERS = [
   {
     id: 'best', town: 'gulch', covers: ['best'],
     title: 'Best against',
-    text: 'Each tower hits some raiders harder. Crossbows are best against Riders. The Still is best against Brutes. Tap a tower to see what it is best against.',
+    text: 'Each tower hits some raiders harder. Crossbows are best against horsemen. The Still is best against Brutes. Tap a tower to see what it is best against.',
     when: h => h.wave >= 6 && h.phase === 'wave' && Object.keys(h.kinds).length > 1, at: h => ({ spot: h.kinds.still ?? h.kinds.crossbow ?? Object.values(h.kinds)[0] }),
   },
   {

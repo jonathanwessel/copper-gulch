@@ -21,7 +21,7 @@ test('prices read rounded: one decimal under 10 coins, one digit that is not 0 u
   assert.equal(fmtPrice(.012), '0.01 coins');
   assert.equal(fmtPrice(.0623), '0.06 coins');
   assert.equal(sellsFor(.004), 'sells for almost 0 coins each');
-  assert.equal(sellsFor(1.5), 'sells for 1.5 coins each');
+  assert.equal(sellsFor(1.5), 'sells for 2 coins each'); // whole coins from 1 up (review of 2026.11.20-6)
   assert.equal(unitText('coins', .93), '0.9 coins');
 });
 

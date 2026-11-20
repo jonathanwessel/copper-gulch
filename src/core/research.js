@@ -1,5 +1,7 @@
 /* Town research: items with levels, bought with coins, that finish after a wait. One runs at a time per town, in
-   town.lab = { id, left, total } (null when idle); finished levels are in town.research[id]. Each level's bonus is a
+   town.lab = { id, left, total } (null when idle); finished levels are in town.research[id]. While one runs the player
+   can line up one more, town.labNext = id: it is paid for and starts when the running one is done (review of
+   2026.11.20-6: the other rows' grayed "Busy" was a button locked to slow the player down). Each level's bonus is a
    named source on a stat ("Sharp Saws research"), so the explain view lists it.
    Research opens when the town's `researchOpens` building is built (Copper Gulch: the Sawmill), and keeps going
    while the game catches up time away. Events: 'research:open' { town }, 'research:start' { town, id, level },
@@ -29,6 +31,17 @@ export function researchBlock(town, id) {
   return null;
 }
 
+/* Line up an item to start when the running one ends (or take it off the line when it is already there). Returns
+   true when it is lined up. Coins are paid when it starts, so a short purse only makes it wait. */
+export function queueResearch(town, id) {
+  if (town.labNext === id) { town.labNext = null; return false; }
+  const b = researchBlock(town, id);
+  if (b !== 'busy' && b !== 'coins') return false;
+  if (!town.lab || town.lab.id === id) return false; // the running item's next level waits for this one to end
+  town.labNext = id;
+  return true;
+}
+
 /* Pay for the next level of an item and start it. Returns true when started. */
 export function startResearch(game, town, id) {
   if (researchBlock(town, id)) return false;
@@ -56,18 +69,27 @@ function advance(game, town, dt) {
     town.flags['new:' + id] = true; game.bus.emit('research:new', { town: town.id, id });
   }
   const lab = town.lab;
-  if (!lab) return;
+  if (!lab) { startNext(game, town); return; }
   lab.left -= dt * town.mods.factor('research');
   if (lab.left > 1e-9) return;
   town.research[lab.id] = researchLevel(town, lab.id) + 1;
   town.lab = null;
   applyResearch(town);
   game.bus.emit('research:done', { town: town.id, id: lab.id, level: town.research[lab.id] });
+  startNext(game, town);
+}
+/* The lined-up item starts once the lab is free and the coins are there; one that can never start leaves the line. */
+function startNext(game, town) {
+  const id = town.labNext;
+  if (!id || town.lab) return;
+  const b = researchBlock(town, id);
+  if (b === 'max' || b === 'closed') { town.labNext = null; return; }
+  if (!b && startResearch(game, town, id)) town.labNext = null;
 }
 
 export const research = {
   id: 'research',
-  init(town) { town.research = town.research || {}; town.lab = null; applyResearch(town); },
-  load(town) { town.research = town.research || {}; town.lab = town.lab || null; applyResearch(town); },
+  init(town) { town.research = town.research || {}; town.lab = null; town.labNext = null; applyResearch(town); },
+  load(town) { town.research = town.research || {}; town.lab = town.lab || null; town.labNext = town.labNext || null; applyResearch(town); },
   step(town, dt, game) { advance(game, town, dt); },
 };

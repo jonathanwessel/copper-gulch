@@ -25,7 +25,7 @@ test('under 1 coin a price says what 10 or 100 pay', () => {
   assert.equal(each(.12), '1 coin per 10');
   assert.equal(each(.06), '6 coins per 100');
   assert.equal(each(.012), '1 coin per 100');
-  assert.equal(each(4.56), '4.6 coins each');
+  assert.equal(each(4.56), '5 coins each'); // whole coins from 1 up (review of 2026.11.20-6)
   assert.equal(each(.97), '1 coin each');
   assert.equal(sellsFor(.004), 'sells for almost 0 coins each');
   assert.equal(sellsFor(.6), 'sells for 6 coins per 10');
@@ -33,11 +33,11 @@ test('under 1 coin a price says what 10 or 100 pay', () => {
 });
 
 test('a good the towers keep all of says so, and its switch sells only the extra', () => {
-  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 kept for towers · 2 coins each');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: true }), 'Sell · On');
-  assert.equal(goodsSwitch({ have: 40, kept: 19, selling: true }), 'Sell · On');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell · Off');
-  assert.match(read('src/ui/sheets.js'), /el\('small', null, 'Price'\)/); // the price bar has its label
+  assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 kept for towers');
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: true }), 'Sell spare · On');
+  assert.equal(goodsSwitch({ have: 40, kept: 19, selling: true }), 'Sell spare · On');
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · Off');
+  assert.match(read('src/ui/sheets.js'), /el\('small', 'plabel', 'Price'\)/); // the price bar has its label
 });
 
 test('the goods strip keeps to its room, tower goods first, and says how many more', () => {

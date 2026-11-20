@@ -18,9 +18,10 @@ export const ENTRANCES = {
     // the walls: blocks of stacked layers, low at the mouth and rising to full height a little way in
     for (const side of [-1, 1]) {
       for (let z = mz + .4, i = 0; z > mz - 9.5; i++) { // past here the camera never looks; the mesas carry on
-        const len = 1.8 + R() * 1.4, rise = Math.min(1, (mz + .4 - z) / 4), H = (1.2 + rise * 1.9) * (.9 + R() * .2);
-        // thin by the mortar pit east of the mouth, broad farther in
-        const thick = (side > 0 && z > mz - 6 ? 1 : 1.3 + R() * .5), x0 = mx + side * (half + thick / 2 + R() * .15);
+        // thin and low by the mortar pit east of the mouth, broad and tall farther in (review of 2026.11.20-6: the pit
+        // looked as if it sat on the canyon's rock)
+        const byPit = side > 0 && z > mz - 6, len = 1.8 + R() * 1.4, rise = Math.min(1, (mz + .4 - z) / 4), H = (1.2 + rise * 1.9) * (.9 + R() * .2) * (byPit ? .5 : 1);
+        const thick = (byPit ? .6 : 1.3 + R() * .5), x0 = mx + side * ((byPit ? half * .78 : half) + thick / 2 + R() * (byPit ? 0 : .15)); // pulled in toward the road there, so a gap of open ground parts it from the pit
         // layers are added top first: seen from above, each upper layer hides the one below, and drawing it first
         // lets the depth test skip the hidden faces instead of painting every layer over the last (overdraw)
         const layers = [];

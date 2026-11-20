@@ -54,6 +54,7 @@ export class Selection {
     const pit = !tg.plot && isPit(this.town, tg.spot);
     const r = tg.plot ? 0 : tw ? towerStats(this.town, tw).range : pit ? TOWERS.mortar.range : TOWERS.crossbow.range;
     const r0 = tg.plot ? 0 : tw ? towerStats(this.town, tw).minRange : pit ? TOWERS.mortar.minRange : 0;
+    this.reach = r; // read by the camera, so the whole circle is kept in view (src/render/town-view.js)
     this.range.visible = this.fill.visible = r > 0;
     if (r > 0) { this.range.scale.set(r, 1, r); this.fill.scale.set(r, 1, r); }
     this.dead.visible = this.inner.visible = r0 > 0;

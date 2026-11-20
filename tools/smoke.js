@@ -615,7 +615,11 @@ async function run() {
         t.coins = 1e6; t.lab = null; const before = t.research.saws || 0;
         document.querySelector('#sheet [data-research="saws"]').click(); await wait(400);
         out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
-        out.oneAtATime = document.querySelector('#sheet [data-research="walls"]').disabled;
+        // one runs at a time, and another lines up next with a tap (review of 2026.11.20-6: no grayed Busy), off with a second tap
+        const w = document.querySelector('#sheet [data-research="walls"]');
+        out.lineUp = !w.disabled && w.textContent === 'Do next';
+        w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
+        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Do next';
         out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /burn one more timber/.test(sheet.textContent);
         return out;

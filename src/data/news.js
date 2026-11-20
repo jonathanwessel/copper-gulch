@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-7',
+    lines: [
+      'While one research runs, tap Do next on another and it starts as soon as the first is done.',
+      'The fast raiders are now called Horsemen.',
+      'In Goods, the price sits on the price bar in whole coins, and the switch says Sell spare.',
+      'Building lots in Iron Ridge and Silver Falls match the ground, so they no longer all glow orange.',
+      'A tapped tower or pit keeps its whole range circle in view when there is room.',
+    ],
+  },
+  {
     v: '2026.11.20-6',
     lines: [
       'Level numbers on buildings stay solid in a fight and step aside only while a raider walks under them.',
