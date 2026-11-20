@@ -25,6 +25,7 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '..
 const stripRoom = strip => 2 * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((strip.clientWidth || innerWidth) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard } from './lost.js';
+import { waveSheet, waveTimer } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -68,12 +69,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
   const wave = el('div', 'wave'); wave.id = 'wave';
+  // the wave number opens the raiders card (the next wave's raiders left the bar, owner 2026-11-19), the vault bar its strength
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
   vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
-  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(waveNum, vault); // tap it: the vault's strength explained
+  const waveBtn = el('button', 'wavebtn'); waveBtn.id = 'waveBtn'; waveBtn.append(waveNum);
+  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(vault); // tap it: the vault's strength explained
+  vaultBtn.setAttribute('aria-label', store[0].toUpperCase() + store.slice(1));
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
-  wave.append(vaultBtn, waveInfo, call);
+  wave.append(waveBtn, vaultBtn, waveInfo, call);
   // Pause stops the whole game; Hold waves keeps the town working but the next wave waits
   const ctl = el('div', 'hudrow');
   const pause = el('button', 'btn small', 'Pause'); pause.id = 'pauseBtn';
@@ -128,7 +132,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   };
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
-  for (const id of Object.keys(town.def.board.plots)) { const t = el('button', 'tag'); t.dataset.plot = id; t.addEventListener('click', () => open(id)); tags.append(t); tag[id] = t; }
+  for (const id of Object.keys(town.def.board.plots)) { const t = el('button', 'tag'); t.append(el('span', 'tl')); t.dataset.plot = id; t.addEventListener('click', () => open(id)); tags.append(t); tag[id] = t; }
   // tower spots get tags only in the list view (no 3D); on the board their stone pads are tapped
   const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
@@ -150,6 +154,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
+  const openWave = () => sheets.open('wave', 'Wave ' + town.wave, waveSheet(town));
+  waveBtn.addEventListener('click', openWave);
   goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
@@ -564,12 +570,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; continue; } }
       if (t.hidden) t.hidden = false;
       if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
-      const txt = (flat || (markTg && markTg.plot === id) ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build');
-      if (t.textContent !== txt) t.textContent = txt;
+      // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
+      // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
+      // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)
+      const full = !!(flat || marked || openId === id);
+      const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build') : (L ? String(L) : 'Build');
+      const tl = t.firstChild; if (tl.textContent !== txt) tl.textContent = txt;
+      if (t.classList.contains('quiet') === full) t.classList.toggle('quiet', !full);
       t.classList.toggle('short', !!(L && town.starved[id]));
       t.classList.toggle('goaltag', !!marked);
-      t.classList.toggle('can', town.coins >= cost(town, id));
-      t.classList.toggle('boss', foremanOn(town, id));
+      t.classList.toggle('can', !!L && town.coins >= cost(town, id)); // an up mark only on a building, never on an empty plot's Build
+      t.classList.toggle('boss', full && foremanOn(town, id));
     }
     if (document.documentElement.classList.contains('flat')) spotTags.forEach((t, i) => {
       const tw = towerAt(town, i), txt = (isPit(town, i) ? 'Mortar pit ' : 'Spot ') + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
@@ -589,8 +600,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
     paintCtl();
     measure();
-    setText(waveInfo, ws.phase === 'break' ? (ws.hold ? 'on hold' : 'in ' + Math.ceil(ws.timer) + 's') : (ws.queue.length + ws.foes.length) + ' left · ' + (WAVE_TYPES[ws.type] || WAVE_TYPES.mixed).name); // the count first, so a narrow screen keeps it
-    call.hidden = ws.phase !== 'break';
+    setText(waveInfo, waveTimer(ws)); // one fixed box: "in 28s", "On hold" or "Fighting"
+    const away = ws.phase !== 'break'; if (call.classList.contains('away') !== away) call.classList.toggle('away', away); // kept in place, so the bar never changes width
     const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
     look(town);
@@ -610,7 +621,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openIncome, openVault, openPlaces, openCapital, destroy };
+  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

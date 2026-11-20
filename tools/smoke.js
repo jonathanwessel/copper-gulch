@@ -246,13 +246,13 @@ async function run() {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, ws = t.waves, out = { moved: [] }, { fmtLive } = await import('./src/ui/format.js');
         const keep = { goods: { ...t.goods }, sell: { ...t.sell }, coins: t.coins, wave: t.wave, ws: JSON.stringify(ws) };
         CG.town.pause('smoke', true);
-        const cells = () => [...document.querySelectorAll('#goodsStrip .goodchip, .hud .coins, #vaultBtn, #callWave, #pauseBtn, #holdWaves')];
+        const cells = () => [...document.querySelectorAll('#goodsStrip .goodchip, .hud .coins, #wave, #waveBtn, #vaultBtn, #callWave, #pauseBtn, #holdWaves')];
         const boxes = () => cells().map(n => { const r = n.getBoundingClientRect(); return [n.id || n.dataset.good || n.className, Math.round(r.left * 2) / 2, Math.round(r.width * 2) / 2, Math.round(r.top * 2) / 2]; });
         const inc = document.querySelector('.hud .coins .inc'), winfo = document.querySelector('#wave .winfo');
         Object.assign(ws, { phase: 'break', timer: 30, queue: [], foes: [] });
         let first = null, painted = true;
-        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'on hold'], [99, 12, '24 left · Swarm'], [999, 40, 'in 58s'], [1000, 99, '3 left · Heavy'],
-          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'on hold'], [99999, 99, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 12s'], [9.99e8, 10, 'in 3s']];
+        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'On hold'], [99, 12, 'Fighting'], [999, 40, 'in 58s'], [1000, 99, 'Fighting'],
+          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'On hold'], [99999, 100, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 120s'], [9.99e8, 10, 'in 3s']];
         for (const [n, w, info] of steps) {
           for (const g of Object.keys(t.goods)) { t.goods[g] = n; t.sell[g] = false; }
           t.coins = n * 10; t.wave = w;
@@ -265,10 +265,14 @@ async function run() {
           }
         }
         out.painted = painted;
-        // a wave on the road hides Call now: the wave chip keeps its width, so Pause and Hold waves stay put
+        // a wave on the road hides Call now in its place: the wave bar keeps its width (owner, 2026-11-19)
         const chip = () => Math.round(document.getElementById('wave').getBoundingClientRect().width);
         const w0 = chip(); Object.assign(ws, { phase: 'wave', queue: ['raider', 'raider'], foes: [], type: 'mixed', timer: 99, age: 0 }); await wait(450);
-        out.chip = document.getElementById('callWave').hidden && Math.abs(chip() - w0) <= 1 ? true : 'break ' + w0 + ' wave ' + chip();
+        out.chip = getComputedStyle(document.getElementById('callWave')).visibility === 'hidden' && document.querySelector('#wave .winfo').textContent === 'Fighting' && Math.abs(chip() - w0) <= 1 ? true : 'break ' + w0 + ' wave ' + chip();
+        // the wave number opens the raiders card
+        document.getElementById('waveBtn').click(); await wait(300);
+        out.waveCard = !document.getElementById('sheet').hidden && document.getElementById('sheet').dataset.id === 'wave' && / left./.test(document.getElementById('sheet').textContent);
+        CG.play.sheets.close();
         Object.assign(t.goods, keep.goods); t.sell = keep.sell; t.coins = keep.coins; t.wave = keep.wave; Object.assign(t.waves, JSON.parse(keep.ws));
         CG.town.pause('smoke', false); await wait(300);
         out.moved = out.moved.slice(0, 4);
@@ -276,6 +280,7 @@ async function run() {
       });
       if (!still.painted) bad.push('live numbers: the HUD did not repaint the goods strip');
       if (still.chip !== true) bad.push('the wave chip changed width when a wave started: ' + still.chip);
+      if (!still.waveCard) bad.push('the wave number did not open the raiders card');
       for (const m of still.moved) bad.push('live numbers: a HUD cell moved or changed size: ' + m);
       // every object opens with one tap (owner rule): a real click (browser hit testing, so a HUD box over the map counts)
       // on the middle of every pad and plot, in the home view, turned and zoomed in, must open that object's card. A

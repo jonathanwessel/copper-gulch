@@ -33,6 +33,11 @@ const SCREENS = [
     for (let i = 0; i < 150; i++) { await wait(100); const sh = t.waves.shells || []; if (sh.some(x => x.t > .9)) break; }
   }],
   ['path', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, tw = t.towers.find(x => x.spot === t.def.board.far); if (tw) { let spent = 0; for (let L = 0; L < 4; L++) spent += D.towerCost(t, tw.kind, L).coins; Object.assign(tw, { level: 4, spent }); } CG.play.close(); CG.play.openSpot(t.def.board.far); }], // spent counts every level, so its sell price is real (review of 2026.11.19-5: a level 4 Mortar sold for 240 like a new one)
+  // the wave bar (owner, 2026-11-19): the raiders card from the wave number, then the bar twice a few seconds apart, to
+  // show it keeps its width while the timer runs, and the quiet building tags
+  ['wave-card', () => { CG.play.close(); CG.play.sheets.close(); CG.play.openWave(); }],
+  ['bar-1', () => { CG.play.sheets.close(); const ws = CG.game.town.waves; Object.assign(ws, { phase: 'break', hold: false, timer: Math.max(ws.timer, 20) }); }],
+  ['bar-2', async () => { await new Promise(r => setTimeout(r, 3000)); }],
   // dots on Goods (a new good) and Research (nothing running, an item can be paid)
   ['dots', () => { CG.play.close(); const g = CG.game, t = g.town; (g.shared.seen ||= {}).goods = true; t.flags['open:research'] = true; t.coins = Math.max(t.coins, 5000); t.lab = null; for (const k of Object.keys(t.flags)) if (k.startsWith('listed:')) delete t.flags[k]; }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],

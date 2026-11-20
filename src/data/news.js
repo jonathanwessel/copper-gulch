@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-14',
+    lines: [
+      'Building labels are small now. The full label shows on your goal and on the building you tap.',
+      'The wave bar keeps one size. It shows the wave, a timer and Call now.',
+      'Tap the wave number to see which raiders are coming.',
+    ],
+  },
+  {
     v: '2026.11.19-13',
     lines: [
       'On a tower, the old waves bonus is shorter, and the wave number turns gold while it is on.',

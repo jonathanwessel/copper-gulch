@@ -118,11 +118,13 @@ html.no3d body { background: var(--bg); }
   display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; min-height: 36px; background: var(--panel); border: 2px solid var(--line);
   box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f, 3px 3px 0 rgba(22, 15, 11, .5); font-size: .85rem;
 }
-.wave b { color: var(--copper-hi); white-space: nowrap; min-width: 7ch; } /* room for "Wave 99" */
+.wave b { color: var(--copper-hi); white-space: nowrap; display: inline-block; width: 8ch; text-align: left; } /* one width from "Wave 1" to "Wave 999" */
+.wave .vaultbtn { min-width: 32px; justify-content: center; }
+.wavebtn { flex: none; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .wave.old b { color: var(--gold); } /* towers hit harder on waves beaten before (the tower card's "Beaten waves" row) */
 .vault { width: 44px; height: 10px; background: var(--line); border: 1px solid #000; display: block; }
 .vault i { display: block; height: 100%; background: var(--good); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
-.winfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; width: 8em; } /* one width whatever it says, so Call now stays put */
+.winfo { color: var(--muted); white-space: nowrap; overflow: hidden; min-width: 0; flex: none; width: 5.6em; text-align: center; } /* one width whatever it says: in 28s, On hold, Fighting */
 .hudrow { display: flex; gap: 6px; pointer-events: none !important; } /* only its buttons take taps, never the gap between them */
 .hudrow > * { pointer-events: auto; }
 /* the place bar: the town's name, Map, and one back button to the last place (owner rule: it never grows with the towns) */
@@ -149,7 +151,7 @@ html.no3d body { background: var(--bg); }
 }
 .wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; flex: none; }
 .wave .vaultbtn { flex: none; } /* only the countdown gives way on a narrow screen, never Call now */
-.wave:has(.call[hidden]) .winfo { width: calc(8em + 82px); } /* during a wave the count and raid kind take Call now's room, so the chip keeps its width */
+.wave .call.away { visibility: hidden; } /* during a wave Call now keeps its place, so the bar keeps one width */
 /* the goal strip and its spotlight (src/core/goals.js) */
 .goal {
   display: flex; align-items: center; gap: 8px; width: min(100%, 340px); min-height: 34px; padding: 3px 10px 3px 3px; text-align: left; cursor: pointer;
@@ -168,7 +170,7 @@ html.no3d body { background: var(--bg); }
 .goalmark.ping { animation: markPing .45s 3; }
 @keyframes markPulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
 @keyframes markPing { 50% { border-color: #fff8dc; border-width: 5px; } }
-@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vaultbtn { gap: 5px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } .winfo { width: 5.2em; } .wave:has(.call[hidden]) .winfo { width: calc(5.2em + 75px); }
+@media (max-width: 420px) { .wave { gap: 5px; padding-left: 8px; } .vaultbtn { gap: 5px; } .vault { width: 24px; } .wave .call { padding: 2px 6px; } .winfo { width: 5.2em; }
   /* a phone: the coin rate goes under the coins, in one fixed column, so the wave chip keeps room for its countdown */
   .coins { display: grid; grid-template-columns: auto 3.7rem; column-gap: 6px; row-gap: 0; padding: 3px 8px; }
   .coins .coin { grid-row: 1 / 3; }
@@ -195,6 +197,13 @@ html.no3d body { background: var(--bg); }
 .tag.boss { border-left: 4px solid var(--gold); }
 .tag.goaltag::after { content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 18px; margin: 2px 0 0 -1px; background: var(--gold); pointer-events: none; } /* the stem down to the building (GOAL_LIFT) */
 .tag.short { box-shadow: inset 0 -3px 0 var(--bad), 2px 2px 0 rgba(22, 15, 11, .6); }
+/* quiet tags: a small dark pill in a clear 30 px tap box (owner, 2026-11-19); the full tag above is only for the goal,
+   the building whose card is open, and the list view */
+.tag.quiet { min-width: 32px; min-height: 32px; padding: 0; display: grid; place-items: end center; background: none; border: 0; box-shadow: none; }
+.tag.quiet .tl { padding: 2px 5px; font-size: .66rem; line-height: 1.1; color: #d9c6ab; background: rgba(22, 15, 11, .62); }
+.tag.quiet.can .tl { color: var(--copper-hi); }
+.tag.quiet.can .tl::after { content: ""; display: inline-block; width: 6px; height: 5px; margin-left: 3px; background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%); vertical-align: 1px; }
+.tag.quiet.short .tl { box-shadow: inset 0 -2px 0 var(--bad); }
 html.flat .tags { position: absolute; inset: 64px 12px auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 html.flat .tag { position: static; transform: none !important; }
 .card {
