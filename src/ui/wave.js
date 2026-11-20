@@ -13,7 +13,7 @@ const many = name => { const f = Object.values(FOES).find(x => x.name === name);
 const plural = (n, name) => n + ' ' + (n === 1 ? name : many(name));
 
 /* The wave bar's timer: what the next wave waits for, in a box of fixed width. */
-export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : 'in ' + Math.ceil(ws.timer) + 's');
+export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
 
 /* The tower open in this town that hits a raider kind hardest (its best factor), or null when none does. */
 export function bestTower(town, kind) {

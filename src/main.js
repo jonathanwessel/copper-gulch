@@ -119,6 +119,7 @@ async function startGame() {
     if (!CG.town || CG.map || flying || !mapOpen(game)) return false;
     const paused = CG.town.holds.has('player'), from = game.active;
     dropToasts('lost'); // the map shows the town on hold, so the toast would only cover its labels
+    dropToasts('tomap'); // "Tap Map, then Capital ..." is done once the map is open (review of 2026.11.20-13: it rode along into the fly)
     unmount();
     const [{ startEmpireView }, { mountMap }] = mapMods;
     const map = startEmpireView(document.getElementById('view'), game, { from, meter, onTap: id => { if (CG.mapui) CG.mapui.openSite(id); }, onFrame: dt => { if (CG.mapui) CG.mapui.frame(dt); } });

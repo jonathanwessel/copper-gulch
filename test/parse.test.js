@@ -15,13 +15,17 @@ const ALL = [...files('src'), ...files('tools'), 'sw.js'].filter(f => fs.existsS
 export const hidden = line => {
   const at = line.search(/[;)}]\s*\/\/ /); if (at < 0) return false;
   const rest = line.slice(line.indexOf('//', at) + 2);
-  return /\b[A-Za-z_$][\w$]*(\.[\w$]+)+ = [^=;]+;/.test(rest) || /\b[A-Za-z_$][\w$]* = [^=;]+;\s*[A-Za-z_$][\w$.]*[.(]/.test(rest);
+  // an assignment, or two calls in a row ("r.append(...); stats.append(r);", the slip of 2026.11.20-14 that emptied the
+  // tower card's stats in landscape)
+  return /\b[A-Za-z_$][\w$]*(\.[\w$]+)+ = [^=;]+;/.test(rest) || /\b[A-Za-z_$][\w$]* = [^=;]+;\s*[A-Za-z_$][\w$.]*[.(]/.test(rest)
+    || /\b[A-Za-z_$][\w$]*\.[\w$]+\(.*\);\s*[A-Za-z_$][\w$]*\.[\w$]+\(/.test(rest);
 };
 
 test('the hidden-statement check finds the slips it was made for', () => {
   assert.ok(hidden("  u.obj.position.set(x, 0, z); // up the ramp and over u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= 1;"));
   assert.ok(hidden("  const go = el('button', 'b', 'Play'); // the same on every card go.id = 'mapPlay';"));
   assert.ok(hidden("  { panel = make(game, { toast }); // no map here sig = 'open|' + panel.sig(); body.replaceChildren(panel.el); }"));
+  assert.ok(hidden("      const r = el('div', 'statline'); // statline: laid out like the others r.append(el('span', null, a), el('b', null, b)); stats.append(r);"));
   assert.ok(!hidden("  const x = 1; // the price, a share of the best (review: \"High\" read as a price)"));
 });
 

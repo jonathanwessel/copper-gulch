@@ -36,7 +36,7 @@ test('the Goods switch reads like the building cards\' Keep switch and says what
 });
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
   assert.ok(oldWavesLabel({}).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   const play = read('src/ui/play.js');

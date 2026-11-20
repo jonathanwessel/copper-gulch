@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-14',
+    lines: [
+      'The wave bar shows how many hits your vault can take, like Vault 20/20.',
+      'On the map, a town shows its vault only after raiders hit it. Town names cover less of the next town.',
+      'Each good on the strip shows its count in the same corner.',
+      'Picking a tower path shows the price on its own line.',
+      'Auto says why it is waiting before it tries the boss again.',
+    ],
+  },
+  {
     v: '2026.11.20-13',
     lines: [
       'The bar next to the wave number now says Vault, so you know what it shows.',

@@ -67,7 +67,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
-export const stockWords = town => 'Next ' + RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' levels';
+export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' levels each'; // "Keep for towers · 2 levels each": for every tower (review of 2026.11.20-13: "Next 2 levels" did not say of what)
 /* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
 export const STOCK_LABEL = 'Keep for towers'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
@@ -309,8 +309,8 @@ export function autoSheet(game, town) {
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
-        : rs === 'wait' ? 'On hold for now'
-        : rs === 'stuck' ? (a.towers ? 'On hold for now' : 'Turn on Auto-towers, or upgrade a tower yourself')
+        : rs === 'wait' ? 'On hold until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
+        : rs === 'stuck' ? (a.towers ? 'On hold until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
@@ -471,7 +471,7 @@ export function perksSheet(ctx) {
       set(coins.l, fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
       set(next, 'Next deed at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins.');
       sign.disabled = !p.total;
-      const more = d => plural(d, 'deed') + ', ' + Math.round(DEEDS.income * 100 * d) + '% more coins';
+      const more = d => plural(d, 'deed') + ' · ' + Math.round(DEEDS.income * 100 * d) + '% more coins'; // review of 2026.11.20-13: "2 deeds, 50% more coins" ran on
       set(have.l, 'You have'); set(have.v, c.deeds ? more(c.deeds) : 'No deeds yet');
       const t = c.deeds + p.total;
       set(after.l, 'After signing'); set(after.v, p.total ? more(t) : '');

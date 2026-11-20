@@ -30,11 +30,11 @@ test('Save for towers names the upgrades it saves for, and 4 upgrades counts 4 l
   Object.assign(t.waves, { phase: 'break', timer: 1e9, hold: true });
   Object.assign(t.goods, { timber: 1e4, ore: 1e4, copper: 1e4, bricks: 1e4 });
   assert.ok(buildTower(g, t, 0, 'crossbow'));
-  assert.equal(stockWords(t), 'Next 2 levels');
+  assert.equal(stockWords(t), '2 levels each');
   const tw = t.towers[0], lv = n => { let x = 0; for (let i = 0; i < n; i++) x += towerCost(t, tw.kind, tw.level + i).goods.timber || 0; return x; };
   const normal = reserves(t).use.timber, newPart = normal - lv(RESERVE.levels); // the new towers' share (plenty of free pads)
   setStock(t, 'lots');
-  assert.equal(stockWords(t), 'Next 4 levels');
+  assert.equal(stockWords(t), '4 levels each');
   assert.equal(reserves(t).use.timber, lv(RESERVE.levels * RESERVE.lots) + newPart * RESERVE.lots, 'four levels of every tower and four new towers');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
   assert.equal(ex.title, 'Keep for towers');
@@ -54,7 +54,7 @@ test('the price bar starts with the price in one form, and its end word is only 
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.match(s, /^Under best wave [0-9]+$/);
+  assert.match(s, /^Wave beaten before$/);
   assert.ok(s.length <= 20);
   assert.deepEqual(textIssues(s), []);
 });

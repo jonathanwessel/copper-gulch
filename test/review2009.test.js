@@ -27,7 +27,7 @@ test('buying a level is called Upgrade everywhere players read it', () => {
 
 test('Goods says how much it keeps, each building card which good, and prices read as a share of the best', () => {
   assert.equal(STOCK_LABEL, 'Keep for towers');
-  assert.equal(stockWords({ stock: 'normal' }), 'Next 2 levels');
+  assert.equal(stockWords({ stock: 'normal' }), '2 levels each');
   assert.ok(read('src/ui/play.js').includes("'Keep for towers'"));
   assert.equal(priceWord(1), 'Full price');
   assert.equal(priceWord(.4), 'Down 60%');
@@ -36,7 +36,7 @@ test('Goods says how much it keeps, each building card which good, and prices re
 });
 
 test('the old-wave bonus names the wave that earns it, and research says time one way', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
   assert.equal(span(80), '80 sec'); assert.equal(leftWord(13), '13 sec left'); assert.equal(span(600), '10 min');
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
@@ -63,5 +63,5 @@ test('a fresh Copper Gulch can pay its first Crossbow in coins, so its first goa
 
 test('a place ready to build is not drawn locked on the map', () => {
   assert.match(read('src/ui/map.js'), /&& !lockedRules\(game, s\.id\)\.ready\)/);
-  assert.match(read('src/ui/map.js'), /B\.vault\.hidden = !!st;/);
+  assert.match(read('src/ui/map.js'), /B\.vault\.hidden = !!st \|\| !hit;/); // on hold: its status, not the vault; a full vault shows nothing (review of 2026.11.20-13)
 });

@@ -55,7 +55,7 @@ test('every Goods row says what is kept and what is spare, and the price word sa
 });
 
 test('the old-wave bonus says how long it lasts, and the foreman line says who is paused', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   assert.ok(read('src/ui/play.js').includes('Not enough power, so it works slower.')); // said for that card since 2026.11.20-13

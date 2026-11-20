@@ -33,7 +33,7 @@ import { waveSheet, waveTimer } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount } from './format.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
 const GOAL_LIFT = 18;
@@ -74,8 +74,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
   const wave = el('div', 'wave'); wave.id = 'wave';
   // the wave number opens the raiders card (the next wave's raiders left the bar, owner 2026-11-19), the vault bar its strength
-  const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
-  vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
+  const waveNum = el('b'), vault = el('span', 'vnum'), waveInfo = el('span', 'winfo'); // the vault as hits left of its full strength, "20/20" (review of 2026.11.20-13: the bar read as a countdown)
   const waveBtn = el('button', 'wavebtn'); waveBtn.id = 'waveBtn'; waveBtn.append(waveNum);
   const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(el('small', 'vlabel', store === 'vault' ? 'Vault' : 'Stock'), vault); // tap it: the vault's strength explained. Its name over the bar says what the bar is (review of 2026.11.20-12: a strongbox icon and a green bar with no word read as nothing; review of 2026.11.19-14 had added the icon)
   vaultBtn.setAttribute('aria-label', store[0].toUpperCase() + store.slice(1));
@@ -385,7 +384,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
     const line = (a, b, key) => {
-      const r = el(key ? 'button' : 'div', key ? 'statrow' : null); r.append(el('span', null, a), el('b', null, b)); stats.append(r);
+      // statline: a stat with nothing to tap (Best against), laid out like the others in landscape
+      const r = el(key ? 'button' : 'div', key ? 'statrow' : 'statline'); r.append(el('span', null, a), el('b', null, b)); stats.append(r);
       if (!key) return;
       statRow[key] = r;
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
@@ -415,7 +415,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Either path')); // one price above two Choose buttons (review of 2026.11.19-13); "Either", since "Each path" read as a price per path (review of 2026.11.20-12)
+      const pc = costRow(c, true); // one price above two Choose buttons (review of 2026.11.19-13), on its own row under Pick a path with no label (review of 2026.11.20-13: "Either path 9.99M / 2.31K coins" read as a cut-off label, and Bricks wrapped)
       ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
@@ -453,7 +453,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const offs = [
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
-    game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000); }),
+    game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
     game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
     game.bus.on('breach', e => {
@@ -685,7 +685,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const ws = town.waves;
     setText(waveNum, 'Wave ' + town.wave);
     wave.classList.toggle('old', oldGround(town)); // gold while the towers hit harder on waves beaten before (review of 2026.11.19-12)
-    const vw = Math.max(0, Math.round(100 * town.vault.hp / town.vault.max)) + '%'; if (vaultFill.style.width !== vw) vaultFill.style.width = vw;
+    setText(vault, vaultCount(town.vault)); const vlow = town.vault.hp < .5 * town.vault.max; if (vault.classList.contains('low') !== vlow) vault.classList.toggle('low', vlow);
     paintCtl();
     measure();
     setText(waveInfo, waveTimer(ws)); // one fixed box: "in 28s", "On hold" or "Fighting"
@@ -738,7 +738,7 @@ export function usedLine(used, g) {
   const n = used.ids.map(k => BUILDINGS[k].name);
   if (!n.length) return '';
   const who = n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
-  return used.rate >= .05 ? 'The ' + who + ' take' + (n.length > 1 ? '' : 's') + ' ' + perSecond(used.rate, g) + '.' : g.name + ' goes to the ' + who + '.';
+  return used.rate >= .05 ? 'The ' + who + ' take' + (n.length > 1 ? '' : 's') + ' ' + perSecond(used.rate, g) + '.' : g.name + (/[^s]s$/.test(g.name) ? ' go' : ' goes') + ' to the ' + who + '.'; // "Boilers go" (review of 2026.11.20-14)
 }
 export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;

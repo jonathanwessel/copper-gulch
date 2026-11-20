@@ -20,7 +20,7 @@ test('the foreman and kept-goods lines are short statuses', () => {
   assert.equal(foremanLine('short', 'timber'), 'Waiting for more timber.');
   assert.equal(keepLine(['copper ore'], 'upgrade'), 'Saving copper ore for this upgrade.');
   for (const t of [foremanLine('slow', 'timber'), keepLine(['copper', 'bricks'], 'path')]) assert.deepEqual(textIssues(t), []);
-  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
 });
 
 test('the price bar ends in a word for where the price stands', () => {
@@ -64,6 +64,6 @@ test('the price on a card sits over Upgrade alone', () => {
   const play = read('src/ui/play.js');
   assert.match(play, /card\.append\(sr\); bar\.append\(row\); card\.append\(bar\)/); // the tower's Sell leaves the pinned bar
   assert.match(play, /kr\.append\(sell\)/); // the building's Sell switch sits under it, beside Keep for towers
-  assert.match(play, /'Either path'/);
+  assert.ok(!play.includes("'Either path'"), 'the path price has its own row (review of 2026.11.20-13)');
   assert.match(read('src/render/scene.js'), /sky\.position\.set\(cam\.position\.x, 0, cam\.position\.z\)/);
 });

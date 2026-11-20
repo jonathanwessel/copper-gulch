@@ -17,6 +17,8 @@ import * as THREE from 'three';
 const _cam = new THREE.PerspectiveCamera(), _ray = new THREE.Raycaster(), _v2 = new THREE.Vector2(), _hit = new THREE.Vector3();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const ang = (x, z) => Math.atan2(x, z); // a ground direction's angle; turning the rig by f adds f to it
+/* pixels a selection's point keeps from the card's edge, so the building round it shows whole */
+export const CLEAR = 44;
 /* pixels a selection keeps below the top bar (review of 2026.11.20-4: a selected Mortar pit sat under the goal strip) */
 const TOP_GAP = 56;
 /* The room a selection keeps from the screen's left and right edges (review of 2026.11.20-5: in landscape a selected pit
@@ -194,7 +196,9 @@ export class CameraRig {
       }
     }
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
-    const clear = (q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20) && !(lw && q.x > lw.l - 20 && q.x < lw.r + 20 && q.y > lw.t - 20 && q.y < lw.b + 20);
+    // clear by a building's half width beside the card and its height above the strip, not just its point (review of
+    // 2026.11.20-13: in landscape a selected Glassworks sat half under the card's edge, just above the strip)
+    const clear = (q.x < cv.l - CLEAR || q.x > cv.r + CLEAR || q.y < cv.t - CLEAR || q.y > cv.b + CLEAR) && !(lw && q.x > lw.l - 20 && q.x < lw.r + 20 && q.y > lw.t - 40 && q.y < lw.b + 20);
     // a circle that fits in no part even after the step back: its middle goes to the middle of the roomiest part, so it
     // runs off both sides alike (review of 2026.11.20-7: an empty pit's Mortar circle on a desktop ran off the left edge
     // only, with the map at its farthest)
