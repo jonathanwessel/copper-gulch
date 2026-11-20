@@ -420,36 +420,70 @@ export function skirmish(game, town, dt) {
   if (left < 0) ws.owe = -left;
 }
 
-/* The tower reserve: goods that auto-sell never sells, so the towers can be paid for once the coins are there.
-   Per good it adds up the next upgrade of every tower that uses it (at level 4 that upgrade is the path choice), and
-   the cheapest open tower that uses the good and still has a free pad it fits, and likewise for a free mortar pit.
-   A good whose "Keep for towers" switch is off (town.reserveOff[good]) keeps nothing. Coins still gate every buy. */
-export function towerReserve(town) {
-  const keep = {};
-  const add = c => { for (const [g, n] of Object.entries(c.goods)) keep[g] = (keep[g] || 0) + n; };
-  for (const t of town.towers) add(towerCost(town, t.kind, t.level));
+/* The tower reserve: goods that auto-sell never sells, so the towers can be paid for once the coins are there (owner,
+   2026-11-19: "auto sell needs to be less aggressive and keep more inventory. It's a pain to build towers"). Per good:
+     - the next RESERVE.levels upgrades of every tower that uses it (the path choice counts as one);
+     - RESERVE.towers new towers (no more than there are free pads) of the costliest open kind that uses it, for the
+       pads and, apart, for the mortar pits;
+     - at least RESERVE.floor seconds of what the town's own buildings make of it, but never more than RESERVE.cap
+       times the towers' own need above (a big camp's 2 minutes held back all its timber from the market).
+   "Keep for towers · Lots" on the Goods sheet (town.stock === 'lots') keeps RESERVE.lots times as much. A good whose "Keep for towers"
+   switch is off (town.reserveOff[good]) keeps nothing. Coins still gate every buy.
+   RESERVE.kind 'cheapest' with levels 1, towers 1 and floor 0 is the rule before 2026.11.19-15 (tools/reserve.js
+   measures the two side by side). */
+export const RESERVE = { levels: 2, towers: 2, floor: 120, cap: 2, lots: 2, kind: 'costliest' };
+export const STOCKS = ['normal', 'lots'];
+export function towerReserve(town) { return reserves(town).keep; }
+/* Both sides of the reserve: keep (what auto-sell, routes and the Capital leave alone, with the floor) and use (what
+   workshops leave alone: the towers' own need, without the floor, so a workshop is never held back by a big camp's
+   2 minutes). */
+export function reserves(town) {
+  const keep = {}, R = RESERVE;
+  const add = (c, k = 1) => { for (const [g, n] of Object.entries(c.goods)) keep[g] = (keep[g] || 0) + n * k; };
+  for (const t of town.towers) for (let i = 0; i < R.levels; i++) add(towerCost(town, t.kind, t.level + i));
   const spots = town.def && town.def.board ? town.def.board.spots : [];
   const taken = new Set(town.towers.map(t => t.spot));
   for (const pit of [false, true]) {
-    const free = spots.some((_, i) => !taken.has(i) && isPit(town, i) === pit);
+    const free = spots.filter((_, i) => !taken.has(i) && isPit(town, i) === pit).length;
     if (!free) continue;
-    const cheapest = {}; // good -> the cheapest build that uses it
+    const pick = {}; // good -> the build that uses it: the costliest (or, by the old rule, the cheapest) open kind
     for (const kind of Object.keys(TOWERS)) {
       if (!towerOpen(town, kind) || !!TOWERS[kind].long !== pit) continue;
       const c = towerCost(town, kind, 0);
-      for (const g of Object.keys(c.goods)) if (!cheapest[g] || c.coins < cheapest[g].coins) cheapest[g] = c;
+      for (const g of Object.keys(c.goods)) if (!pick[g] || (R.kind === 'cheapest' ? c.coins < pick[g].coins : c.coins > pick[g].coins)) pick[g] = c;
     }
-    for (const [g, c] of Object.entries(cheapest)) keep[g] = (keep[g] || 0) + c.goods[g];
+    for (const [g, c] of Object.entries(pick)) keep[g] = (keep[g] || 0) + c.goods[g] * Math.min(R.towers, free);
   }
-  const off = town.reserveOff || {};
-  for (const g of Object.keys(keep)) if (off[g]) delete keep[g];
-  return keep;
+  const mul = town.stock === 'lots' ? R.lots : 1, off = town.reserveOff || {}, use = {};
+  for (const g of Object.keys(keep)) {
+    if (off[g]) { delete keep[g]; continue; }
+    use[g] = Math.ceil(keep[g] * mul);
+    if (R.floor) {
+      const made = buildingsOf(town).reduce((a, id) => a + (BUILDINGS[id].makes === g ? output(town, id) : 0), 0);
+      keep[g] = Math.max(keep[g], Math.min(made * R.floor, keep[g] * R.cap));
+    }
+    keep[g] = Math.ceil(keep[g] * mul);
+  }
+  return { keep, use };
+}
+/* Set town.keep and town.keepUse (src/core/economy.js, produce, reads keepUse). */
+export function setReserves(town) { const r = reserves(town); town.keep = r.keep; town.keepUse = r.use; }
+/* Set the Goods sheet's "Keep for towers · Normal / Lots" for a town: 'normal' or 'lots'. */
+export function setStock(town, mode) { if (STOCKS.includes(mode)) { town.stock = mode; setReserves(town); } }
+/* True while a tower buy waits on goods with the coins there: some build or upgrade has its coins, and every one that
+   has its coins is short of a good. (The measure for the reserve, tools/reserve.js.) */
+export function goodsBlocked(town) {
+  const opts = town.towers.map(t => towerCost(town, t.kind, t.level));
+  const spots = town.def && town.def.board ? town.def.board.spots : [], taken = new Set(town.towers.map(t => t.spot));
+  for (const kind of Object.keys(TOWERS)) if (towerOpen(town, kind) && spots.some((_, i) => !taken.has(i) && fitsSpot(town, i, kind))) opts.push(towerCost(town, kind, 0));
+  const coinsOk = opts.filter(c => town.coins + 1e-9 >= c.coins);
+  return coinsOk.length > 0 && !coinsOk.some(c => canPay(town, c));
 }
 /* Turn "Keep for towers" on or off for one good. */
 export function setReserve(town, good, on) {
   town.reserveOff = town.reserveOff || {};
   if (on) delete town.reserveOff[good]; else town.reserveOff[good] = true;
-  town.keep = towerReserve(town);
+  setReserves(town);
 }
 /* What a tower buy is still short of: [{ good, have, need, maker, seconds }]. maker is the building that makes the
    good (null if none); seconds is about how long until the yard has enough at today's rate after the workshops'
@@ -480,9 +514,10 @@ export const defense = {
     town.vault = { hp: wavesOf(town).vault, max: wavesOf(town).vault };
     town.waves = { phase: 'break', timer: wavesOf(town).first, queue: [], foes: [], nextId: 1, type: 'mixed', gap: 1, hold: false, shells: [], fires: [], age: 0 };
     town.reserveOff = {};
-    town.keep = towerReserve(town);
+    town.stock = 'normal';
+    setReserves(town);
   },
-  load(town) { if (!town.waves) defense.init(town); town.reserveOff = town.reserveOff || {}; town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
+  load(town) { if (!town.waves) defense.init(town); town.reserveOff = town.reserveOff || {}; if (!STOCKS.includes(town.stock)) town.stock = 'normal'; town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
   /* Towers that open at a wave open once the town reaches it, and stay open. */
   opens(game, town) {
     for (const [k, d] of Object.entries(TOWERS)) if (d.opens && town.wave >= d.opens && !town.flags['open:' + k]) {
@@ -494,7 +529,7 @@ export const defense = {
     defense.opens(game, town);
     syncVault(town);
     town.mods.set('towerDmg', OLD_LABEL, { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
-    town.keep = towerReserve(town);
+    setReserves(town);
     town.waves.owe = 0;
     fight(game, town, dt);
   },
@@ -504,6 +539,6 @@ export const defense = {
     syncVault(town);
     town.mods.set('towerDmg', OLD_LABEL, { mul: oldGround(town) ? OLD_GROUND.dmg : 1 });
     skirmish(game, town, dt);
-    town.keep = towerReserve(town);
+    setReserves(town);
   },
 };

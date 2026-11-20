@@ -10,7 +10,7 @@ import { OLD_LABEL } from '../src/core/defense.js';
 
 test('a workshop short of its input shows what it really makes, and the breakdown says why', () => {
   const g = newGame('rv194', 'gulch'), t = g.town;
-  t.buildings.saw = 2; t.buildings.camp = 0; t.goods.timber = 0;
+  t.buildings.saw = 2; t.buildings.camp = 0; t.goods.timber = 0; t.keepUse = {}; // supply only, not the tower reserve
   for (let i = 0; i < 40; i++) produce(t, .25); // no timber at all: it makes nothing
   const ex = explainMade(t, 'saw'), full = explainOutput(t, 'saw').value;
   assert.ok(ex.lacking && ex.short === 'timber');

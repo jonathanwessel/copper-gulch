@@ -39,7 +39,7 @@ export function helper(town, game = null) {
     capitalSight: !!game && !!capitalNext(game), capitalOpen: !!game && capitalOpen(game), // src/core/capital.js
     // the Capital can found an institution or buy an upgrade (src/core/tree.js)
     treeReady: !!game && capitalOpen(game) && !!game.shared.tree && (game.shared.purse.coins >= foundCost(game) || (game.shared.capital.influence >= NODE_COST[0] && game.shared.tree.founded.length > 0)),
-    starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0) || null,
+    starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0 && town.starved[id] === true) || null,
     firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
     // a building whose good the town is holding back for towers right now
     keptPlot: Object.keys(town.buildings).find(id => town.level(id) > 0 && town.def && town.def.board && town.def.board.plots[id] && BUILDINGS[id] && ((town.keep || {})[BUILDINGS[id].makes] || 0) > 0 && (town.goods[BUILDINGS[id].makes] || 0) >= town.keep[BUILDINGS[id].makes] - 1e-6 && town.sell[BUILDINGS[id].makes] !== false) || null,
@@ -50,6 +50,7 @@ export function helper(town, game = null) {
     record: town.record || 0, oldGround: town.wave <= (town.record || 0) && (town.record || 0) > 0,
     // a tower of each kind on the board: kind -> spot (the first one built)
     kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
+    stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
   };
 }

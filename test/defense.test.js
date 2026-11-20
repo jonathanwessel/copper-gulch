@@ -136,7 +136,7 @@ test('calling a wave early pays a bonus; a break is required', () => {
 
 test('the town keeps goods for its next tower, and defense rests while time away is caught up', () => {
   const g = newGame('r', 'gulch'), t = g.town;
-  assert.equal(towerReserve(t).timber, towerCost(t, 'crossbow').goods.timber);
+  assert.ok(towerReserve(t).timber >= 2 * towerCost(t, 'crossbow').goods.timber, 'two Crossbows of timber');
   const w = t.waves.timer;
   g.catchUp(600);
   assert.equal(t.waves.timer, w, 'no waves while away');

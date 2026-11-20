@@ -47,9 +47,11 @@ export function explainMade(town, id) {
   // a camp needs nothing, so it is never short: its smoothed rate only lags a new bonus (review of 2026.11.19-10 screenshots)
   if (!ins.length || !town.level(id) || !(full > 0) || ran === undefined || ran >= full * SHORT_SHARE) return ex;
   const out = output(town, id);
-  const g = ins.find(k => isGrid(k) ? gridOf(town).share < .999 : (town.goods[k] || 0) < out * uses(town, id, k)) || null;
-  ex.short = g; ex.lacking = true;
-  ex.rows.push({ label: g ? 'Not enough ' + GOODS[g].name.toLowerCase() : 'Not enough materials', mul: Math.max(0, ran) / full });
+  // held back for the towers (src/core/economy.js, WORKSHOP): the yard has the good, the towers get it first
+  const held = !!town.starved && town.starved[id] === 'towers', ku = held ? town.keepUse || {} : {};
+  const g = ins.find(k => isGrid(k) ? gridOf(town).share < .999 : (town.goods[k] || 0) - (ku[k] || 0) < out * uses(town, id, k)) || null;
+  ex.short = g; ex.lacking = true; ex.held = held;
+  ex.rows.push({ label: g ? (held ? GOODS[g].name + ' kept for towers' : 'Not enough ' + GOODS[g].name.toLowerCase()) : 'Not enough materials', mul: Math.max(0, ran) / full });
   ex.value = Math.max(0, ran);
   return ex;
 }

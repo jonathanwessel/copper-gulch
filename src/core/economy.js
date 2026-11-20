@@ -89,17 +89,27 @@ export const onGrid = id => Object.keys(BUILDINGS[id].inputs).some(isGrid);
    each one really made a second, smoothed over about RAN_SECONDS (its card shows it when short, review of 2026.11.19-4:
    "Makes 1 boiler a second" beside "Not enough bricks"). town.ran is optional and only for the screen. */
 export const RAN_SECONDS = 3;
+/* Workshops leave the tower reserve alone (owner, 2026-11-19: "It's a pain to build towers"): a workshop only uses
+   what the town has above town.keepUse (the towers' own need, src/core/defense.js, reserves), so the Smelter never eats
+   the ore a Cannon is waiting for. A workshop held back
+   that way is marked town.starved[id] = 'towers' (its card says so). WORKSHOP.spare false is the rule before
+   2026.11.19-15 (tools/reserve.js compares them). */
+export const WORKSHOP = { spare: true };
 export function produce(town, dt) {
   town.starved = {};
   const ran = town.ran ||= {}, k = 1 - Math.exp(-dt / RAN_SECONDS);
-  const grid = buildingsOf(town).some(onGrid) ? gridOf(town).share : 1;
+  const grid = buildingsOf(town).some(onGrid) ? gridOf(town).share : 1, keep = WORKSHOP.spare ? town.keepUse || {} : {};
   for (const id of buildingsOf(town)) {
     const b = BUILDINGS[id], want = output(town, id) * dt;
     if (!(want > 0) || isGrid(b.makes)) { delete ran[id]; continue; } // power goes straight onto the grid
     let made = onGrid(id) ? want * grid : want;
     const need = Object.keys(b.inputs).filter(g => !isGrid(g)).map(g => [g, uses(town, id, g)]);
-    for (const [g, n] of need) made = Math.min(made, (town.goods[g] || 0) / n);
-    if (made < want * .999) town.starved[id] = true;
+    let all = made;
+    for (const [g, n] of need) {
+      all = Math.min(all, (town.goods[g] || 0) / n);
+      made = Math.min(made, Math.max(0, (town.goods[g] || 0) - (keep[g] || 0)) / n);
+    }
+    if (made < want * .999) town.starved[id] = all >= want * .999 ? 'towers' : true;
     ran[id] = id in ran ? ran[id] + (made / dt - ran[id]) * k : made / dt;
     if (made <= 0) continue;
     for (const [g, n] of need) town.goods[g] -= made * n;

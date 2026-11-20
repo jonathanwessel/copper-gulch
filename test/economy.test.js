@@ -56,6 +56,7 @@ test('the camp makes timber, which sells, and coins come in', () => {
   const g = newGame('t', 'gulch');
   for (let i = 0; i < 40; i++) g.step(.25); // 10 s
   assert.ok(g.town.made.timber > 9.9 && g.town.made.timber < 10.1);
+  for (let i = 0; i < 4 * 50; i++) g.step(.25); // a minute: past the timber kept for two Crossbows
   const kept = g.town.keep.timber; // timber held back for the first crossbow
   assert.ok(kept > 0 && Math.abs(g.town.goods.timber - kept) < 1e-6, 'keeps ' + kept);
   assert.ok(g.town.lifetime > 1, String(g.town.lifetime));
@@ -79,7 +80,7 @@ test('buildings cost more each level, need their prerequisites, and output grows
 
 test('workshops use their inputs and go short when a supplier lags', () => {
   const g = newGame('t', 'gulch'), t = g.town;
-  t.buildings = { camp: 1, saw: 2 }; t.goods = {};
+  t.buildings = { camp: 1, saw: 2 }; t.goods = {}; t.keepUse = {}; // supply only (the tower reserve: test/reserve.test.js)
   produce(t, 1);
   assert.ok(t.starved.saw);
   assert.ok(near(t.goods.planks, .5), 'one timber a second makes half a plank');

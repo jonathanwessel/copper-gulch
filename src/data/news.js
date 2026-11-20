@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-1',
+    lines: [
+      'Your towns keep more goods for towers. Each town saves enough for the next two upgrades of every tower and two new towers.',
+      'Workshops leave those goods alone too, so a Smelter no longer uses up the ore your Cannon needs.',
+      'Want even more saved? Open Goods and tap Keep for towers to switch it to Lots.',
+    ],
+  },
+  {
     v: '2026.11.19-14',
     lines: [
       'Building labels are small now. The full label shows on your goal and on the building you tap.',

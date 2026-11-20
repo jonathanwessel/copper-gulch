@@ -86,8 +86,14 @@ export const EXPLAINERS = [
   {
     id: 'reserve', covers: ['reserve'],
     title: 'Saved for towers',
-    text: "Your town saves goods for every tower's next upgrade and one new tower. To sell everything a building makes, tap it and switch Keep for towers off.",
+    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and workshops leave them alone. To use all of a good, tap its building and switch Keep for towers off.",
     when: h => h.towers.length > 0 && h.keptPlot !== null && h.t > 45, at: h => ({ plot: h.keptPlot }),
+  },
+  {
+    id: 'stock', covers: ['stock'],
+    title: 'Keep for towers',
+    text: 'Tap Keep for towers to switch it to Lots. Your town then keeps twice as many goods for towers and sells less.',
+    when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
     id: 'waves', covers: ['call'],

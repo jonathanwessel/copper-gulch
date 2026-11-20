@@ -245,6 +245,15 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   // urgent: short of towers, a tower more than a level behind, or the vault below 60%
   const defend = (urgent = false) => {
     const w = t.wave, want = S.want(w) + (r.bossLost || 0), lv = S.level(w, r) + bossExtra(t, r, S);
+    // the goal strip asks for a kind it has not built yet (after the first boss): it builds one once it can pay, even
+    // with all the towers it wants (seed 4 had a Mortar's coins and goods from minute 25 and its pads full, and built
+    // none until minute 61: a player reads "Tap a Mortar pit and build a Mortar" and does it). Not swarm, which raises
+    // every tower evenly: a lone new level-1 tower holds back all its upgrades (wave 20 at 21.2 min against 18.6)
+    const gk0 = t.bestWave >= 10 && (goalNow(g, false) || {}).kind;
+    if (gk0 && !S.even && !t.towers.some(x => x.kind === gk0)) {
+      const o = options(t).find(o => !o.up && o.kind === gk0 && o.can);
+      if (o && buildTower(g, t, o.spot, o.kind)) { r.bought[o.kind] = (r.bought[o.kind] || 0) + 1; if (t.t <= 3600) r.firstBuy[o.kind] ??= Math.round(t.t / 60); return true; }
+    }
     if (t.towers.length >= want && !t.towers.some(x => x.level < lv)) return false;
     if (urgent && t.towers.length >= want && !t.towers.some(x => x.level < lv - 1.5) && t.vault.hp >= .6 * t.vault.max) return false;
     let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));

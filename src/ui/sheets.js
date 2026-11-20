@@ -15,6 +15,7 @@ import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage
 import { installButton } from './install.js';
 import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
+import { setStock } from '../core/defense.js';
 import { fmt, fmtLive, ago, goodsLine, goodsSwitch, levelsDone, priceNote } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch } from '../core/research.js';
@@ -65,6 +66,12 @@ export function goodsSheet(game, town, focus = null) {
   return body => {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
+    // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
+    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
+    const paintStock = () => { const lots = town.stock === 'lots', s = 'Keep for towers · ' + (lots ? 'Lots' : 'Normal'); if (stockBtn.textContent !== s) stockBtn.textContent = s; stockBtn.classList.toggle('on', lots); stockBtn.setAttribute('aria-pressed', String(lots)); };
+    stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
+    paintStock(); stockRow.append(stockBtn);
+    if (town.towers && town.def && town.def.board) body.append(stockRow);
     body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)

@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -137,6 +137,12 @@ export const MIGRATIONS = {
       if (south) south.spot = 13; // the east Mortar alone keeps number 13, which is now the pit by the vault
     }
     return { ...s, v: 18, game: g };
+  },
+  // v19: the Goods sheet's "Keep for towers · Normal / Lots" (src/core/defense.js, towerReserve): every town of an old save on Normal
+  18: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t && t.stock !== 'lots') t.stock = 'normal';
+    return { ...s, v: 19, game: g };
   },
 };
 

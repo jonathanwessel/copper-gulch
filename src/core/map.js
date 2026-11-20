@@ -77,7 +77,7 @@ export function siteInfo(game, id, meter = null) {
   if (!t) return null;
   const v = t.vault || { hp: 1, max: 1 };
   const vault = v.max > 0 ? Math.max(0, Math.min(1, v.hp / v.max)) : 1;
-  const short = Object.keys(t.starved || {}).find(b => t.starved[b] && t.level(b) > 0) || null;
+  const short = Object.keys(t.starved || {}).find(b => t.starved[b] === true && t.level(b) > 0) || null;
   const ins = short && BUILDINGS[short] ? Object.entries(BUILDINGS[short].inputs || {}).filter(([g]) => !GOODS[g].grid || gridOf(t).share < 1) : [];
   const needs = ins.length ? ins.reduce((a, b) => ((t.goods[b[0]] || 0) / b[1] < (t.goods[a[0]] || 0) / a[1] ? b : a))[0] : null;
   return {

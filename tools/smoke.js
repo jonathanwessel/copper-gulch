@@ -227,7 +227,7 @@ async function run() {
       // the goods strip (owner rule): on screen with a count for each good, following the stock, and a tap opens Goods there
       const strip = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, s = document.getElementById('goodsStrip'), out = {};
-        const selling = t.sell.timber; t.sell.timber = false; t.goods.timber = 37; await wait(450); // held, so the count stays put while it is read
+        const selling = t.sell.timber; t.sell.timber = false; t.goods.timber = Math.ceil((t.keep || {}).timber || 0) + 37; await wait(450); // more than the towers keep, so its price rows show // held, so the count stays put while it is read
         const b = s && s.getBoundingClientRect(), chip = s && s.querySelector('[data-good="timber"]');
         out.shown = !!s && !s.hidden && b.width > 0 && b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight;
         out.counts = !!chip && Math.abs(+chip.querySelector('b').textContent - t.goods.timber) <= 4 && [...s.querySelectorAll('.goodchip b')].every(n => /^\d/.test(n.textContent));

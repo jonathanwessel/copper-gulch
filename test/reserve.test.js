@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { buildTower, upgradeTower, towerCost, towerReserve, setReserve, shortfall, canPay, pitSpots } from '../src/core/defense.js';
-import { output, demand, KEEP_SECONDS } from '../src/core/economy.js';
+import { buildTower, upgradeTower, towerCost, towerReserve, reserves, setReserve, setStock, shortfall, canPay, pitSpots, RESERVE } from '../src/core/defense.js';
+import { output, demand, produce, KEEP_SECONDS } from '../src/core/economy.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
 import { TOWERS, PATH_LEVEL } from '../src/data/towers.js';
 
@@ -19,37 +19,42 @@ function town(seed) {
 }
 const sum = cs => { const o = {}; for (const c of cs) for (const [k, n] of Object.entries(c.goods)) o[k] = (o[k] || 0) + n; return o; };
 
-test('a new town keeps the timber for its first Crossbow from the start', () => {
-  const g = newGame('r1', 'gulch'), t = g.town;
-  assert.equal(towerReserve(t).timber, TOWERS.crossbow.goods.gulch.timber);
-  assert.equal(t.keep.timber, TOWERS.crossbow.goods.gulch.timber);
+test('a new town keeps the timber for two Crossbows from the start, and its camp\'s output on top', () => {
+  const g = newGame('r1', 'gulch'), t = g.town, two = RESERVE.towers * TOWERS.crossbow.goods.gulch.timber;
+  assert.equal(reserves(t).use.timber, two, 'workshops leave two Crossbows of timber alone');
+  // the floor: 2 minutes of the camp, but never more than RESERVE.cap times the towers' own need
+  assert.equal(towerReserve(t).timber, Math.ceil(Math.max(two, Math.min(output(t, 'camp') * RESERVE.floor, two * RESERVE.cap))));
+  assert.deepEqual(t.keep, towerReserve(t));
 });
 
-test('the reserve adds up every tower\'s next upgrade and the cheapest new tower for each good', () => {
+test('the reserve adds up every tower\'s next two upgrades and two of the costliest new tower for each good', () => {
   const { g, t } = town('r2'); t.goods = { timber: 1e6, ore: 1e6, bricks: 1e6 };
   buildTower(g, t, 0, 'crossbow'); buildTower(g, t, 1, 'crossbow'); upgradeTower(g, t, 1); buildTower(g, t, 2, 'cannon');
-  const want = sum([towerCost(t, 'crossbow', 1), towerCost(t, 'crossbow', 2), towerCost(t, 'cannon', 1)]);
-  // per good, the cheapest stone-pad tower built with it (the first listed on a tie): timber the Crossbow, ore the
-  // Cannon, planks and clay the Frost Lens
-  for (const [g, kind] of [['timber', 'crossbow'], ['ore', 'cannon'], ['planks', 'frost'], ['clay', 'frost']]) {
-    const cheapest = Object.keys(TOWERS).filter(k => !TOWERS[k].long && TOWERS[k].goods.gulch[g]).reduce((a, k) => towerCost(t, k, 0).coins < towerCost(t, a, 0).coins ? k : a);
-    assert.equal(cheapest, kind, g);
-    want[g] = (want[g] || 0) + towerCost(t, kind, 0).goods[g];
+  // the Crossbow at level 1 counts its levels 1 and 2, the one at level 2 its levels 2 and 3, the Cannon 1 and 2
+  const want = sum([towerCost(t, 'crossbow', 1), towerCost(t, 'crossbow', 2), towerCost(t, 'crossbow', 2), towerCost(t, 'crossbow', 3), towerCost(t, 'cannon', 1), towerCost(t, 'cannon', 2)]);
+  // per good, the costliest open stone-pad tower built with it, two of them (there are more free pads than that)
+  const kinds = Object.keys(TOWERS).filter(k => !TOWERS[k].long && TOWERS[k].goods.gulch && !TOWERS[k].opens);
+  for (const good of new Set(kinds.flatMap(k => Object.keys(towerCost(t, k, 0).goods)))) {
+    const top = kinds.filter(k => towerCost(t, k, 0).goods[good]).reduce((a, k) => towerCost(t, k, 0).coins > towerCost(t, a, 0).coins ? k : a);
+    want[good] = (want[good] || 0) + RESERVE.towers * towerCost(t, top, 0).goods[good];
   }
-  assert.deepEqual(towerReserve(t), want);
+  for (const k of Object.keys(want)) want[k] = Math.ceil(want[k]);
+  assert.deepEqual(reserves(t).use, want);
+  // the floor only ever adds, and at most RESERVE.cap times the towers' own need
+  for (const [k, n] of Object.entries(towerReserve(t))) assert.ok(n >= want[k] && n <= Math.ceil(want[k] * RESERVE.cap), k);
 });
 
 test('the path choice at level 4 is kept, and a free mortar pit keeps a Mortar once it is open', () => {
   const { g, t } = town('r3'); t.goods = { timber: 1e6, copper: 1e6, bricks: 1e6 };
   buildTower(g, t, 0, 'crossbow'); for (let L = 1; L < PATH_LEVEL - 1; L++) upgradeTower(g, t, 0);
   assert.equal(t.towers[0].level, PATH_LEVEL - 1);
-  const before = towerReserve(t).timber;
-  assert.equal(before, towerCost(t, 'crossbow', PATH_LEVEL - 1).goods.timber + towerCost(t, 'crossbow', 0).goods.timber);
-  const b0 = towerReserve(t).bricks || 0;
+  const use = () => reserves(t).use;
+  assert.ok(use().timber >= towerCost(t, 'crossbow', PATH_LEVEL - 1).goods.timber + towerCost(t, 'crossbow', PATH_LEVEL).goods.timber, 'the path choice and the level after it');
+  const b0 = use().bricks || 0;
   t.flags['open:mortar'] = true;
-  assert.equal(towerReserve(t).bricks, b0 + TOWERS.mortar.goods.gulch.bricks);
+  assert.equal(use().bricks, b0 + RESERVE.towers * TOWERS.mortar.goods.gulch.bricks);
   for (const p of pitSpots(t)) buildTower(g, t, p, 'mortar'); // every pit full: only the Mortars' upgrades are kept
-  assert.equal(towerReserve(t).bricks, b0 + pitSpots(t).length * towerCost(t, 'mortar', 1).goods.bricks);
+  assert.equal(use().bricks, b0 + pitSpots(t).length * (towerCost(t, 'mortar', 1).goods.bricks + towerCost(t, 'mortar', 2).goods.bricks));
 });
 
 test('auto-sell never sells below the reserve, and then every next buy can be paid at once', () => {
@@ -68,13 +73,41 @@ test('auto-sell never sells below the reserve, and then every next buy can be pa
   assert.ok(t.lifetime > 0, 'the rest still sells');
 });
 
-test('no workshop starves because of the reserve', () => {
+test('with plenty coming in, no workshop is held back by the reserve', () => {
   const a = town('r5'), b = town('r5');
   for (const { g, t } of [a, b]) { t.goods = { timber: 500, copper: 100, bricks: 100 }; for (let i = 0; i < 8; i++) buildTower(g, t, i, 'crossbow'); }
   b.t.reserveOff = { timber: true };
   run(a.g, 120); run(b.g, 120);
   assert.deepEqual(a.t.starved, {});
   assert.deepEqual(a.t.made.planks.toFixed(3), b.t.made.planks.toFixed(3), 'the workshops make the same with or without it');
+});
+
+test('workshops leave the tower reserve alone, and say so', () => {
+  const g = newGame('r8', 'gulch'), t = g.town;
+  t.buildings = { camp: 0, saw: 2 }; t.goods = { timber: 10 };
+  const need = t.keepUse.timber;
+  assert.ok(need > 10);
+  produce(t, 1);
+  assert.equal(t.goods.timber, 10, 'the Sawmill does not touch the timber kept for Crossbows');
+  assert.equal(t.starved.saw, 'towers');
+  t.goods.timber = need + 1; produce(t, 1);
+  assert.ok(Math.abs(t.goods.timber - need) < 1e-9, 'it uses only what is above the reserve');
+  setReserve(t, 'timber', false); t.goods.timber = 10; produce(t, 1);
+  assert.ok(t.goods.timber < 10 && t.starved.saw !== 'towers', 'with Keep for towers off it uses it all');
+});
+
+test('Keep for towers on the Goods sheet: Lots keeps twice as much, is saved, and an old save starts on Normal', () => {
+  const { g, t } = town('r9');
+  buildTower(g, t, 0, 'crossbow');
+  assert.equal(t.stock, 'normal');
+  const n = { ...t.keep }, u = { ...t.keepUse };
+  setStock(t, 'lots');
+  for (const k of Object.keys(u)) assert.equal(t.keepUse[k], Math.ceil(u[k] * RESERVE.lots), k);
+  for (const k of Object.keys(n)) assert.ok(t.keep[k] >= n[k] * RESERVE.lots - 1, k);
+  setStock(t, 'heaps'); assert.equal(t.stock, 'lots', 'only Normal or Lots');
+  assert.equal(loadGame(JSON.parse(JSON.stringify(g.toJSON()))).town.stock, 'lots');
+  const s = migrate({ v: 18, at: 0, game: { towns: { gulch: { waves: { phase: 'break', foes: [], shells: [], fires: [] } } } } });
+  assert.equal(s.game.towns.gulch.stock, 'normal');
 });
 
 test('Keep for towers is on by default, and switching it off lets the good sell', () => {

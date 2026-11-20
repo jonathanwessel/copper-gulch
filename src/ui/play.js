@@ -194,7 +194,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a short workshop that makes none says so (review of 2026.11.19-8: "Makes 0 boilers a second")
     const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'None right now' : perSecond(made ? made.value : b.rate, g);
     if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
-    const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), !!town.starved[id], missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -223,6 +223,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
+    else if (town.starved[id] === 'towers' && L) {
+      // held back by the tower reserve (src/core/economy.js, WORKSHOP): the yard has the input, the towers come first
+      const g0 = Object.keys(b.inputs).find(g => (town.goods[g] || 0) - ((town.keepUse || {})[g] || 0) < uses(town, id, g)) || Object.keys(b.inputs)[0];
+      card.append(el('p', 'warn', 'Your towers get the ' + GOODS[g0].name.toLowerCase() + ' first. This runs again when there is more.'));
+    }
     else if (town.starved[id] && L && shortImp.length) {
       // the town that makes it may not have built its maker yet: then the line says to build it
       const g0 = shortImp[0], mk = makerOf(g0), src = game.towns[GOODS[g0].town], mid = mk && Object.keys(BUILDINGS).find(k => BUILDINGS[k] === mk);
@@ -577,7 +582,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Lv ' + L : 'Build') : (L ? String(L) : 'Build');
       const tl = t.firstChild; if (tl.textContent !== txt) tl.textContent = txt;
       if (t.classList.contains('quiet') === full) t.classList.toggle('quiet', !full);
-      t.classList.toggle('short', !!(L && town.starved[id]));
+      t.classList.toggle('short', !!(L && town.starved[id] === true)); // held for towers is not a problem to fix
       t.classList.toggle('goaltag', !!marked);
       t.classList.toggle('can', !!L && town.coins >= cost(town, id)); // an up mark only on a building, never on an empty plot's Build
       t.classList.toggle('boss', full && foremanOn(town, id));

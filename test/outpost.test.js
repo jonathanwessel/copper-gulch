@@ -123,7 +123,7 @@ test('while the outpost is in play it sells for itself', () => {
   const g = newGame('o8'), t = g.town;
   setHold(g, t, true);
   const c0 = t.coins;
-  run(g, 20);
+  run(g, 60); // past the stone kept for its towers
   assert.ok(t.coins > c0 + 5);
 });
 
