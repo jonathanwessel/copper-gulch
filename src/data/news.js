@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-11',
+    lines: [
+      'Perks says what signing pays, like Sign now and get 2 deeds, with fewer words around it.',
+      'On a tower, the bonus for waves you beat before says up to which wave it lasts.',
+      'The Department of Transportation names the outposts it helps.',
+      'With no contract running, the Capital just says so.',
+      'Sideways on a phone, a tower card fits without scrolling.',
+      'In Income, the bonuses say they are already in the total. A camp no longer says it is short of materials.',
+    ],
+  },
+  {
     v: '2026.11.19-10',
     lines: [
       'A finished goal says what you did, like Sand Pit is level 4.',

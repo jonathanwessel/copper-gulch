@@ -68,7 +68,7 @@ export const INSTITUTIONS = [
    no amount). Worked out from the nodes, so it never drifts from them. */
 const SAYS = {
   price: p => 'Goods sell for up to ' + p + '% more.', influence: p => 'Contracts pay up to ' + p + '% more Influence.',
-  'prod:outpost': p => 'Your outposts make up to ' + p + '% more goods.', prod: p => 'Every building makes up to ' + p + '% more goods.',
+  'prod:outpost': p => 'Outposts like Dry Creek and Pine Hollow make up to ' + p + '% more goods.', prod: p => 'Every building makes up to ' + p + '% more goods.',
   'cost:build': p => 'Buildings cost up to ' + p + '% less.', income: p => 'You earn up to ' + p + '% more coins.',
   cost: p => 'Everything costs up to ' + p + '% less.', research: p => 'Research is up to ' + p + '% faster.',
   'cost:research': p => 'Research costs up to ' + p + '% less.', towerRange: p => 'Towers reach up to ' + p + '% farther.',

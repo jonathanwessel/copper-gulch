@@ -19,9 +19,9 @@ test('every goal says what was done beside the green Done tag', () => {
 
 test('the goods kept for a path are named without their amounts', () => {
   const t = keepLine(['copper', 'bricks'], 'path');
-  assert.equal(t, 'Your buildings keep the copper and bricks for this path and never sell them.');
+  assert.equal(t, 'Copper and bricks are kept for this path, not sold.');
   assert.doesNotMatch(t, /\d/);
-  assert.equal(keepLine(['timber'], 'upgrade'), 'Your buildings keep the timber for this upgrade and never sell it.');
+  assert.equal(keepLine(['timber'], 'upgrade'), 'Timber is kept for this upgrade, not sold.');
 });
 
 test('a foreman that is not buying reads as a status, not a story', () => {

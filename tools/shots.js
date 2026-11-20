@@ -39,11 +39,11 @@ const SCREENS = [
   ['menu', () => { CG.play.openMenu(); }],
   ['research', () => { const t = CG.game.town; t.flags['open:research'] = true; t.coins = 5000; t.research = { saws: 2 }; t.lab = { id: 'walls', left: 14, total: 20 }; CG.play.openResearch(); }],
   // the Perks sheet: a charter ready to sign, two deeds held, one pair picked and one open
-  ['perks', () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 2, offered: true, perks: { trade: 'a' } }); t.bestWave = Math.max(t.bestWave, 34); t.lifetime = Math.max(t.lifetime, 1e5); CG.play.openPerks(); }],
+  ['perks', async () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 2, offered: true, perks: { trade: 'a' } }); t.bestWave = Math.max(t.bestWave, 34); t.lifetime = Math.max(t.lifetime, 1e5); (await import(new URL('src/core/charter.js', location.href).href)).applyAll(g); CG.play.openPerks(); }],
   // tap a number: where coins come from, the vault, a tower's damage, a building's output and a good's price
   ['why-income', () => { CG.play.sheets.close(); CG.game.town.sell = {}; CG.play.openIncome(); }], // waits 6 s so the numbers settle
   ['why-vault', () => { CG.play.sheets.close(); CG.play.openVault(); }],
-  ['why-tower', async () => { CG.play.sheets.close(); const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, tw = t.towers.find(x => x.spot === 3); if (tw) { let spent = 0; for (let L = 0; L < 6; L++) spent += D.towerCost(t, tw.kind, L).coins; Object.assign(tw, { level: 6, path: 'a', spent }); } t.mods.set('towerDmg', 'Gunsmith research', { mul: 1.3 }); CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }], // spent counts every level, so its sell price is real
+  ['why-tower', async () => { CG.play.sheets.close(); const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, tw = t.towers.find(x => x.spot === 3); if (tw) { let spent = 0; for (let L = 0; L < 6; L++) spent += D.towerCost(t, tw.kind, L).coins; Object.assign(tw, { level: 6, path: 'a', spent }); } const R = await import(new URL('src/core/research.js', location.href).href); t.research.gunsmith = 2; R.applyResearch(t); CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }], // spent counts every level, so its sell price is real
   // a signed town back on old ground: the tower's damage breakdown shows the Old ground factor, Call now is lit
   ['why-old', () => { CG.play.close(); const t = CG.game.town; t.record = Math.max(t.record || 0, t.wave + 20); Object.assign(t.waves, { phase: 'break', timer: 50, hold: true }); setTimeout(() => { CG.play.openSpot(3); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); }, 400); }],
   // Powder Kegs, the research that opens at wave 26
@@ -90,6 +90,7 @@ const RIDGE = [
     localStorage.clear(); document.getElementById('play').click();
     for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await new Promise(r => setTimeout(r, 100));
     const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5;
+    (await import('./src/core/outpost.js')).grantOutpost(CG.game, 'drycreek'); // every player in the Gulch has won Dry Creek
   }],
   // the goal strip once wave 20 is beaten and the coins are short: hold the waves and save
   ['ridge-save', async () => {
@@ -157,7 +158,7 @@ const FALLS = [
     const n = document.getElementById('newsOk'); if (n) n.click();
     localStorage.clear(); document.getElementById('play').click();
     for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await wait(100);
-    const g = CG.game; g.addTown('ridge'); g.addTown('pinehollow'); g.towns.ridge.bestWave = 57; g.shared.charter.deeds = 3; g.shared.purse.coins = 2e6; // Pine Hollow too, as founding the Ridge leaves it
+    const g = CG.game; (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek'); g.addTown('ridge'); g.addTown('pinehollow'); g.towns.ridge.bestWave = 57; g.shared.charter.deeds = 3; g.shared.purse.coins = 2e6; // Pine Hollow too, as founding the Ridge leaves it
     CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
     CG.mapui.openSite('falls'); await wait(1000);
   }],

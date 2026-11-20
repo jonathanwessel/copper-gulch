@@ -589,7 +589,7 @@ async function run() {
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
-        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign the charter to get 1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now and get 1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
         out.pairs = document.querySelectorAll('#sheet .pair').length >= 3 && /Needs 1 deed/.test(sheet.textContent);
         t.lifetime = life;
         return out;

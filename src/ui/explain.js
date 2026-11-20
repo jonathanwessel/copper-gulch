@@ -20,10 +20,11 @@ export function foremanLine(why, good) {
   return 'The foreman is not buying. The next level takes over an hour to pay for itself.';
 }
 /* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line
-   shows those (review of 2026.11.19-9: "20 copper and 20 bricks are set aside for this path" said the cost twice). */
+   shows those (review of 2026.11.19-9: "20 copper and 20 bricks are set aside for this path" said the cost twice). Short,
+   so a landscape tower card fits without scrolling (review of 2026.11.19-10). */
 export function keepLine(goods, what) {
   const n = goods.length > 1 ? goods.slice(0, -1).join(', ') + ' and ' + goods[goods.length - 1] : goods[0];
-  return 'Your buildings keep the ' + n + ' for this ' + what + ' and never sell ' + (goods.length > 1 ? 'them' : 'it') + '.';
+  return n[0].toUpperCase() + n.slice(1) + (goods.length > 1 ? ' are' : ' is') + ' kept for this ' + what + ', not sold.';
 }
 
 /* A value in its unit. */
@@ -91,7 +92,7 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
 export function incomeSheet(income) {
   return body => {
     const parts = el('div', 'explain why'), bonus = el('div', 'explain why'), bsec = el('div', 'sec');
-    bsec.append(el('h3', null, 'Bonuses'), bonus);
+    bsec.append(el('h3', null, 'Already counted in the total'), bonus); // review of 2026.11.19-10: Deeds × 1.5 under the total read as not yet added
     body.append(parts, bsec);
     let sig = '';
     const paint = () => {

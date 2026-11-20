@@ -115,7 +115,7 @@ test('the purse\'s income: the town in play by source, then a line for each othe
   dc.goods.stone = 50; const paid = sell(g, dc, 'stone', 10);
   t.goods.timber = 50; const own = sell(g, t, 'timber', 10);
   const ex = explainEmpireIncome(g, before, incomeSnap(g), 1);
-  assert.deepEqual(ex.rows.map(r => r.label).sort(), ['Earned in ' + g.defs.drycreek.name, 'Selling timber'].sort());
+  assert.deepEqual(ex.rows.map(r => r.label).sort(), ['Earned in Dry Creek', 'Selling timber'].sort());
   assert.ok(near(ex.value, paid + own) && near(t.coins - purse, paid + own), 'both went into the one purse');
   assert.deepEqual(ex.bonuses.map(b => [b.label, b.on]), [['Deeds', 'all']]);
   // a town switch between snapshots: the town in play starts from now, the others still count

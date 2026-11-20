@@ -248,6 +248,17 @@ html.flat .tag { position: static; transform: none !important; }
 .card .row:has(> .buy) > .btn.small { flex: 0 1 auto; min-width: 0; white-space: normal; text-wrap: balance; }
 .card .keeprow { align-items: center; justify-content: space-between; gap: 8px; }
 .card .keeprow .uses { flex: 1; font-size: .85rem; }
+/* a short landscape screen: a tighter card, so a tower's stats, its kept goods line and the pinned Upgrade row fit
+   without scrolling (review of 2026.11.19-10: the kept goods line sat half under the pinned cost row) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .card { gap: 5px; }
+  .card .explain { padding-block: 3px; }
+  .card .explain .statrow { min-height: 30px; }
+  .card > .buybar { gap: 4px; padding-block: 4px; }
+  .card .row > .buy { min-height: 38px; padding-block: 4px; font-size: 1.1rem; }
+  .card .row > .btn.small { min-height: 34px; }
+  .card > p.uses { font-size: .82rem; line-height: 1.25; }
+}
 .option small.short { color: var(--bad); }
 .option small.soon, .soon { color: var(--ink); }
 .option span.worse { color: var(--bad); }

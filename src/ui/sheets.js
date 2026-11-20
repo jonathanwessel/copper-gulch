@@ -392,7 +392,7 @@ export function perksSheet(ctx) {
     const prog = el('div', 'option charterline'), pt = el('div'); pt.append(wave, coins); prog.append(pt);
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, el('p', 'warn', 'Signing starts ' + town.def.name + ' over at wave 1. You lose its buildings, towers, research and foremen, and you pick your perks again. Your coins stay.'), r);
+    sec('Charter', now, prog, el('p', 'warn', town.def.name + ' starts over at wave 1. Its buildings, towers, research and foremen go. You keep your coins and deeds, and pick perks again.'), r);
     // the deeds held
     const held = el('p', 'uses'); held.id = 'deedsHeld';
     sec('Deeds', held);
@@ -401,16 +401,16 @@ export function perksSheet(ctx) {
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
-      const t1 = p.total ? 'Sign the charter to get ' + (c.deeds ? p.total + ' more ' + (p.total === 1 ? 'deed' : 'deeds') : plural(p.total, 'deed')) + '.' : 'Earn a deed to sign the charter.';
+      const t1 = p.total ? 'Sign now and get ' + plural(p.total, 'deed') + '.' : 'You can sign once you earn a deed here.'; // what signing pays, never beside the deeds held (review of 2026.11.19-10)
       if (now.textContent !== t1) now.textContent = t1;
-      const w = 'Best wave ' + town.bestWave + (p.wave ? ', worth ' + plural(p.wave, 'deed') : '') + '. Next deed at wave ' + n.wave + '.';
-      const k = 'You earned ' + fmt(town.ownEarned) + ' coins here' + (p.coins ? ', worth ' + plural(p.coins, 'deed') : '') + '. Next deed at ' + fmt(n.coins) + ' coins.';
+      const w = 'Wave ' + town.bestWave + ' reached. ' + plural(p.wave, 'deed') + '. Next at wave ' + n.wave + '.';
+      const k = fmt(town.ownEarned) + ' coins earned here. ' + plural(p.coins, 'deed') + '. Next at ' + fmt(n.coins) + '.';
       if (wave.textContent !== w) wave.textContent = w;
       if (coins.textContent !== k) coins.textContent = k;
       sign.disabled = !p.total;
-      const more = PERKS.some(x => x.need > c.deeds) ? ' More deeds let you pick more perks.' : '';
-      const h = (c.deeds ? 'You have ' + plural(c.deeds, 'deed') + '. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.'
-        : 'Deeds stay with you for good. Each one adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn.') + more;
+      // the pairs below say how many deeds each needs, so this line only says what the deeds do (review of 2026.11.19-10: a wall of text)
+      const h = c.deeds ? 'You have ' + plural(c.deeds, 'deed') + ', so you earn ' + Math.round(DEEDS.income * 100 * c.deeds) + '% more coins.'
+        : 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.';
       if (held.textContent !== h) held.textContent = h;
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;

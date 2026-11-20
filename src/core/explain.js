@@ -14,7 +14,7 @@ import { FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { milestonesAt, output, uses, isGrid, gridOf } from './economy.js';
 import { saturation, eventFactor } from './market.js';
-import { towerStats, wavesOf, vaultMax } from './defense.js';
+import { towerStats, wavesOf, vaultMax, OLD_LABEL } from './defense.js';
 
 /* The named sources on a stat as rows, plus a "Top limit" row when the stat's cap holds it back. */
 export function modRows(mods, stat) {
@@ -43,8 +43,10 @@ export const SHORT_SHARE = .97;
 export function explainMade(town, id) {
   const ex = explainOutput(town, id), full = ex.value, ran = town.ran && town.ran[id];
   ex.short = null; ex.lacking = false;
-  if (!town.level(id) || !(full > 0) || ran === undefined || ran >= full * SHORT_SHARE) return ex;
-  const ins = Object.keys(BUILDINGS[id].inputs), out = output(town, id);
+  const ins = Object.keys(BUILDINGS[id].inputs);
+  // a camp needs nothing, so it is never short: its smoothed rate only lags a new bonus (review of 2026.11.19-10 screenshots)
+  if (!ins.length || !town.level(id) || !(full > 0) || ran === undefined || ran >= full * SHORT_SHARE) return ex;
+  const out = output(town, id);
   const g = ins.find(k => isGrid(k) ? gridOf(town).share < .999 : (town.goods[k] || 0) < out * uses(town, id, k)) || null;
   ex.short = g; ex.lacking = true;
   ex.rows.push({ label: g ? 'Not enough ' + GOODS[g].name.toLowerCase() : 'Not enough materials', mul: Math.max(0, ran) / full });
@@ -73,7 +75,8 @@ export function explainTower(town, t) {
     const rows = [{ label: name, base }];
     if (L > 1 && levelMul !== 1) rows.push({ label: lv, mul: levelMul });
     if (p && pathMul && pathMul !== 1) rows.push({ label: p.name + ' path', mul: pathMul });
-    rows.push(...modRows(town.mods, stat));
+    // the old-waves bonus names the wave it lasts to (review of 2026.11.19-10: "Until you beat your best wave" was unclear)
+    rows.push(...modRows(town.mods, stat).map(r => (r.label === OLD_LABEL ? { ...r, label: oldWavesLabel(town) } : r)));
     return done(unit, rows);
   };
   const out = {
@@ -87,6 +90,9 @@ export function explainTower(town, t) {
   if (out.poison) out.poison.value = st.poison;
   return out;
 }
+
+/* The tower card's row for the old-waves bonus: "Already beaten, up to wave 57". */
+export const oldWavesLabel = town => 'Already beaten, up to wave ' + (town.record || 0);
 
 /* The vault's strength in hits (a stockpile's too), and how many hits each raider that gets there takes. */
 export function explainVault(town) {
@@ -103,7 +109,7 @@ export function explainVault(town) {
    snapshots of the tally and the seconds between them, the coins a second from each, biggest first, and the bonuses
    already in those numbers. explainEmpireIncome adds a row for every other town and outpost ('town:<id>'), since all
    their coins go into the same purse. */
-const townName = id => (TOWNS[id] ? TOWNS[id].name : id);
+const townName = id => (TOWNS[id] ? TOWNS[id].short || TOWNS[id].name : id); // the name the map uses (review of 2026.11.19-10: "Dry Creek Outpost")
 export function incomeLabel(key) {
   const [kind, id] = key.split(':');
   if (kind === 'sale') return 'Selling ' + (GOODS[id] ? GOODS[id].name.toLowerCase() : id);

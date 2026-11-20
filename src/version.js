@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.19-10';
-export const GAME_NEWS = 'Done goals say what you did, every town in view on the map, plainer Goods and lost messages';
+export const GAME_VERSION = '2026.11.19-11';
+export const GAME_NEWS = 'Plainer Perks card, the old waves bonus names its wave, a landscape tower card that fits';

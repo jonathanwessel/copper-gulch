@@ -74,7 +74,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}
       const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (fill.style.width !== w) fill.style.width = w;
       setText(when, eta(game, a));
     });
-  } else box.append(el('p', 'warn', 'Take a contract. The town on it starts sending the goods.'));
+  } else box.append(el('p', 'uses', 'No contract running.')); // a state, not a how-to in warning red (review of 2026.11.19-10)
   box.append(el('h3', '', 'Contracts'));
   const list = el('div', 'goods research');
   if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build more workshops in your towns.'));
