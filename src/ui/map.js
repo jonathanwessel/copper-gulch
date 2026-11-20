@@ -7,6 +7,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive, splitLive, vaultCount } from './format.js';
+import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
@@ -142,7 +143,7 @@ export function mountMap(root, game, view, shell) {
   for (const s of view.sites) {
     const b = el('button', 'mapbadge'); b.dataset.site = s.id;
     const nm = el('b', '', shortOf(s.id)), line = el('span', 'mline'), vault = el('span', 'mvault'), fill = el('span', 'vnum'), extra = el('span', 'minc');
-    vault.append(el('span', '', (TOWNS[s.id] && TOWNS[s.id].store) === 'stockpile' ? '· Stock' : '· Vault'), fill); // the wave bar's word and count, "Vault 12/20" (review of 2026.11.20-13: a bar with no word)
+    vault.append(el('span', '', '·'), heart(), fill); // the wave bar's heart and count, "♥ 12" (review of 2026.11.20-14; review of 2026.11.20-13: a bar with no word)
     b.append(nm, line); line.append(extra); // the wave and what it earns on one line: two lines tall, so a label covers less of the town above it (review of 2026.11.20-13: Iron Ridge's label over Pine Hollow)
     b.addEventListener('click', () => openSite(s.id));
     badges.append(b);
@@ -212,7 +213,7 @@ export function mountMap(root, game, view, shell) {
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
-          if (!r.done) kids.push(el('p', 'uses', 'Get deeds by signing a charter in Perks.'));
+          if (!r.done) kids.push(el('p', 'uses', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.')); // says what a charter does (review of 2026.11.20-14)
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
@@ -261,7 +262,7 @@ export function mountMap(root, game, view, shell) {
       // a place ready to build or start is not locked (review of 2026.11.20-9: a lock on "Capital · Ready to build")
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)) && !lockedRules(game, s.id).ready);
       if (info) {
-        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Waiting' : info.alert === 'retrying' ? ' · Retrying' : '';
+        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · On hold' : info.alert === 'retrying' ? ' · Retrying' : '';
         setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
         // a town on hold shows its status in place of the vault bar, which refilled when it dropped back (review of
         // 2026.11.20-9: the bar poked out of "Wave 18 · Tries again soon")

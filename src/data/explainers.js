@@ -91,14 +91,14 @@ export const EXPLAINERS = [
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Keep for towers',
-    text: 'Tap Keep for towers to keep enough for the next 4 levels of every tower. Building towers waits less, but you sell fewer goods.',
+    title: 'Goods for towers',
+    text: 'Tap this switch to keep enough for 4 upgrades of every tower. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
     id: 'waves', covers: ['call'],
     title: 'Waves',
-    text: 'Raiders come in waves. Each raider that gets through lowers the number beside the wave. Tap Call now to start the next wave early and get bonus coins. Tap it right away and the wave has more raiders.',
+    text: 'Raiders come in waves. Each raider that gets through lowers the number by the heart. Tap Call now to start the next wave early and get bonus coins. Tap it right away and the wave has more raiders.',
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {

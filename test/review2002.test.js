@@ -20,7 +20,7 @@ test('the foreman and kept-goods lines are short statuses', () => {
   assert.equal(foremanLine('short', 'timber'), 'Waiting for more timber.');
   assert.equal(keepLine(['copper ore'], 'upgrade'), 'Saving copper ore for this upgrade.');
   for (const t of [foremanLine('slow', 'timber'), keepLine(['copper', 'bricks'], 'path')]) assert.deepEqual(textIssues(t), []);
-  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Won before signing');
 });
 
 test('the price bar ends in a word for where the price stands', () => {

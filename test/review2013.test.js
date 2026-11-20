@@ -14,11 +14,12 @@ import { textIssues } from '../tools/audit.js';
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('the vault is hits left of full, never more than 5 characters', () => {
-  assert.equal(vaultCount({ hp: 20, max: 20 }), '20/20');
-  assert.equal(vaultCount({ hp: 11.2, max: 20 }), '12/20', 'a part hit still stands');
-  assert.equal(vaultCount({ hp: -3, max: 25 }), '0/25');
-  assert.equal(vaultCount({ hp: 30, max: 25 }), '25/25');
-  assert.equal(vaultCount({ hp: 120, max: 150 }), '120', 'past 99 only the hits');
+  // only the hits beside a heart since the review of 2026.11.20-14
+  assert.equal(vaultCount({ hp: 20, max: 20 }), '20');
+  assert.equal(vaultCount({ hp: 11.2, max: 20 }), '12', 'a part hit still stands');
+  assert.equal(vaultCount({ hp: -3, max: 25 }), '0');
+  assert.equal(vaultCount({ hp: 30, max: 25 }), '25');
+  assert.equal(vaultCount({ hp: 120, max: 150 }), '120');
   for (const max of [1, 9, 20, 37.5, 99, 100, 999, 5e3, 1e4]) for (const f of [0, .37, 1]) assert.ok(vaultCount({ hp: max * f, max }).length <= 5, max + ' ' + f);
   const play = read('src/ui/play.js'), html = read('index.html');
   assert.ok(play.includes('setText(vault, vaultCount(town.vault))'));
@@ -28,23 +29,23 @@ test('the vault is hits left of full, never more than 5 characters', () => {
 
 test('a map label shows the vault only once it took hits, with its word', () => {
   const map = read('src/ui/map.js');
-  assert.ok(map.includes("'· Stock' : '· Vault'"));
+  assert.ok(map.includes("vault.append(el('span', '', '·'), heart(), fill)"));
   assert.ok(map.includes('hit = !!tv && tv.hp < tv.max - 1e-9'));
   assert.ok(map.includes('line.append(extra)'), 'the wave and the coins share a line');
   assert.ok(!map.includes("'Playing now'"));
 });
 
 test('the words the review flagged', () => {
-  assert.equal(oldWavesLabel(), 'Wave beaten before');
-  assert.equal(stockWords({ stock: 'normal' }), '2 levels each');
-  assert.equal(stockWords({ stock: 'lots' }), '4 levels each');
+  assert.equal(oldWavesLabel(), 'Won before signing');
+  assert.equal(stockWords({ stock: 'normal' }), '2 upgrades');
+  assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   const sheets = read('src/ui/sheets.js'), play = read('src/ui/play.js');
   assert.ok(sheets.includes("'On hold until a tower goes up a level'") && sheets.includes("'On hold until Auto-towers can upgrade'"));
   assert.ok(!sheets.includes("'On hold for now'"));
   assert.ok(sheets.includes("plural(d, 'deed') + ' · '"), '"2 deeds · 50% more coins"');
   assert.ok(!play.includes("'Either path'"));
   assert.ok(play.includes("{ kind: 'tomap' }") && read('src/main.js').includes("dropToasts('tomap')"));
-  for (const s of ['Wave beaten before', '2 levels each', 'On hold until a tower goes up a level', 'On hold until Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won before signing', '2 upgrades', 'On hold until a tower goes up a level', 'On hold until Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('chips, Best against and landscape cards keep one layout', () => {

@@ -27,7 +27,7 @@ test('the foreman, old-waves, research and lost lines read as plain statuses', (
   const f = foremanLine('flooded', 'timber');
   assert.equal(f, 'Foreman paused while the timber price is low.');
   assert.doesNotMatch(f, /better .* price/);
-  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Won before signing');
   assert.ok(oldWavesLabel({ record: 22 }).length <= 20);
   assert.equal(levelsDone(0, 5), '0 of 5 done');
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss', back: 18 } };

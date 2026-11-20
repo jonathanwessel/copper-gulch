@@ -212,7 +212,10 @@ export class CameraRig {
       this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
       return;
     }
-    const ring = !raw.some(fits) || (q.x - e.l > r.left + 8 && q.x + e.r < W - 8 && q.y - e.u > top + 8 && q.y + e.d < H - 8 && (q.x + e.r < cv.l || q.x - e.l > cv.r || q.y + e.d < cv.t || q.y - e.u > cv.b)); // its circle is in view and clear of the card, or fits nowhere
+    // its circle is in view and clear of the card and the goods strip, or fits nowhere (review of 2026.11.20-14: in
+    // short-land and pit-land the ring ran under the strip)
+    const offStrip = !lw || q.x + e.r < lw.l || q.x - e.l > lw.r || q.y + e.d < lw.t - 4 || q.y - e.u > lw.b;
+    const ring = !raw.some(fits) || (offStrip && q.x - e.l > r.left + 8 && q.x + e.r < W - 8 && q.y - e.u > top + 8 && q.y + e.d < H - 8 && (q.x + e.r < cv.l || q.x - e.l > cv.r || q.y + e.d < cv.t || q.y - e.u > cv.b));
     if (clear && ring && q.y > top + TOP_GAP && q.y < H - 20 && q.x > r.left + SIDE_GAP && q.x < W - SIDE_GAP) return; // well on screen and not under the card
     let best = null, bd = Infinity;
     for (const a of parts) {

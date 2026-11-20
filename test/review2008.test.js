@@ -28,19 +28,19 @@ test('every price under 1 coin reads one way, and the bar ends in a price word',
 });
 
 test('the Goods switch reads like the building cards\' Keep switch and says what it keeps for', () => {
-  assert.equal(STOCK_LABEL, 'Keep for towers');
+  assert.equal(STOCK_LABEL, 'Each tower keeps goods for');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
-  assert.match(ex.text, /^Tap Keep for towers/);
+  assert.match(ex.text, /^Tap this switch/);
   assert.deepEqual(textIssues(ex.text), []);
   assert.ok(read('src/ui/play.js').includes("'Keep for towers'"));
 });
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Won before signing');
   assert.ok(oldWavesLabel({}).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   const play = read('src/ui/play.js');
-  assert.match(play, /const coinCost = need => fmtLive\(town\.coins\)/);
+  assert.ok(play.includes("const coinCost = need => fmt(need) + ' coins'"), 'the price first since the review of 2026.11.20-14');
   assert.match(play, /const pc = costRow\(c, true\)/);
 });
 
@@ -63,8 +63,8 @@ test('the Capital says Influence the same way on its card and map label, and the
   assert.equal(influenceWords(10.7), '10 Influence');
   const map = read('src/ui/map.js');
   assert.ok(map.includes('Influence') && map.includes("id = 'influence'")); // under the coins since review of 2026.11.20-10
-  assert.match(map, /' · Waiting'/);
-  assert.ok(map.includes('Get deeds by signing a charter in Perks.'));
+  assert.ok(map.includes("info.alert === 'retry' ? ' · On hold'"));
+  assert.ok(map.includes('Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.'));
   assert.match(read('src/data/towns/ridge.js'), /makesText: 'iron, steel, rails, boilers and locomotives'/);
 });
 

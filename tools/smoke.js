@@ -215,14 +215,14 @@ async function run() {
         out.short = !!sh && /Lumber Camp|enough timber in about/.test(sh.textContent); // a wait under 20 s has no advice
         // "You will have enough timber in about ..." is good news: plain ink, not red (#f07067)
         out.calm = !!sh && (/^You will have enough/.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
-        out.haveNeed = low.some(x => /^Timber0 \/ \d+$/.test(x)); // the cost says have / need, red when short
+        out.haveNeed = low.some(x => /^\d+ timberhave 0$/.test(x)); // the price, then have under it, red when short (review of 2026.11.20-14)
         // coins too, kept up with the purse in place (review 2026-11-18): short shows red, enough shows plain
         // (the card is rebuilt when the coins cross the price, so the cell is looked up again each time)
         const cell = () => document.querySelector('#card .costrow .coinneed'), c0 = cell(), need = c0 ? +c0.dataset.need : 0, had = CG.game.shared.purse.coins;
         CG.game.shared.purse.coins = Math.max(0, need - 1); await wait(450);
-        let cn = cell(); out.coinShort = !!cn && cn.classList.contains('low') && / \/ [\d.KM]+ coins$/.test(cn.textContent);
+        let cn = cell(); out.coinShort = !!cn && cn.classList.contains('low') && /^[\d.KM]+ coinshave [\d.KM]+$/.test(cn.textContent);
         CG.game.shared.purse.coins = need + 5; await wait(450);
-        cn = cell(); out.coinOk = !!cn && !cn.classList.contains('low') && / \/ [\d.KM]+ coins$/.test(cn.textContent);
+        cn = cell(); out.coinOk = !!cn && !cn.classList.contains('low') && /^[\d.KM]+ coinshave [\d.KM]+$/.test(cn.textContent);
         CG.game.shared.purse.coins = had;
         CG.town.pause('smoke', false); CG.play.close();
         return out;
@@ -617,9 +617,9 @@ async function run() {
         out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         // one runs at a time, and another lines up next with a tap (review of 2026.11.20-6: no grayed Busy), off with a second tap
         const w = document.querySelector('#sheet [data-research="walls"]');
-        out.lineUp = !w.disabled && w.textContent === 'Do next';
+        out.lineUp = !w.disabled && w.textContent === 'Research next';
         w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
-        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Do next';
+        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Research next';
         out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /burn one more timber/.test(sheet.textContent);
         return out;

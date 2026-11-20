@@ -9,7 +9,7 @@ import { CAPITAL_DEF } from '../data/capital.js';
 import { INSTITUTIONS, boughtText, outpostWords } from '../data/institutions.js';
 import { isOutpost } from '../core/economy.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
-import { fmt } from './format.js';
+import { fmt, haveWords } from './format.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 /* A line with a small label chip in front ("Next" and what it does), so no dot stands where a colon would go (review of 2026.11.20-5). */
@@ -76,7 +76,7 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
     const row = el('div', 'option running'), txt = el('div'), name = el('b', '', fmt(a.need) + ' ' + lower(a.good) + ' from ' + townName(a.town));
     const got = el('small'), bar = el('i', 'depth'), fill = el('i'), when = el('span');
     bar.append(fill); txt.append(name, el('span', '', pays(game, a)), got, bar, when);
-    const drop = el('button', 'btn small', 'Drop'); drop.id = 'contractDrop';
+    const drop = el('button', 'btn small', 'Give up'); drop.id = 'contractDrop'; // review of 2026.11.20-14: "Drop" was unclear
     confirmTap(drop, () => lostAsk(a), () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
@@ -102,11 +102,12 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
   return { el: box, paint, sig: () => 'c|' + (c.active ? c.active.id : 0) + '|' + c.offers.map(o => o.id).join(',') };
 }
 
-/* What the second tap on Drop or Switch costs: the goods already sent stay at the Capital, unpaid. */
+/* What the second tap on Give up or Switch costs: the goods already sent stay at the Capital, unpaid. */
 export const lostAsk = a => (a.got >= 1 ? 'Lose ' + fmt(Math.floor(a.got)) + ' sent?' : 'Tap again');
 
-/* "12 / 35 Influence", red when short. */
-function cost(small, have, need, unit) { setText(small, fmt(Math.floor(have)) + ' / ' + fmt(need) + ' ' + unit); small.classList.toggle('short', have + 1e-9 < need); }
+/* "35 Influence · have 12", red when short. */
+function cost(small, have, need, unit) { setText(small, fmt(need) + ' ' + unit + ' · ' + haveWords(Math.floor(have))); // the price first (review of 2026.11.20-14)
+  small.classList.toggle('short', have + 1e-9 < need); }
 
 /* The Institutions tab: one row per institution. Not founded, what it does and Found. Founded, how many upgrades it has
    and the next one with Buy. */

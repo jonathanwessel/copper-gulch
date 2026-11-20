@@ -41,7 +41,7 @@ test('the path price, the deeds and the vault bar each say what they are', () =>
   const play = read('src/ui/play.js'), sheets = read('src/ui/sheets.js'), html = read('index.html');
   assert.ok(!play.includes("'Either path'"), 'the path price has its own row (review of 2026.11.20-13)');
   assert.ok(sheets.includes('each.hidden = !!p.total'), 'the deed line hides while After signing says it');
-  assert.ok(play.includes("el('small', 'vlabel', store === 'vault' ? 'Vault' : 'Stock')"), 'the count keeps its word');
+  assert.ok(play.includes('vaultBtn.append(heart(), vault)'), 'the count keeps its mark, a heart since the review of 2026.11.20-14');
   assert.ok(!html.includes('.safe {'), 'the unlabeled strongbox left');
   assert.match(html, /\.card:has\(> \.pathbar\) \{ width: min\(54%, 480px\); \}/);
 });

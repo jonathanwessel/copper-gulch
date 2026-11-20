@@ -88,12 +88,14 @@ export function fmtLive(n) {
   const s = v < 10 ? (Math.floor(v * 100 + 1e-9) / 100).toFixed(2) : v < 100 ? (Math.floor(v * 10 + 1e-9) / 10).toFixed(1) : String(Math.floor(v + 1e-9));
   return s + SUFFIX[i];
 }
-/* The vault on the wave bar and the map labels: the hits it can take, out of its full strength, "20/20" (review of
-   2026.11.20-13: a green bar read as a countdown). Past 99 only the hits, so the cell never holds more than 5 characters. */
+/* The vault on the wave bar and the map labels: the hits it can take, beside a heart (src/ui/heart.js), at most 5
+   characters (review of 2026.11.20-14: "Vault 20/20" read as gold; review of 2026.11.20-13: a green bar read as a countdown). */
 export function vaultCount(v) {
   const max = Math.max(1, Math.floor((v && v.max) || 0)), hp = Math.min(max, Math.max(0, Math.ceil((v && v.hp) || 0)));
-  return max < 100 ? hp + '/' + max : fmtLive(hp);
+  return fmtLive(hp);
 }
+/* What you have, under a price: "have 400" (review of 2026.11.20-14: "400 / 12 coins" read as 400 out of 12). */
+export const haveWords = n => 'have ' + fmtLive(Math.max(0, n));
 /* How long ago, from milliseconds: "just now", "5 min ago", "3 h ago", "2 days ago". */
 export function ago(ms) {
   const s = Math.max(0, ms) / 1000;

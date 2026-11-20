@@ -17,7 +17,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -67,10 +67,10 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
-export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' levels each'; // "Keep for towers · 2 levels each": for every tower (review of 2026.11.20-13: "Next 2 levels" did not say of what)
+export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades'; // "Each tower keeps goods for · 2 upgrades", one sentence (review of 2026.11.20-14: "2 levels each" was unclear) // "Keep for towers · 2 levels each": for every tower (review of 2026.11.20-13: "Next 2 levels" did not say of what)
 /* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
-export const STOCK_LABEL = 'Keep for towers'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
+export const STOCK_LABEL = 'Each tower keeps goods for'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -246,7 +246,7 @@ export function researchSheet(game, town) {
           : block === 'max' ? 'All ' + r.max + ' levels done'
           : [levelsDone(L, r.max), 'takes ' + span(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
-        const need = researchCost(town, id), pt = fmtLive(town.coins) + ' / ' + fmt(need) + ' coins';
+        const need = researchCost(town, id), pt = fmt(need) + ' coins · ' + haveWords(town.coins); // the price first (review of 2026.11.20-14)
         x.costs.hidden = !!lab || block === 'max';
         if (x.price.textContent !== pt) x.price.textContent = pt;
         x.price.classList.toggle('low', town.coins + 1e-9 < need);
@@ -254,7 +254,7 @@ export function researchSheet(game, town) {
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
         // while another runs, the others line up one next (review of 2026.11.20-6: "Busy" on a grayed button)
         const next = town.labNext === id, lineUp = !lab && !!town.lab && block !== 'max';
-        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Do next' : 'Research'; // "Next" read as a next page (review of this release)
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Research next' : 'Research'; // the same verb as the free button (review of 2026.11.20-14: "Do next" beside Research) // "Next" read as a next page (review of this release)
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block && !lineUp; x.row.classList.toggle('running', !!lab); x.go.classList.toggle('on', next);
       }

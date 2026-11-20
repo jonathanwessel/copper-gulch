@@ -11,7 +11,7 @@ import { priceNote } from '../src/ui/format.js';
 import { foremanLine } from '../src/ui/explain.js';
 
 test('the old-waves row says the towers are stronger and why', () => {
-  assert.equal(oldWavesLabel({ record: 23 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 23 }), 'Won before signing');
 });
 
 test('the foreman line says when it buys, never its reasons', () => {

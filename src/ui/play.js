@@ -33,7 +33,8 @@ import { waveSheet, waveTimer } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords } from './format.js';
+import { heart } from './heart.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
 const GOAL_LIFT = 18;
@@ -76,8 +77,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the wave number opens the raiders card (the next wave's raiders left the bar, owner 2026-11-19), the vault bar its strength
   const waveNum = el('b'), vault = el('span', 'vnum'), waveInfo = el('span', 'winfo'); // the vault as hits left of its full strength, "20/20" (review of 2026.11.20-13: the bar read as a countdown)
   const waveBtn = el('button', 'wavebtn'); waveBtn.id = 'waveBtn'; waveBtn.append(waveNum);
-  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(el('small', 'vlabel', store === 'vault' ? 'Vault' : 'Stock'), vault); // tap it: the vault's strength explained. Its name over the bar says what the bar is (review of 2026.11.20-12: a strongbox icon and a green bar with no word read as nothing; review of 2026.11.19-14 had added the icon)
-  vaultBtn.setAttribute('aria-label', store[0].toUpperCase() + store.slice(1));
+  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(heart(), vault); // a heart and the hits it can take, the same at every place (review of 2026.11.20-14: the small "Vault" and "Stock" read as gold) // tap it: the vault's strength explained. Its name over the bar says what the bar is (review of 2026.11.20-12: a strongbox icon and a green bar with no word read as nothing; review of 2026.11.19-14 had added the icon)
+  vaultBtn.setAttribute('aria-label', 'Hits the ' + store + ' can take');
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
   wave.append(waveBtn, vaultBtn, waveInfo, call);
@@ -325,15 +326,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:
      coins showed only a price). The coins cell keeps up with the purse 5 times a second (paintCoinCosts), so the card is
      not rebuilt for it. */
-  const coinCost = need => fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // one have / need form on every card, the path bar too (review of 2026.11.20-9: the path bar's price-first form was the odd one out) // lead: the price first, after "Each path costs" (review of 2026.11.20-8: it read as a 9.99M price) // the purse as the top bar writes it
+  const coinCost = need => fmt(need) + ' coins'; // the price first, what you have under it (review of 2026.11.20-14: "400 / 12 coins" read as 400 out of 12) // one have / need form on every card, the path bar too (review of 2026.11.20-9: the path bar's price-first form was the odd one out) // lead: the price first, after "Each path costs" (review of 2026.11.20-8: it read as a 9.99M price) // the purse as the top bar writes it
   const costRow = (c, lead = false) => {
-    const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins, lead));
+    const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''));
+    const ct = el('span', 'nd', coinCost(c.coins)), ch = el('small', 'hv', haveWords(town.coins)); cc.append(ct, ch);
     cc.dataset.need = c.coins; if (lead) cc.dataset.lead = '1'; r.append(cc);
     for (const [g, n] of Object.entries(c.goods)) {
       const have = Math.floor((town.goods[g] || 0) + 1e-9), p = el('span', 'need goodneed' + (have < n ? ' low' : ''));
       p.dataset.good = g; p.dataset.need = n;
-      const num = el('span', 'hn', fmtLive(have) + ' / ' + n); // the count as the goods strip writes it, kept up in place (paintCoinCosts)
-      p.title = GOODS[g].name; p.append(goodIcon(g), el('span', 'gname', GOODS[g].name), num);
+      const top = el('span', 'nd'); top.append(goodIcon(g), el('span', 'gname', fmt(n) + ' ' + GOODS[g].name.toLowerCase()));
+      p.title = GOODS[g].name; p.append(top, el('small', 'hv hn', haveWords(have))); // the count as the goods strip writes it, kept up in place (paintCoinCosts)
       r.append(p);
     }
     return r;
@@ -416,7 +418,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
       const pc = costRow(c, true); // one price above two Choose buttons (review of 2026.11.19-13), on its own row under Pick a path with no label (review of 2026.11.20-13: "Either path 9.99M / 2.31K coins" read as a cut-off label, and Bricks wrapped)
-      ph.append(pt, pc); bar.append(ph);
+      const pw = el('div', 'pathcost'); pw.append(el('small', null, 'Either path costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
+      ph.append(pt, pw); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
@@ -520,6 +523,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (su !== stripUp) { stripUp = su; ui.style.setProperty('--stripup', su + 'px'); }
     // a side card (a short landscape screen) leaves the strip the room to its left, so it covers no count
     let sw = '';
+    // one row beside a side card only when the goods it must show fit in it (the tower goods always show, so on a wide
+    // path card they ran under the card)
+    const oneFits = w => { const n = Math.max(3, Math.floor(w / 84)), f = stripFit(town, n - (gridMaker() ? 1 : 0)); return f.list.length + (f.more ? 1 : 0) + (gridMaker() ? 1 : 0) <= n; };
     // (a side sheet too: review of 2026.11.19-7, the Perks and Menu sheets cut "Clay 40" in landscape)
     const sheetEl = sheets.current ? document.getElementById('sheet') : null;
     if (!strip.hidden) for (const p of [openId && !card.hidden ? card : null, sheetEl]) {
@@ -536,7 +542,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a phone held upright with more goods than three columns hold: four smaller chips a row, name under the count, so
     // fewer goods hide behind a more box (review of 2026.11.20-3: "more boxes hide goods")
     const dense = !sw && !shortLand() && innerWidth < 600 && stripGoods(town).length > 6;
-    { const nw = !!sw || shortLand() || dense, one = !sw && shortLand(); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips
+    { const nw = !!sw || shortLand() || dense, one = shortLand() && (!sw || oneFits(parseInt(sw))); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips, beside a side card too, so a picked building or its ring has room above it (review of 2026.11.20-14: short-land, pit-land, foreman-wait-land)
     room = stripRoom(strip); // the strip's two rows, read here with the other measures (the layout is fresh)
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second
     if (goalCur && goalCur.wait && doneFor <= 0) setText(goalWords, goalText(game, town, goalCur)); // "Wait for..." until it can be paid
@@ -605,11 +611,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   function paintCoinCosts() {
     if (card.hidden) return;
-    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need)); n.classList.toggle('low', town.coins + 1e-9 < need); }
+    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need, h = n.querySelector('.hv'); if (h) setText(h, haveWords(town.coins)); n.classList.toggle('low', town.coins + 1e-9 < need); }
     // each good's have / need too, so it reads the same as the goods strip (review of 2026.11.19-4: the card said 5 / 9 while the strip said 6)
     for (const n of card.querySelectorAll('.goodneed')) {
       const need = +n.dataset.need, have = Math.floor((town.goods[n.dataset.good] || 0) + 1e-9), h = n.querySelector('.hn');
-      if (h) setText(h, fmtLive(have) + ' / ' + need); n.classList.toggle('low', have < need);
+      if (h) setText(h, haveWords(have)); n.classList.toggle('low', have < need);
     }
   }
   // income: coins earned over the last few seconds

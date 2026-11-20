@@ -123,8 +123,9 @@ html.no3d body { background: var(--bg); }
 .wavebtn { flex: none; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .wave.old b { color: var(--gold); } /* towers hit harder on waves beaten before (the tower card's "Beaten waves" row) */
 .vault { width: 44px; height: 10px; background: var(--line); border: 1px solid #000; display: block; }
-.vlabel { font-size: .74rem; line-height: 1; color: var(--ink); opacity: .8; } /* the count's name over it: Vault, or Stock at an outpost */
-.vnum { display: block; width: 5ch; font-size: .8rem; line-height: 1; text-align: center; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; } /* hits left of full, "20/20", one width (src/ui/format.js vaultCount) */
+.heart { display: inline-block; width: 14px; height: 12px; flex: none; color: #d8483a; } /* the vault's mark (src/ui/heart.js) */
+.heart svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.vnum { display: inline-block; width: 5ch; font-size: .85rem; line-height: 1; text-align: left; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; } /* the hits it can take, at most 5 characters, one width (src/ui/format.js vaultCount) */
 .vnum.low { color: var(--bad); }
 .vault i { display: block; height: 100%; background: var(--good); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .winfo { color: var(--muted); white-space: nowrap; overflow: hidden; min-width: 0; flex: none; width: 5.6em; text-align: center; } /* one width whatever it says: in 28s, On hold, Fighting */
@@ -200,7 +201,7 @@ html.no3d body { background: var(--bg); }
 .pathhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; } /* its price row takes the full width under Pick a path */
 .pathhead > div { display: grid; }
 .pathhead b { color: var(--copper-hi); }
-.pathhead small { color: var(--muted); font-size: .75rem; }
+.pathhead small { color: var(--ink); font-size: .8rem; } /* "Can't be undone" readable, not tiny gray (review of 2026.11.20-14) */
 .pathhead .cost { color: var(--gold); font-size: .85rem; text-align: right; }
 .tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .tag {
@@ -267,7 +268,7 @@ html.flat .tag { position: static; transform: none !important; }
 .explain .statrow.on b::after, .stat[aria-expanded="true"] b::after { transform: rotate(45deg); margin-bottom: 3px; }
 .tapwhy { cursor: pointer; }
 .coins { cursor: pointer; }
-.vaultbtn { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.vaultbtn { display: inline-flex; flex-direction: row; justify-content: center; align-items: center; gap: 4px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
 .card .row { justify-content: stretch; }
@@ -355,7 +356,8 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .mapbadge b { font-size: .85rem; color: var(--copper-hi); white-space: nowrap; }
 .mapbadge .mline { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.mapbadge .mvault { display: inline-flex; gap: 4px; align-items: baseline; }
+.mapbadge .mvault { display: inline-flex; gap: 4px; align-items: center; }
+.mapbadge .heart { width: 11px; height: 10px; }
 .mapbadge .mvault[hidden] { display: none; }
 .mapbadge .vnum { width: auto; font-size: inherit; }
 .mapbadge .minc { color: var(--good); }
@@ -465,8 +467,8 @@ html.flat .tag { position: static; transform: none !important; }
 .goodstrip.narrow .goodchip .gicon { grid-row: 1; grid-column: 1; }
 .goodstrip.narrow .goodchip b { grid-row: 1; grid-column: 2; margin-left: 0; line-height: 1.15; }
 .goodstrip.narrow .goodchip .gname { grid-row: 2; grid-column: 1 / 3; line-height: 1.15; font-size: .74rem; }
-/* a phone turned sideways with no side card: one row (src/ui/play.js, shortLand), as many small chips as fit. Beside a
-   side card it keeps two rows, so every name shows whole. */
+/* a phone turned sideways: one row (src/ui/play.js, shortLand), as many small chips as fit, beside a side card too
+   (review of 2026.11.20-14: two rows left a picked building or its ring under the strip). The tower goods always show. */
 @media (orientation: landscape) and (max-height: 500px) {
   .goodstrip.oneline { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(76px, 110px); }
 }
@@ -480,7 +482,12 @@ html.flat .tag { position: static; transform: none !important; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */
 .costrow { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; font-size: .82rem; color: var(--ink); }
-.costrow .need { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.costrow .need { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; white-space: nowrap; } /* the price, then "have 400" under it (review of 2026.11.20-14) */
+.costrow .need .nd { display: inline-flex; align-items: center; gap: 4px; }
+.costrow .need .hv { font-size: .76rem; color: var(--ink); opacity: .85; font-variant-numeric: tabular-nums; }
+.costrow .need.low .hv { color: var(--bad); opacity: 1; }
+.pathcost { display: grid; gap: 2px; flex-basis: 100%; }
+.pathcost > small { color: var(--ink); font-size: .78rem; }
 .costrow .need .gname { color: var(--ink); }
 .costrow .need.low, .costrow .need.low .gname { color: var(--bad); }
 .powerline .need { font-weight: 700; color: var(--ink); }
@@ -489,7 +496,7 @@ html.flat .tag { position: static; transform: none !important; }
 .pathhead .costrow { margin-top: 0; flex-basis: 100%; }
 .option .depth { display: block; height: 6px; margin-top: 3px; background: var(--line); }
 .option .depthrow { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
-.option .depthrow small { font-size: .7rem; color: var(--muted); white-space: nowrap; } /* "2 coins each" never wraps (review of 2026.11.20-6) */
+.option .depthrow small { font-size: .78rem; color: var(--ink); white-space: nowrap; } /* "2 coins each" never wraps (review of 2026.11.20-6) */
 .option .depthrow .depth { flex: 1 1 auto; margin-top: 0; }
 .option .depthrow .pword { flex: none; width: 7.2em; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; } /* one width for every word, so the bar never moves */
 .option .depth i { display: block; height: 100%; background: var(--copper); }

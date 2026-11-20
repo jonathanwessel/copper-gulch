@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-15',
+    lines: [
+      'A red heart by the wave number shows how many more hits your vault can take.',
+      'Prices show what something costs first, with what you have under it.',
+      'Picking a tower path says that either path costs the same.',
+      'A picked tower slides clear of the goods strip, with its whole range in view.',
+    ],
+  },
+  {
     v: '2026.11.20-14',
     lines: [
       'The wave bar shows how many hits your vault can take, like Vault 20/20.',

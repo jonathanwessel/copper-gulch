@@ -51,13 +51,13 @@ test('nothing said twice: the price note, Perks, the Boiler Shop', () => {
 });
 
 test('plainer words for the old-wave bonus, the foreman, the hold goal and the stock switch', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Wave beaten before');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Won before signing');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20 && oldWavesLabel({}).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
-  assert.equal(STOCK_LABEL, 'Keep for towers');
-  assert.equal(stockWords({ stock: 'lots' }), '4 levels each');
+  assert.equal(STOCK_LABEL, 'Each tower keeps goods for');
+  assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   assert.ok(read('src/ui/play.js').includes("'Keep for towers'"), 'the building card uses the same name');
-  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves so no wave can cost you coins', 'Wave beaten before']) assert.deepEqual(textIssues(s), []);
+  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves so no wave can cost you coins', 'Won before signing']) assert.deepEqual(textIssues(s), []);
 });
 
 test('towers name the town\'s own boss, and the Rail Office names the outposts', () => {
