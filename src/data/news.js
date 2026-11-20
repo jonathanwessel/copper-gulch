@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.19-12',
+    lines: [
+      'On a tower, the old waves bonus says your towers are stronger on waves you beat before.',
+      'A foreman that is not buying says when it will buy the next level.',
+      'In the Capital, each building shows its first upgrade, and what you bought stays on its card.',
+      'On the map, the yellow border marks the place whose card is open, and the labels crowd less.',
+      'Sideways on a phone, tapping Damage on a tower card brings its list into view.',
+      'In Goods, a price gives one reason at a time.',
+    ],
+  },
+  {
     v: '2026.11.19-11',
     lines: [
       'Perks says what signing pays, like Sign now and get 2 deeds, with fewer words around it.',

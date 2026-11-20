@@ -65,7 +65,7 @@ export function goodsSheet(game, town, focus = null) {
   return body => {
     const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
-    body.append(el('p', 'uses', 'Sell lots of one thing and its price drops. The price comes back over time.'), list);
+    body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
     const shipped = () => ((town.def && town.def.imports) || []).filter(g => (town.shipped || {})[g] > 0);

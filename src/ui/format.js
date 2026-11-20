@@ -41,9 +41,12 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a
    good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */
+/* One reason at a time (review of 2026.11.19-11: "towers need it all" beside "You sold a lot of it lately"). The sheet
+   no longer has a header line, so the note says the price comes back. */
 export function priceNote({ have, kept = 0, price = 0 }) {
-  if (price < .0095) return 'You sold a lot of it lately, so it pays almost nothing now.'; // the sheet's header says it comes back
-  if (have - kept < 1) return 'Pays ' + fmtPrice(price) + ' each once you have some to sell.';
+  const none = have - kept < 1;
+  if (price < .0095) return (none ? 'It pays almost nothing now.' : 'You sold a lot of it lately, so it pays almost nothing now.') + ' The price comes back over time.';
+  if (none) return 'Pays ' + fmtPrice(price) + ' each once you have some to sell.';
   return null;
 }
 /* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level

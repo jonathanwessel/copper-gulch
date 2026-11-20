@@ -27,10 +27,10 @@ test('the goods kept for a path are named without their amounts', () => {
 test('a foreman that is not buying reads as a status, not a story', () => {
   for (const why of ['short', 'flooded', 'slow']) {
     const t = foremanLine(why, 'timber');
-    assert.match(t, /^The foreman is not buying\. /); // a status that says who (a second review: "Not buying." named no one)
+    assert.match(t, /^The foreman buys the next level /); // says who and what it does (review of 2026.11.19-11)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'The foreman is not buying. Timber sells low and no workshop needs more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'The foreman buys the next level when timber pays more or a workshop needs more.');
 });
 
 test('the lost toast has one step', () => {

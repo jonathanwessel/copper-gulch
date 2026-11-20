@@ -38,3 +38,25 @@ test('a badge whose town is under the top bar sits just below it', () => {
   liftBadges(rs, [{ l: 0, r: 400, b: 48 }]);
   assert.equal(rs[0].y, 90);
 });
+
+test('the open card\'s badge keeps its place over its town and the others move round it', () => {
+  const sel = { x: 200, y: 280, w: 90, h: 40 }, rs = [{ x: 210, y: 300, w: 90, h: 40 }, sel];
+  liftBadges(rs, [], 2, { first: sel });
+  assert.deepEqual([sel.x, sel.y], [200, 280]);
+  assert.ok(!overlap(rs[0], rs[1]));
+});
+
+test('a badge slides sideways when that moves it less than a lift (review of 2026.11.19-11)', () => {
+  const rs = [{ x: 200, y: 300, w: 100, h: 40 }, { x: 270, y: 300, w: 100, h: 40 }];
+  liftBadges(rs, [], 2, { W: 800 });
+  assert.equal(rs[1].y, 300); // not lifted off its town
+  assert.ok(rs[1].x >= 302 && rs[1].x <= 330, 'slid right beside it: ' + rs[1].x);
+  assert.ok(!overlap(rs[0], rs[1]));
+});
+
+test('a slide never pushes a badge off the screen', () => {
+  const rs = [{ x: 700, y: 300, w: 100, h: 40 }, { x: 740, y: 300, w: 100, h: 40 }];
+  liftBadges(rs, [], 2, { W: 800 });
+  for (const r of rs) assert.ok(r.x + r.w / 2 <= 800);
+  assert.ok(!overlap(rs[0], rs[1]));
+});

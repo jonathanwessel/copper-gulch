@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { TOWNS } from '../data/towns/index.js';
 import { capitalOf, capitalOpen, canFoundCapital, foundCapital, takeContract, dropContract, spareRate } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
-import { INSTITUTIONS } from '../data/institutions.js';
+import { INSTITUTIONS, boughtText } from '../data/institutions.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
 import { fmt } from './format.js';
 
@@ -110,11 +110,12 @@ function institutions(game, live, changed, toast) {
     } else {
       const n = nodesOf(game, inst.id), node = nextNode(game, inst.id);
       txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' bought'));
+      if (n) txt.append(el('span', '', 'Now · ' + boughtText(inst, n))); // what was bought stays on the card (review of 2026.11.19-11)
       if (!node) { txt.append(el('span', '', 'All upgrades bought.')); row.append(txt); row.classList.add('off'); }
       else {
-        txt.append(el('span', '', node.about), small);
+        txt.append(el('span', '', 'Next · ' + node.about), small);
         const b = el('button', 'btn small build', 'Buy'); b.dataset.node = inst.id;
-        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(node.name + ' bought. ' + node.about, 4000); changed(); } });
+        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgrade bought. ' + node.about, 4000); changed(); } });
         row.append(txt, b);
         live.push(() => { cost(small, game.shared.capital.influence, nodeCost(game, inst.id), 'Influence'); b.disabled = nodeBlock(game, inst.id) !== null; });
       }
@@ -134,7 +135,7 @@ export function capitalSheet(game, toast = () => {}) {
     b.addEventListener('click', () => { if (foundCapital(game)) paint(); }); // the sheet itself shows it is built, no toast
     const paint = () => {
       if (!capitalOpen(game)) {
-        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'), wave, coins, row); }
+        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', "Send goods here for coins and Influence, the Capital's own money. Influence buys upgrades for every town."), wave, coins, row); }
         const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
         setText(wave, 'Beat wave ' + f.wave + ' in ' + townName(f.from) + (w >= f.wave ? ' · Done' : ' · Best so far ' + w));
         setText(coins, fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c)));

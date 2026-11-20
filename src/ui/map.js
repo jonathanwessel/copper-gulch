@@ -53,23 +53,37 @@ function ruleText(game, r, short = false) {
   return short ? 'Coming later' : 'The Capital will be built here.';
 }
 
-/* Badges as { x (center), y (bottom), w, h }: the lowest keeps its place, and each one above it that would cover a
-   badge already placed is lifted until its bottom sits 2 px over that badge's top. `bar` is the top bar's boxes as
-   [{ l, r, b }] (left, right, bottom): a badge whose town is under one of them sits just below it, and when lifting
-   would push a badge under one, it moves down below the badges it meets instead. Changes y in place; returns them. */
-export function liftBadges(rs, bar = [], gap = 2) {
-  const done = [], tops = new Map(rs.map(r => [r, Math.max(gap, ...bar.filter(q => q.l < r.x + r.w / 2 && q.r > r.x - r.w / 2).map(q => q.b + gap))]));
-  const settle = (r, y, up) => {
-    for (let moved = true, n = 0; moved && n < 20; n++) {
-      moved = false;
-      for (const o of done) if (Math.abs(r.x - o.x) < (r.w + o.w) / 2 && y > o.y - o.h - gap && y - r.h < o.y + gap) { y = up ? o.y - o.h - gap : o.y + r.h + gap; moved = true; }
-    }
+/* Badges as { x (center), y (bottom), w, h }: the lowest keeps its place (or `first`, the open card's site, so its
+   label stays over its own town), and each one after it that would cover a badge already placed moves the least it can:
+   lifted until its bottom sits 2 px over that badge's top, or slid sideways beside it (at most 60% of its width, so it
+   stays over its town, review of 2026.11.19-11: labels round the Capital covered the towns), or below as a last resort.
+   `bar` is the top bar's boxes as [{ l, r, b }] (left, right, bottom): a badge whose town is under one of them sits just
+   below it, and no badge moves under one. `W` is the screen width a slid badge stays inside. Changes x and y in place;
+   returns them. */
+export function liftBadges(rs, bar = [], gap = 2, { W = Infinity, first = null } = {}) {
+  const done = [];
+  const topAt = (x, w) => Math.max(gap, ...bar.filter(q => q.l < x + w / 2 && q.r > x - w / 2).map(q => q.b + gap));
+  const hit = (r, x, y) => done.find(o => Math.abs(x - o.x) < (r.w + o.w) / 2 && y > o.y - o.h - gap && y - r.h < o.y + gap);
+  const settle = (r, x, y, up) => {
+    for (let o, n = 0; (o = hit(r, x, y)) && n < 20; n++) y = up ? o.y - o.h - gap : o.y + r.h + gap;
     return y;
   };
-  for (const r of rs) r.y = Math.max(r.y, tops.get(r) + r.h); // never under the top bar's boxes
-  for (const r of rs.slice().sort((a, b) => b.y - a.y)) {
-    const up = settle(r, r.y, true);
-    r.y = up - r.h >= tops.get(r) || up === r.y ? up : settle(r, r.y, false);
+  for (const r of rs) r.y = Math.max(r.y, topAt(r.x, r.w) + r.h); // never under the top bar's boxes
+  const order = rs.slice().sort((a, b) => (b === first) - (a === first) || b.y - a.y);
+  for (const r of order) {
+    if (hit(r, r.x, r.y)) {
+      const tries = [], x0 = r.x, y0 = r.y;
+      const up = settle(r, x0, y0, true);
+      if (up - r.h >= topAt(x0, r.w)) tries.push({ x: x0, y: up, cost: y0 - up });
+      for (const o of done) for (const side of [-1, 1]) {
+        const x = o.x + side * ((r.w + o.w) / 2 + gap);
+        if (Math.abs(x - x0) > r.w * .6 || x - r.w / 2 < 4 || x + r.w / 2 > W - 4 || y0 - r.h < topAt(x, r.w) || hit(r, x, y0)) continue;
+        tries.push({ x, y: y0, cost: Math.abs(x - x0) * 1.2 }); // a slide costs a little more than a lift of the same size
+      }
+      if (!tries.length) tries.push({ x: x0, y: settle(r, x0, y0, false), cost: 0 });
+      const best = tries.reduce((p, q) => (q.cost < p.cost ? q : p));
+      r.x = best.x; r.y = best.y;
+    }
     done.push(r);
   }
   return rs;
@@ -172,7 +186,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? '' : (id === 'capital' ? 'Not built yet' : 'Not open yet'))); // ready: the Start button says it
-      if (id === 'capital') kids.push(el('p', 'uses', 'Takes goods from your towns for coins and Influence. Influence buys upgrades for every town.'));
+      if (id === 'capital') kids.push(el('p', 'uses', "Send goods here for coins and Influence, the Capital's own money. Influence buys upgrades for every town."));
       else kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
@@ -220,12 +234,14 @@ export function mountMap(root, game, view, shell) {
     rates = badgeRates(shell.meter ? shell.meter.total : 0, infos);
     for (const s of view.sites) {
       const B = badge[s.id], info = infos[s.id];
-      B.b.classList.toggle('on', !!(info && info.inPlay));
+      // the yellow border marks the place whose card is open, else the town in play (review of 2026.11.19-11: it stayed on
+      // Pine Hollow, the town in play, while Iron Ridge's card was open and its ring was on the ground)
+      B.b.classList.toggle('on', openId && badge[openId] ? openId === s.id : !!(info && info.inPlay));
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)));
       if (info) {
         const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Retry soon' : info.alert === 'retrying' ? ' · Retrying' : '';
         setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
-        B.vault.hidden = false;
+        B.vault.hidden = false; B.line.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
         setText(B.extra, rates.words[s.id]);
@@ -233,11 +249,12 @@ export function mountMap(root, game, view, shell) {
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? 'Contract ' + Math.floor(100 * Math.min(1, a.got / a.need)) + '% done' : 'Take a contract'); // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; setText(B.extra, c.influence + ' Influence');
+        B.vault.hidden = true; B.line.hidden = false; setText(B.extra, c.influence + ' Influence');
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
-        const lr = lockedRules(game, s.id), next = lr.rules.find(r => !r.done) || lr.rules[0];
-        setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : next ? ruleText(game, next, true) : 'Not open yet');
+        const lr = lockedRules(game, s.id);
+        setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : '');
+        B.line.hidden = !lr.ready; // a locked place is just its name: what it needs is on its card (review of 2026.11.19-11: long locked labels covered the towns)
         B.vault.hidden = true; setText(B.extra, '');
         B.b.classList.toggle('dot', lr.ready);
       }
@@ -255,7 +272,7 @@ export function mountMap(root, game, view, shell) {
       B.b.hidden = false;
       shown.push({ B, w, h: heights[s.id] || 40, x: Math.min(Math.max(p.x, w / 2 + 4), W - w / 2 - 4), y: p.y });
     }
-    for (const r of liftBadges(shown, bar)) {
+    for (const r of liftBadges(shown, bar, 2, { W, first: shown.find(r => r.B === badge[openId]) })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
       const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
       if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;

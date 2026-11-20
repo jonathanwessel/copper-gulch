@@ -14,10 +14,12 @@ export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Ma
 
 /* A working foreman that is not buying, beside its "Foreman · On" switch: what it is doing and why, as a status, not a
    story (review of 2026.11.19-9: "The foreman waits. Timber sells low..." read as a narrator). */
+/* It says when the foreman buys again, what it does, not its reasons (review of 2026.11.19-11: "Timber sells low and no
+   workshop needs more" read as narrator reasoning beside a cheap upgrade). */
 export function foremanLine(why, good) {
-  if (why === 'short') return 'The foreman is not buying. It needs more ' + good + ' first.';
-  if (why === 'flooded') return 'The foreman is not buying. ' + good[0].toUpperCase() + good.slice(1) + ' sells low and no workshop needs more.';
-  return 'The foreman is not buying. The next level takes over an hour to pay for itself.';
+  if (why === 'short') return 'The foreman buys the next level once there is more ' + good + '.';
+  if (why === 'flooded') return 'The foreman buys the next level when ' + good + ' pays more or a workshop needs more.';
+  return 'The foreman buys the next level when it would earn its price back within an hour.';
 }
 /* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line
    shows those (review of 2026.11.19-9: "20 copper and 20 bricks are set aside for this path" said the cost twice). Short,

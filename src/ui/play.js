@@ -145,6 +145,20 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
+  let showWhy = false; // set by a tap that opens a breakdown: the card scrolls it into view once, above the pinned row
+  /* Bring a breakdown just opened into view above the card's pinned Upgrade row (review of 2026.11.19-11: in landscape
+     the Damage breakdown opened under the cost row). Its top stays in view when it is taller than the room. */
+  function showAbovePin(first, last = first) {
+    showWhy = false;
+    requestAnimationFrame(() => {
+      if (!first.isConnected) return;
+      const box = card.getBoundingClientRect(), pin = card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
+      const bottom = pin ? Math.min(box.bottom, pin.getBoundingClientRect().top) : box.bottom;
+      const top = first.getBoundingClientRect().top, end = last.getBoundingClientRect().bottom;
+      const down = Math.min(end - bottom, top - box.top - 4);
+      if (down > 0) card.scrollTop += down;
+    });
+  }
   function open(id) {
     if (sheets.current) sheets.close();
     openId = id; why = false; whyStat = null; card.hidden = false; paintCard();
@@ -176,10 +190,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     card.append(head);
     const line = el('button', 'stat');
     line.append(el('span', null, L ? 'Makes' : 'Makes at level 1'), madeEl = el('b', null, madeText)); // what it really makes: less when short
-    line.addEventListener('click', () => { why = !why; paintCard(); });
+    line.addEventListener('click', () => { why = !why; showWhy = why; paintCard(); });
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
-    if (why && L) card.append(explainBox(made));
+    if (why && L) { const wb = explainBox(made); card.append(wb); if (showWhy) showAbovePin(line, wb); } // the tapped row stays in view above it
     const ins = Object.entries(b.inputs);
     if (ins.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
     // goods shipped in from another town (src/core/economy.js, ship): where they come from, and what to do when short
@@ -192,7 +206,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a workshop on the grid says how much power there is (review of 2026.11.19-7: power was named but never counted)
     else if (onGrid(id) && L) card.append(el('p', 'uses', 'The Water Wheel makes ' + fmt(grid.made) + ' power a second. Your workshops need ' + fmt(grid.want) + ' a second.'));
     // the numbers above already show a workshop is short, so its warning only says what that does and what to tap
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Not enough power. Upgrade the Water Wheel.'));
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Not enough power. Every workshop here runs slower. Tap Upgrade.' : 'Workshops here run slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] && L && shortImp.length) {
@@ -204,13 +218,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
-    const row = el('div', 'row');
+    const row = el('div', 'row sellrow');
     const c = cost(town, id), buy = el('button', 'btn primary buy');
     buy.id = 'buy'; buy.textContent = (L ? 'Upgrade' : 'Build') + ' · ' + fmt(c) + ' coins';
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off')); // it wraps between the good and its state, never before On
+    const selling = town.sell[b.makes] !== false, sell = el('button', 'btn small', 'Sell ' + g.name.toLowerCase() + (selling ? ' · On' : ' · Off')); // one line, under Upgrade when both do not fit (.sellrow)
     sell.id = 'sell'; sell.setAttribute('aria-pressed', String(selling)); sell.classList.toggle('on', selling);
     sell.title = 'S' + sellsFor(paysEach(game, town, b.makes)).slice(1);
     sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
@@ -307,13 +321,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
     const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
     head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), x); card.append(head);
-    const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [];
+    const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
     const line = (a, b, key) => {
       const r = el(key ? 'button' : 'div', key ? 'statrow' : null); r.append(el('span', null, a), el('b', null, b)); stats.append(r);
       if (!key) return;
+      statRow[key] = r;
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
-      r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; paintCard(); });
+      r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; showWhy = !!whyStat; paintCard(); });
     };
     line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmtDmg(st.poison) + '/s poison' : ''), 'dmg');
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
@@ -325,6 +340,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
     card.append(...whyBox);
+    if (showWhy && whyBox.length) showAbovePin(statRow[whyStat] || whyBox[0], whyBox[whyBox.length - 1]); // from the tapped row (screenshot review of this release) // after the bar is in: see the end of paintSpot
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     // the main action stays at the card's bottom edge while the card scrolls (Evaluation 2, landscape): the path choice,
     // or the cost, what is short and the Upgrade button
@@ -525,8 +541,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
-      if ((!p && !flat) || (!L && !un)) { t.hidden = true; continue; }
-      const px = p && markTg && markTg.plot === id && markW ? Math.min(Math.max(p.x, markW / 2), innerWidth - markW / 2) : p && p.x;
+      // an empty plot's Build tag hides while a tower card is open: it sat on the selected tower's ring (review of 2026.11.19-11)
+      if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { t.hidden = true; continue; }
+      // a tag stays whole on screen while its building shows (review of 2026.11.19-11: "Lv 1" cut at the right edge)
+      const marked = markTg && markTg.plot === id && markW, half = marked ? markW / 2 : ((tagSize.get(t) || [56])[0] / 2 + 2);
+      if (p && !marked && (p.x < -half || p.x > innerWidth + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
+      const px = p && Math.min(Math.max(p.x, half), innerWidth - half);
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
       let py = p && p.y;

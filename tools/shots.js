@@ -157,7 +157,7 @@ const FALLS = [
   ['falls-sight', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
     const n = document.getElementById('newsOk'); if (n) n.click();
     localStorage.clear(); document.getElementById('play').click();
-    for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await wait(100);
+    for (let i = 0; i < 150 && !(window.CG && CG.game && CG.town && CG.play); i++) await wait(100);
     const g = CG.game; (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek'); g.addTown('ridge'); g.addTown('pinehollow'); g.towns.ridge.bestWave = 57; g.shared.charter.deeds = 3; g.shared.purse.coins = 2e6; // Pine Hollow too, as founding the Ridge leaves it
     CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
     CG.mapui.openSite('falls'); await wait(1000);

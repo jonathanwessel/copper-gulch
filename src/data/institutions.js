@@ -25,9 +25,9 @@ export const INSTITUTIONS = [
   {
     id: 'transport', name: 'Department of Transportation', about: 'Your outposts make more goods. Buildings cost less.',
     nodes: [
-      { id: 'freight', name: 'Freight Office', about: 'Your outposts make 25% more goods.', effects: [{ stat: 'prod', mul: 1.25, where: 'outpost' }] },
+      { id: 'freight', name: 'Freight Office', about: 'Outposts like Dry Creek and Pine Hollow make 25% more goods.', effects: [{ stat: 'prod', mul: 1.25, where: 'outpost' }] },
       { id: 'survey', name: 'Survey Crews', about: 'Buildings cost 10% less.', effects: [{ stat: 'cost:build', mul: .9 }] },
-      { id: 'mules', name: 'Mule Trains', about: 'Your outposts make 50% more goods.', effects: [{ stat: 'prod', mul: 1.5, where: 'outpost' }] },
+      { id: 'mules', name: 'Mule Trains', about: 'Outposts like Dry Creek and Pine Hollow make 50% more goods.', effects: [{ stat: 'prod', mul: 1.5, where: 'outpost' }] },
       { id: 'grants', name: 'Rail Grants', about: 'Buildings cost 15% less.', effects: [{ stat: 'cost:build', mul: .85 }] },
       { id: 'depots', name: 'Supply Depots', about: 'Every building makes 10% more goods.', effects: [{ stat: 'prod', mul: 1.1 }] },
     ],
@@ -63,22 +63,24 @@ export const INSTITUTIONS = [
     ],
   },
 ];
-/* What an institution does before it is built, with amounts: its first two kinds of upgrade, each with all its
-   upgrades bought ("You earn up to 39% more coins.", review of 2026.11.19-8: "More coins from everything you earn" said
-   no amount). Worked out from the nodes, so it never drifts from them. */
+/* What an institution does in amounts a player can check (review of 2026.11.19-11: two "up to" totals each could not
+   be checked). Before it is built, its first upgrade ("First upgrade · Goods sell for 10% more."). Once built, what the
+   upgrades bought so far give, added up by kind ("Goods sell for 10% more."), so a bought +10% stays on the card.
+   Worked out from the nodes, so it never drifts from them. */
 const SAYS = {
-  price: p => 'Goods sell for up to ' + p + '% more.', influence: p => 'Contracts pay up to ' + p + '% more Influence.',
-  'prod:outpost': p => 'Outposts like Dry Creek and Pine Hollow make up to ' + p + '% more goods.', prod: p => 'Every building makes up to ' + p + '% more goods.',
-  'cost:build': p => 'Buildings cost up to ' + p + '% less.', income: p => 'You earn up to ' + p + '% more coins.',
-  cost: p => 'Everything costs up to ' + p + '% less.', research: p => 'Research is up to ' + p + '% faster.',
-  'cost:research': p => 'Research costs up to ' + p + '% less.', towerRange: p => 'Towers reach up to ' + p + '% farther.',
-  towerDmg: p => 'Towers hit up to ' + p + '% harder.', vault: p => 'Your vault takes up to ' + p + '% more hits.',
-  bounty: p => 'Raiders drop up to ' + p + '% more coins.', towerRate: p => 'Towers shoot up to ' + p + '% faster.',
+  price: p => 'Goods sell for ' + p + '% more.', influence: p => 'Contracts pay ' + p + '% more Influence.',
+  'prod:outpost': p => 'Outposts like Dry Creek and Pine Hollow make ' + p + '% more goods.', prod: p => 'Every building makes ' + p + '% more goods.',
+  'cost:build': p => 'Buildings cost ' + p + '% less.', income: p => 'You earn ' + p + '% more coins.',
+  cost: p => 'Everything costs ' + p + '% less.', research: p => 'Research is ' + p + '% faster.',
+  'cost:research': p => 'Research costs ' + p + '% less.', towerRange: p => 'Towers reach ' + p + '% farther.',
+  towerDmg: p => 'Towers hit ' + p + '% harder.', vault: p => 'Your vault takes ' + p + '% more hits.',
+  bounty: p => 'Raiders drop ' + p + '% more coins.', towerRate: p => 'Towers shoot ' + p + '% faster.',
 };
-export function aboutWithAmounts(inst, kinds = 2) {
+/* What the first n upgrades of an institution give, each kind once. */
+export function boughtText(inst, n) {
   const all = new Map();
-  for (const n of inst.nodes) for (const e of n.effects) { const k = e.stat + (e.where ? ':' + e.where : ''); all.set(k, (all.get(k) || 1) * e.mul); }
-  return [...all].slice(0, kinds).map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))).join(' ');
+  for (const node of inst.nodes.slice(0, n)) for (const e of node.effects) { const k = e.stat + (e.where ? ':' + e.where : ''); all.set(k, (all.get(k) || 1) * e.mul); }
+  return [...all].map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))).join(' ');
 }
-for (const i of INSTITUTIONS) i.about = aboutWithAmounts(i);
+for (const i of INSTITUTIONS) i.about = 'First upgrade · ' + boughtText(i, 1);
 export const INSTITUTION = Object.fromEntries(INSTITUTIONS.map(i => [i.id, i]));
