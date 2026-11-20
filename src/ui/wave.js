@@ -27,7 +27,7 @@ export function bestTower(town, kind) {
 
 /* A raider row's tower line: the best tower, or Any when no tower hits it harder (review of 2026.11.20-3: the Bandit
    row looked empty). */
-export const bestLine = (town, kind) => { const b = bestTower(town, kind); return 'Best tower · ' + (b ? TOWERS[b].name : 'Any'); };
+export const bestLine = (town, kind) => { const b = bestTower(town, kind); return b ? TOWERS[b].name + ' works best.' : 'Any tower works.'; }; // a sentence, no dot where a colon would go (review of 2026.11.20-5)
 
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */

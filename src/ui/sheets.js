@@ -63,7 +63,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = s => (s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low');
+export const priceWord = (s, price = 1) => (price < .0095 ? 'Almost 0' : s >= .9 ? 'Top' : s >= .6 ? 'High' : s >= .35 ? 'Half' : s >= .1 ? 'Low' : 'Very low'); // price: one unit's, so the row says almost 0 once
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -120,7 +120,7 @@ export function goodsSheet(game, town, focus = null) {
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: 'You get' })])); }
         const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
-        const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
+        const pw = priceWord(sat, ex.value); if (r.level.textContent !== pw) r.level.textContent = pw;
         setSwitch(r.sw, 'Sell', selling ? 'On' : 'Off', selling);
       }
     };
@@ -411,15 +411,19 @@ export function perksSheet(ctx) {
   return body => {
     const sec = (name, ...kids) => { const s = el('div', 'sec'); s.append(el('h3', null, name), ...kids); body.append(s); return s; };
     // the charter (the perk pairs follow the deeds without a heading of their own: the sheet is called Perks)
-    const now = el('p', 'uses'), wave = el('span'), coins = el('span'), sign = btn('Sign the charter', 'btn primary', 'signCharter');
-    const prog = el('div', 'option charterline'), pt = el('div'); pt.append(wave, coins); prog.append(pt);
+    // short rows, not sentences (review of 2026.11.20-5: the deed lines were dense prose), and a button the size of the others
+    const now = el('p', 'uses'), sign = btn('Sign the charter', 'btn small primary', 'signCharter');
+    const rowOf = box => { const r = el('div'), l = el('span'), v = el('b'); r.append(l, v); box.append(r); return { r, l, v }; };
+    const set = (e, t) => { if (e.textContent !== t) e.textContent = t; };
+    const prog = el('div', 'explain why charterline'), wave = rowOf(prog), coins = rowOf(prog), next = el('p', 'uses');
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
     const r = el('div', 'row'); r.append(sign);
-    sec('Charter', now, prog, el('p', 'warn', town.def.name + ' starts over at wave 1. Its buildings, towers, research and foremen go. You keep your coins and deeds, and pick perks again.'), r);
-    // the deeds held
-    const held = el('p', 'uses'); held.id = 'deedsHeld';
-    const after = el('p', 'uses'); after.id = 'deedsAfter';
-    sec('Deeds', held, after);
+    sec('Charter', now, prog, next, el('p', 'warn', town.def.name + ' starts over at wave 1. Its buildings, towers, research and foremen go. You keep your coins and deeds, and pick perks again.'), r);
+    // the deeds held, and after signing
+    const held = el('div', 'explain why'); held.id = 'deedsHeld';
+    const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';
+    const each = el('p', 'uses');
+    sec('Deeds', held, each);
     // the perk pairs
     const pairs = el('div', 'goods perks'); body.append(pairs);
     let sig = '';
@@ -427,21 +431,19 @@ export function perksSheet(ctx) {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
       // what signing pays is in Deeds, as the deeds now and after (review of 2026.11.19-12); this line only says when it opens
       const t1 = p.total ? '' : 'You can sign once you earn a deed here.';
-      if (now.textContent !== t1) now.textContent = t1;
-      now.hidden = !t1;
+      set(now, t1); now.hidden = !t1;
       // "Best wave", so it never reads as the wave on the top bar after a lost boss (review of 2026.11.19-12)
-      const w = 'Best wave ' + town.bestWave + ' gives ' + plural(p.wave, 'deed') + '. Next at wave ' + n.wave + '.';
-      const k = fmt(town.ownEarned) + ' coins earned here give ' + plural(p.coins, 'deed') + '. Next at ' + fmt(n.coins) + '.';
-      if (wave.textContent !== w) wave.textContent = w;
-      if (coins.textContent !== k) coins.textContent = k;
+      set(wave.l, 'Best wave ' + town.bestWave); set(wave.v, plural(p.wave, 'deed'));
+      set(coins.l, fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
+      set(next, 'Next deed at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins.');
       sign.disabled = !p.total;
-      // the pairs below say how many deeds each needs, so this line only says what the deeds do (review of 2026.11.19-10: a wall of text)
-      const h = c.deeds ? 'You have ' + plural(c.deeds, 'deed') + ', so you earn ' + Math.round(DEEDS.income * 100 * c.deeds) + '% more coins.'
-        : 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.';
-      if (held.textContent !== h) held.textContent = h;
-      const t = c.deeds + p.total, a = p.total ? 'Sign now and you have ' + plural(t, 'deed') + ', so you earn ' + Math.round(DEEDS.income * 100 * t) + '% more coins.' : '';
-      if (after.textContent !== a) after.textContent = a;
-      after.hidden = !a;
+      const more = d => plural(d, 'deed') + ', ' + Math.round(DEEDS.income * 100 * d) + '% more coins';
+      set(have.l, 'You have'); set(have.v, c.deeds ? more(c.deeds) : 'No deeds yet');
+      const t = c.deeds + p.total;
+      set(after.l, 'Sign now and you have'); set(after.v, p.total ? more(t) : '');
+      after.r.hidden = !p.total;
+      set(each, 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.');
+      each.hidden = c.deeds > 0;
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;
       sig = s; pairs.replaceChildren();
@@ -456,7 +458,8 @@ export function perksSheet(ctx) {
             confirmTap(go, 'Tap again', () => { if (pickPerk(game, pair.id, side)) paint(); });
             row.append(go);
           } else if (st === side) row.classList.add('running'); // the heading says Your perk
-          else row.classList.add('off'); // the side not picked, or a pair still locked, is dimmed
+          else if (st !== 'locked') continue; // the side not picked is left out (review of 2026.11.20-5: Fort Town half faded with no reason)
+          else row.classList.add('off'); // a pair still locked is dimmed under Needs 2 deeds
           box.append(row);
         }
         pairs.append(box);

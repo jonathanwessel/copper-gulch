@@ -19,6 +19,9 @@ const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const ang = (x, z) => Math.atan2(x, z); // a ground direction's angle; turning the rig by f adds f to it
 /* pixels a selection keeps below the top bar (review of 2026.11.20-4: a selected Mortar pit sat under the goal strip) */
 const TOP_GAP = 56;
+/* The room a selection keeps from the screen's left and right edges (review of 2026.11.20-5: in landscape a selected pit
+   at the left edge, half off the screen, counted as on screen). */
+const SIDE_GAP = 72;
 export const MIN_PAD = 32;  // pixels across the smallest stone pad at home (the touch rule is 30)
 const PAD_R = .5;           // a stone pad's radius in world units (src/render/battle.js)
 const _pv = new THREE.Vector3();
@@ -163,14 +166,14 @@ export class CameraRig {
       { l: r.left, r: W, t: top, b: cv.t },   // above the card
       { l: r.left, r: cv.l, t: top, b: H },   // left of it
       { l: cv.r, r: W, t: top, b: H },        // right of it
-    ].map(a => ({ l: a.l + pad, r: a.r - pad, t: a.t + TOP_GAP, b: a.b - pad * .8 }));
+    ].map(a => { const s = Math.max(SIDE_GAP, (a.r - a.l) * .28); return { l: a.l + s, r: a.r - s, t: a.t + TOP_GAP, b: a.b - pad * .8 }; }); // a slide lands well inside the free part, not on its edge
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
     const clear = q.x < cv.l - 20 || q.x > cv.r + 20 || q.y < cv.t - 20 || q.y > cv.b + 20;
-    if (clear && q.y > top + TOP_GAP && q.y < H - 20 && q.x > r.left + 20 && q.x < W - 20) return; // on screen and not under the card
+    if (clear && q.y > top + TOP_GAP && q.y < H - 20 && q.x > r.left + SIDE_GAP && q.x < W - SIDE_GAP) return; // well on screen and not under the card
     let best = null, bd = Infinity;
     for (const a of parts) {
       if (a.r - a.l < 10 || a.b - a.t < 4) { // too small for the margin: use its middle line
-        if (a.r - a.l + 2 * pad < 60 || a.b - a.t + 1.6 * pad < 40) continue;
+        if (a.r - a.l + 2 * SIDE_GAP < 60 || a.b - a.t + 1.6 * pad < 40) continue;
       }
       if (inside(a)) return;
       const x = a.r < a.l ? (a.l + a.r) / 2 : Math.min(a.r, Math.max(a.l, q.x)), y = a.b < a.t ? (a.t + a.b) / 2 : Math.min(a.b, Math.max(a.t, q.y));

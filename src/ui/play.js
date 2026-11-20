@@ -178,8 +178,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (!first.isConnected) return;
       const box = card.getBoundingClientRect(), pin = card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
       const bottom = pin ? Math.min(box.bottom, pin.getBoundingClientRect().top) : box.bottom;
+      // the top stays below the card's sticky title row (review of 2026.11.20-5: the Damage row sliced under it)
+      const head = card.querySelector(':scope > .cardhead'), roof = head ? Math.max(box.top, head.getBoundingClientRect().bottom) : box.top;
       const top = first.getBoundingClientRect().top, end = last.getBoundingClientRect().bottom;
-      const down = Math.min(end - bottom, top - box.top - 4);
+      const down = Math.min(end - bottom, top - roof - 4);
+      if (down < 0 && top < roof) { card.scrollTop += top - roof - 4; return; } // already scrolled past it: back up to it
       if (down > 0) card.scrollTop += down;
     });
   }
@@ -202,7 +205,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const wait = foremanOn(town, id) ? foremanWait(game, town, id) : null;
     const grid = gridOf(town), gridShort = L > 0 && (onGrid(id) || isGrid(b.makes)) && grid.share < .999;
     // a short workshop that makes none says so (review of 2026.11.19-8: "Makes 0 boilers a second")
-    const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'None right now' : isGrid(b.makes) ? Math.floor((made ? made.value : b.rate) + 1e-9) + ' power' : perSecond(made ? made.value : b.rate, g); // power as the workshops count it (review of 2026.11.20-4: "6 power a second" beside "need 9 power")
+    const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'Nothing right now' : isGrid(b.makes) ? Math.floor((made ? made.value : b.rate) + 1e-9) + ' power' : perSecond(made ? made.value : b.rate, g); // power as the workshops count it (review of 2026.11.20-4: "6 power a second" beside "need 9 power")
     if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
     const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
@@ -409,7 +412,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // of 2026.11.19-9: in landscape the Cannon card's Blast row was cut by its cost row)
     // only while the buy is still short of something: once it can be paid the line says nothing (screenshot review of 2026.11.20-3)
     else if (!canPay(town, c) && keepText(c)) card.append(el('p', 'uses', keepText(c)));
-    const sell = el('button', 'btn small', 'Sell · ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
+    const sell = el('button', 'btn small', 'Sell for ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     // Sell sits above the pinned bar, never beside Upgrade under its price (review of 2026.11.19-13)
     const sr = el('div', 'row'); sr.append(sell);
@@ -583,6 +586,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
     sheets.frame(dt);
     paintGoal(dt); markAt = null;
+    // in a fight a quiet level pill steps aside while a raider is under it, and stays solid otherwise (review of
+    // 2026.11.20-5: pills faded to half all through a wave read as a glitch)
+    const foes = ui.classList.contains('fighting') && viewApi.foePoints ? viewApi.foePoints() : null;
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
@@ -609,6 +615,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Level ' + L : 'Build') : (L ? String(L) : 'Build'); // "Level" as the cards say it (review of 2026.11.20-1)
       const tl = t.firstChild; if (tl.textContent !== txt) { tl.textContent = txt; if (p) tagSize.set(t, [t.offsetWidth, t.offsetHeight]); } // a new width now, so the next frame keeps it whole at the edge (review of 2026.11.19-13: "Sand Pit · Lv 1" cut at the left)
       if (t.classList.contains('quiet') === full) t.classList.toggle('quiet', !full);
+      const over = !!(foes && !full && p && foes.length && (() => { const [tw, th] = tagSize.get(t) || [32, 32]; return foes.some(f => Math.abs(f.x - px) < tw / 2 + 14 && f.y > py - th - 14 && f.y < py + 18); })());
+      if (t.classList.contains('overfoe') !== over) t.classList.toggle('overfoe', over);
       t.classList.toggle('short', !!(L && town.starved[id] === true)); // held for towers is not a problem to fix
       t.classList.toggle('goaltag', !!marked);
       t.classList.toggle('can', !!L && town.coins >= cost(town, id)); // an up mark only on a building, never on an empty plot's Build

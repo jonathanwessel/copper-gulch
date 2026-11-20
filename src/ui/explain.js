@@ -98,7 +98,7 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
 export function incomeSheet(income) {
   return body => {
     const parts = el('div', 'explain why'), bonus = el('div', 'explain why'), bsec = el('div', 'sec');
-    bsec.append(el('h3', null, 'Already counted in the total'), bonus); // review of 2026.11.19-10: Deeds × 1.5 under the total read as not yet added
+    bsec.append(el('h3', null, 'Bonuses included'), bonus); // review of 2026.11.19-10: Deeds × 1.5 under the total read as not yet added
     body.append(parts, bsec);
     let sig = '';
     const paint = () => {

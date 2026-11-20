@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-6',
+    lines: [
+      'Level numbers on buildings stay solid in a fight and step aside only while a raider walks under them.',
+      'With the phone turned sideways, a tapped Mortar pit slides fully into view.',
+      'Perks lists your deeds in short rows, and Sign the charter is the same size as the other buttons.',
+      'Town labels on the map keep a little more room between them.',
+    ],
+  },
+  {
     v: '2026.11.20-5',
     lines: [
       'Goods shows every good the same way, with how many are kept for towers and the price.',

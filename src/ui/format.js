@@ -48,7 +48,9 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   // there is (the 2026.11.20-2 screenshots: "226 kept" beside 122 in stock).
   const n = Math.floor(have + 1e-9), k = Math.min(n, Math.ceil(kept - 1e-9));
   const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' kept for towers';
-  return fmtLive(n) + ' in stock' + saved + (open ? '' : ' · ' + each(price));
+  // a price of almost 0 is left to the price bar's word, Almost 0 (review of 2026.11.20-5: "almost 0 coins each" beside
+  // Very low said it twice and wrapped "each" alone in landscape)
+  return fmtLive(n) + ' in stock' + saved + (open || price < .0095 ? '' : ' · ' + each(price));
 }
 /* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
 export function goodsSwitch({ selling = true }) {

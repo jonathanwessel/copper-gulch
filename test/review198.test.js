@@ -35,11 +35,11 @@ test('a tiny factor reads as divided by a whole number, never "× almost 0"', ()
 
 test('every institution says how much it gives in amounts a player can check', () => {
   for (const i of INSTITUTIONS) {
-    assert.match(i.about, /^First upgrade · .* \d+% /, i.name); // its first upgrade, not an "up to" total (review of 2026.11.19-11)
+    assert.match(i.about, /^[A-Z].* \d+% /, i.name); // its first upgrade, not an "up to" total (review of 2026.11.19-11)
     assert.doesNotMatch(i.about, /[:;]|up to/, i.name);
   }
   const bank = INSTITUTIONS.find(i => i.id === 'bank');
-  assert.equal(bank.about, 'First upgrade · You earn 10% more coins.');
+  assert.equal(bank.about, 'You earn 10% more coins.');
   assert.equal(boughtText(bank, 3), 'You earn 21% more coins. Everything costs 5% less.'); // two bought kinds, added up
 });
 

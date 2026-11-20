@@ -61,6 +61,8 @@ function ruleText(game, r, short = false) {
    `bar` is the top bar's boxes as [{ l, r, b }] (left, right, bottom): a badge whose town is under one of them sits just
    below it, and no badge moves under one. `W` is the screen width a slid badge stays inside. Changes x and y in place;
    returns them. */
+/* The room between two labels: wide enough that a label's red dot never sits on the next one (review of 2026.11.20-5). */
+export const BADGE_GAP = 8;
 export function liftBadges(rs, bar = [], gap = 2, { W = Infinity, first = null } = {}) {
   const done = [];
   const topAt = (x, w) => Math.max(gap, ...bar.filter(q => q.l < x + w / 2 && q.r > x - w / 2).map(q => q.b + gap));
@@ -234,7 +236,7 @@ export function mountMap(root, game, view, shell) {
   // the Capital's card: built once for each set of contracts, then only its words and bars change (src/ui/capital.js)
   function paintCapital() {
     if (!cap || card.dataset.sig !== 'capital|' + cap.sig()) {
-      cap = capitalPanel(game, { changed: () => { cap = null; paintCard(); }, toast: (s, ms) => shell.toast && shell.toast(s, ms) });
+      cap = capitalPanel(game, { changed: () => { cap = null; paintCard(); }, toast: (s, ms) => shell.toast && shell.toast(s, ms, { kind: 'capital' }) }); // dropped when the map flies into a town
       card.dataset.sig = 'capital|' + cap.sig(); card.replaceChildren(head(CAPITAL_DEF.name), cap.el);
     }
     cap.paint();
@@ -296,7 +298,7 @@ export function mountMap(root, game, view, shell) {
     // crowded labels show only their name, judged at full size so a label does not flip between the two
     const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
     shown.forEach((r, i) => { const c = crowd.has(i); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
-    for (const r of liftBadges(shown, bar, 2, { W, first: shown.find(r => r.B === badge[openId]) })) {
+    for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first: shown.find(r => r.B === badge[openId]) })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
       const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
       if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;

@@ -148,9 +148,9 @@ const RIDGE = [
   // institutions: one founded with an upgrade bought, one ready to buy, the rest with their founding price
   ['capital-institutions', async () => { document.getElementById('capTabInst').click(); await new Promise(r => setTimeout(r, 200)); const c = CG.game.shared.capital; CG.game.shared.purse.coins = Math.max(CG.game.shared.purse.coins, 2e5); c.influence = 20; document.querySelector('#mapCard [data-found="market"]').click(); await new Promise(r => setTimeout(r, 200)); document.querySelector('#mapCard [data-node="market"]').click(); await new Promise(r => setTimeout(r, 200)); CG.game.shared.purse.coins = 6e4; }],
   // the Capital's city up close: four institutions standing, then the University rising out of its lot
-  ['capital-city', async () => { CG.mapui.close(); const T = await import('./src/core/tree.js'); CG.game.shared.purse.coins = 1e7; for (const id of ['bank', 'war', 'transport']) T.foundInstitution(CG.game, id); const r = CG.map.rig, v = { x: 0, z: -.3, yaw: 0, pitch: .78, dist: innerWidth < innerHeight ? 15 : 9 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; await new Promise(res => setTimeout(res, 1600)); for (let i = 0; i < 20 && document.querySelector('.toast.out'); i++) await new Promise(res => setTimeout(res, 50)); }], // never mid-fade (review of 2026.11.20-4)
+  ['capital-city', async () => { CG.mapui.close(); (await import('./src/ui/play.js')).dropToasts('capital'); const T = await import('./src/core/tree.js'); CG.game.shared.purse.coins = 1e7; for (const id of ['bank', 'war', 'transport']) T.foundInstitution(CG.game, id); const r = CG.map.rig, v = { x: 0, z: -.3, yaw: 0, pitch: .78, dist: innerWidth < innerHeight ? 15 : 9 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; await new Promise(res => setTimeout(res, 1600)); for (let i = 0; i < 20 && document.querySelector('.toast.out'); i++) await new Promise(res => setTimeout(res, 50)); }], // never mid-fade (review of 2026.11.20-4)
   ['capital-rise', async () => { const T = await import('./src/core/tree.js'); setTimeout(() => T.foundInstitution(CG.game, 'university'), 1200 - 450); }],
-  ['map-fly', () => { CG.mapui.close(); CG.flyTo('gulch'); }],
+  ['map-fly', () => { CG.mapui.close(); const r = CG.map.rig; Object.assign(r.c, r.home); Object.assign(r.t, r.home); r.flick = null; CG.flyTo('gulch'); }], // from the whole map, as a player flies (the capital close-up dove over bare ground)
   // Automation in the Gulch (the War Office and the University stand): Auto-towers on, Auto-research off
   ['auto', async () => { for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'gulch' && CG.play); i++) await new Promise(r => setTimeout(r, 100)); await new Promise(r => setTimeout(r, 1500)); const A = await import('./src/core/automation.js'); A.setAuto(CG.game, CG.game.town, 'towers', true); CG.play.openAuto(); }],
   // Keep trying the boss on, right after the war wagon got through: the sheet says what it waits for, then the map badge
@@ -226,7 +226,7 @@ try {
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
-        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' || name === 'map' ? 3000 : name === 'map-fly' ? 300 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
+        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' || name === 'map' ? 3000 : name === 'map-fly' ? 120 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
         const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
       }
       await r.close();

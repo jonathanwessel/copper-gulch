@@ -71,7 +71,7 @@ test('one foreman line, the Perks card says Best wave and the deeds after signin
   assert.doesNotMatch(play, /A foreman buys the next level when you have twice its cost/);
   assert.match(play, /'Buys level ' \+ \(L \+ 1\) \+ ' when you have '/);
   assert.match(sheets, /'Best wave ' \+ town\.bestWave/);
-  assert.match(sheets, /'Sign now and you have '/);
+  assert.match(sheets, /'Sign now and you have'/);
   assert.doesNotMatch(sheets, /Waiting for a tower\. Build one first\./);
   assert.match(sheets, /'Starts the waves again after a loss\.'/);
 });

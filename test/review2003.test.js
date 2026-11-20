@@ -33,7 +33,7 @@ test('the old-waves row says what it is in a few words', () => {
 
 test('a raider no tower beats has Any as its best tower', () => {
   const g = newGame(1), t = g.towns.gulch || g.town;
-  assert.equal(bestLine(t, 'raider'), 'Best tower · Any');
+  assert.equal(bestLine(t, 'raider'), 'Any tower works.');
 });
 
 test('switches light a small box, not the whole button, and say what they do', () => {

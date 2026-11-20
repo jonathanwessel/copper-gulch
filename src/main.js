@@ -129,6 +129,7 @@ async function startGame() {
     if (!CG.map || flying || !game.towns[id]) return;
     flying = true;
     if (CG.mapui) CG.mapui.el.classList.add('flying'); // the badges and the card stay behind
+    dropToasts('capital'); // a Capital toast ("Market Board is built.") says nothing in a town (review of 2026.11.20-5: it rode along into the fly)
     CG.map.fly(id, () => {
       const paused = CG.map.holds.has('player');
       closeMap(); if (game.active !== id) game.go(id);

@@ -24,7 +24,7 @@ test('the foreman and kept-goods lines are short statuses', () => {
 });
 
 test('the price bar ends in a word for where the price stands', () => {
-  assert.deepEqual([1, .7, .5, .2, .02].map(priceWord), ['Top', 'High', 'Half', 'Low', 'Very low']);
+  assert.deepEqual([1, .7, .5, .2, .02].map(s => priceWord(s)), ['Top', 'High', 'Half', 'Low', 'Very low']);
 });
 
 test('Drop and Switch say the goods already sent are lost', () => {

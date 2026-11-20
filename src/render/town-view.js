@@ -49,6 +49,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     },
     project: id => project(v.cam, canvas, board.anchor(id, _a), size),
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),
+    /* Where each raider on the road is drawn on screen (client pixels), for the level pills that step aside for them. */
+    foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, .45, u.obj.position.z), size); if (p) out.push(p); } return out; },
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z), size); },
     /* Stop drawing and free the GPU memory; lose: also let go of the GPU context (the canvas is being replaced). */
     stop(lose = false) { cancelAnimationFrame(raf); selection.dispose(); battle.dispose(); board.dispose(); v.dispose(); if (lose) v.renderer.forceContextLoss(); },

@@ -15,7 +15,7 @@
    down. */
 export const TOWERS = {
   crossbow: {
-    name: 'Crossbow', about: 'Shoots one raider at a time, fast. Best against Riders.', best: { runner: 2 }, bestText: 'Riders',
+    name: 'Crossbow', about: 'Fires fast, one shot at a time. Best against riders.', best: { runner: 2 }, bestText: 'Riders',
     coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {
@@ -27,7 +27,7 @@ export const TOWERS = {
     coins: 100, goods: { gulch: { planks: 4, clay: 3 }, ridge: { coal: 4, stone: 3 }, falls: { quartz: 4, sand: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true, grow: 1.24,
   },
   still: {
-    name: 'Snake Oil Still', about: 'Throws poison. Best against Brutes and wagons.',
+    name: 'Snake Oil Still', about: 'Throws poison. Best against brutes and wagons.',
     coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { iron: 4, coal: 3 }, falls: { sand: 4, glass: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
     best: { armored: 2.2 }, bestText: 'Brutes and wagons',
   },

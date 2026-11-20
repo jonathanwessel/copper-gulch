@@ -51,7 +51,7 @@ test('institutions name the outposts they help', () => {
 test('the Perks card says what signing pays, not "more" beside the deeds held', () => {
   const src = fs.readFileSync(new URL('../src/ui/sheets.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /' more ' \+ \(p\.total/);
-  assert.match(src, /'Sign now and you have '/);
+  assert.match(src, /'Sign now and you have'/);
   assert.doesNotMatch(src, /More deeds let you pick more perks/); // the pairs already say what each needs
 });
 

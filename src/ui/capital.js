@@ -11,6 +11,8 @@ import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, no
 import { fmt } from './format.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+/* A line with a small label chip in front ("Next" and what it does), so no dot stands where a colon would go (review of 2026.11.20-5). */
+const labeled = (label, text) => { const s = el('span', 'lbline'); s.append(el('i', 'lbl', label), document.createTextNode(text)); return s; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 const lower = g => GOODS[g].name.toLowerCase();
 const townName = id => (TOWNS[id] && (TOWNS[id].short || TOWNS[id].name)) || id;
@@ -108,7 +110,7 @@ function institutions(game, live, changed, toast) {
   for (const inst of INSTITUTIONS) {
     const row = el('div', 'option'), txt = el('div'), small = el('small');
     if (!founded(game, inst.id)) {
-      txt.append(el('b', '', inst.name), el('span', '', inst.about), small);
+      txt.append(el('b', '', inst.name), labeled('First upgrade', inst.about), small);
       const b = el('button', 'btn small build', 'Build'); b.dataset.found = inst.id;
       b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built. Buy its upgrades with Influence.', 4000); changed(); } });
       row.append(txt, b);
@@ -116,10 +118,10 @@ function institutions(game, live, changed, toast) {
     } else {
       const n = nodesOf(game, inst.id), node = nextNode(game, inst.id);
       txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' bought'));
-      if (n) txt.append(el('span', '', 'Now · ' + boughtText(inst, n))); // what was bought stays on the card (review of 2026.11.19-11)
+      if (n) txt.append(labeled('Now', boughtText(inst, n))); // what was bought stays on the card (review of 2026.11.19-11)
       if (!node) { txt.append(el('span', '', 'All upgrades bought.')); row.append(txt); row.classList.add('off'); }
       else {
-        txt.append(el('span', '', 'Next · ' + node.about), small);
+        txt.append(labeled('Next', node.about), small);
         const b = el('button', 'btn small build', 'Buy'); b.dataset.node = inst.id;
         b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgrade bought. ' + node.about, 4000); changed(); } });
         row.append(txt, b);

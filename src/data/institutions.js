@@ -64,7 +64,7 @@ export const INSTITUTIONS = [
   },
 ];
 /* What an institution does in amounts a player can check (review of 2026.11.19-11: two "up to" totals each could not
-   be checked). Before it is built, its first upgrade ("First upgrade · Goods sell for 10% more."). Once built, what the
+   be checked). Before it is built, its first upgrade ("Goods sell for 10% more.", under a First upgrade label). Once built, what the
    upgrades bought so far give, added up by kind ("Goods sell for 10% more."), so a bought +10% stays on the card.
    Worked out from the nodes, so it never drifts from them. */
 const SAYS = {
@@ -82,5 +82,5 @@ export function boughtText(inst, n) {
   for (const node of inst.nodes.slice(0, n)) for (const e of node.effects) { const k = e.stat + (e.where ? ':' + e.where : ''); all.set(k, (all.get(k) || 1) * e.mul); }
   return [...all].map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))).join(' ');
 }
-for (const i of INSTITUTIONS) i.about = 'First upgrade · ' + boughtText(i, 1);
+for (const i of INSTITUTIONS) i.about = boughtText(i, 1); // shown under a small First upgrade label (src/ui/capital.js)
 export const INSTITUTION = Object.fromEntries(INSTITUTIONS.map(i => [i.id, i]));

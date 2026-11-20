@@ -39,7 +39,7 @@ export function retryLine(game, town) {
   const w = a ? a.wave : (town.lost || {}).wave, what = w && !bossWave(town, w) ? 'wave ' + w : 'the ' + bossName(town);
   if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
   if (st === 'stuck') return 'Go to ' + here + ' and raise a tower one level. Then it fights ' + what + ' again.';
-  return 'Auto-towers will raise a tower. Then ' + here + ' fights ' + what + ' again.';
+  return 'Tries again once Auto-towers raises a tower.'; // review of 2026.11.20-5: the old two-step line narrated
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */
