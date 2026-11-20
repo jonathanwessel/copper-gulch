@@ -12,10 +12,10 @@ test('a good with every unit kept says there is none to sell, not "all kept" bes
 
 test('a good not for sale says so and what it would sell for', () => {
   const t = goodsLine({ have: 40, selling: false, price: .9 });
-  assert.equal(t, '40 in stock');
+  assert.equal(t, '40 in stock · 0 for towers · 40 spare');
   assert.doesNotMatch(t, /worth/);
   assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 for towers · 35 spare');
-  assert.equal(goodsLine({ have: 40, selling: true, price: 13, open: true }), '40 in stock'); // the open box says the price
+  assert.equal(goodsLine({ have: 40, selling: true, price: 13, open: true }), '40 in stock · 0 for towers · 40 spare'); // the open box says the price
 });
 
 test('research says how many levels are done', () => {

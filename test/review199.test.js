@@ -30,7 +30,7 @@ test('a foreman that is not buying reads as a status, not a story', () => {
     assert.ok(t.length < 60, t); // short as a sign, beside the Foreman switch (review of 2026.11.20-2)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'Paused until timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused until timber sells for more.');
 });
 
 test('the lost toast has one step', () => {

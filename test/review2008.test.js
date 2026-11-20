@@ -24,7 +24,7 @@ test('every price under 1 coin reads one way, and the bar ends in a price word',
   for (const v of [.7, .2, .03, .001]) assert.equal(each(v), 'under 1 coin each');
   assert.equal(priceLabel(.001), 'Under 1 coin each');
   assert.equal(priceLabel(2), '2 coins each');
-  assert.deepEqual([1, .7, .5, .2, .02].map(priceWord), ['Best price', '70% of best', '50% of best', '20% of best', '2% of best']);
+  assert.deepEqual([1, .7, .5, .2, .02].map(priceWord), ['Full price', 'Down 30%', 'Down 50%', 'Down 80%', 'Down 98%']);
 });
 
 test('the Goods switch reads like the building cards\' Keep switch and says what it keeps for', () => {
@@ -32,13 +32,13 @@ test('the Goods switch reads like the building cards\' Keep switch and says what
   const ex = EXPLAINERS.find(e => e.id === 'stock');
   assert.match(ex.text, /^Tap Keep goods for/);
   assert.deepEqual(textIssues(ex.text), []);
-  assert.match(read('src/ui/play.js'), /'Keep ' \+ g\.name\.toLowerCase\(\) \+ ' for towers'/);
+  assert.ok(read('src/ui/play.js').includes("'Towers get ' + g.name.toLowerCase() + ' first'"));
 });
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Before best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Until wave 22 again');
   assert.ok(oldWavesLabel({}).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Paused until timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused until timber sells for more.');
   const play = read('src/ui/play.js');
   assert.match(play, /const coinCost = need => fmtLive\(town\.coins\)/);
   assert.match(play, /const pc = costRow\(c, true\)/);
@@ -46,9 +46,9 @@ test('the bonus is named, the path price comes first, and the foreman says what 
 
 test('one name for one thing: the town\'s boss on Keep trying, Build and Upgrade at the Capital, no group names', () => {
   const sheets = read('src/ui/sheets.js'), cap = read('src/ui/capital.js'), play = read('src/ui/play.js');
-  assert.match(sheets, /'Keep trying the ' \+ bossName\(town\)/);
+  assert.ok(sheets.includes("'Try the ' + bossName(town) + ' again'"));
   const ex = EXPLAINERS.find(e => e.id === 'retry');
-  assert.equal(ex.say({ boss: 'war wagon' }).startsWith('Tap Auto and turn on Keep trying the war wagon.'), true);
+  assert.equal(ex.say({ boss: 'war wagon' }).startsWith('Tap Auto and turn on Try the war wagon again.'), true);
   assert.doesNotMatch(cap, /'Buy'/);
   assert.match(cap, /'Upgrade'\); b\.dataset\.node/);
   assert.doesNotMatch(cap, /Buy its upgrades/);
@@ -62,15 +62,15 @@ test('one name for one thing: the town\'s boss on Keep trying, Build and Upgrade
 test('the Capital says Influence the same way on its card and map label, and the retry badge matches its line', () => {
   assert.equal(influenceWords(10.7), '10 Influence');
   const map = read('src/ui/map.js');
-  assert.match(map, /'You have ' \+ influenceWords\(c\.influence\)/);
+  assert.ok(map.includes('Influence') && map.includes("id = 'influence'")); // under the coins since review of 2026.11.20-10
   assert.match(map, /' · Tries again soon'/);
-  assert.match(map, /sign its charter\. That town starts over at wave 1/);
+  assert.ok(map.includes('Get deeds by signing a charter in Perks.'));
   assert.match(read('src/data/towns/ridge.js'), /makesText: 'iron, steel, rails, boilers and locomotives'/);
 });
 
 test('Perks says what a charter does first and what a deed is always, and the win card names its button', () => {
   const s = read('src/ui/sheets.js');
-  assert.match(s, /'A charter starts ' \+ town\.def\.name \+ ' over at wave 1 with nothing built\. You keep your coins and get deeds\.'/);
+  assert.ok(s.includes("el('p', 'uses', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and get deeds.')"));
   assert.match(s, /'Sign now and get'/);
   assert.doesNotMatch(s, /each\.hidden = c\.deeds > 0/);
   const won = EXPLAINERS.find(e => e.id === 'dc-won');

@@ -25,9 +25,9 @@ test('every goods row has one pattern and a price, and never keeps more than the
 
 test('the foreman, old-waves, research and lost lines read as plain statuses', () => {
   const f = foremanLine('flooded', 'timber');
-  assert.equal(f, 'Paused until timber sells for more.');
+  assert.equal(f, 'Foreman paused until timber sells for more.');
   assert.doesNotMatch(f, /better .* price/);
-  assert.equal(oldWavesLabel({ record: 22 }), 'Before best wave 22');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Until wave 22 again');
   assert.ok(oldWavesLabel({ record: 22 }).length <= 20);
   assert.equal(levelsDone(0, 5), '0 of 5 done');
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss', back: 18 } };

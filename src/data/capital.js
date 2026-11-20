@@ -7,7 +7,7 @@
           (Influence for an ask of `per` minutes, by the good's tier), least (the smallest ask, in units, by tier),
           retry (seconds before an empty spot on the board looks again). */
 export const CAPITAL_DEF = {
-  name: 'The Capital',
+  name: 'Capital',               // the map label's name too (review of 2026.11.20-10: "Capital" against "The Capital")
   short: 'Capital',
   // set 2026-11-18 with tools/balance.js: the GDD's first sketch (Ridge wave 15 + 2M) was written before the economy was
   // tuned; the bots hold about 20-60K coins a minute at the Ridge's second hour, so 2M was hours of saving

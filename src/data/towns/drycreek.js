@@ -4,7 +4,7 @@
 export const DRYCREEK = {
   id: 'drycreek',
   kind: 'outpost',
-  name: 'Dry Creek Outpost',
+  name: 'Dry Creek',              // one name everywhere, like the other outposts (review of 2026.11.20-10: "Dry Creek Outpost" against "Dry Creek")
   short: 'Dry Creek',              // in the place bar, the back button and the map badges
   store: 'stockpile',             // what raiders ride for, in words and on the board (a town's is the vault)
   era: 'Frontier',

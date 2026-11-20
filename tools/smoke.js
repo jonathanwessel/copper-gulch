@@ -205,7 +205,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Keep timber for towers · On/.test(document.getElementById('card').textContent);
+        out.says = /Towers get timber first · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -327,7 +327,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /Paused until timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Foreman paused until timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -599,7 +599,7 @@ async function run() {
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
         out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now and you have\s*1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
-        out.pairs = document.querySelectorAll('#sheet .pair').length >= 3 && /Needs 1 deed/.test(sheet.textContent);
+        out.pairs = [...document.querySelectorAll('#sheet .pair .pairhead')].filter(h => /^Needs/.test(h.textContent)).length === 1 && /Needs 1 deed/.test(sheet.textContent); // one locked pair at a time (review of 2026.11.20-10)
         t.lifetime = life;
         return out;
       });
@@ -714,7 +714,7 @@ async function run() {
         // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Copper Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
-        out.goalNext = gt() === 'Tap the Copper Camp, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        out.goalNext = gt() === 'Tap the Copper Camp lot, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
@@ -865,7 +865,7 @@ async function run() {
       const m = await page.evaluate(() => ({
         canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
         badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),
-        pause: !!document.getElementById('pauseBtn'), coins: document.getElementById('coins').textContent, back: document.getElementById('mapBack').textContent,
+        pause: !!document.getElementById('pauseBtn'), coins: document.getElementById('coins').textContent, back: document.getElementById('mapBack').getAttribute('aria-label'),
       }));
       if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge,sandybend,falls' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
       bad.push(...(await check(page)).map(b => 'map: ' + b));

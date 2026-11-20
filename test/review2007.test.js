@@ -19,8 +19,8 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 test('a good kept for towers says how many are spare, so Sell spare never looks idle', () => {
   assert.equal(goodsLine({ have: 84, kept: 84, selling: true }), '84 in stock · 84 for towers · 0 spare');
   assert.equal(goodsLine({ have: 122, kept: 84, selling: true }), '122 in stock · 84 for towers · 38 spare');
-  assert.equal(goodsLine({ have: 40, kept: 5, selling: false }), '40 in stock', 'not for sale: nothing is spare to sell');
-  assert.equal(goodsLine({ have: 40, kept: 0, selling: true }), '40 in stock');
+  assert.equal(goodsLine({ have: 40, kept: 5, selling: false }), '40 in stock · 5 for towers · 35 spare', 'not for sale: the second line still shows (review of 2026.11.20-10)');
+  assert.equal(goodsLine({ have: 40, kept: 0, selling: true }), '40 in stock · 0 for towers · 40 spare');
   for (const t of [goodsLine({ have: 122, kept: 84, selling: true })]) assert.deepEqual(textIssues(t), []);
 });
 
@@ -46,7 +46,7 @@ test('the price bar starts with the price in one form, and its end word is only 
   assert.equal(priceLabel(2), '2 coins each');
   assert.equal(priceLabel(.7), 'Under 1 coin each');
   assert.equal(priceLabel(.001), 'Under 1 coin each');
-  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Best price', '70% of best', '50% of best', '20% of best', '2% of best'].includes(priceWord(s)));
+  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Full price', 'Down 30%', 'Down 50%', 'Down 80%', 'Down 98%'].includes(priceWord(s)));
   const sheets = read('src/ui/sheets.js');
   assert.match(sheets, /priceLabel\(ex\.value\)/);
   assert.match(sheets, /explainBox\(ex, \{ total: null \}\)/);
@@ -54,7 +54,7 @@ test('the price bar starts with the price in one form, and its end word is only 
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.match(s, /^Before best wave [0-9]+$/);
+  assert.match(s, /^Until wave [0-9]+ again$/);
   assert.ok(s.length <= 20);
   assert.deepEqual(textIssues(s), []);
 });
@@ -74,8 +74,8 @@ test('the charter rows say what earns a deed, the warning is short, and Hire for
   const s = read('src/ui/sheets.js');
   assert.match(s, /'Best wave ' \+ town\.bestWave/);
   assert.match(s, /fmt\(town\.ownEarned\) \+ ' coins earned here'/);
-  const warn = 'A charter starts Copper Gulch over at wave 1 with nothing built. You keep your coins and get deeds.';
-  assert.match(s, /' over at wave 1 with nothing built\. You keep your coins and get deeds\.'/);
+  const warn = 'Copper Gulch starts over at wave 1 with nothing built. You keep your coins and get deeds.';
+  assert.ok(s.includes(" starts over at wave 1 with nothing built. You keep your coins and get deeds.'"));
   assert.ok(warn.length < 100);
   assert.match(read('src/ui/play.js'), /'A foreman upgrades this building for you.'/);
 });

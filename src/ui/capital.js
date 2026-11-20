@@ -48,10 +48,11 @@ function confirmTap(b, ask, go) {
 }
 
 /* The card's body. sig() changes when a contract is taken, done or dropped (then the card builds a new one). */
-export function capitalPanel(game, { changed = () => {}, toast = () => {} } = {}) {
+export function capitalPanel(game, { changed = () => {}, toast = () => {}, influence = false } = {}) {
   const c = capitalOf(game), box = el('div', 'capital');
   const inf = el('div', 'stat static'), infN = el('b');
-  inf.append(el('span', '', 'You have'), infN); box.append(inf); // what it is (review of 2026.11.20-3: "Influence 0")
+  inf.append(el('span', '', 'You have'), infN); // what it is (review of 2026.11.20-3: "Influence 0")
+  if (influence) box.append(inf); // on the map it sits under the coins instead (review of 2026.11.20-10: said twice)
   const tabs = el('div', 'captabs');
   for (const [id, label] of [['contracts', 'Contracts'], ['institutions', 'Buildings']]) {
     const b = el('button', 'btn small', label); b.id = id === 'contracts' ? 'capTabContracts' : 'capTabInst';
@@ -153,7 +154,7 @@ export function capitalSheet(game, toast = () => {}) {
         b.disabled = !canFoundCapital(game);
         return;
       }
-      if (!panel || 'open|' + panel.sig() !== sig) { panel = capitalPanel(game, { changed: () => { panel = null; paint(); }, toast }); sig = 'open|' + panel.sig(); body.replaceChildren(panel.el); }
+      if (!panel || 'open|' + panel.sig() !== sig) { panel = capitalPanel(game, { changed: () => { panel = null; paint(); }, toast, influence: true }); sig = 'open|' + panel.sig(); body.replaceChildren(panel.el); } // influence: no map here, so no Influence under the coins
       panel.paint();
     };
     paint();

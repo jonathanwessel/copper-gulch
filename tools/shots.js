@@ -14,7 +14,7 @@ const SCREENS = [
   ['title', () => { const n = document.getElementById('newsOk'); if (n) n.click(); }], // What's new is checked by smoke.js
   ['town', () => { localStorage.clear(); document.getElementById('play').click(); }],
   // looking along the road toward where raiders come in, a few seconds before a wave (the dust plume) and as it starts
-  ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 3, yaw: 0, pitch: .3, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 1.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['entry2', () => {}],
   ['card', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 400; CG.play.open('camp'); }],
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
@@ -74,11 +74,11 @@ const OUTPOST = [
   ['goal', () => {}],
   // the Call now goal: three Crossbows up, two waves beaten, the wait half gone, so the button is lit and spotlit
   ['goal-call', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 500); t.goods.stone = Math.max(t.goods.stone || 0, 100); for (const s of [0, 1, 2]) if (!t.towers.some(x => x.spot === s)) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); for (const id of ['dc-tower', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) CG.game.shared.goals.done[id] = true; t.bestWave = Math.max(t.bestWave, 2); t.wave = Math.max(t.wave, 3); Object.assign(t.waves, { phase: 'break', timer: 30, hold: false, queue: [], foes: [] }); setTimeout(() => { t.waves.timer = 30; }, 1400); }], // the timer is put back once the Done flash has gone; the shot waits for the ring (review of 2026.11.20-6: it was taken before the ring came)
-  ['outpost-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['outpost-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 2.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['outpost-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.stone = 500; t.buildings.quarry = 6; t.buildings.dmine = 3; for (const s of [0, 1, 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   // Dry Creek's boss: the bandit wagon at wave 10, close up as it comes down the road
   ['bandits', async () => {
-    const t = CG.game.town, r = CG.town.rig, v = { x: 3.9, z: .2, yaw: .5, pitch: .6, dist: 10 }, w = ms => new Promise(k => setTimeout(k, ms));
+    const t = CG.game.town, r = CG.town.rig, v = { x: 3.9, z: .2, yaw: -.9, pitch: .85, dist: 11 }, w = ms => new Promise(k => setTimeout(k, ms));
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; t.bestWave = Math.max(t.bestWave, 9); Object.assign(r.t, v); Object.assign(r.c, v);
     for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await w(50);
     t.waves.queue = ['bandits'];
@@ -110,7 +110,7 @@ const RIDGE = [
   ['found-card', async () => { delete CG.game.shared.seen.found; for (let i = 0; i < 60 && CG.coach.current !== 'found'; i++) await new Promise(r => setTimeout(r, 100)); }],
   ['found', async () => { CG.coach.dismiss(); document.getElementById('mapBtn').click(); for (let i = 0; i < 80 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('ridge'); await new Promise(r => setTimeout(r, 1200)); }],
   ['ridge', async () => { document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
-  ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 3, yaw: 0, pitch: .32, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 1.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['ridge-built', () => {
     CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e8;
     const G = CG.game.towns.gulch; G.buildings.pit = Math.max(5, G.level('pit')); G.buildings.kiln = Math.max(3, G.level('kiln')); // as for any player who reached the Ridge (review of 2026.11.19-12: "Build a Kiln" beside a Gulch that had one)
@@ -135,7 +135,7 @@ const RIDGE = [
   ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
   ['ridge-income', () => { CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
   ['pinehollow', async () => { CG.play.sheets.close(); CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
-  ['pinehollow-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['pinehollow-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 2.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['pinehollow-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.timber = 500; t.buildings.logcamp = 6; t.buildings.claybank = 3; for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   // the Gulch, out of play, loses to the war wagon: its waves hold themselves and a toast says so
   ['lost-toast', () => { const G = CG.game.towns.gulch; G.wave = 18; Object.assign(G.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); G.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: G.t }; CG.game.bus.emit('breach', { town: 'gulch', wave: 20, lost: 900, why: 'boss', back: 18, held: true }); }],
@@ -154,7 +154,7 @@ const RIDGE = [
   ['capital-rise', async () => { const T = await import('./src/core/tree.js'); setTimeout(() => T.foundInstitution(CG.game, 'university'), 1200 - 450); }],
   ['map-fly', () => { CG.mapui.close(); const r = CG.map.rig; Object.assign(r.c, r.home); Object.assign(r.t, r.home); r.flick = null; CG.flyTo('gulch'); }], // from the whole map, as a player flies (the capital close-up dove over bare ground)
   // Automation in the Gulch (the War Office and the University stand): Auto-towers on, Auto-research off
-  ['auto', async () => { for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'gulch' && CG.play); i++) await new Promise(r => setTimeout(r, 100)); await new Promise(r => setTimeout(r, 1500)); const A = await import('./src/core/automation.js'); A.setAuto(CG.game, CG.game.town, 'towers', true); CG.play.openAuto(); }],
+  ['auto', async () => { for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'gulch' && CG.play); i++) await new Promise(r => setTimeout(r, 100)); await new Promise(r => setTimeout(r, 1500)); const A = await import('./src/core/automation.js'); const G = CG.game.town; if (!G.towers.length) G.towers.push({ spot: 0, kind: 'crossbow', level: 3, path: null, cd: 0, spent: 0, pulses: 0 }); A.setAuto(CG.game, G, 'towers', true); CG.play.openAuto(); }],
   // Keep trying the boss on, right after the war wagon got through: the sheet says what it waits for, then the map badge
   ['auto-retry', async () => { const A = await import('./src/core/automation.js'), G = CG.game.town; A.setAuto(CG.game, G, 'retry', true); if (!G.towers.length) G.towers.push({ spot: 0, kind: 'crossbow', level: 1, path: null, cd: 0, spent: 0, pulses: 0 }); for (const k of Object.keys(G.goods)) { G.goods[k] = Math.max(G.goods[k], 5000); G.sell[k] = false; } A.autoOf(CG.game, G).wait = 30; G.wave = 18; Object.assign(G.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); G.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: G.t }; CG.play.sheets.close(); CG.play.openAuto(); }],
   ['map-retry', async () => { CG.play.sheets.close(); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('gulch'); }],
@@ -171,7 +171,7 @@ const FALLS = [
     CG.mapui.openSite('falls'); await wait(1000);
   }],
   ['falls', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.game.shared.charter.deeds = 5; CG.mapui.openSite('falls'); await wait(400); document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'falls'); i++) await wait(100); }],
-  ['falls-entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: 7.2, z: 2.6, yaw: 0, pitch: .34, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['falls-entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: 7.2, z: 1.4, yaw: 0, pitch: .5, dist: 10.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['falls-built', () => {
     CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e9;
     for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 6, glassworks: 8, wiremill: 6, bulbworks: 5, dynamo: 3, telegraph: 2 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); }
@@ -190,31 +190,32 @@ const FALLS = [
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; Object.assign(r.t, v); Object.assign(r.c, v);
     for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await wait(50);
     t.waves.queue = ['steamer'];
-    for (let i = 0; i < 300; i++) { const f = t.waves.foes.find(x => x.kind === 'steamer'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.6) break; } await wait(50); }
+    for (let i = 0; i < 300; i++) { const f = t.waves.foes.find(x => x.kind === 'steamer'); if (f) { f.hp = f.max = 1e6; if (f.s >= 4.6) break; } await wait(50); }
   }],
   ['sandybend', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.town.rig.reset(); CG.go('sandybend'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'sandybend'); i++) await wait(100); }],
-  ['sandybend-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 4, yaw: 0, pitch: .32, dist: 8.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['sandybend-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 2.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['falls-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('falls'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ONLY = process.argv[3]; // optional: only this run (gulch, outpost, ridge or falls)
 
 fs.mkdirSync(dir, { recursive: true });
-const srv = await start(0), b = await chromium.launch(), wrote = [];
+const srv = await start(0), b = await chromium.launch(), wrote = [], errs = [];
+const watch = (pg, size) => { pg.on('pageerror', e => errs.push(size + ': ' + String(e.message).split('\n')[0])); return pg; };
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
     if (!ONLY || ONLY === 'gulch') {
-    const p = await b.newPage({ viewport: { width, height } });
+    const p = watch(await b.newPage({ viewport: { width, height } }), size);
     await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
+      await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
       const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();
     }
     if (!ONLY || ONLY === 'outpost') {
-    const q = await b.newPage({ viewport: { width, height } });
+    const q = watch(await b.newPage({ viewport: { width, height } }), size);
     await q.goto(srv.url);
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
@@ -225,7 +226,7 @@ try {
     await q.close();
     }
     if (!ONLY || ONLY === 'ridge') {
-      const r = await b.newPage({ viewport: { width, height } });
+      const r = watch(await b.newPage({ viewport: { width, height } }), size);
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
@@ -235,7 +236,7 @@ try {
       await r.close();
     }
     if (!ONLY || ONLY === 'falls') {
-      const r = await b.newPage({ viewport: { width, height } });
+      const r = watch(await b.newPage({ viewport: { width, height } }), size);
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of FALLS) {
@@ -247,4 +248,6 @@ try {
   }
 } finally { await b.close(); srv.close(); }
 console.log(wrote.join('\n'));
+// an error on any page fails the run (2026.11.20-11: the steamer's stack check threw every frame in Silver Falls)
+if (errs.length) { console.log('page errors:\n' + [...new Set(errs)].slice(0, 20).join('\n')); process.exit(1); }
 process.exit(0);

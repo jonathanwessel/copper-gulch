@@ -170,7 +170,7 @@ export const EXPLAINERS = [
   {
     id: 'still', covers: ['tower:still'],
     title: 'Snake Oil Still',
-    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison is best against Brutes and war wagons.',
+    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison is best against brutes and bosses.',
     when: h => h.can('still') && (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {
@@ -223,10 +223,10 @@ export const EXPLAINERS = [
   },
   {
     id: 'back', covers: ['back'],
-    title: 'Back button',
-    text: 'Tap ◂ to switch to the place you played last.',
+    title: 'Jump back',
+    text: 'Tap ◂ to go to the place you played last.',
     // the button as it reads, "◂ Dry Creek" (review 2026-11-19)
-    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' to switch to ' + TOWNS[h.back].name + '.' : null),
+    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' to play there again.' : null), // the name once (review of 2026.11.20-10)
     when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {
@@ -310,9 +310,9 @@ export const EXPLAINERS = [
   },
   {
     id: 'retry', covers: ['retry'],
-    title: 'Keep trying',
-    text: 'Tap Auto and turn on Keep trying the boss. After a boss gets through or the vault falls, this town starts its waves again by itself once a tower goes up a level.',
-    say: h => 'Tap Auto and turn on Keep trying the ' + h.boss + '. After the ' + h.boss + ' gets through or the vault falls, this town starts its waves again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
+    title: 'Try again',
+    text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town tries again by itself once a tower goes up a level.',
+    say: h => 'Tap Auto and turn on Try the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town tries again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {

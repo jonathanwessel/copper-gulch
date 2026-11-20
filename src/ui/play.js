@@ -239,7 +239,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
     }
     // the line above shows the shortage, so the warning only says what it does and what to upgrade
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Buildings that use power run slower.' : 'Buildings that use power run slower. Upgrade the Water Wheel.'));
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Buildings that use power run slower when there is not enough.' : 'Buildings that use power run slower when there is not enough. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
@@ -273,7 +273,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = setSwitch(el('button', 'btn small'), 'Keep ' + g.name.toLowerCase() + ' for towers', keepOn ? 'On' : 'Off', keepOn);
+      const ks = setSwitch(el('button', 'btn small'), 'Towers get ' + g.name.toLowerCase() + ' first', keepOn ? 'On' : 'Off', keepOn);
       ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
@@ -615,6 +615,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { t.hidden = true; continue; }
       // a tag stays whole on screen while its building shows (review of 2026.11.19-11: "Lv 1" cut at the right edge)
       const marked = markTg && markTg.plot === id && markW, half = marked ? markW / 2 : ((tagSize.get(t) || [56])[0] / 2 + 2);
+      // the open card names it and says its level, and the glow marks it (review of 2026.11.20-10: "Level 10" over "Level 10")
+      if (p && !marked && openId === id) { t.hidden = true; continue; }
       if (p && !marked && (p.x < -half || p.x > viewW + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
       const px = p && Math.min(Math.max(p.x, half), viewW - half);
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
@@ -626,7 +628,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (p && marked) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of coverBoxes) if ((c.n === left || c.n === right) && px - tw / 2 < c.r && px + tw / 2 > c.l && py - th < c.b + 2) py = Math.max(py, c.b + 2 + th); markAt = { x: px, y: py }; }
       if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; if (marked) markAt = null; continue; } }
       if (t.hidden) t.hidden = false;
-      if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
+      if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } }
+      // a goal tag kept on screen points its stem at its building, or an arrow its way when the building is off screen
+      // (review of 2026.11.20-10: the Quarry's tag, held in from the edge, pointed at the water tower)
+      if (p && marked) {
+        const side = p.x < 0 ? 'l' : p.x > viewW ? 'r' : '', sx = side ? 0 : Math.round(Math.max(-half + 6, Math.min(half - 6, p.x - px)));
+        if (t.dataset.side !== side) { t.dataset.side = side; t.classList.toggle('offl', side === 'l'); t.classList.toggle('offr', side === 'r'); }
+        const sv = sx + 'px'; if (t.style.getPropertyValue('--sx') !== sv) t.style.setProperty('--sx', sv);
+      } else if (t.dataset.side) { t.dataset.side = ''; t.classList.remove('offl', 'offr'); t.style.removeProperty('--sx'); } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
       // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
       // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
       // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)

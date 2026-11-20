@@ -52,7 +52,7 @@ test('every goal that sends the player to another town is marked, so a boss figh
 
 test('the back card names the button as it reads, and both strong paths say what they cost', () => {
   const e = EXPLAINERS.find(x => x.id === 'back');
-  assert.equal(e.say({ back: 'drycreek' }), 'Tap ◂ Dry Creek to switch to Dry Creek Outpost.');
+  assert.equal(e.say({ back: 'drycreek' }), 'Tap ◂ Dry Creek to play there again.');
   assert.equal(e.say({ back: null }), null);
   assert.match(PATHS.mortar.a.about, /slower/);
   assert.match(PATHS.cannon.a.about, /slower/);

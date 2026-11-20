@@ -173,25 +173,34 @@ export function riverRibbon(pts, look, w = 1.1) {
   m.name = 'river'; m.material.userData.own = true;
   return m;
 }
-/* A plank bridge wherever the road crosses the river: [mesh]. Its deck stands BRIDGE high, so boats go under it and
-   raiders on the road walk over it (src/render/battle.js lifts them). */
-export const BRIDGE = .22;
+/* A plank bridge wherever the road crosses the river: [mesh]. It arches up to BRIDGE over the water, high enough
+   that boats and the steamer's hull pass under it (review of 2026.11.20-10: the steamer sailed through a 0.22 deck),
+   and raiders on the road walk over it along the same curve (bridgeLift, used by src/render/battle.js). */
+export const BRIDGE = .55;
+/* How high the road stands at a point d from the river's middle: flat at BRIDGE over the water, easing down to the
+   ground 1 away. */
+export const bridgeLift = d => { const s = Math.min(1, Math.max(0, (1 - d) / .45)); return BRIDGE * s * s * (3 - 2 * s); };
 export function bridges(road, river) {
   const out = [], step = .1, path = new THREE.CurvePath();
   for (let i = 0; i < road.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(road[i][0], 0, road[i][1]), new THREE.Vector3(road[i + 1][0], 0, road[i + 1][1])));
   const n = Math.ceil(path.getLength() / step), pts = path.getSpacedPoints(n);
   let run = null;
   const done = () => { if (run && run.length > 2) out.push(run); run = null; };
-  for (const p of pts) { if (polyDist(p.x, p.z, river).d < .9) (run || (run = [])).push(p); else done(); }
+  for (const p of pts) { if (polyDist(p.x, p.z, river).d < 1) (run || (run = [])).push(p); else done(); }
   done();
-  const k = new Kit();
+  const k = new Kit(), lift = (x, z) => bridgeLift(polyDist(x, z, river).d);
   for (const r of out) {
-    const a = r[0], b = r[r.length - 1], mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, len = Math.hypot(b.x - a.x, b.z - a.z) + .5, ry = Math.atan2(b.x - a.x, b.z - a.z);
-    k.box(mx, BRIDGE - .07, mz, 1.15, .07, len, 'woodL', { ry });
-    for (let i = 0; i < 7; i++) { const t = (i / 6 - .5) * (len - .1); k.box(mx + Math.sin(ry) * t, BRIDGE, mz + Math.cos(ry) * t, 1.2, .015, .05, 'woodD', { ry, ao: false }); }
-    for (const s of [-1, 1]) for (const e of [-1, 1]) { const ox = Math.cos(ry) * s * .55, oz = -Math.sin(ry) * s * .55, t = e * len * .45; k.box(mx + ox + Math.sin(ry) * t, -.1, mz + oz + Math.cos(ry) * t, .08, BRIDGE + .45, .08, 'woodD'); }
-    for (const s of [-1, 1]) { const ox = Math.cos(ry) * s * .56, oz = -Math.sin(ry) * s * .56; k.box(mx + ox, BRIDGE + .17, mz + oz, .04, .04, len, 'wood', { ry }); }
-    for (const e of [-1, 1]) k.box(mx + Math.sin(ry) * e * (len / 2 + .05), 0, mz + Math.cos(ry) * e * (len / 2 + .05), 1.1, BRIDGE - .02, .25, 'woodD', { ry }); // ramps up at each end
+    const a = r[0], b = r[r.length - 1], len = Math.hypot(b.x - a.x, b.z - a.z), ry = Math.atan2(b.x - a.x, b.z - a.z);
+    const dx = Math.sin(ry), dz = Math.cos(ry), cx = Math.cos(ry), cz = -Math.sin(ry), segs = Math.max(4, Math.round(len / .16));
+    for (let i = 0; i < segs; i++) {
+      const t0 = i / segs * len, t1 = (i + 1) / segs * len, x0 = a.x + dx * t0, z0 = a.z + dz * t0, x1 = a.x + dx * t1, z1 = a.z + dz * t1;
+      const h0 = lift(x0, z0), h1 = lift(x1, z1), sl = t1 - t0, rx = -Math.atan2(h1 - h0, sl), l = Math.hypot(sl, h1 - h0) + .02, mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, mh = (h0 + h1) / 2;
+      k.box(mx, mh - .07, mz, 1.15, .07, l, 'woodL', { ry, rx });                                        // the deck
+      k.box(mx, mh, mz, 1.2, .015, .05, 'woodD', { ry, ao: false });                                     // a plank
+      for (const s of [-1, 1]) k.box(mx + cx * s * .56, mh + .17, mz + cz * s * .56, .04, .04, l, 'wood', { ry, rx }); // the rails
+      if (i % 2 === 0) for (const s of [-1, 1]) k.box(x0 + cx * s * .55, -.1, z0 + cz * s * .55, .08, h0 + .37, .08, 'woodD'); // the posts
+    }
+    for (const s of [-1, 1]) k.box(b.x + cx * s * .55, -.1, b.z + cz * s * .55, .08, lift(b.x, b.z) + .37, .08, 'woodD');
   }
   return out.length ? [k.build()] : [];
 }

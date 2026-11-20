@@ -16,7 +16,7 @@ import { retryState } from '../core/automation.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
-const nameOf = id => id === 'capital' ? 'The Capital' : TOWNS[id].name;
+const nameOf = id => id === 'capital' ? 'Capital' : TOWNS[id].name; // as its label says it (review of 2026.11.20-10)
 const shortOf = id => id === 'capital' ? 'Capital' : TOWNS[id].short || TOWNS[id].name;
 /* A won outpost out of play sends its goods to the town in play and earns next to nothing itself (review 2026-11-18:
    Dry Creek's label read +0/s once won). */
@@ -114,13 +114,16 @@ export function mountMap(root, game, view, shell) {
   const hud = el('header', 'hud');
   const title = el('div', 'townname', 'Map');
   const ctl = el('div', 'hudrow');
-  const back = el('button', 'btn small', ''); back.id = 'mapBack';
+  const back = el('button', 'btn small backbtn', ''); back.id = 'mapBack';
   const pause = el('button', 'btn small', 'Pause'); pause.id = 'pauseBtn';
   ctl.append(back, pause);
   const left = el('div', 'hudleft'); left.append(title, ctl);
   const coins = el('div', 'coins'); coins.id = 'coins'; coins.setAttribute('role', 'button'); coins.tabIndex = 0;
   const coinNum = el('b'), inc = el('span', 'inc'); coins.append(el('span', 'coin'), coinNum, inc);
-  const right = el('div', 'hudright'); right.append(coins);
+  // the Influence you hold, under the coins once the Capital stands, as every resource you spend is always on screen
+  // (review of 2026.11.20-10: it showed only inside the Capital's card)
+  const infl = el('div', 'infl'), inflNum = el('b'); infl.id = 'influence'; infl.append(el('span', null, 'Influence'), inflNum); infl.hidden = true;
+  const right = el('div', 'hudright'); right.append(coins, infl);
   hud.append(left, right);
   const banner = el('div', 'pausedbanner', 'Paused'); banner.id = 'pausedBanner'; banner.hidden = true;
   const badges = el('div', 'tags'); badges.id = 'mapBadges';
@@ -198,7 +201,7 @@ export function mountMap(root, game, view, shell) {
         const fix = wheel ? ' Upgrade the ' + BUILDINGS[wheel].name + '.' : mk ? ' ' + (home.level(mk) ? 'Upgrade the ' : 'Build a ') + BUILDINGS[mk].name + ' in ' + shortOf(home.id) + '.' : '';
         kids.push(el('p', 'warn', 'The ' + BUILDINGS[info.short].name + (g ? ' needs more ' + GOODS[g].name.toLowerCase() + '.' + fix : ' is short of goods.')));
       }
-      const row = el('div', 'row'), go = el('button', 'btn primary buy', (info.inPlay ? 'Back to ' : 'Play ') + shortOf(id)); go.id = 'mapPlay';
+      const row = el('div', 'row'), go = el('button', 'btn primary buy', 'Play ' + shortOf(id)); go.id = 'mapPlay'; // the same on every card (review of 2026.11.20-10: "Back to" repeated the top button)
       go.addEventListener('click', () => shell.play(id));
       row.append(go); kids.push(row);
     } else {
@@ -209,7 +212,7 @@ export function mountMap(root, game, view, shell) {
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
-          if (!r.done) kids.push(el('p', 'uses', 'To earn deeds, tap Perks in a town and sign its charter. That town starts over at wave 1, and you keep your coins.'));
+          if (!r.done) kids.push(el('p', 'uses', 'Get deeds by signing a charter in Perks.'));
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
@@ -270,7 +273,7 @@ export function mountMap(root, game, view, shell) {
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, openId === 'capital' ? '' : 'You have ' + influenceWords(c.influence)); // its open card says these (review of 2026.11.20-4: the figure three times on one screen)
+        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
         const lr = lockedRules(game, s.id);
@@ -310,7 +313,7 @@ export function mountMap(root, game, view, shell) {
       if (r.B.b.style.transform !== tr) r.B.b.style.transform = tr;
     }
   }
-  paintBadges(); paintPause(); setText(back, 'Back to ' + shortOf(game.active));
+  paintBadges(); paintPause(); setText(back, shortOf(game.active)); back.setAttribute('aria-label', 'Back to ' + shortOf(game.active)); // one back button form, the arrow as on the play screen (review of 2026.11.20-10)
   return {
     el: ui, openSite, close,
     get current() { return openId; },
@@ -327,6 +330,7 @@ export function mountMap(root, game, view, shell) {
         bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));
         { const k = view.capitolBox ? view.capitolBox() : null; keep.hidden = !k; if (k) Object.assign(keep.style, { left: Math.round(k.l) + 'px', top: Math.round(k.t) + 'px', width: Math.round(k.r - k.l) + 'px', height: Math.round(k.b - k.t) + 'px' }); }
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
+        { const cap = capitalOpen(game) ? capitalOf(game) : null; if (infl.hidden !== !cap) infl.hidden = !cap; if (cap) setText(inflNum, fmtLive(Math.floor(cap.influence))); }
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
       if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)

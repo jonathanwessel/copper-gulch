@@ -49,7 +49,8 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
   const n = Math.floor(have + 1e-9), k = Math.min(n, Math.ceil(kept - 1e-9));
   // what the towers keep, then the spare that Sell spare sells (review of 2026.11.20-7: "84 kept for towers" beside a lit
   // Sell spare read as a switch with nothing to do; "0 spare" says so)
-  const saved = !k || !selling ? '' : ' · ' + fmtLive(k) + ' for towers · ' + fmtLive(n - k) + ' spare';
+  // on every row, selling or not (review of 2026.11.20-10: Iron Ridge's rows with Sell spare off had no second line)
+  const saved = ' · ' + fmtLive(k) + ' for towers · ' + fmtLive(n - k) + ' spare';
   // the price moved to the front of the price bar, priceLabel (review of 2026.11.20-6: "2 / coins each" wrapped on a
   // phone, and a price beside "122 kept for towers" read as selling what is kept)
   return fmtLive(n) + ' in stock' + saved;

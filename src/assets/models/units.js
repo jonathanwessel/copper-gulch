@@ -126,7 +126,6 @@ FOE.steamer = () => {
     k.cyl(0, .13, .05, .36, .26, 'ironL', { r2: .24, seg: 4, ry: Math.PI / 4, sz: 1.5, mat: 'metal' }); // the casemate
     for (const z of [-.2, .05, .3]) k.box(0, .13, z, .46, .02, .02, 'steel', { mat: 'metal' });
     for (const sx of [-1, 1]) k.box(sx * .26, .02, 0, .02, .06, 1.1, 'paintR');                         // a red waterline
-    k.cyl(0, .39, -.05, .06, .36, 'black', { r2: .075, seg: 8 }); k.cyl(0, .73, -.05, .085, .04, 'paintR', { seg: 8 });
     k.box(0, .22, .33, .08, .05, .02, 'glowO', { mat: 'glow' });
     k.cyl(0, .34, -.32, .025, .2, 'woodD', { seg: 5 }); k.box(.05, .5, -.32, .1, .06, .01, 'paintR');
   }));
@@ -135,6 +134,9 @@ FOE.steamer = () => {
   const wheel = part(k => { k.torus(0, 0, 0, .17, .025, 'woodD', { ts: 10 }); for (let i = 0; i < 6; i++) k.box(0, -.17, 0, .03, .34, .3, 'wood', { rz: i / 6 * Math.PI }); });
   const hold = G(); hold.add(wheel); hold.rotation.y = Math.PI / 2; hold.position.set(0, .12, -.66); root.add(hold);
   root.userData.wheels = [hold];
+  // the stack is hinged at its foot, so it folds back under the bridges (src/render/battle.js)
+  const stack = part(k => { k.cyl(0, 0, 0, .06, .36, 'black', { r2: .075, seg: 8 }); k.cyl(0, .34, 0, .085, .04, 'paintR', { seg: 8 }); });
+  stack.position.set(0, .39, -.05); root.add(stack); root.userData.stack = stack;
   return root;
 };
 function barrelBits(k) { k.cyl(-.1, .24, -.42, .06, .12, 'wood', { seg: 8 }); k.box(.1, .24, -.42, .1, .08, .08, 'woodL'); }

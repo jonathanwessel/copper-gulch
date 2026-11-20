@@ -64,7 +64,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = s => (s >= .95 ? 'Best price' : Math.max(1, Math.round(s * 100)) + '% of best'); // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
+export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
 export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' tower upgrades';
@@ -267,6 +267,11 @@ export function researchSheet(game, town) {
 
 /* Automation: three rows for this town, each with an On / Off switch once it is open. Foremen switch every hired
    foreman of the town at once; Auto-towers and Auto-research open with the War Office and the University. */
+/* What Auto-towers waits for: the first good the next upgrade is short of, else the coins (it spends at most half). */
+export function autoWait(town, cost) {
+  const g = Object.entries(cost.goods || {}).find(([k, n]) => !town.has(k, n));
+  return g ? 'Waiting for ' + fmt(g[1]) + ' ' + GOODS[g[0]].name.toLowerCase() : 'Waiting for ' + fmt(cost.coins * 2) + ' coins';
+}
 export function autoSheet(game, town) {
   return body => {
     const list = el('div', 'goods research auto'), rows = {};
@@ -279,7 +284,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Keep trying the ' + bossName(town), 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Try the ' + bossName(town) + ' again', 'After a loss, tries again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -297,7 +302,7 @@ export function autoSheet(game, town) {
         : tb === 'won' ? 'Upgrades a tower when a raid gets through.'
         : tb === 'none' ? 'Nothing to upgrade yet. Build a tower first.'
         : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
-        : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
+        : tb === 'coins' ? autoWait(town, n.cost) // the good it waits for, by name (review of 2026.11.20-11: "150 coins or its goods" beside 9.25M coins)
         : tb === 'wait' ? 'Next upgrade in ' + wait(a.wait)
         : 'Upgrading a tower now';
       set(rows.towers, autoOpen(game, 'towers'), !!a.towers && autoOpen(game, 'towers'), tLine);
@@ -447,7 +452,7 @@ export function perksSheet(ctx) {
     const r = el('div', 'row'); r.append(sign);
     // what a charter is comes first, then what signing pays under its own small heading (review of 2026.11.20-8:
     // "Charter" and "deed" were not explained and the deed rows were hard to read)
-    sec('Charter', el('p', 'uses', 'A charter starts ' + town.def.name + ' over at wave 1 with nothing built. You keep your coins and get deeds.'), now, el('small', 'pairhead', 'Sign now and get'), prog, next, r);
+    sec('Charter', el('p', 'uses', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and get deeds.'), now, el('small', 'pairhead', 'Sign now and get'), prog, next, r);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';
@@ -471,13 +476,17 @@ export function perksSheet(ctx) {
       const t = c.deeds + p.total;
       set(after.l, 'Sign now and you have'); set(after.v, p.total ? more(t) : '');
       after.r.hidden = !p.total;
-      set(each, 'Each deed adds ' + Math.round(DEEDS.income * 100) + '% to all the coins you earn, for good.');
+      set(each, 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins, for good.');
       // always shown: it says what a deed is (review of 2026.11.20-8)
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;
       sig = s; pairs.replaceChildren();
+      // only the next locked pair, so a new player meets one perk at a time (review of 2026.11.20-10: Charter, Deeds and
+      // perks all arrived on one card)
+      let shownLocked = 0;
       for (const pair of PERKS) {
         const st = perkState(game, pair.id), box = el('div', 'pair'); box.dataset.pair = pair.id;
+        if (st === 'locked' && shownLocked++) continue;
         box.append(el('small', 'pairhead', st === 'locked' ? 'Needs ' + plural(pair.need, 'deed') : st === 'open' ? 'Pick one' : 'Your perk'));
         for (const side of ['a', 'b']) {
           const x = pair[side], row = el('div', 'option'), txt = el('div');

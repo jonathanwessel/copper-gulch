@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-11',
+    lines: [
+      'Raiders face the way they ride again, and stay hidden inside the entrance until they come out.',
+      'The bridges at Silver Falls arch over the river, and the steamer folds its stack to pass under them.',
+      'Goods shows what is kept for towers and what is spare on every row, and the price bar says how far the price is down.',
+      'Your Influence shows under your coins on the map.',
+      'The goal tag points at its building, or toward it when the building is off the screen. Auto says which good it waits for.',
+    ],
+  },
+  {
     v: '2026.11.20-10',
     lines: [
       'In Goods, Keep goods for says how many tower upgrades it saves for, and each price bar shows how close it is to the best price for that good.',
