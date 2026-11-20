@@ -28,17 +28,17 @@ test('every price under 1 coin reads one way, and the bar ends in a price word',
 });
 
 test('the Goods switch reads like the building cards\' Keep switch and says what it keeps for', () => {
-  assert.equal(STOCK_LABEL, 'Keep goods for');
+  assert.equal(STOCK_LABEL, 'Keep for towers');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
-  assert.match(ex.text, /^Tap Keep goods for/);
+  assert.match(ex.text, /^Tap Keep for towers/);
   assert.deepEqual(textIssues(ex.text), []);
-  assert.ok(read('src/ui/play.js').includes("'Towers get ' + g.name.toLowerCase() + ' first'"));
+  assert.ok(read('src/ui/play.js').includes("'Keep for towers'"));
 });
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Until wave 22 again');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
   assert.ok(oldWavesLabel({}).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused until timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   const play = read('src/ui/play.js');
   assert.match(play, /const coinCost = need => fmtLive\(town\.coins\)/);
   assert.match(play, /const pc = costRow\(c, true\)/);
@@ -46,9 +46,9 @@ test('the bonus is named, the path price comes first, and the foreman says what 
 
 test('one name for one thing: the town\'s boss on Keep trying, Build and Upgrade at the Capital, no group names', () => {
   const sheets = read('src/ui/sheets.js'), cap = read('src/ui/capital.js'), play = read('src/ui/play.js');
-  assert.ok(sheets.includes("'Try the ' + bossName(town) + ' again'"));
+  assert.ok(sheets.includes("'Fight the ' + bossName(town) + ' again'"));
   const ex = EXPLAINERS.find(e => e.id === 'retry');
-  assert.equal(ex.say({ boss: 'war wagon' }).startsWith('Tap Auto and turn on Try the war wagon again.'), true);
+  assert.equal(ex.say({ boss: 'war wagon' }).startsWith('Tap Auto and turn on Fight the war wagon again.'), true);
   assert.doesNotMatch(cap, /'Buy'/);
   assert.match(cap, /'Upgrade'\); b\.dataset\.node/);
   assert.doesNotMatch(cap, /Buy its upgrades/);
@@ -63,7 +63,7 @@ test('the Capital says Influence the same way on its card and map label, and the
   assert.equal(influenceWords(10.7), '10 Influence');
   const map = read('src/ui/map.js');
   assert.ok(map.includes('Influence') && map.includes("id = 'influence'")); // under the coins since review of 2026.11.20-10
-  assert.match(map, /' · Tries again soon'/);
+  assert.match(map, /' · Waiting'/);
   assert.ok(map.includes('Get deeds by signing a charter in Perks.'));
   assert.match(read('src/data/towns/ridge.js'), /makesText: 'iron, steel, rails, boilers and locomotives'/);
 });
@@ -74,8 +74,8 @@ test('Perks says what a charter does first and what a deed is always, and the wi
   assert.match(s, /'Sign now and get'/);
   assert.doesNotMatch(s, /each\.hidden = c\.deeds > 0/);
   const won = EXPLAINERS.find(e => e.id === 'dc-won');
-  assert.match(won.text, /Tap Go to Copper Gulch/);
-  assert.equal(won.button, 'Go to Copper Gulch');
+  assert.match(won.text, /Tap Play Copper Gulch/);
+  assert.equal(won.button, 'Play Copper Gulch');
   assert.doesNotMatch(won.text, /has more buildings and towers/);
 });
 
@@ -93,7 +93,7 @@ test('Sandy Bend has its own goals, walking to the win and back to Silver Falls;
   const g = newGame('sb1', 'gulch'); g.addTown('sandybend'); g.go('sandybend'); g.step(.25);
   assert.equal(goalNow(g, false).id, 's-tower');
   for (const id of ['f-copper', 'f-steel', 'f-rails', 'r-tools']) assert.match(GOALS.find(x => x.id === id).text, /^Tap Map, /, id + ' names what to tap');
-  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves so raids cannot cost you coins');
+  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves so no wave can cost you coins');
 });
 
 test('a selection slides clear of the goods strip as well as the card', () => {

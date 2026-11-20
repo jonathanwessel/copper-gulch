@@ -97,7 +97,7 @@ html.no3d body { background: var(--bg); }
    (owner: towers were hard to tap, depending on where they were; the top bar as tall as the side buttons ate them) */
 .play .card, .play .tag { pointer-events: auto; }
 .hud {
-  position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
   padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
   pointer-events: none;
 }
@@ -111,7 +111,7 @@ html.no3d body { background: var(--bg); }
 .coins b { font-size: 1.15rem; color: var(--gold); min-width: 5ch; }
 .coins .inc { font-size: .8rem; color: var(--good); min-width: 7.5ch; }
 .coin { width: 14px; height: 14px; background: var(--gold); border: 2px solid #7a5a12; box-shadow: inset -2px -2px 0 #c99a2a; flex: none; }
-.hudleft { display: grid; gap: 6px; justify-items: start; pointer-events: none; flex: 1 1 0; min-width: 0; }
+.hudleft { display: grid; gap: 6px; align-self: start; align-content: start; justify-items: start; pointer-events: none; flex: 1 1 0; min-width: 0; }
 .hudleft > .wave { max-width: 100%; min-width: 0; }
 .hudleft > * { pointer-events: auto; }
 .wave {
@@ -297,6 +297,13 @@ html.flat .tag { position: static; transform: none !important; }
   .card { gap: 5px; }
   .card .explain { padding-block: 3px; }
   .card .explain .statrow { min-height: 30px; }
+  /* a tower's tappable stats two to a row, the name small over the value, so the Sell button under them shows above
+     the pinned Upgrade bar (review of 2026.11.20-11: Sell was a sliver under the cost bar) */
+  .card > .explain:not(.why) { grid-template-columns: 1fr 1fr; column-gap: 8px; }
+  .card > .explain:not(.why) > div { grid-column: 1 / -1; }
+  .card > .explain:not(.why) .statrow { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 34px; margin: 0; padding: 1px 4px; }
+  .card > .explain:not(.why) .statrow > span { font-size: .72rem; color: var(--muted); line-height: 1.1; }
+  .card > .explain:not(.why) .statrow > b { line-height: 1.2; }
   .card > .buybar { gap: 4px; padding-block: 4px; }
   .card .row > .buy { min-height: 38px; padding-block: 4px; font-size: 1.1rem; }
   .card .row > .btn.small { min-height: 34px; }
@@ -352,7 +359,7 @@ html.flat .tag { position: static; transform: none !important; }
 .mapbadge.dot::after { content: ""; position: absolute; top: -6px; right: -6px; width: 12px; height: 12px; border-radius: 50%; background: #e8392c; border: 2px solid var(--line); animation: dotPulse 1.2s ease-in-out infinite; }
 .vault i.low { background: var(--bad); }
 .mapui.flying .tags, .mapui.flying .card { display: none; }
-@media (orientation: landscape) and (max-height: 500px) { .mapui .card { max-height: calc(100% - 66px); } } /* the coins stay in view */
+@media (orientation: landscape) and (max-height: 500px) { .mapui .card { max-height: calc(100% - 66px); } .mapui.hasinfl .card { max-height: calc(100% - 98px); } } /* the coins stay in view, and the Influence under them once the Capital stands (review of 2026.11.20-11: the Capital card covered it while its costs read in Influence) */
 .stat.static { cursor: default; }
 .stat.static b::after { display: none; }
 .stat.short b, .stat.low b { color: var(--bad); }
@@ -455,6 +462,7 @@ html.flat .tag { position: static; transform: none !important; }
   flex: none; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 32px; padding: 2px 8px 2px 5px; font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer;
   background: var(--panel); border: 0; box-shadow: inset 2px 2px 0 var(--bevel), inset -2px -2px 0 #24170f;
 }
+.goodchip.low b { color: var(--bad); }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */

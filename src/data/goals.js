@@ -57,7 +57,7 @@ export const GOALS = [
   // the hold is its own step, so the save step can point at the coins it counts (review of 2026.11.19-12: the save goal
   // spotlit Hold waves while it said save coins)
   // (a hold after a lost boss does not count: Resume waves comes first, then this step)
-  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves so raids cannot cost you coins', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
+  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves so no wave can cost you coins', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
   { id: 'g-save', town: 'gulch', text: 'Save coins to open Iron Ridge', doneText: 'Iron Ridge is open', need: RIDGE.found.coins, done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#coins' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap the Toolsmith lot, then tap Build', doneText: 'Toolsmith built', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
   { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', doneText: 'Iron Ridge is open', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },

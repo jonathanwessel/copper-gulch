@@ -175,7 +175,7 @@ test('On, a vault that fell on a plain wave while away starts again once a tower
   assert.equal(G.waves.autoHold, true, 'away, a fallen vault holds the waves');
   assert.equal(G.lost.why, 'vault');
   assert.equal(retryState(g, G), 'stuck', 'Auto-towers is off');
-  assert.equal(retryLine(g, G), 'Go to Copper Gulch and upgrade a tower one level. Then it fights wave 14 again.');
+  assert.equal(retryLine(g, G), 'Play Copper Gulch and upgrade a tower one level. Then it fights wave 14 again.');
   run(g, 60);
   assert.equal(G.waves.hold, true, 'no stronger tower yet');
   G.towers[0].level++;

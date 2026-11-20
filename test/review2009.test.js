@@ -26,9 +26,9 @@ test('buying a level is called Upgrade everywhere players read it', () => {
 });
 
 test('Goods says how much it keeps, each building card which good, and prices read as a share of the best', () => {
-  assert.equal(STOCK_LABEL, 'Keep goods for');
-  assert.equal(stockWords({ stock: 'normal' }), '2 tower upgrades');
-  assert.ok(read('src/ui/play.js').includes("'Towers get ' + g.name.toLowerCase() + ' first'"));
+  assert.equal(STOCK_LABEL, 'Keep for towers');
+  assert.equal(stockWords({ stock: 'normal' }), 'Next 2 levels');
+  assert.ok(read('src/ui/play.js').includes("'Keep for towers'"));
   assert.equal(priceWord(1), 'Full price');
   assert.equal(priceWord(.4), 'Down 60%');
   assert.equal(priceWord(.001), 'Down 99%');
@@ -36,11 +36,11 @@ test('Goods says how much it keeps, each building card which good, and prices re
 });
 
 test('the old-wave bonus names the wave that earns it, and research says time one way', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Until wave 22 again');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
   assert.equal(span(80), '80 sec'); assert.equal(leftWord(13), '13 sec left'); assert.equal(span(600), '10 min');
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused until timber sells for more.');
-  for (const s of ['Foreman paused until timber sells for more.', 'Tap Hold waves so raids cannot cost you coins']) assert.deepEqual(textIssues(s), []);
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
+  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves so no wave can cost you coins']) assert.deepEqual(textIssues(s), []);
 });
 
 test('Iron Ridge opens with a goal and walks to the Blast Furnace', () => {

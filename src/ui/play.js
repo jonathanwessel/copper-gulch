@@ -27,7 +27,7 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '..
 const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
 const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
-import { lostToast, lostCard } from './lost.js';
+import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
 import { waveSheet, waveTimer } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
@@ -121,12 +121,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
   const strip = el('div', 'goodstrip'); strip.id = 'goodsStrip'; strip.hidden = true;
-  let stripSig = '', stripNums = {}, room = 0, viewW = innerWidth;
+  let stripSig = '', stripNums = {}, room = 0, viewW = innerWidth, powerNum = null, powerChip = null;
+  /* Power on the strip once the town makes it (review of 2026.11.20-11: power was never on the strip): what the grid
+     makes, red when the workshops want more. Tap it for the building that makes it. */
+  const gridMaker = () => Object.keys(BUILDINGS).find(id => BUILDINGS[id].town === town.id && isGrid(BUILDINGS[id].makes) && town.level(id) > 0) || null;
   const tagTr = new WeakMap(); // the transform each level tag was last given, so a still tag is not written again
   const paintStrip = () => {
-    const { list, more } = stripFit(town, room || (room = stripRoom(strip))), s = list.join() + '+' + more + '/' + room; // room: kept by measure(). The tower goods always show, and the more box only fits in a free place
+    const gm = gridMaker(), { list, more } = stripFit(town, (room || (room = stripRoom(strip))) - (gm ? 1 : 0)), s = list.join() + '+' + more + '/' + room + (gm || ''); // room: kept by measure(). The tower goods always show, and the more box only fits in a free place
     if (s !== stripSig) {
-      stripSig = s; stripNums = {}; strip.hidden = !list.length;
+      stripSig = s; stripNums = {}; strip.hidden = !list.length && !gm; powerNum = powerChip = null;
       strip.replaceChildren(...list.map(g => {
         const b = el('button', 'goodchip'); b.dataset.good = g; b.title = GOODS[g].name;
         const n = el('b'); b.append(goodIcon(g), el('span', 'gname', GOODS[g].name), n); stripNums[g] = n;
@@ -136,8 +139,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // no free place (the tower goods fill the room): the more box sits on the strip's top edge, so no good is hidden
       // without a way to it (review of 2026.11.19-14: six tower goods on a phone hid Tools with no more box). In one row
       // (a phone turned sideways) it stays inline.
+      if (gm) {
+        const g = BUILDINGS[gm].makes; powerChip = el('button', 'goodchip powerchip'); powerChip.dataset.good = g; powerChip.id = 'stripPower'; powerChip.title = GOODS[g].name;
+        powerChip.append(goodIcon(g), el('span', 'gname', GOODS[g].name), powerNum = el('b'));
+        powerChip.addEventListener('click', () => open(gm)); strip.append(powerChip);
+      }
       if (more) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
+    if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) powerChip.classList.toggle('low', low); }
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
   };
   // tags over the plots
@@ -230,7 +239,6 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
     const makerOf = g => Object.values(BUILDINGS).find(x => x.makes === g && x.town === GOODS[g].town);
-    if (imp.length) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
     // the power grid (Silver Falls): the Water Wheel says how much of its power the workshops use
     // power as have / need in whole numbers, one short line (review of 2026.11.19-14: four sentences and "8.4 power"),
     // red when short (review of 2026.11.19-7: power was named but never counted)
@@ -241,6 +249,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the line above shows the shortage, so the warning only says what it does and what to upgrade
     if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Buildings that use power run slower when there is not enough.' : 'Buildings that use power run slower when there is not enough. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
+    // where shipped goods come from, unless the short warning below says it (review of 2026.11.20-11: "Bricks come by
+    // wagon" beside "Not enough bricks" on the Boiler Shop)
+    if (imp.length && !(town.starved[id] && L && shortImp.length && !gridShort && town.starved[id] !== 'towers')) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
       // held back by the tower reserve (src/core/economy.js, WORKSHOP): the yard has the input, the towers come first
@@ -273,7 +284,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = setSwitch(el('button', 'btn small'), 'Towers get ' + g.name.toLowerCase() + ' first', keepOn ? 'On' : 'Off', keepOn);
+      const ks = setSwitch(el('button', 'btn small'), 'Keep for towers', keepOn ? 'On' : 'Off', keepOn);
       ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
@@ -328,13 +339,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
     if (!b || !town.level(s.maker)) return 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
-    const when = 'You will have enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '.';
+    const when = 'You will have enough ' + name.toLowerCase() + (s.seconds < 5 ? ' in a moment.' : ' in about ' + time(s.seconds) + '.');
     return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
   });
   // names the goods, not amounts: the cost row above has them (review of 2026.11.19-9: "20 copper and 20 bricks are set aside" said the cost twice)
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; return keepLine(g.map(k => GOODS[k].name.toLowerCase()), pathNext ? 'path' : 'upgrade'); };
   // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
   const soon = s => s.startsWith('You will have enough');
+  const bossWords = s => (s || '').replace('{boss}', 'the ' + bossName(town));
   let pathNext = false;
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
@@ -353,7 +365,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       }
       for (const k of kinds) {
         const d = TOWERS[k], c = towerCost(town, k, 0), row = el('div', 'option'), shut = !towerOpen(town, k);
-        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, d.about), shut ? el('small', null, 'You can build it at wave ' + d.opens) : costRow(c));
+        const txt = el('div'); txt.append(el('b', null, d.name), el('span', null, bossWords(d.about)), shut ? el('small', null, 'You can build it at wave ' + d.opens) : costRow(c));
         if (!shut) for (const s of shortText(c)) txt.append(el('small', soon(s) ? 'soon' : 'short', s));
         const go = el('button', 'btn small build', 'Build'); go.dataset.kind = k; go.disabled = shut || !canPay(town, c);
         go.addEventListener('click', () => { if (buildTower(game, town, i, k)) paintCard(); });
@@ -377,7 +389,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (st.splash) line('Blast', blastWord(st.splash), 'splash');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
-    if (d.bestText) line('Best against', d.bestText);
+    if (d.bestText) line('Best against', bossWords(d.bestText));
     card.append(stats);
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));

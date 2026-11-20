@@ -205,7 +205,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Towers get timber first · On/.test(document.getElementById('card').textContent);
+        out.says = /Keep for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -327,7 +327,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /Foreman paused until timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Foreman paused while the timber price is low./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -598,7 +598,7 @@ async function run() {
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
-        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now and you have\s*1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /After signing\s*1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
         out.pairs = [...document.querySelectorAll('#sheet .pair .pairhead')].filter(h => /^Needs/.test(h.textContent)).length === 1 && /Needs 1 deed/.test(sheet.textContent); // one locked pair at a time (review of 2026.11.20-10)
         t.lifetime = life;
         return out;
@@ -1114,7 +1114,7 @@ async function run() {
       await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());
       if (!await waitFor(page, () => document.querySelector('[data-auto="retry"]').textContent === 'Turn off' && /Ready if a boss gets through/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('Keep trying the boss did not switch on');
       await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
-      if (!await waitFor(page, () => /Waiting for|Trying wave 20 again/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
+      if (!await waitFor(page, () => /On hold for now|Trying wave 20 again/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
       bad.push(...(await check(page)).map(b => 'retry: ' + b));
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

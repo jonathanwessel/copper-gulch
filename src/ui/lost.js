@@ -38,7 +38,7 @@ export function retryLine(game, town) {
   const st = retryState(game, town), a = autoOf(game, town).boss, here = town.def.short || town.def.name;
   const w = a ? a.wave : (town.lost || {}).wave, what = w && !bossWave(town, w) ? 'wave ' + w : 'the ' + bossName(town);
   if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
-  if (st === 'stuck') return 'Go to ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
+  if (st === 'stuck') return 'Play ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
   return 'Tries again once Auto-towers upgrades a tower.'; // review of 2026.11.20-5: the old two-step line narrated
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to

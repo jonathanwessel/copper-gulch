@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-12',
+    lines: [
+      'The town name, wave bar and Pause stay in the same place on every screen.',
+      'Power shows on the goods strip once your town makes it. Each town lists its own goods first.',
+      'A goal that sends you back to a town names the back button. Every button that takes you to a place says Play.',
+      'The Mortar and the Still name the boss they are best against, and the Rail Office names your outposts.',
+      'In Goods and on each building, the switch for tower goods is called Keep for towers.',
+    ],
+  },
+  {
     v: '2026.11.20-11',
     lines: [
       'Raiders face the way they ride again, and stay hidden inside the entrance until they come out.',

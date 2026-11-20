@@ -67,7 +67,7 @@ test('the strip sends the player to a town that lost while away, unless Keep try
   assert.equal(r.waves.autoHold, true);
   const gl = goalNow(g);
   assert.equal(gl.id, 'resume-ridge');
-  assert.equal(gl.text, 'Go to Iron Ridge and tap Resume waves');
+  assert.equal(gl.text, 'Tap Map, Iron Ridge, then tap Resume waves');
   assert.deepEqual(textIssues(gl.text), []);
   assert.deepEqual(gl.at({ back: 'ridge' }), { el: '#backBtn', go: 'ridge' });
   assert.deepEqual(gl.at({ back: 'drycreek' }), { el: '#mapBtn', go: 'ridge' });

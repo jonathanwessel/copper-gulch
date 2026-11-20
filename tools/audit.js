@@ -152,7 +152,7 @@ export function textRules(debug) {
   for (const n of NEWS) for (const l of n.lines) seen.push(['news ' + n.v, l]);
   for (const x of GOALS) seen.push(['goal ' + x.id, x.text]);
   seen.push(['goal wait', 'Wait for 5 more coins and 3 more timber, then tap a stone pad']); // goalText's other line
-  seen.push(['goal resume', 'Tap Resume waves'], ['goal resume lost', 'Build more towers, then tap Resume waves'], ['goal resume away', 'Go to Iron Ridge and tap Resume waves']); // goalNow's held-waves steps (src/core/goals.js)
+  seen.push(['goal resume', 'Tap Resume waves'], ['goal resume lost', 'Build more towers, then tap Resume waves'], ['goal resume away', 'Tap Map, Iron Ridge, then tap Resume waves']); // goalNow's held-waves steps (src/core/goals.js)
   for (const [k, t] of Object.entries(TOWERS)) seen.push(['tower ' + k, t.about], ...Object.values(PATHS[k] || {}).map(q => ['path ' + q.name, q.about]));
   for (const [k, r] of Object.entries(RESEARCH)) seen.push(['research ' + k, r.about + (r.worse ? ' ' + r.worse : '')]);
   for (const file of walk('src/ui').filter(x => x.endsWith('.js'))) {

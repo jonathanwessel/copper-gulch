@@ -14,7 +14,7 @@ const SCREENS = [
   ['title', () => { const n = document.getElementById('newsOk'); if (n) n.click(); }], // What's new is checked by smoke.js
   ['town', () => { localStorage.clear(); document.getElementById('play').click(); }],
   // looking along the road toward where raiders come in, a few seconds before a wave (the dust plume) and as it starts
-  ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 1.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['entry', () => { const t = CG.game.town, r = CG.town.rig, v = { x: .4, z: 1.2, yaw: .35, pitch: .72, dist: 13 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['entry2', () => {}],
   ['card', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 400; CG.play.open('camp'); }],
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
@@ -97,6 +97,12 @@ const RIDGE = [
     localStorage.clear(); document.getElementById('play').click();
     for (let i = 0; i < 100 && !(window.CG && CG.town && CG.play); i++) await new Promise(r => setTimeout(r, 100));
     const t = CG.game.town; t.bestWave = 20; t.wave = 21; t.coins = 2e5;
+    // what a player at wave 21 has built (review of 2026.11.20-11: a Gulch at wave 21 with only a Lumber Camp looked like a broken save)
+    Object.assign(t.buildings, { camp: 9, mine: 7, pit: 6, saw: 5, smelter: 4, kiln: 3 });
+    const D = await import('./src/core/defense.js');
+    for (const [i, k, L] of [[2, 'crossbow', 4], [3, 'cannon', 3], [5, 'crossbow', 3], [8, 'frost', 2], [9, 'still', 2], [11, 'cannon', 2]]) {
+      if (D.towerAt(t, i)) continue; if (!D.fitsSpot(t, i, k)) continue; t.towers.push({ spot: i, kind: k, level: L, spent: 300 * L, path: null, cd: 0, pulses: 0 });
+    }
     (await import('./src/core/outpost.js')).grantOutpost(CG.game, 'drycreek'); // every player in the Gulch has won Dry Creek
   }],
   // the goal strip once wave 20 is beaten and the coins are short: hold the waves and save
@@ -201,6 +207,14 @@ const ONLY = process.argv[3]; // optional: only this run (gulch, outpost, ridge 
 
 fs.mkdirSync(dir, { recursive: true });
 const srv = await start(0), b = await chromium.launch(), wrote = [], errs = [];
+/* Each shot also records where the wave bar sits: the top-left block (place, wave bar, Pause, goal) never moves from
+   screen to screen at one size (review of 2026.11.20-11: it sat 20 to 45 px lower beside a taller side column). */
+const waveTops = {};
+async function shot(pg, f, size) {
+  await pg.screenshot({ path: f }); wrote.push(f);
+  const top = await pg.evaluate(() => { const w = document.getElementById('wave'), r = w && w.getBoundingClientRect(); return r && r.height > 0 && getComputedStyle(w).visibility !== 'hidden' ? Math.round(r.top) : null; });
+  if (top !== null) (waveTops[size] ||= []).push([path.basename(f), top]);
+}
 const watch = (pg, size) => { pg.on('pageerror', e => errs.push(size + ': ' + String(e.message).split('\n')[0])); return pg; };
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
@@ -210,7 +224,7 @@ try {
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
       await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
-      const f = path.join(dir, `${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
+      const f = path.join(dir, `${name}-${size}.png`); await shot(p, f, size);
     }
     await p.close();
     }
@@ -220,7 +234,7 @@ try {
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
       await q.evaluate(go); if (name === 'goal-call') for (let i = 0; i < 40 && await q.evaluate(() => document.getElementById('goalMark').hidden); i++) await sleep(100); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'bandits' ? 150 : name === 'won' ? 2500 : 1500);
-      const f = path.join(dir, `${name}-${size}.png`); await q.screenshot({ path: f }); wrote.push(f);
+      const f = path.join(dir, `${name}-${size}.png`); await shot(q, f, size);
       if (process.env.SHOT_PROBE) console.log(name, size, JSON.stringify(await q.evaluate(new Function('return (' + process.env.SHOT_PROBE + ')'))));
     }
     await q.close();
@@ -231,7 +245,7 @@ try {
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
         await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' || name === 'map' ? 3000 : name === 'map-fly' ? 120 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
-        const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
+        const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
       }
       await r.close();
     }
@@ -241,13 +255,17 @@ try {
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of FALLS) {
         await r.evaluate(go); await sleep(name === 'falls' || name === 'sandybend' || name === 'falls-sight' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 7000 : name === 'steamer' ? 150 : 1200);
-        const f = path.join(dir, `${name}-${size}.png`); await r.screenshot({ path: f }); wrote.push(f);
+        const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
       }
       await r.close();
     }
   }
 } finally { await b.close(); srv.close(); }
 console.log(wrote.join('\n'));
+for (const [size, list] of Object.entries(waveTops)) {
+  const tops = list.map(x => x[1]), lo = Math.min(...tops), hi = Math.max(...tops);
+  if (hi - lo > 2) errs.push(size + ': the wave bar moves between ' + lo + ' and ' + hi + ' px (' + list.filter(x => x[1] !== lo).map(x => x[0] + ' ' + x[1]).slice(0, 6).join(', ') + ')');
+}
 // an error on any page fails the run (2026.11.20-11: the steamer's stack check threw every frame in Silver Falls)
 if (errs.length) { console.log('page errors:\n' + [...new Set(errs)].slice(0, 20).join('\n')); process.exit(1); }
 process.exit(0);

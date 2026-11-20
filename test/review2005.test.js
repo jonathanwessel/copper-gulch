@@ -26,7 +26,7 @@ test('no dot stands where a colon would go, and raider names are lowercase in a 
   for (const i of INSTITUTIONS) assert.doesNotMatch(i.about, /·/, i.name);
   const cap = read('src/ui/capital.js');
   assert.doesNotMatch(cap, /'(Now|Next) · '/);
-  assert.match(cap, /labeled\('Next', node\.about\)/);
+  assert.match(cap, /labeled\('Next', say\(node\.about\)\)/);
   for (const T of Object.values(TOWERS)) assert.doesNotMatch(T.about, /Best against [A-Z]/, T.name);
 });
 

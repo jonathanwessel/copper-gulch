@@ -23,7 +23,7 @@ export function showUpdate() {
 }
 
 export async function checkUpdates(manual = false) {
-  APP.status = 'Checking for updates'; APP.onChange();
+  APP.status = 'Looking for a new version'; APP.onChange();
   try { if (APP.reg) await APP.reg.update(); } catch (e) { /* offline */ }
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

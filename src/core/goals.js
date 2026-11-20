@@ -54,7 +54,7 @@ export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at
 export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
 const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
-  return { id: 'resume-' + id, away: true, text: 'Go to ' + name + ' and tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
+  return { id: 'resume-' + id, away: true, text: 'Tap Map, ' + name + ', then tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
 };
 /* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens next. */
 const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk));
@@ -89,9 +89,21 @@ export function goalNow(game, held = true) {
 /* heldText: the words once the waves are held. need: coins the goal saves for; the screen adds have / need. */
 export function goalText(game, town, g) {
   if (g.heldText && town.waves && town.waves.hold) return g.heldText;
-  if (!g.wait) return g.text;
+  if (!g.wait) return viaBack(game, town, g);
   const c = goalContext(game, town);
   return c.canBuild(g.wait) ? g.text : 'Wait for ' + c.shortText(g.wait) + ', then tap a stone pad';
+}
+
+/* A goal that sends the player to the place the back button goes to names that button, so the strip and the lit
+   button agree (review of 2026.11.20-11: "Tap Map, Copper Gulch, then build a Smelter" beside a lit ◂ Copper Gulch).
+   The back button plays there at once, so "then Play Copper Gulch" drops out. */
+function viaBack(game, town, g) {
+  const m = /^Tap Map, ([^,]+), then (.+)$/.exec(g.text || '');
+  if (!m || typeof g.at !== 'function') return g.text;
+  const at = g.at(goalContext(game, town));
+  if (!at || at.el !== '#backBtn') return g.text;
+  const t = TOWNS[at.go], label = '◂ ' + ((t && (t.short || t.name)) || m[1]);
+  return /^Play /.test(m[2]) ? 'Tap ' + label : 'Tap ' + label + ', then ' + m[2];
 }
 
 /* Mark every goal done (for players already past the start; the save migration uses the list too). */

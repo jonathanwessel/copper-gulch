@@ -70,7 +70,7 @@ export function goodsSwitch({ selling = true }) {
    no longer has a header line, so the note says the price comes back. */
 export function priceNote({ have, kept = 0, price = 0 }) {
   const none = have - kept < 1;
-  if (price < .0095) return (none ? 'It pays almost nothing now.' : 'You sold a lot of it lately, so it pays almost nothing now.') + ' The price comes back over time.';
+  if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;
 }

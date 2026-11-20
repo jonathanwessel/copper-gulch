@@ -35,15 +35,18 @@ function towerGoods(town) {
   return s;
 }
 /* The goods strip (owner rule: the player can always see how much of each good they have): every good this town makes
-   with a built building, has in stock, or pays for an open tower kind or the next upgrade of a tower it has, in the
-   order of the goods list. */
+   with a built building, has in stock, or pays for an open tower kind or the next upgrade of a tower it has, the town's
+   own goods first. */
 export function stripGoods(town) {
   const want = new Set(listedGoods(town));
   for (const [g, n] of Object.entries(town.goods || {})) if (n >= 1) want.add(g);
   // goods shipped in for a built workshop stay on the strip at 0 (review of 2026.11.19-7: the Ridge's bricks came and went)
   for (const g of (town.def && town.def.imports) || []) if (Object.entries(BUILDINGS).some(([id, b]) => b.town === town.id && town.level(id) > 0 && g in b.inputs)) want.add(g);
   for (const g of towerGoods(town)) want.add(g);
-  return Object.keys(GOODS).filter(g => want.has(g) && !GOODS[g].grid);
+  // the town's own goods first, then what it ships in (review of 2026.11.20-11: Iron Ridge's strip led with the Gulch's
+  // Bricks and Tools), each part in the order of the goods list
+  const own = g => (GOODS[g].town === town.id ? 0 : 1);
+  return Object.keys(GOODS).filter(g => want.has(g) && !GOODS[g].grid).sort((x, y) => own(x) - own(y));
 }
 
 /* Which buttons are out. Goods once there are two goods to compare (or once the player met it in another town). */

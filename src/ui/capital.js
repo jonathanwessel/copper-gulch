@@ -6,7 +6,8 @@ import { GOODS } from '../data/goods.js';
 import { TOWNS } from '../data/towns/index.js';
 import { capitalOf, capitalOpen, canFoundCapital, foundCapital, takeContract, dropContract, spareRate } from '../core/capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
-import { INSTITUTIONS, boughtText } from '../data/institutions.js';
+import { INSTITUTIONS, boughtText, outpostWords } from '../data/institutions.js';
+import { isOutpost } from '../core/economy.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
 import { fmt } from './format.js';
 
@@ -111,10 +112,11 @@ function cost(small, have, need, unit) { setText(small, fmt(Math.floor(have)) + 
    and the next one with Buy. */
 function institutions(game, live, changed, toast) {
   const list = el('div', 'goods research');
+  const say = s => outpostWords(s, Object.values(game.towns).filter(isOutpost).map(t => t.def.short || t.def.name));
   for (const inst of INSTITUTIONS) {
     const row = el('div', 'option'), txt = el('div'), small = el('small');
     if (!founded(game, inst.id)) {
-      txt.append(el('b', '', inst.name), labeled('First upgrade', inst.about), small);
+      txt.append(el('b', '', inst.name), labeled('Once built', say(inst.about)), small);
       const b = el('button', 'btn small build', 'Build'); b.dataset.found = inst.id;
       b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built. Its upgrades cost Influence.', 4000); changed(); } });
       row.append(txt, b);
@@ -122,12 +124,12 @@ function institutions(game, live, changed, toast) {
     } else {
       const n = nodesOf(game, inst.id), node = nextNode(game, inst.id);
       txt.append(el('b', '', inst.name + ' · ' + n + ' of ' + inst.nodes.length + ' upgrades'));
-      if (n) txt.append(labeled('Now', boughtText(inst, n))); // what was bought stays on the card (review of 2026.11.19-11)
+      if (n) txt.append(labeled('Now', say(boughtText(inst, n)))); // what was bought stays on the card (review of 2026.11.19-11)
       if (!node) { txt.append(el('span', '', 'All upgrades done.')); row.append(txt); row.classList.add('off'); }
       else {
-        txt.append(labeled('Next', node.about), small);
+        txt.append(labeled('Next', say(node.about)), small);
         const b = el('button', 'btn small build', 'Upgrade'); b.dataset.node = inst.id; // Build, then Upgrade, as a town's buildings (review of 2026.11.20-8: Buy against Build)
-        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgraded. ' + node.about, 4000); changed(); } });
+        b.addEventListener('click', () => { if (buyNode(game, inst.id)) { toast(inst.name + ' upgraded. ' + say(node.about), 4000); changed(); } });
         row.append(txt, b);
         live.push(() => { cost(small, game.shared.capital.influence, nodeCost(game, inst.id), 'Influence'); b.disabled = nodeBlock(game, inst.id) !== null; });
       }

@@ -23,11 +23,11 @@ export const INSTITUTIONS = [
     ],
   },
   {
-    id: 'transport', name: 'Rail Office', about: 'Your outposts make more goods. Buildings cost less.',
+    id: 'transport', name: 'Rail Office', about: '{outposts} make more goods. Buildings cost less.',
     nodes: [
-      { id: 'freight', name: 'Freight Office', about: 'Every outpost makes 25% more goods.', effects: [{ stat: 'prod', mul: 1.25, where: 'outpost' }] },
+      { id: 'freight', name: 'Freight Office', about: '{outposts} make 25% more goods.', effects: [{ stat: 'prod', mul: 1.25, where: 'outpost' }] },
       { id: 'survey', name: 'Survey Crews', about: 'Buildings cost 10% less.', effects: [{ stat: 'cost:build', mul: .9 }] },
-      { id: 'mules', name: 'Mule Trains', about: 'Every outpost makes 50% more goods.', effects: [{ stat: 'prod', mul: 1.5, where: 'outpost' }] },
+      { id: 'mules', name: 'Mule Trains', about: '{outposts} make 50% more goods.', effects: [{ stat: 'prod', mul: 1.5, where: 'outpost' }] },
       { id: 'grants', name: 'Rail Grants', about: 'Buildings cost 15% less.', effects: [{ stat: 'cost:build', mul: .85 }] },
       { id: 'depots', name: 'Supply Depots', about: 'Every building makes 10% more goods.', effects: [{ stat: 'prod', mul: 1.1 }] },
     ],
@@ -67,9 +67,12 @@ export const INSTITUTIONS = [
    be checked). Before it is built, its first upgrade ("Goods sell for 10% more.", under a First upgrade label). Once built, what the
    upgrades bought so far give, added up by kind ("Goods sell for 10% more."), so a bought +10% stays on the card.
    Worked out from the nodes, so it never drifts from them. */
+/* {outposts}: the names of the player's outposts, filled in on screen (outpostWords), so the card says which places
+   (review of 2026.11.20-11: "Every outpost" at the Rail Office, and earlier "Your outposts" did not say what they are). */
+export const outpostWords = (s, names) => s.split('{outposts}').join(names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0] || 'Outposts');
 const SAYS = {
   price: p => 'Goods sell for ' + p + '% more.', influence: p => 'Contracts pay ' + p + '% more Influence.',
-  'prod:outpost': p => 'Every outpost makes ' + p + '% more goods.', prod: p => 'Every building makes ' + p + '% more goods.',
+  'prod:outpost': p => '{outposts} make ' + p + '% more goods.', prod: p => 'Every building makes ' + p + '% more goods.',
   'cost:build': p => 'Buildings cost ' + p + '% less.', income: p => 'You earn ' + p + '% more coins.',
   cost: p => 'Everything costs ' + p + '% less.', research: p => 'Research is ' + p + '% faster.',
   'cost:research': p => 'Research costs ' + p + '% less.', towerRange: p => 'Towers reach ' + p + '% farther.',

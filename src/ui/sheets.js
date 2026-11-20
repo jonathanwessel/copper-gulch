@@ -67,10 +67,10 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
-export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' tower upgrades';
+export const stockWords = town => 'Next ' + RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' levels';
 /* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
-export const STOCK_LABEL = 'Keep goods for'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
+export const STOCK_LABEL = 'Keep for towers'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -188,7 +188,7 @@ export function placesSheet(game, { go, found, capital = () => {} }) {
   return body => {
     for (const id of Object.keys(TOWNS).filter(t => game.towns[t])) {
       const here = id === game.active, row = el('div', 'row');
-      const b = btn(here ? TOWNS[id].name + ' · Here' : 'Go to ' + TOWNS[id].name, here ? 'btn' : 'btn primary', 'place-' + id);
+      const b = btn(here ? TOWNS[id].name + ' · Here' : 'Play ' + TOWNS[id].name, here ? 'btn' : 'btn primary', 'place-' + id);
       b.dataset.town = id; b.disabled = here;
       b.addEventListener('click', () => go(id));
       row.append(b); body.append(row);
@@ -284,7 +284,7 @@ export function autoSheet(game, town) {
     };
     add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Try the ' + bossName(town) + ' again', 'After a loss, tries again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, tries again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
@@ -309,8 +309,8 @@ export function autoSheet(game, town) {
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
-        : rs === 'wait' ? 'Waiting for a tower to go up a level'
-        : rs === 'stuck' ? (a.towers ? 'Waiting for a tower to go up a level' : 'Turn on Auto-towers, or upgrade a tower yourself')
+        : rs === 'wait' ? 'On hold for now'
+        : rs === 'stuck' ? (a.towers ? 'On hold for now' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
@@ -390,7 +390,7 @@ export function menuSheet(ctx) {
       }
       slots.append(row);
     }
-    sec('Save slots', el('p', 'uses', 'Your game saves by itself every few seconds.'), slots);
+    sec('Save slots', slots);
 
     // Copy the save out
     const out = el('textarea', 'savetext'); out.readOnly = true; out.hidden = true; out.id = 'saveOut'; out.rows = 3;
@@ -474,7 +474,7 @@ export function perksSheet(ctx) {
       const more = d => plural(d, 'deed') + ', ' + Math.round(DEEDS.income * 100 * d) + '% more coins';
       set(have.l, 'You have'); set(have.v, c.deeds ? more(c.deeds) : 'No deeds yet');
       const t = c.deeds + p.total;
-      set(after.l, 'Sign now and you have'); set(after.v, p.total ? more(t) : '');
+      set(after.l, 'After signing'); set(after.v, p.total ? more(t) : '');
       after.r.hidden = !p.total;
       set(each, 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins, for good.');
       // always shown: it says what a deed is (review of 2026.11.20-8)

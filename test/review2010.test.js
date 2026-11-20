@@ -27,9 +27,9 @@ test('one name for each place and one phrase for the boss retry', () => {
   assert.equal(TOWNS.drycreek.name, TOWNS.drycreek.short);
   assert.equal(CAPITAL.name, 'Capital');
   const sheets = read('src/ui/sheets.js'), lost = read('src/ui/lost.js'), map = read('src/ui/map.js');
-  assert.ok(sheets.includes("'Try the ' + bossName(town) + ' again'"));
+  assert.ok(sheets.includes("'Fight the ' + bossName(town) + ' again'"));
   assert.ok(!sheets.includes('Keep trying') && !sheets.includes('Starts the waves again'));
-  assert.ok(lost.includes("'Tries again once Auto-towers upgrades a tower.'") && map.includes("' · Tries again soon'"));
+  assert.ok(lost.includes("'Tries again once Auto-towers upgrades a tower.'") && map.includes("' · Waiting'"));
   const ex = EXPLAINERS.find(e => e.id === 'retry' || e.title === 'Try again');
   assert.ok(ex && ex.title === 'Try again' && /tries again/.test(ex.text));
   assert.ok(!map.includes("'Back to ' : 'Play '"), 'the map card says Play for every town');
@@ -55,11 +55,11 @@ test('every Goods row says what is kept and what is spare, and the price word sa
 });
 
 test('the old-wave bonus says how long it lasts, and the foreman line says who is paused', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Until wave 22 again');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused until timber sells for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   assert.ok(read('src/ui/play.js').includes('run slower when there is not enough.'));
-  for (const s of ['Foreman paused until timber sells for more.', 'Get deeds by signing a charter in Perks.', 'After a loss, tries again once a tower goes up a level.']) assert.deepEqual(textIssues(s), []);
+  for (const s of ['Foreman paused while the timber price is low.', 'Get deeds by signing a charter in Perks.', 'After a loss, tries again once a tower goes up a level.']) assert.deepEqual(textIssues(s), []);
 });
 
 test('the bridges arch high enough for boats, and raiders turn along the road and hide in the entrance', async () => {

@@ -261,7 +261,7 @@ export function mountMap(root, game, view, shell) {
       // a place ready to build or start is not locked (review of 2026.11.20-9: a lock on "Capital · Ready to build")
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)) && !lockedRules(game, s.id).ready);
       if (info) {
-        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Tries again soon' : info.alert === 'retrying' ? ' · Retrying' : '';
+        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Waiting' : info.alert === 'retrying' ? ' · Retrying' : '';
         setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
         // a town on hold shows its status in place of the vault bar, which refilled when it dropped back (review of
         // 2026.11.20-9: the bar poked out of "Wave 18 · Tries again soon")
@@ -330,7 +330,7 @@ export function mountMap(root, game, view, shell) {
         bar = [left, right].map(e => e.getBoundingClientRect()).map(q => ({ l: q.left, r: q.right, b: q.bottom }));
         { const k = view.capitolBox ? view.capitolBox() : null; keep.hidden = !k; if (k) Object.assign(keep.style, { left: Math.round(k.l) + 'px', top: Math.round(k.t) + 'px', width: Math.round(k.r - k.l) + 'px', height: Math.round(k.b - k.t) + 'px' }); }
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
-        { const cap = capitalOpen(game) ? capitalOf(game) : null; if (infl.hidden !== !cap) infl.hidden = !cap; if (cap) setText(inflNum, fmtLive(Math.floor(cap.influence))); }
+        { const cap = capitalOpen(game) ? capitalOf(game) : null; if (infl.hidden !== !cap) { infl.hidden = !cap; ui.classList.toggle('hasinfl', !!cap); } if (cap) setText(inflNum, fmtLive(Math.floor(cap.influence))); }
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
       if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)

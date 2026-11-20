@@ -27,15 +27,15 @@ export const TOWERS = {
     coins: 100, goods: { gulch: { planks: 4, clay: 3 }, ridge: { coal: 4, stone: 3 }, falls: { quartz: 4, sand: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true, grow: 1.24,
   },
   still: {
-    name: 'Snake Oil Still', about: 'Throws poison. Best against brutes and bosses.',
+    name: 'Snake Oil Still', about: 'Throws poison. Best against brutes and {boss}.',
     coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { iron: 4, coal: 3 }, falls: { sand: 4, glass: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
-    best: { armored: 2.2 }, bestText: 'Brutes and bosses',
+    best: { armored: 2.2 }, bestText: 'Brutes and {boss}',
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
-    name: 'Mortar', about: 'Lobs shells far over the road, not up close. Best against bosses.',
+    name: 'Mortar', about: 'Lobs shells far over the road, not up close. Best against {boss}.',
     coins: 400, goods: { gulch: { copper: 6, bricks: 6 }, ridge: { pigiron: 6, stone: 6 }, falls: { glass: 6, quartz: 6 } }, dmg: 36, rate: .3, range: 5.6, minRange: 1.4, splash: 1.4, grow: 1.19,
-    best: { boss: 2.5 }, bestText: 'Bosses and big groups',
+    best: { boss: 2.5 }, bestText: 'Big groups and {boss}',
     flight: 1.5, lob: true, long: true, opens: 12,
   },
 };

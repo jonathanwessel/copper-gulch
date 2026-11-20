@@ -41,9 +41,9 @@ export const EXPLAINERS = [
     when: h => h.wave >= 9 && !h.won, at: () => ({ el: '#wave' }),
   },
   {
-    id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Go to Copper Gulch',
+    id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Play Copper Gulch',
     title: 'Copper Gulch is open',
-    text: 'You beat wave 10 at Dry Creek. Tap Go to Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
+    text: 'You beat wave 10 at Dry Creek. Tap Play Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
   },
   // Copper Gulch
@@ -91,8 +91,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Keep goods for',
-    text: 'Tap Keep goods for to switch it to 4 tower upgrades. Building towers waits less, but you sell fewer goods.',
+    title: 'Keep for towers',
+    text: 'Tap Keep for towers to keep enough for the next 4 levels of every tower. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -312,7 +312,7 @@ export const EXPLAINERS = [
     id: 'retry', covers: ['retry'],
     title: 'Try again',
     text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town tries again by itself once a tower goes up a level.',
-    say: h => 'Tap Auto and turn on Try the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town tries again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
+    say: h => 'Tap Auto and turn on Fight the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town tries again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {

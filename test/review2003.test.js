@@ -27,7 +27,7 @@ test('the map card says Full or the hits left, and the contract names its good',
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.match(s, /^Until wave [0-9]+ again$/);
+  assert.match(s, /^Under best wave [0-9]+$/);
   assert.deepEqual(textIssues(s), []);
 });
 
