@@ -273,7 +273,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = setSwitch(el('button', 'btn small'), 'Keep ' + (keepOn && kept ? kept + ' ' + g.name.toLowerCase() + ' ' : '') + 'for towers', keepOn ? 'On' : 'Off', keepOn);
+      const ks = setSwitch(el('button', 'btn small'), 'Keep ' + g.name.toLowerCase() + ' for towers', keepOn ? 'On' : 'Off', keepOn);
       ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
@@ -285,15 +285,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (!hasForeman(town, id)) {
         const h = el('button', 'btn small', 'Hire foreman'); h.id = 'hireForeman'; // its price as have / need beside it (review of 2026.11.19-13)
         // what a foreman does, in a few words (review of 2026.11.20-7: Hire foreman alone did not say)
-        card.append(el('p', 'uses', 'A foreman buys its levels for you.')); // its own line, never wrapped beside the price
+        card.append(el('p', 'uses', 'A foreman upgrades this building for you.')); // its own line, never wrapped beside the price
         fr.append(costRow({ coins: hireCost(town, id), goods: {} }));
         h.disabled = town.coins < hireCost(town, id);
         h.addEventListener('click', () => { if (hireForeman(game, town, id)) paintCard(); });
         fr.append(h);
       } else {
         const on = foremanOn(town, id);
-        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Buys level ' + (L + 1) + ' when you have ' + fmt(cost(town, id) / SHARE) + ' coins.'));
-        const sw = setSwitch(el('button', 'btn small'), 'Foreman buys levels', on ? 'On' : 'Off', on); sw.id = 'foremanSwitch'; // says what it does (review of 2026.11.20-3: "Foreman · On" said nothing)
+        fr.append(el('span', 'uses', !on ? '' : wait ? waitText(wait) : 'Upgrades to level ' + (L + 1) + ' when you have ' + fmt(cost(town, id) / SHARE) + ' coins.'));
+        const sw = setSwitch(el('button', 'btn small'), 'Foreman upgrades', on ? 'On' : 'Off', on); sw.id = 'foremanSwitch'; // says what it does (review of 2026.11.20-3: "Foreman · On" said nothing)
         sw.addEventListener('click', () => { setForeman(town, id, !on); paintCard(); });
         fr.append(sw);
       }
@@ -308,7 +308,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:
      coins showed only a price). The coins cell keeps up with the purse 5 times a second (paintCoinCosts), so the card is
      not rebuilt for it. */
-  const coinCost = (need, lead = false) => lead ? fmt(need) + ' coins · you have ' + fmtLive(town.coins) : fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // lead: the price first, after "Each path costs" (review of 2026.11.20-8: it read as a 9.99M price) // the purse as the top bar writes it
+  const coinCost = need => fmtLive(town.coins) + ' / ' + fmt(need) + ' coins'; // one have / need form on every card, the path bar too (review of 2026.11.20-9: the path bar's price-first form was the odd one out) // lead: the price first, after "Each path costs" (review of 2026.11.20-8: it read as a 9.99M price) // the purse as the top bar writes it
   const costRow = (c, lead = false) => {
     const r = el('span', 'costrow'), cc = el('span', 'need coinneed' + (town.coins + 1e-9 < c.coins ? ' low' : ''), coinCost(c.coins, lead));
     cc.dataset.need = c.coins; if (lead) cc.dataset.lead = '1'; r.append(cc);
@@ -396,7 +396,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Each path costs')); // one price above two Choose buttons (review of 2026.11.19-13)
+      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Each path')); // one price above two Choose buttons (review of 2026.11.19-13)
       ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
@@ -586,7 +586,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   function paintCoinCosts() {
     if (card.hidden) return;
-    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need, !!n.dataset.lead)); n.classList.toggle('low', town.coins + 1e-9 < need); }
+    for (const n of card.querySelectorAll('.coinneed')) { const need = +n.dataset.need; setText(n, coinCost(need)); n.classList.toggle('low', town.coins + 1e-9 < need); }
     // each good's have / need too, so it reads the same as the goods strip (review of 2026.11.19-4: the card said 5 / 9 while the strip said 6)
     for (const n of card.querySelectorAll('.goodneed')) {
       const need = +n.dataset.need, have = Math.floor((town.goods[n.dataset.good] || 0) + 1e-9), h = n.querySelector('.hn');

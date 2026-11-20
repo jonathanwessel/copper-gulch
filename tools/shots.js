@@ -78,7 +78,7 @@ const OUTPOST = [
   ['outpost-fight', () => { CG.town.rig.reset(); const t = CG.game.town; t.coins = 5000; t.goods.stone = 500; t.buildings.quarry = 6; t.buildings.dmine = 3; for (const s of [0, 1, 2]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   // Dry Creek's boss: the bandit wagon at wave 10, close up as it comes down the road
   ['bandits', async () => {
-    const t = CG.game.town, r = CG.town.rig, v = { x: 3.9, z: .2, yaw: .5, pitch: .5, dist: 4.2 }, w = ms => new Promise(k => setTimeout(k, ms));
+    const t = CG.game.town, r = CG.town.rig, v = { x: 3.9, z: .2, yaw: .5, pitch: .6, dist: 10 }, w = ms => new Promise(k => setTimeout(k, ms));
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; t.bestWave = Math.max(t.bestWave, 9); Object.assign(r.t, v); Object.assign(r.c, v);
     for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await w(50);
     t.waves.queue = ['bandits'];
@@ -125,7 +125,7 @@ const RIDGE = [
   }],
   // the armored train, close up as it comes out of the tunnel
   ['train', async () => {
-    const t = CG.game.town, r = CG.town.rig, m = t.def.board.entrance.mouth, v = { x: m[0] - .4, z: m[1] + 2.2, yaw: .5, pitch: .5, dist: 4.4 }, w = ms => new Promise(k => setTimeout(k, ms));
+    const t = CG.game.town, r = CG.town.rig, m = t.def.board.entrance.mouth, v = { x: m[0] - .4, z: m[1] + 2.2, yaw: .5, pitch: .6, dist: 10 }, w = ms => new Promise(k => setTimeout(k, ms));
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; Object.assign(r.t, v); Object.assign(r.c, v);
     for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await w(50);
     t.waves.queue = ['train'];
@@ -186,7 +186,7 @@ const FALLS = [
   }],
   // the ironclad steamer, close up as it comes round the bend under the broken bridge
   ['steamer', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
-    const t = CG.game.town, r = CG.town.rig, m = t.def.board.river.entrance.mouth, v = { x: m[0] + .3, z: m[1] + 2.4, yaw: -.4, pitch: .5, dist: 4.6 };
+    const t = CG.game.town, r = CG.town.rig, m = t.def.board.river.entrance.mouth, v = { x: m[0] + .3, z: m[1] + 2.4, yaw: -.4, pitch: .6, dist: 10 };
     Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] }); t.wave = 10; Object.assign(r.t, v); Object.assign(r.c, v);
     for (let i = 0; i < 50 && t.waves.phase !== 'wave'; i++) await wait(50);
     t.waves.queue = ['steamer'];

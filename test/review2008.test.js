@@ -24,23 +24,23 @@ test('every price under 1 coin reads one way, and the bar ends in a price word',
   for (const v of [.7, .2, .03, .001]) assert.equal(each(v), 'under 1 coin each');
   assert.equal(priceLabel(.001), 'Under 1 coin each');
   assert.equal(priceLabel(2), '2 coins each');
-  assert.deepEqual([1, .7, .5, .2, .02].map(priceWord), ['Full price', 'High price', 'Half price', 'Low price', 'Very low price']);
+  assert.deepEqual([1, .7, .5, .2, .02].map(priceWord), ['Best price', '70% of best', '50% of best', '20% of best', '2% of best']);
 });
 
 test('the Goods switch reads like the building cards\' Keep switch and says what it keeps for', () => {
-  assert.equal(STOCK_LABEL, 'Keep for each tower');
+  assert.equal(STOCK_LABEL, 'Keep goods for');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
-  assert.match(ex.text, /^Tap Keep for each tower/);
+  assert.match(ex.text, /^Tap Keep goods for/);
   assert.deepEqual(textIssues(ex.text), []);
-  assert.match(read('src/ui/play.js'), /'Keep ' \+ \(keepOn && kept/);
+  assert.match(read('src/ui/play.js'), /'Keep ' \+ g\.name\.toLowerCase\(\) \+ ' for towers'/);
 });
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Beaten wave bonus');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Before best wave 22');
   assert.ok(oldWavesLabel({}).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for timber to sell for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Paused until timber sells for more.');
   const play = read('src/ui/play.js');
-  assert.match(play, /lead \? fmt\(need\) \+ ' coins · you have '/);
+  assert.match(play, /const coinCost = need => fmtLive\(town\.coins\)/);
   assert.match(play, /const pc = costRow\(c, true\)/);
 });
 
@@ -93,7 +93,7 @@ test('Sandy Bend has its own goals, walking to the win and back to Silver Falls;
   const g = newGame('sb1', 'gulch'); g.addTown('sandybend'); g.go('sandybend'); g.step(.25);
   assert.equal(goalNow(g, false).id, 's-tower');
   for (const id of ['f-copper', 'f-steel', 'f-rails', 'r-tools']) assert.match(GOALS.find(x => x.id === id).text, /^Tap Map, /, id + ' names what to tap');
-  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves to save coins for Iron Ridge');
+  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves so raids cannot cost you coins');
 });
 
 test('a selection slides clear of the goods strip as well as the card', () => {

@@ -57,11 +57,15 @@ export const GOALS = [
   // the hold is its own step, so the save step can point at the coins it counts (review of 2026.11.19-12: the save goal
   // spotlit Hold waves while it said save coins)
   // (a hold after a lost boss does not count: Resume waves comes first, then this step)
-  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves to save coins for Iron Ridge', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
+  { id: 'g-hold', town: 'gulch', text: 'Tap Hold waves so raids cannot cost you coins', doneText: 'Waves on hold', done: c => c.heldByPlayer() || c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#holdWaves' }), within: 85 },
   { id: 'g-save', town: 'gulch', text: 'Save coins to open Iron Ridge', doneText: 'Iron Ridge is open', need: RIDGE.found.coins, done: c => c.founded('ridge'), ready: c => ridgeWave(c) && !c.canFound('ridge'), at: () => ({ el: '#coins' }), within: 85 },
   { id: 'g-tools', town: 'gulch', text: 'Tap the Toolsmith, then tap Build', doneText: 'Toolsmith built', done: c => c.lv('toolsmith') >= 1, ready: c => c.lvIn('ridge', 'rolling') >= 1, at: () => ({ plot: 'toolsmith' }), within: RIDGE_GOAL },
   { id: 'g-found', town: 'gulch', text: 'Tap Map, Iron Ridge, then Start Iron Ridge', doneText: 'Iron Ridge is open', done: c => c.founded('ridge'), ready: c => ridgeWave(c) && c.canFound('ridge'), at: goTo('ridge'), away: true, within: 85 },
   // Iron Ridge
+  // the steps to the Blast Furnace (review of 2026.11.20-9: Iron Ridge opened with no goal strip, the furnace was locked)
+  { id: 'r-quarry', town: 'ridge', text: 'Tap the Quarry and upgrade it to level 5', doneText: 'Quarry is level 5', done: c => c.lv('rquarry') >= 5 || c.lv('colliery') >= 1 || c.lv('furnace') >= 1, at: () => ({ plot: 'rquarry' }), within: RIDGE_GOAL },
+  { id: 'r-mine', town: 'ridge', text: 'Tap the Iron Mine and upgrade it to level 5', doneText: 'Iron Mine is level 5', done: c => c.lv('ironmine') >= 5 || c.lv('furnace') >= 1, ready: c => c.unlocked('ironmine'), at: () => ({ plot: 'ironmine' }), within: RIDGE_GOAL },
+  { id: 'r-coal', town: 'ridge', text: 'Tap the Coal Pit and upgrade it to level 3', doneText: 'Coal Pit is level 3', done: c => c.lv('colliery') >= 3 || c.lv('furnace') >= 1, ready: c => c.unlocked('colliery'), at: () => ({ plot: 'colliery' }), within: RIDGE_GOAL },
   { id: 'r-furnace', town: 'ridge', text: 'Tap the Blast Furnace, then tap Build', doneText: 'Blast Furnace built', done: c => c.lv('furnace') >= 1, ready: c => c.unlocked('furnace'), at: () => ({ plot: 'furnace' }), within: RIDGE_GOAL },
   // Pine Hollow (Evaluation 2): the newcomer never went there, since nothing on the strip sent it. Once the first
   // workshop stands, the Ridge's strip sends the player to win Pine Hollow (and its bounties), then back.

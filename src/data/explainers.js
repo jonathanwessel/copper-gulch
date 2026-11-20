@@ -43,7 +43,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Go to Copper Gulch',
     title: 'Copper Gulch is open',
-    text: 'You beat wave 10 at Dry Creek. Tap Go to Copper Gulch to start your first town. Dry Creek keeps making coins while you are away.',
+    text: 'You beat wave 10 at Dry Creek. Tap Go to Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
   },
   // Copper Gulch
@@ -91,8 +91,8 @@ export const EXPLAINERS = [
   },
   {
     id: 'stock', covers: ['stock'],
-    title: 'Keep for each tower',
-    text: 'Tap Keep for each tower to switch it to 4 upgrades. Building towers waits less, but you sell fewer goods.',
+    title: 'Keep goods for',
+    text: 'Tap Keep goods for to switch it to 4 tower upgrades. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -223,10 +223,10 @@ export const EXPLAINERS = [
   },
   {
     id: 'back', covers: ['back'],
-    title: 'Go back',
-    text: 'Tap ◂ to go back to the town you played last.',
+    title: 'Back button',
+    text: 'Tap ◂ to switch to the place you played last.',
     // the button as it reads, "◂ Dry Creek" (review 2026-11-19)
-    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' to go back there.' : null),
+    say: h => (TOWNS[h.back] ? 'Tap ◂ ' + (TOWNS[h.back].short || TOWNS[h.back].name) + ' to switch to ' + TOWNS[h.back].name + '.' : null),
     when: h => !!h.back && h.t > 8, at: () => ({ el: '#backBtn' }),
   },
   {
@@ -305,7 +305,7 @@ export const EXPLAINERS = [
   {
     id: 'automation', covers: ['system:automation'],
     title: 'Automation',
-    text: 'Tap Auto. This town can raise its towers and run its research on its own. It only buys what you bought before, and it never spends more than half your coins.',
+    text: 'Tap Auto. This town can upgrade its towers and run its research on its own. It only buys what you bought before, and it never spends more than half your coins.',
     when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {

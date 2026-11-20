@@ -255,11 +255,14 @@ export function mountMap(root, game, view, shell) {
       // the yellow border marks the place whose card is open, else the town in play (review of 2026.11.19-11: it stayed on
       // Pine Hollow, the town in play, while Iron Ridge's card was open and its ring was on the ground)
       B.b.classList.toggle('on', openId && badge[openId] ? openId === s.id : !!(info && info.inPlay));
-      B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)));
+      // a place ready to build or start is not locked (review of 2026.11.20-9: a lock on "Capital · Ready to build")
+      B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)) && !lockedRules(game, s.id).ready);
       if (info) {
         const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · Tries again soon' : info.alert === 'retrying' ? ' · Retrying' : '';
         setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
-        B.vault.hidden = false; B.line.hidden = false;
+        // a town on hold shows its status in place of the vault bar, which refilled when it dropped back (review of
+        // 2026.11.20-9: the bar poked out of "Wave 18 · Tries again soon")
+        B.vault.hidden = !!st; B.line.hidden = false;
         const w = Math.round(info.vault * 100) + '%'; if (B.fill.style.width !== w) B.fill.style.width = w;
         B.fill.classList.toggle('low', info.alert === 'vault');
         setText(B.extra, rates.words[s.id]);

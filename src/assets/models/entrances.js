@@ -205,8 +205,10 @@ export const ENTRANCES = {
       k.box(x - side * .35, .85, bz, .55, .2, .5, 'stoneL', { jit: .08 });           // the arch's springing
       k.box(x - side * .62, .75, bz, .3, .16, .48, 'stone', { rz: side * .5, jit: .1 }); // where it broke off
     }
-    k.box(mx - .1, -.15, bz + .1, 1, .2, .45, 'stoneD', { rz: .35, ry: .2, jit: .12 }); // the fallen deck
-    k.dode(mx + .35, 0, bz - .2, .22, 'stone', { jit: .15 });
+    // the fallen deck and its rubble lie along the banks, clear of the channel (review of 2026.11.20-9: the steamer sailed
+    // through the deck lying mid-river)
+    k.box(mx - half + .3, -.15, bz + .1, .7, .2, .45, 'stoneD', { rz: .35, ry: .2, jit: .12 });
+    k.dode(mx + half - .2, 0, bz - .2, .22, 'stone', { jit: .15 });
     // mist on the water inside the bend
     for (let i = 0; i < 4; i++) k.cyl(mx + (R() - .5) * e.width * .4, -.01 + i * .005, mz - 1.4 - i * .7, .55 + R() * .2, .02, '#b9d3da', { seg: 9, sx: 1.4, ao: false });
     return { obj: k.build({ cast: true }), plume: [mx, 1.6, pz - 1.4], shade: { x: mx, z0: mz - .2, z1: pz - .2, w: e.width * .7 } };

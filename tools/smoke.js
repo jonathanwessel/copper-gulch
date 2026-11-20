@@ -205,7 +205,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Keep \d+ [a-z ]+ for towers · On/.test(document.getElementById('card').textContent);
+        out.says = /Keep timber for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -327,7 +327,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /Waiting for timber to sell for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Paused until timber sells for more./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;
@@ -1108,7 +1108,7 @@ async function run() {
       bad.push(...(await uncovered(page)).map(b => 'automation: ' + b));
       const before = await page.evaluate(() => CG.game.town.towers[0].level);
       await page.evaluate(() => document.querySelector('[data-auto="towers"]').click());
-      if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next raise in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
+      if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next upgrade in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
       bad.push(...(await check(page)).map(b => 'automation on: ' + b));
       // Keep trying the boss: on, then a lost war wagon holds the waves and the sheet says what it waits for
       await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());

@@ -7,7 +7,7 @@ export const GULCH = {
   goods: ['timber', 'ore', 'clay', 'planks', 'copper', 'bricks', 'tools', 'wagons'],
   buildings: ['camp', 'mine', 'pit', 'saw', 'smelter', 'kiln', 'toolsmith', 'wagonworks'],
   top: 'wagons',                  // the town's top good
-  start: { coins: 15, buildings: { camp: 1 } },
+  start: { coins: 20, buildings: { camp: 1 } }, // one Crossbow's coins, so the first goal waits only on timber (review of 2026.11.20-9: "Wait for 5 more coins" beside +0/s)
   imports: [],                    // goods shipped in from other towns (none: the Gulch is first)
   research: ['saws', 'shafts', 'walls', 'gunsmith', 'posters', 'stalls', 'furnaces', 'kegs'], // src/data/research.js
   researchOpens: 'saw',           // research opens when this building is built

@@ -40,11 +40,11 @@ test('the old-waves damage row says up to which wave', () => {
   const rows = explainTower(t, t.towers[0]).dmg.rows;
   assert.ok(!rows.some(r => r.label === OLD_LABEL));
   const row = rows.find(r => r.label === oldWavesLabel(t));
-  assert.equal(row.label, 'Beaten wave bonus'); assert.equal(row.mul, 3);
+  assert.match(row.label, /^Before best wave [0-9]+$/); assert.equal(row.mul, 3);
 });
 
 test('institutions name the outposts they help', () => {
-  assert.match(INSTITUTION.transport.about, /Dry Creek/);
+  assert.match(INSTITUTION.transport.about, /outpost/);
   assert.doesNotMatch(INSTITUTION.transport.about, /Your outposts/);
 });
 

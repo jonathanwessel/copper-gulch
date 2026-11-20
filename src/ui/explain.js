@@ -21,7 +21,7 @@ export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Ma
 export function foremanLine(why, good) {
   /* a status, as short as a sign (review of 2026.11.20-2: "buys the next level once timber sells for more" beside 1M coins and a 41-coin level read odd) */
   if (why === 'short') return 'Waiting for more ' + good + '.';
-  if (why === 'flooded') return 'Waiting for ' + good + ' to sell for more.'; // what it waits for (review of 2026.11.20-8) // review of 2026.11.20-4: "a better price" beside a good kept for towers
+  if (why === 'flooded') return 'Paused until ' + good + ' sells for more.'; // what it waits for (review of 2026.11.20-8) // review of 2026.11.20-4: "a better price" beside a good kept for towers
   return 'Waiting until a level pays for itself within an hour.';
 }
 /* Goods your buildings keep back for a tower's next upgrade or path, named without amounts: the cost row above the line

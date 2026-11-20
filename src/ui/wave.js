@@ -41,7 +41,7 @@ export function waveInfo(town) {
     for (const f of ws.foes) n[f.kind] = (n[f.kind] || 0) + 1;
     const left = Object.values(n).reduce((a, b) => a + b, 0);
     const kinds = Object.entries(n).sort((a, b) => b[1] - a[1]);
-    if (kinds.length === 1) return { lines: [plural(left, FOES[kinds[0][0]].name) + ' left.'], kinds: [{ kind: kinds[0][0], n: null }] }; // one kind: the line says how many
+    if (kinds.length === 1) return { lines: [plural(left, FOES[kinds[0][0]].name).toLowerCase() + ' left.'], kinds: [{ kind: kinds[0][0], n: null }] }; // one kind: the line says how many
     lines.push(plural(left, 'raider') + ' left.');
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }

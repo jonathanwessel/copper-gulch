@@ -17,7 +17,7 @@ test('a price of almost 0 is said once, by the price bar', () => {
   const line = goodsLine({ have: 40, kept: 5, selling: true, price: .001 });
   assert.equal(line, '40 in stock · 5 for towers · 35 spare');
   assert.doesNotMatch(line, /almost/);
-  assert.equal(priceWord(.02), 'Very low price'); // since 2026.11.20-9 the front says "Under 1 coin each" and the end how low
+  assert.equal(priceWord(.02), '2% of best'); // since 2026.11.20-9 the front says "Under 1 coin each" and the end how low
 });
 
 test('no dot stands where a colon would go, and raider names are lowercase in a sentence', () => {
@@ -36,7 +36,7 @@ test('plain status lines on the map, the Makes row and the Income sheet', async 
   assert.doesNotMatch(play, /'None right now'/);
   assert.match(ex, /'Bonuses included'/);
   assert.doesNotMatch(lost, /Auto-towers will raise a tower\. Then/);
-  for (const s of ['Tries again once Auto-towers raises a tower.', 'Bonuses included', 'Any tower works.']) assert.deepEqual(textIssues(s), []);
+  for (const s of ['Tries again once Auto-towers upgrades a tower.', 'Bonuses included', 'Any tower works.']) assert.deepEqual(textIssues(s), []);
 });
 
 test('Perks reads as short rows, the unpicked perk is left out, and Sign the charter is a normal size', () => {

@@ -15,7 +15,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the old-waves row is short enough to sit beside its × 3', () => {
   const s = oldWavesLabel({ record: 23 });
-  assert.equal(s, 'Beaten wave bonus');
+  assert.match(s, /^Before best wave [0-9]+$/);
   assert.ok(s.length <= 20);
   assert.match(read('src/ui/play.js'), /wave\.classList\.toggle\('old', oldGround\(town\)\)/); // the wave number turns gold
 });
@@ -67,7 +67,7 @@ test('the Ridge save is two goals of one act each, and the save one points at th
 test('one foreman line, the Perks card says Best wave and the deeds after signing, short Auto lines', () => {
   const play = read('src/ui/play.js'), sheets = read('src/ui/sheets.js');
   assert.doesNotMatch(play, /A foreman buys the next level when you have twice its cost/);
-  assert.match(play, /'Buys level ' \+ \(L \+ 1\) \+ ' when you have '/);
+  assert.match(play, /'Upgrades to level ' \+ \(L \+ 1\) \+ ' when you have '/);
   assert.match(sheets, /'Best wave ' \+ town\.bestWave/);
   assert.match(sheets, /'Sign now and you have'/);
   assert.doesNotMatch(sheets, /Waiting for a tower\. Build one first\./);

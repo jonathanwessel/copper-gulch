@@ -16,15 +16,15 @@ import { textIssues } from '../tools/audit.js';
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the foreman and kept-goods lines are short statuses', () => {
-  assert.equal(foremanLine('flooded', 'timber'), 'Waiting for timber to sell for more.');
+  assert.equal(foremanLine('flooded', 'timber'), 'Paused until timber sells for more.');
   assert.equal(foremanLine('short', 'timber'), 'Waiting for more timber.');
   assert.equal(keepLine(['copper ore'], 'upgrade'), 'Saving copper ore for this upgrade.');
   for (const t of [foremanLine('slow', 'timber'), keepLine(['copper', 'bricks'], 'path')]) assert.deepEqual(textIssues(t), []);
-  assert.equal(oldWavesLabel({ record: 22 }), 'Beaten wave bonus');
+  assert.equal(oldWavesLabel({ record: 22 }), 'Before best wave 22');
 });
 
 test('the price bar ends in a word for where the price stands', () => {
-  assert.deepEqual([1, .7, .5, .2, .02].map(s => priceWord(s)), ['Full price', 'High price', 'Half price', 'Low price', 'Very low price']);
+  assert.deepEqual([1, .7, .5, .2, .02].map(s => priceWord(s)), ['Best price', '70% of best', '50% of best', '20% of best', '2% of best']);
 });
 
 test('Drop and Switch say the goods already sent are lost', () => {
@@ -50,7 +50,7 @@ test('the raiders card has a picture and the best tower for each kind', () => {
   assert.ok(info.kinds.some(k => k.kind === 'wagon'), 'a boss wave lists its boss');
   assert.ok(waveLines(t).some(l => l === 'Can bring Bandits, Horsemen and Brutes.'));
   Object.assign(t.waves, { phase: 'wave', queue: ['raider', 'raider'], foes: [] });
-  assert.deepEqual(waveInfo(t), { lines: ['2 Bandits left.'], kinds: [{ kind: 'raider', n: null }] });
+  assert.deepEqual(waveInfo(t), { lines: ['2 bandits left.'], kinds: [{ kind: 'raider', n: null }] });
 });
 
 test('only one side button has a dot at a time', () => {
@@ -64,6 +64,6 @@ test('the price on a card sits over Upgrade alone', () => {
   const play = read('src/ui/play.js');
   assert.match(play, /card\.append\(sr\); bar\.append\(row\); card\.append\(bar\)/); // the tower's Sell leaves the pinned bar
   assert.match(play, /kr\.append\(sell\)/); // the building's Sell switch sits under it, beside Keep for towers
-  assert.match(play, /'Each path costs'/);
+  assert.match(play, /'Each path'/);
   assert.match(read('src/render/scene.js'), /sky\.position\.set\(cam\.position\.x, 0, cam\.position\.z\)/);
 });

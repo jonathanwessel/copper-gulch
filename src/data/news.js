@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-10',
+    lines: [
+      'In Goods, Keep goods for says how many tower upgrades it saves for, and each price bar shows how close it is to the best price for that good.',
+      'Auto, foremen and the map all say Upgrade, the same word as the buttons.',
+      'Iron Ridge starts with goals that lead you to the Blast Furnace.',
+      'Copper Gulch starts with enough coins for its first Crossbow.',
+      'On the map, a place ready to build no longer shows a lock.',
+    ],
+  },
+  {
     v: '2026.11.20-9',
     lines: [
       'In Goods, the town switch is now Keep for each tower, and the price bar ends in Full price down to Very low price.',

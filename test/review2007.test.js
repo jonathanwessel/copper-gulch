@@ -30,15 +30,15 @@ test('Save for towers names the upgrades it saves for, and 4 upgrades counts 4 l
   Object.assign(t.waves, { phase: 'break', timer: 1e9, hold: true });
   Object.assign(t.goods, { timber: 1e4, ore: 1e4, copper: 1e4, bricks: 1e4 });
   assert.ok(buildTower(g, t, 0, 'crossbow'));
-  assert.equal(stockWords(t), '2 upgrades');
+  assert.equal(stockWords(t), '2 tower upgrades');
   const tw = t.towers[0], lv = n => { let x = 0; for (let i = 0; i < n; i++) x += towerCost(t, tw.kind, tw.level + i).goods.timber || 0; return x; };
   const normal = reserves(t).use.timber, newPart = normal - lv(RESERVE.levels); // the new towers' share (plenty of free pads)
   setStock(t, 'lots');
-  assert.equal(stockWords(t), '4 upgrades');
+  assert.equal(stockWords(t), '4 tower upgrades');
   assert.equal(reserves(t).use.timber, lv(RESERVE.levels * RESERVE.lots) + newPart * RESERVE.lots, 'four levels of every tower and four new towers');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
-  assert.equal(ex.title, 'Keep for each tower');
-  assert.match(ex.text, /Tap Keep for each tower/);
+  assert.equal(ex.title, 'Keep goods for');
+  assert.match(ex.text, /Tap Keep goods for/);
   assert.doesNotMatch(ex.text, /Tower stock/);
 });
 
@@ -46,7 +46,7 @@ test('the price bar starts with the price in one form, and its end word is only 
   assert.equal(priceLabel(2), '2 coins each');
   assert.equal(priceLabel(.7), 'Under 1 coin each');
   assert.equal(priceLabel(.001), 'Under 1 coin each');
-  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Full price', 'High price', 'Half price', 'Low price', 'Very low price'].includes(priceWord(s)));
+  for (const s of [1, .7, .5, .2, .02]) assert.ok(['Best price', '70% of best', '50% of best', '20% of best', '2% of best'].includes(priceWord(s)));
   const sheets = read('src/ui/sheets.js');
   assert.match(sheets, /priceLabel\(ex\.value\)/);
   assert.match(sheets, /explainBox\(ex, \{ total: null \}\)/);
@@ -54,7 +54,7 @@ test('the price bar starts with the price in one form, and its end word is only 
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'Beaten wave bonus');
+  assert.match(s, /^Before best wave [0-9]+$/);
   assert.ok(s.length <= 20);
   assert.deepEqual(textIssues(s), []);
 });
@@ -77,7 +77,7 @@ test('the charter rows say what earns a deed, the warning is short, and Hire for
   const warn = 'A charter starts Copper Gulch over at wave 1 with nothing built. You keep your coins and get deeds.';
   assert.match(s, /' over at wave 1 with nothing built\. You keep your coins and get deeds\.'/);
   assert.ok(warn.length < 100);
-  assert.match(read('src/ui/play.js'), /'A foreman buys its levels for you.'/);
+  assert.match(read('src/ui/play.js'), /'A foreman upgrades this building for you.'/);
 });
 
 test('a Mortar\'s dead zone ring is the color of its reach, and an opened breakdown keeps its Total above the cost bar', () => {

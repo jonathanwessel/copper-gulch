@@ -27,7 +27,7 @@ test('the map card says Full or the hits left, and the contract names its good',
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.equal(s, 'Beaten wave bonus');
+  assert.match(s, /^Before best wave [0-9]+$/);
   assert.deepEqual(textIssues(s), []);
 });
 
@@ -38,7 +38,7 @@ test('a raider no tower beats has Any as its best tower', () => {
 
 test('switches light a small box, not the whole button, and say what they do', () => {
   const play = read('src/ui/play.js'), css = read('index.html');
-  assert.ok(play.includes("'Foreman buys levels'"));
+  assert.ok(play.includes("'Foreman upgrades'"));
   assert.ok(!/'Foreman · On'/.test(play));
   assert.ok(/\.btn\.switch\.on \{[^}]*background: var\(--panel-2\)/.test(css));
   assert.ok(!/Enough for ' \+/.test(read('src/ui/sheets.js')));

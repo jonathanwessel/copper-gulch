@@ -64,13 +64,13 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = s => (s >= .9 ? 'Full price' : s >= .6 ? 'High price' : s >= .35 ? 'Half price' : s >= .1 ? 'Low price' : 'Very low price'); // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
+export const priceWord = s => (s >= .95 ? 'Best price' : Math.max(1, Math.round(s * 100)) + '% of best'); // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
-export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades';
+export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' tower upgrades';
 /* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
-export const STOCK_LABEL = 'Keep for each tower';
+export const STOCK_LABEL = 'Keep goods for'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -214,7 +214,8 @@ export function placesSheet(game, { go, found, capital = () => {} }) {
 const keep = s => s.replace(/ /g, '\u00a0');
 /* Seconds in words: "40 seconds", "3 minutes". */
 /* The research button while it runs (review of 2026.11.19-3: it read "Working"): the time left, short. */
-export const leftWord = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec left' : Math.round(s / 60) + ' min left';
+export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.round(s / 60) + ' min';
+export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
@@ -243,7 +244,7 @@ export function researchSheet(game, town) {
         // item runs it says so in place of a grayed button with no reason
         const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : [levelsDone(L, r.max), 'takes ' + wait(researchTime(town, id))].map(keep).join(' · ');
+          : [levelsDone(L, r.max), 'takes ' + span(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
         const need = researchCost(town, id), pt = fmtLive(town.coins) + ' / ' + fmt(need) + ' coins';
         x.costs.hidden = !!lab || block === 'max';
@@ -276,8 +277,8 @@ export function autoSheet(game, town) {
       rows[id] = { row, info, sw };
       return rows[id];
     };
-    add('foremen', 'Foremen', 'Buys building levels.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
-    add('towers', 'Auto-towers', 'Raises one tower a level every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
+    add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
+    add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
     add('retry', 'Keep trying the ' + bossName(town), 'Starts the waves again after a loss.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     const set = (x, open, on, line) => {
@@ -289,22 +290,22 @@ export function autoSheet(game, town) {
     };
     const paint = () => {
       const a = autoOf(game, town), hired = foremenOf(town).length, working = foremenWorking(town);
-      set(rows.foremen, hired > 0, working > 0, !hired ? 'Raise a building to level 10, then tap it and hire a foreman.' : working + ' of ' + hired + ' working');
+      set(rows.foremen, hired > 0, working > 0, !hired ? 'Upgrade a building to level 10, then tap it and hire a foreman.' : working + ' of ' + hired + ' working');
       const tb = towerBlock(game, town), n = nextTowerUp(town);
       const tLine = !autoOpen(game, 'towers') ? 'Build the ' + INSTITUTION[AUTO.opens.towers].name + ' at the Capital first.'
         : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
-        : tb === 'won' ? 'Raises a tower when a raid gets through.'
-        : tb === 'none' ? 'Nothing to raise yet. Build a tower first.'
+        : tb === 'won' ? 'Upgrades a tower when a raid gets through.'
+        : tb === 'none' ? 'Nothing to upgrade yet. Build a tower first.'
         : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
         : tb === 'coins' ? 'Waiting for ' + fmt(n.cost.coins * 2) + ' coins or its goods'
-        : tb === 'wait' ? 'Next raise in ' + wait(a.wait)
-        : 'Raising a tower now';
+        : tb === 'wait' ? 'Next upgrade in ' + wait(a.wait)
+        : 'Upgrading a tower now';
       set(rows.towers, autoOpen(game, 'towers'), !!a.towers && autoOpen(game, 'towers'), tLine);
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
         : rs === 'wait' ? 'Waiting for a tower to go up a level'
-        : rs === 'stuck' ? (a.towers ? 'Waiting for a tower to go up a level' : 'Turn on Auto-towers, or raise a tower yourself')
+        : rs === 'stuck' ? (a.towers ? 'Waiting for a tower to go up a level' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
@@ -341,7 +342,7 @@ export function menuSheet(ctx) {
 
     // Graphics
     if (view && view.setQuality) {
-      const row = el('div', 'seg'), opts = [['auto', 'Auto'], ['low', 'Low'], ['med', 'Med'], ['high', 'High']];
+      const row = el('div', 'seg'), opts = [['auto', 'Auto'], ['low', 'Low'], ['med', 'Medium'], ['high', 'High']];
       const paint = () => { for (const b of row.children) b.setAttribute('aria-pressed', String(b.dataset.q === view.quality)); };
       for (const [k, name] of opts) {
         const b = btn(name, 'btn small'); b.dataset.q = k;
