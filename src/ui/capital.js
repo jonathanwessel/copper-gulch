@@ -118,7 +118,7 @@ function institutions(game, live, changed, toast) {
     if (!founded(game, inst.id)) {
       txt.append(el('b', '', inst.name), labeled('Once built', say(inst.about)), small);
       const b = el('button', 'btn small build', 'Build'); b.dataset.found = inst.id;
-      b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built. Its upgrades cost Influence.', 4000); changed(); } });
+      b.addEventListener('click', () => { if (foundInstitution(game, inst.id)) { toast(inst.name + ' is built.', 4000); changed(); } });
       row.append(txt, b);
       live.push(() => { cost(small, game.shared.purse.coins, foundCost(game), 'coins'); b.disabled = foundBlock(game, inst.id) !== null; });
     } else {

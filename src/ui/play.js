@@ -4,7 +4,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
-import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach } from '../core/explain.js';
+import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
 import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround } from '../core/defense.js';
@@ -77,7 +77,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const waveNum = el('b'), vault = el('span', 'vault'), vaultFill = el('i'), waveInfo = el('span', 'winfo');
   vault.append(vaultFill); vault.title = store[0].toUpperCase() + store.slice(1) + ' strength';
   const waveBtn = el('button', 'wavebtn'); waveBtn.id = 'waveBtn'; waveBtn.append(waveNum);
-  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(el('i', store === 'vault' ? 'safe' : 'safe crate'), vault); // tap it: the vault's strength explained; a strongbox (or a crate) says what the bar is (review of 2026.11.19-14)
+  const vaultBtn = el('button', 'vaultbtn'); vaultBtn.id = 'vaultBtn'; vaultBtn.append(el('small', 'vlabel', store === 'vault' ? 'Vault' : 'Stock'), vault); // tap it: the vault's strength explained. Its name over the bar says what the bar is (review of 2026.11.20-12: a strongbox icon and a green bar with no word read as nothing; review of 2026.11.19-14 had added the icon)
   vaultBtn.setAttribute('aria-label', store[0].toUpperCase() + store.slice(1));
   const call = el('button', 'btn small call', 'Call now'); call.id = 'callWave';
   call.addEventListener('click', () => { const b = callEarly(game, town); if (b > 0) toast('Wave called early. You got ' + fmt(b) + ' bonus coins.', 2500); });
@@ -208,7 +208,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   viewApi.onTap = hit => { if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
-  let sig = '', madeEl = null;
+  let sig = '', madeEl = null, usedEl = null;
   function paintCard(force = true) {
     if (!openId) return;
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
@@ -219,7 +219,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a short workshop that makes none says so (review of 2026.11.19-8: "Makes 0 boilers a second")
     const made = L ? explainMade(town, id) : null, madeText = made && made.lacking && fmt(made.value) === '0' ? 'Nothing right now' : isGrid(b.makes) ? Math.floor((made ? made.value : b.rate) + 1e-9) + ' power' : perSecond(made ? made.value : b.rate, g); // power as the workshops count it (review of 2026.11.20-4: "6 power a second" beside "need 9 power")
     if (madeEl && !why) setText(madeEl, madeText); // the rate moves as wagons come in: written in place, the card is not rebuilt for it
-    const now = [id, L, why, why ? madeText : !!(made && made.lacking), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    // where the good goes in this town (review of 2026.11.20-12: "Makes 36 timber a second" beside a Timber count that
+    // stayed at 84, the Sawmill used it), written in place like the rate
+    const used = L && !isGrid(b.makes) ? usedBy(town, b.makes) : { ids: [] };
+    const usedText = usedLine(used, g);
+    if (usedEl) setText(usedEl, usedText);
+    const now = [id, L, why, why ? madeText : !!(made && made.lacking), used.ids.join(), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -233,8 +238,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
     if (why && L) { const wb = explainBox(made); card.append(wb); if (showWhy) showAbovePin(line, wb); } // the tapped row stays in view above it
-    const ins = Object.entries(b.inputs);
-    if (ins.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + ins.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    const ins = Object.entries(b.inputs), goodsIn = ins.filter(([k]) => !isGrid(k)); // power is not used up by each one, so it has its own line (review of 2026.11.20-12: "Each glass uses 2 sand and 1 power")
+    if (goodsIn.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + goodsIn.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    usedEl = null; if (usedText) card.append(usedEl = el('p', 'uses', usedText)); // what goes in, then where it goes
     // goods shipped in from another town (src/core/economy.js, ship): where they come from, and what to do when short
     const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
@@ -244,10 +250,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // red when short (review of 2026.11.19-7: power was named but never counted)
     if ((isGrid(b.makes) || onGrid(id)) && L) {
       const want = Math.ceil(grid.want - 1e-9), pr = el('p', 'uses powerline'), n = el('span', 'need' + (gridShort ? ' low' : ''), isGrid(b.makes) ? want + ' power' : Math.floor(grid.made + 1e-9) + ' / ' + want);
-      pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
+      pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Town power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
     }
     // the line above shows the shortage, so the warning only says what it does and what to upgrade
-    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Buildings that use power run slower when there is not enough.' : 'Buildings that use power run slower when there is not enough. Upgrade the Water Wheel.'));
+    // said for this card, not as a rule (review of 2026.11.20-12: the same sentence on every card read like a manual)
+    if (gridShort) card.append(el('p', 'warn', isGrid(b.makes) ? 'Upgrade it so they run at full speed.' : 'Not enough power, so it works slower. Upgrade the Water Wheel.'));
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     // where shipped goods come from, unless the short warning below says it (review of 2026.11.20-11: "Bricks come by
     // wagon" beside "Not enough bricks" on the Boiler Shop)
@@ -408,7 +415,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (t.level + 1 === PATH_LEVEL) {
       const ph = el('div', 'pathhead'), pt = el('div');
       pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
-      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Each path')); // one price above two Choose buttons (review of 2026.11.19-13)
+      const pc = costRow(c, true); pc.prepend(el('small', 'costfor', 'Either path')); // one price above two Choose buttons (review of 2026.11.19-13); "Either", since "Each path" read as a price per path (review of 2026.11.20-12)
       ph.append(pt, pc); bar.append(ph);
       for (const [key, P] of Object.entries(PATHS[t.kind])) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
@@ -722,6 +729,16 @@ export function placeToasts() { if (toasts.el) showIfRoom(toasts.el); }
 export function dropToasts(kind) {
   toasts.queue = toasts.queue.filter(q => q.kind !== kind);
   if (toasts.up && toasts.up.kind === kind && toasts.el) { const t = toasts.el; toasts.el = null; t.remove(); unhide(); clearTimeout(toasts.tick); nextToast(); }
+}
+/* Where a good goes in its town, for the card of the building that makes it: "The Sawmill takes 2 timber a second.",
+   "The Sawmill, Smelter and Kiln take 4 timber a second.", "Glass goes to the Bulb Works." while they make none, or ''
+   when no building here uses it. "Takes", so it never reads against the card's "Each glass uses 2 sand" (screenshot
+   review of 2026.11.20-13). */
+export function usedLine(used, g) {
+  const n = used.ids.map(k => BUILDINGS[k].name);
+  if (!n.length) return '';
+  const who = n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
+  return used.rate >= .05 ? 'The ' + who + ' take' + (n.length > 1 ? '' : 's') + ' ' + perSecond(used.rate, g) + '.' : g.name + ' goes to the ' + who + '.';
 }
 export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;

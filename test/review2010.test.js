@@ -58,7 +58,7 @@ test('the old-wave bonus says how long it lasts, and the foreman line says who i
   assert.equal(oldWavesLabel({ record: 22 }), 'Under best wave 22');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
-  assert.ok(read('src/ui/play.js').includes('run slower when there is not enough.'));
+  assert.ok(read('src/ui/play.js').includes('Not enough power, so it works slower.')); // said for that card since 2026.11.20-13
   for (const s of ['Foreman paused while the timber price is low.', 'Get deeds by signing a charter in Perks.', 'After a loss, tries again once a tower goes up a level.']) assert.deepEqual(textIssues(s), []);
 });
 

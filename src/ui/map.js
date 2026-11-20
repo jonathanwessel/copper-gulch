@@ -66,7 +66,7 @@ export const BADGE_GAP = 8;
 export function liftBadges(rs, bar = [], gap = 2, { W = Infinity, first = null } = {}) {
   const done = [];
   const topAt = (x, w) => Math.max(gap, ...bar.filter(q => q.l < x + w / 2 && q.r > x - w / 2).map(q => q.b + gap));
-  const hit = (r, x, y) => done.find(o => Math.abs(x - o.x) < (r.w + o.w) / 2 && y > o.y - o.h - gap && y - r.h < o.y + gap);
+  const hit = (r, x, y) => done.find(o => Math.abs(x - o.x) < (r.w + o.w) / 2 + gap && y > o.y - o.h - gap && y - r.h < o.y + gap); // side by side keeps the same room as above and below (review of 2026.11.20-12: labels touching round the Capital)
   const settle = (r, x, y, up) => {
     for (let o, n = 0; (o = hit(r, x, y)) && n < 20; n++) y = up ? o.y - o.h - gap : o.y + r.h + gap;
     return y;

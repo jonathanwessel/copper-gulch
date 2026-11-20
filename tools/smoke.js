@@ -942,7 +942,7 @@ async function run() {
         await sleep(500);
         await page.evaluate(() => document.querySelector('#mapCard [data-found="bank"]').click()); await sleep(600);
         // its toast may wait behind the contract's one
-        const toasted = await waitFor(page, () => [...document.querySelectorAll('.toast')].some(n => /is built. Its upgrades cost Influence/.test(n.textContent)), 8000);
+        const toasted = await waitFor(page, () => [...document.querySelectorAll('.toast')].some(n => /is built./.test(n.textContent)), 8000);
         const buy = await page.evaluate(() => ({ founded: CG.game.shared.tree.founded.join(','), buy: !!document.querySelector('#mapCard [data-node="bank"]') }));
         buy.toast = toasted;
         if (buy.founded !== 'bank' || !buy.buy || !buy.toast) bad.push('founding the Bank did not work (' + JSON.stringify(buy) + ')');

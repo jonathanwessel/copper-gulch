@@ -64,6 +64,6 @@ test('the price on a card sits over Upgrade alone', () => {
   const play = read('src/ui/play.js');
   assert.match(play, /card\.append\(sr\); bar\.append\(row\); card\.append\(bar\)/); // the tower's Sell leaves the pinned bar
   assert.match(play, /kr\.append\(sell\)/); // the building's Sell switch sits under it, beside Keep for towers
-  assert.match(play, /'Each path'/);
+  assert.match(play, /'Either path'/);
   assert.match(read('src/render/scene.js'), /sky\.position\.set\(cam\.position\.x, 0, cam\.position\.z\)/);
 });

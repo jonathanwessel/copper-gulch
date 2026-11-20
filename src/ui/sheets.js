@@ -476,7 +476,9 @@ export function perksSheet(ctx) {
       const t = c.deeds + p.total;
       set(after.l, 'After signing'); set(after.v, p.total ? more(t) : '');
       after.r.hidden = !p.total;
-      set(each, 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins, for good.');
+      // what a deed gives, said once (review of 2026.11.20-12: each deed, you have and after signing said it three ways):
+      // the line only while no After signing row shows it
+      set(each, 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins, for good.'); each.hidden = !!p.total;
       // always shown: it says what a deed is (review of 2026.11.20-8)
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;

@@ -12,7 +12,7 @@ import { GOODS } from '../data/goods.js';
 import { TOWERS, PATHS, PER_LEVEL } from '../data/towers.js';
 import { FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
-import { milestonesAt, output, uses, isGrid, gridOf } from './economy.js';
+import { milestonesAt, output, uses, isGrid, gridOf, buildingsOf } from './economy.js';
 import { saturation, eventFactor } from './market.js';
 import { towerStats, wavesOf, vaultMax, OLD_LABEL } from './defense.js';
 
@@ -54,6 +54,22 @@ export function explainMade(town, id) {
   ex.rows.push({ label: g ? (held ? GOODS[g].name + ' kept for towers' : 'Not enough ' + GOODS[g].name.toLowerCase()) : 'Not enough materials', mul: Math.max(0, ran) / full });
   ex.value = Math.max(0, ran);
   return ex;
+}
+
+/* The town's own workshops that use a good, and how much of it they use a second right now (what each really made,
+   town.ran, times what it uses), so a camp's card can say where its good goes (review of 2026.11.20-12: "Makes 36
+   timber a second" beside a Timber count that stayed at 84). { ids, rate }. */
+export function usedBy(town, good) {
+  const ids = [];
+  let rate = 0;
+  if (isGrid(good)) return { ids, rate };
+  for (const id of buildingsOf(town)) {
+    if (!(good in BUILDINGS[id].inputs) || !town.level(id)) continue;
+    ids.push(id);
+    const ran = town.ran && town.ran[id];
+    rate += Math.max(0, ran === undefined ? output(town, id) : ran) * uses(town, id, good);
+  }
+  return { ids, rate };
 }
 
 /* What one unit of a good pays right now: its base price, the market (selling a lot lowers it for a while, an event

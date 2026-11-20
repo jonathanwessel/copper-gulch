@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-13',
+    lines: [
+      'The bar next to the wave number now says Vault, so you know what it shows.',
+      'A camp card says which buildings use its goods, so you can see where your timber goes.',
+      'At Silver Falls, power has its own line on each card, and a slow building says to upgrade the Water Wheel.',
+      'On a phone turned sideways, cards take less of the screen, and town names on the map keep apart.',
+    ],
+  },
+  {
     v: '2026.11.20-12',
     lines: [
       'The town name, wave bar and Pause stay in the same place on every screen.',
