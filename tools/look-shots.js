@@ -30,6 +30,13 @@ const MAPSTATES = {
     for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10 })) g.towns.ridge.buildings[id] = n;
     t.drawn = { ore: 20 }; g.towns.ridge.shipped = { bricks: 9 };
   },
+  // the smoke test's map: the early empire with the Capital built (its label sat nearer Iron Ridge, 2026.11.21-6)
+  capital: async () => {
+    const g = CG.game, t = g.town; t.bestWave = 20; t.coins = 1e7;
+    (await import('./src/core/empire.js')).foundTown(g, 'ridge'); t.drawn = { ore: 5 }; g.towns.ridge.shipped = { bricks: 5 };
+    (await import('./src/core/capital.js')).foundCapital(g); g.shared.purse.coins = 1e9;
+    const T = await import('./src/core/tree.js'); for (const id of ['bank', 'transport']) T.foundInstitution(g, id);
+  },
   full: async () => {
     const g = CG.game, t = g.town; t.bestWave = 30; t.coins = 1e9;
     for (const [id, n] of Object.entries({ camp: 12, mine: 10, pit: 8, saw: 10, smelter: 8, kiln: 8, toolsmith: 6 })) t.buildings[id] = n;
@@ -66,9 +73,11 @@ try {
     await sleep(1500);
     await p.evaluate(() => { for (const k of Object.keys(CG.meter.flow)) CG.meter.flow[k] = 4; });
     for (const [name, go] of MAPVIEWS) {
-      if (state === 'early' && name === 'north') continue;
+      if (state !== 'full' && name === 'north') continue;
       await p.evaluate(go); await sleep(1500);
       const f = path.join(dir, `map-${state}-${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
+      // how much of each town its label covers, and any town's middle under a label (M6a, map labels on a phone)
+      const cv = await p.evaluate(() => CG.mapui.cover()); console.log(`map-${state}-${name}-${size}`, JSON.stringify(cv.share), cv.mids.concat(cv.near).join(", "));
     }
     await p.close();
   }

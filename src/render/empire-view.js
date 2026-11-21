@@ -339,6 +339,29 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       }
       return x1 < 0 || x0 > W || y1 < 0 || y0 > H ? null : { l: x0, t: y0, r: x1, b: y1 };
     },
+    /* A site's footprint on screen (client pixels) as { l, t, r, b, x, y }: an open town's board, the Capital's plaza with
+       its height, or a surveyed plot; x, y is its middle (the capitol's dome for the Capital). null when behind the
+       camera. Labels keep off these (src/ui/map.js, spotBadges). */
+    siteBox(id) {
+      const s = at[id], d = TOWNS[id], W = size.w || canvas.clientWidth, H = size.h || canvas.clientHeight;
+      const hx = d ? d.board.cols * S / 2 : id === 'capital' ? CITY.plaza : 2.2, hz = d ? d.board.rows * S / 2 : hx, hy = id === 'capital' && dio.capital ? 2.4 : d ? .5 : 0;
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of hy ? [0, hy] : [0]) {
+        _v.set(s[0] + dx * hx, y, s[1] + dz * hz).project(v.cam);
+        if (_v.z > 1) return null;
+        const x = (_v.x + 1) / 2 * W, yy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
+      }
+      // an open town's entrance stands past its board: it is part of the town (review of 2026.11.21-6: the Gulch's label sat
+      // on its canyon road, over Dry Creek)
+      if (d && dio[id]) for (const e of [d.board.entrance, d.board.river && d.board.river.entrance].filter(Boolean)) for (const dx of [-1, 1]) for (const y of [0, 1]) {
+        _v.set(s[0] + (e.mouth[0] + dx * e.width / 2 - d.board.cols / 2) * S, y, s[1] + (Math.min(e.portal[1], e.mouth[1]) - d.board.rows / 2) * S).project(v.cam);
+        if (_v.z > 1) continue;
+        const x = (_v.x + 1) / 2 * W, yy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
+      }
+      if (id === 'capital' && dio.capital) _v.set(s[0] + CITY.capitol.at[0], 1.2, s[1] + CITY.capitol.at[1]).project(v.cam);
+      else _v.set(s[0], .3, s[1]).project(v.cam);
+      return { l: x0, t: y0, r: x1, b: y1, x: (_v.x + 1) / 2 * W, y: (1 - _v.y) / 2 * H };
+    },
     projectSite(id) {
       const s = at[id]; _v.set(s[0], .6, s[1]).project(v.cam);
       return _v.z > 1 ? null : { x: (_v.x + 1) / 2 * (size.w || canvas.clientWidth), y: (1 - _v.y) / 2 * (size.h || canvas.clientHeight) };

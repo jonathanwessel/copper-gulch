@@ -925,6 +925,10 @@ async function run() {
       if (m.land.plates || !m.land.camps.includes('falls') || !m.land.camps.includes('sandybend') || m.kind !== 'road') bad.push('the map land is wrong (' + JSON.stringify(m.land) + ', ' + m.kind + ')');
       if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge,sandybend,falls' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
       bad.push(...(await check(page)).map(b => 'map: ' + b));
+      // no label covers more than a third of its own town, or any town's middle (two reviews of 2026.11.21-5: on a phone
+      // the labels covered the Capital, the falls and most of Iron Ridge)
+      { const cv = await page.evaluate(() => CG.mapui.cover()), big = Object.entries(cv.share).filter(([, v]) => v > 1 / 3);
+        if (big.length || cv.mids.length) bad.push('map labels cover their towns (' + JSON.stringify(cv) + ')'); }
       // the ground under the finger stays under it
       const pan = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view'), rig = CG.map.rig, W = innerWidth, H = innerHeight;
@@ -1018,6 +1022,9 @@ async function run() {
         const rail = await page.evaluate(async () => { CG.game.shared.purse.coins += 1e7; (await import('./src/core/tree.js')).foundInstitution(CG.game, 'transport'); CG.meter.flow['gulch>ridge'] = 4; await new Promise(r => setTimeout(r, 2200)); return { kind: CG.map.routeKind, trains: CG.map.trains, wagons: CG.map.wagons, routes: CG.map.routes.join() }; });
         if (rail.kind !== 'rail' || !(rail.trains > 0) || rail.wagons || !rail.routes.includes('gulch>ridge')) bad.push('the Rail Office did not lay rails (' + JSON.stringify(rail) + ')');
         await page.evaluate(() => document.getElementById('capTabContracts').click()); await sleep(300);
+        // with the Capital built and its card closed, at the home view, the labels still keep off the towns and the dome
+        const cv = await page.evaluate(async () => { CG.mapui.close(); const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await new Promise(q => setTimeout(q, 900)); return CG.mapui.cover(); });
+        if (Object.values(cv.share).some(v => v > 1 / 3) || cv.mids.length) bad.push('map labels cover their towns with the Capital built (' + JSON.stringify(cv) + ')');
       }
       bad.push(...errs);
       console.log('map ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

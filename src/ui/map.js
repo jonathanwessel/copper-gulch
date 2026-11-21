@@ -94,6 +94,75 @@ export function liftBadges(rs, bar = [], gap = 2, { W = Infinity, first = null }
   return rs;
 }
 
+/* Boxes are { l, t, r, b } in screen pixels. */
+const area = (a, b) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+const clip = (q, W, H) => ({ l: Math.max(0, q.l), t: Math.max(0, q.t), r: Math.min(W, q.r), b: Math.min(H, q.b) });
+/* The gap in pixels between two boxes (0 when they touch or overlap). */
+export const gapTo = (a, b) => Math.hypot(Math.max(0, a.l - b.r, b.l - a.r), Math.max(0, a.t - b.b, b.t - a.b));
+/* A label reads best over its town's far side, as all of them did before (review of 2026.11.21-6: Copper Gulch was
+   clearer at its top); the other sides cost a little more, so they win only when the far side is covered. */
+const SIDE_COST = { far: 0, above: 0, aboveleft: 100, aboveright: 100, below: 300, belowleft: 400, belowright: 400 };
+/* The share (0-1) of a site's box on screen that a label covers. */
+export function coverShare(label, box, W = Infinity, H = Infinity) {
+  const c = clip(box, W, H), A = Math.max(0, c.r - c.l) * Math.max(0, c.b - c.t);
+  return A > 0 ? area(label, c) / A : 0;
+}
+/* A badge (x center, y bottom, w, h) as a box. */
+export const badgeBox = r => ({ l: r.x - r.w / 2, t: r.y - r.h, r: r.x + r.w / 2, b: r.y });
+/* Where each label sits beside its town, so it covers as little of the towns as it can (two fresh-eyes reviews of
+   2026.11.21-5: on a phone the labels covered the Capital, the falls and most of Iron Ridge). Each label tries above
+   and below its own town's box (straight or slid a little) and its old place over the town's far side, and takes the one that covers
+   the least town, never a town's middle or the Capital's dome, never a label already placed, the top bar or the open
+   card, and near its town. The open card's label goes first, then the nearer towns (lower on screen). A label keeps its
+   last side unless another is clearly better, so labels do not flip as the map moves.
+   rs: [{ id, x, y, w, h }] (x, y: its old place); boxes: { id: { l, t, r, b, x, y } } (x, y: the middle); last: { id:
+   side }, updated. Sets x, y and side on each label and returns rs. */
+export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid = [], first = null, last = {}, passes = 3 } = {}) {
+  const on = Object.values(boxes).filter(Boolean).map(q => ({ q, c: clip(q, W, H) }));
+  const order = rs.slice().sort((a, b) => (b === first) - (a === first) || b.y - a.y);
+  // each label's places to try, worked out once from its old place and its town's box
+  const spots = new Map(order.map(r => {
+    const B = boxes[r.id], cx = B ? (B.l + B.r) / 2 : r.x, cy = B ? (B.t + B.b) / 2 : r.y - r.h / 2, tries = { far: [r.x, r.y] };
+    if (B) {
+      // above or below, straight or slid a quarter of the town's width: a label beside a town floated off it and read as
+      // the next place's name (second review of 2026.11.21-6: Copper Gulch out on the land by Silver Falls)
+      const T = B.t - 2, D = B.b + r.h + 2, k = (B.r - B.l) / 4;
+      Object.assign(tries, { above: [cx, T], below: [cx, D], aboveleft: [cx - k, T], aboveright: [cx + k, T], belowleft: [cx - k, D], belowright: [cx + k, D] });
+    }
+    return [r, { B, cx, cy, tries }];
+  }));
+  const pick = (r, others) => {
+    const { B, cx, cy, tries } = spots.get(r);
+    let best = null;
+    for (const [side, [x0, y0]] of Object.entries(tries)) {
+      const x = Math.max(r.w / 2 + 4, Math.min(x0, W - r.w / 2 - 4)), y = Math.max(r.h + 4, Math.min(y0, H - 4));
+      const me = badgeBox({ x, y, w: r.w, h: r.h }), pad = { l: me.l - gap, t: me.t - gap, r: me.r + gap, b: me.b + gap };
+      let cost = Math.hypot(x - cx, y - r.h / 2 - cy) * 4 + (SIDE_COST[side] || 0);
+      const own = B ? gapTo(me, B) : 0;
+      for (const { q, c } of on) {
+        cost += area(me, c) * (q === B ? 1.5 : 1);
+        if (q.x > me.l - 6 && q.x < me.r + 6 && q.y > me.t - 6 && q.y < me.b + 6) cost += 2e4; // a town's middle, the dome
+        // a label nearer another place than its own reads as that place's name (review of 2026.11.21-6: Silver Falls
+        // over the Gulch's loop, the Capital inside Iron Ridge's ring, Copper Gulch on Dry Creek)
+        if (q !== B) { const d = gapTo(me, q); if (d < own + 14) cost += 4000 + (own + 14 - d) * 150; }
+      }
+      for (const o of others) cost += area(pad, badgeBox(o)) * 40;
+      for (const a of avoid) cost += area(me, a) * 40;
+      if (last[r.id] === side) cost = cost * .8 - 600;
+      if (!best || cost < best.cost) best = { cost, x, y, side };
+    }
+    r.x = best.x; r.y = best.y; r.side = best.side;
+  };
+  // first in order, each against those already placed; then a few passes where each label picks again against all the
+  // others, so a label placed early moves aside when it boxed in one placed later (review of 2026.11.21-6: the Capital's
+  // label took the spot over Copper Gulch, which then went below onto Dry Creek)
+  const done = [];
+  for (const r of order) { pick(r, done); done.push(r); }
+  for (let p = 0; p < passes; p++) for (const r of order) pick(r, order.filter(o => o !== r));
+  for (const r of order) last[r.id] = r.side;
+  return rs;
+}
+
 /* Which badges are crowded: those whose town sits within a full-size badge of another shown badge's town. They show only
    their name, so they cover less of the map. rs: [{ x, y, w, h, keep }] at full size (keep: the open card's place,
    never shrunk). Returns a Set of indexes. Decided from the towns' points, not from where the badges land, so a badge
@@ -320,7 +389,7 @@ export function mountMap(root, game, view, shell) {
   // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
   // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
   // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
-  const widths = {}, heights = {}, full = {}; let bar = [], cardBox = null;
+  const widths = {}, heights = {}, full = {}, sides = {}; let bar = [], cardBox = null, boxes = {}, placed = [];
   function placeBadges() {
     const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
@@ -337,7 +406,13 @@ export function mountMap(root, game, view, shell) {
     // crowded labels show only their name, judged at full size so a label does not flip between the two
     const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
     shown.forEach((r, i) => { const c = crowd.has(i); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
-    for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first: shown.find(r => r.B === badge[openId]) })) {
+    // each label beside its town, off the towns' middles and the Capital's dome (reviews of 2026.11.21-5)
+    boxes = {}; for (const s of view.sites) boxes[s.id] = view.siteBox ? view.siteBox(s.id) : null;
+    const first = shown.find(r => r.B === badge[openId]), avoid = bar.map(q => ({ l: q.l, t: 0, r: q.r, b: q.b }));
+    if (cardBox) avoid.push(cardBox);
+    spotBadges(shown, boxes, { W, H, gap: BADGE_GAP, avoid, first, last: sides });
+    placed = shown;
+    for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
       const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
       if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;
@@ -350,6 +425,20 @@ export function mountMap(root, game, view, shell) {
   return {
     el: ui, openSite, close,
     get current() { return openId; },
+    /* For the smoke test: the share of each place on screen that labels cover (its own and the others' added up), and the
+       places whose middle a label covers (the Capital's dome for the Capital). */
+    cover() {
+      const W = innerWidth, H = innerHeight, out = { share: {}, mids: [] }, rects = placed.filter(r => !r.B.b.hidden).map(r => ({ id: r.id, q: r.B.b.getBoundingClientRect() }));
+      for (const [id, m] of Object.entries(boxes)) if (m && m.r > 0 && m.l < W && m.b > 0 && m.t < H) out.share[id] = +rects.reduce((a, { q }) => a + coverShare({ l: q.left, t: q.top, r: q.right, b: q.bottom }, m, W, H), 0).toFixed(2);
+      for (const [id, m] of Object.entries(boxes)) if (m && m.x > 0 && m.x < W && m.y > 0 && m.y < H) for (const { id: o, q } of rects) if (m.x > q.left && m.x < q.right && m.y > q.top && m.y < q.bottom) out.mids.push(id + ' under ' + o);
+      // labels nearer another place on screen than their own (it reads as that place's name)
+      out.near = [];
+      for (const { id, q } of rects) {
+        const me = { l: q.left, t: q.top, r: q.right, b: q.bottom }, own = boxes[id] ? gapTo(me, clip(boxes[id], W, H)) : 0;
+        for (const [o, m] of Object.entries(boxes)) if (o !== id && m && m.r > 0 && m.l < W && m.b > 0 && m.t < H && gapTo(me, clip(m, W, H)) < own) out.near.push(id + ' nearer ' + o);
+      }
+      return out;
+    },
     frame(dt) {
       placeBadges();
       if ((acc += dt) >= .25) {

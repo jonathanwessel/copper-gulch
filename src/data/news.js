@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-6',
+    lines: [
+      'Town names on the map now sit beside each town, not on top of it.',
+      'On a phone the names no longer hide the Capital, Silver Falls or Iron Ridge.',
+    ],
+  },
+  {
     v: '2026.11.21-5',
     lines: [
       'The map is redrawn. Each town now sits right on its own land.',
