@@ -5,7 +5,7 @@
    Pause, Hold waves and Menu are always out (owner rule). */
 import { BUILDINGS } from '../data/buildings.js';
 import { isOutpost } from './economy.js';
-import { researchOpen, itemsOf, researchBlock } from './research.js';
+import { researchOpen, researchAnywhere, itemsOf, researchBlock } from './research.js';
 import { charterOffered, perksToPick, deedsFor } from './charter.js';
 import { nextTowns } from './empire.js';
 import { GOODS } from '../data/goods.js';
@@ -55,7 +55,7 @@ export function tabs(game, town) {
   return {
     pause: true, hold: true, menu: true,
     goods: !!seen.goods || listedGoods(town).length >= 2,
-    research: researchOpen(town),
+    research: researchOpen(town) || researchAnywhere(game), // every town once any town researches (owner, 2026-11-20)
     perks: charterOffered(game) && !isOutpost(town),
     chip: Object.keys(game.towns).length + nextTowns(game).length > 1,
     strip: stripGoods(town).length > 0,

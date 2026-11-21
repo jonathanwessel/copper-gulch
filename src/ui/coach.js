@@ -30,6 +30,7 @@ export function helper(town, game = null) {
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     autoHold: !!ws.autoHold, // this town lost while away and holds its waves (src/core/defense.js, fall)
     // it lost a boss wave and Keep trying the boss could take the next try (src/core/automation.js)
+    autoResearch: !!game && autoOpen(game, 'research'), // the University stands: Auto-research is open in every town (owner, 2026-11-20)
     bossLost: !!game && lostBoss(town) && autoOpen(game, 'retry') && !autoOf(game, town).retry,
     // another town (not a won outpost) with towers keeps fighting out of sight
     awayFighting: !!game && Object.values(game.towns).some(o => o !== town && !o.won && (o.towers || []).length && o.waves && !o.waves.hold),

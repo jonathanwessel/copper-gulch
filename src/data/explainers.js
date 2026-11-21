@@ -309,6 +309,12 @@ export const EXPLAINERS = [
     when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {
+    id: 'auto-research', covers: ['auto-research'],
+    title: 'Auto-research',
+    text: 'The University is built. Tap Auto and turn on Auto-research. It keeps researching the next level of what you picked before. Tap Research in any town to see what is running.',
+    when: h => h.autoResearch && !!h.tabs.auto && !!h.tabs.research && h.t > 2, at: () => ({ el: '#autoBtn' }),
+  },
+  {
     id: 'retry', covers: ['retry'],
     title: 'Try again',
     text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town tries again by itself once a tower goes up a level.',

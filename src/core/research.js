@@ -14,6 +14,11 @@ export const itemShown = (town, id) => !RESEARCH[id].opens || (town.bestWave || 
 /* The research items this town has now, in the order its card lists them. */
 export const itemsOf = town => ((town.def && town.def.research) || []).filter(id => itemShown(town, id));
 export const researchOpen = town => !!(town.flags && town.flags['open:research']);
+/* Research is open somewhere in the empire: then the Research button shows in every town and outpost, so what is
+   running (by hand or by Auto-research) can always be seen (owner, 2026-11-20: "the research menu is gone?"). */
+export const researchAnywhere = game => !!game && Object.values(game.towns || {}).some(researchOpen);
+/* Every town's running research, in map order: [{ town, id, left }]. */
+export const labsRunning = game => Object.values((game && game.towns) || {}).filter(t => t.lab && RESEARCH[t.lab.id]).map(t => ({ town: t, id: t.lab.id, left: t.lab.left }));
 
 /* Coins and seconds for the next level of an item (or for level L + 1). */
 export function researchCost(town, id, L = researchLevel(town, id)) {

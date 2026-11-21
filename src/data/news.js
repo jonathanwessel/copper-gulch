@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-16',
+    lines: [
+      'The Research button is in every town and outpost once you have research anywhere.',
+      'Research shows what is running in your other towns and how long it has left.',
+      'In Auto, Auto-research names what it is working on. Tap See research to open it.',
+    ],
+  },
+  {
     v: '2026.11.20-15',
     lines: [
       'A red heart by the wave number shows how many more hits your vault can take.',

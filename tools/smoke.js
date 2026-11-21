@@ -1123,6 +1123,65 @@ async function run() {
     }
   } finally { await bA.close(); srvA.close(); }
 
+  // Research everywhere (owner, 2026-11-20: "I got auto research somehow..but the research menu is gone?"): with
+  // Auto-research on, every town and outpost shows Research, and its sheet shows the research running in Copper Gulch
+  const srvL = await start(0), bL = await chromium.launch();
+  try {
+    const page = await bL.newPage({ viewport: { width: 400, height: 860 } }), errs = [], bad = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await page.goto(srvL.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
+    await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+    await waitFor(page, () => CG.town && CG.town.frames > 3);
+    const ids = await page.evaluate(async () => {
+      const g = CG.game, t = g.town; t.bestWave = 60; g.shared.purse.coins = 1e12;
+      const E = await import('./src/core/empire.js');
+      for (const id of ['drycreek', 'ridge', 'pinehollow', 'falls', 'sandybend']) { try { if (!g.towns[id]) E.foundTown(g, id); if (!g.towns[id]) g.addTown(id); } catch (e) { /* not foundable from here */ } if (g.towns[id]) g.towns[id].bestWave = Math.max(g.towns[id].bestWave || 0, 60); }
+      (await import('./src/core/capital.js')).foundCapital(g); g.shared.purse.coins = 1e12;
+      (await import('./src/core/tree.js')).foundInstitution(g, 'university');
+      const R = await import('./src/core/research.js'), A = await import('./src/core/automation.js');
+      t.buildings.saw = Math.max(1, t.buildings.saw || 0); t.flags['open:research'] = true; t.research.saws = 1;
+      R.startResearch(g, t, 'saws'); if (t.lab) t.lab.left = t.lab.total = 9999;
+      for (const id of Object.keys(g.towns)) A.setAuto(g, g.towns[id], 'research', true);
+      return Object.keys(g.towns);
+    });
+    if (ids.length < 5) bad.push('only ' + ids.join(',') + ' were founded');
+    for (const id of ids) {
+      if (id !== 'gulch' || (await page.evaluate(() => CG.game.active)) !== 'gulch') {
+        await page.evaluate(id => { CG.play && CG.play.sheets.close(); CG.go(id); }, id);
+        if (!await waitFor(page, `CG.town && CG.game.active === '${id}' && CG.town.frames > 3`, 15000)) { bad.push(id + ': did not open'); continue; }
+      }
+      const r = await page.evaluate(async id => {
+        const wait = ms => new Promise(res => setTimeout(res, ms)), b = document.getElementById('researchBtn'); await wait(500);
+        const out = { button: !!b && !b.hidden };
+        if (!out.button) return out;
+        b.click(); await wait(400);
+        const sh = document.getElementById('sheet'), text = sh.textContent;
+        out.sheet = !sh.hidden && sh.dataset.id === 'research';
+        out.running = id === 'gulch' ? /Researching level/.test(text) : /Copper\sGulch · Sharp Saws · [0-9]+ (sec|min) left/.test(text);
+        document.getElementById('sheetClose').click(); await wait(200);
+        return out;
+      }, id);
+      for (const [k, v] of Object.entries(r)) if (!v) bad.push(id + ': research ' + k);
+      bad.push(...(await check(page)).map(b => id + ': ' + b));
+    }
+    // the Auto sheet names what Auto-research runs and opens Research
+    await page.evaluate(() => { CG.play && CG.play.sheets.close(); CG.go('gulch'); });
+    await waitFor(page, () => CG.town && CG.game.active === 'gulch' && CG.town.frames > 3, 15000);
+    const au = await page.evaluate(async () => {
+      const wait = ms => new Promise(res => setTimeout(res, ms)); document.getElementById('autoBtn').click(); await wait(500);
+      const text = document.getElementById('sheet').textContent, see = document.getElementById('autoSeeResearch');
+      const out = { names: /Sharp Saws · [0-9]+ (sec|min) left/.test(text), see: !!see && !see.hidden };
+      if (see) { see.click(); await wait(400); out.opens = document.getElementById('sheet').dataset.id === 'research'; }
+      document.getElementById('sheetClose').click();
+      return out;
+    });
+    for (const [k, v] of Object.entries(au)) if (!v) bad.push('Auto-research line: not ' + k);
+    bad.push(...errs);
+    console.log('research everywhere', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+    await page.close();
+  } finally { await bL.close(); srvL.close(); }
+
   // the explainers: a fresh game opens with the welcome card and a spotlight; the game waits; Got it dismisses it for good
   const srv3 = await start(0), b3 = await chromium.launch();
   try {

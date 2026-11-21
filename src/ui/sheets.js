@@ -19,7 +19,7 @@ import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
 import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords } from './format.js';
 import { RESEARCH } from '../data/research.js';
-import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch } from '../core/research.js';
+import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
@@ -219,10 +219,39 @@ export const leftWord = s => span(s) + ' left'; // research rows and their butto
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
+/* Where research is not open in this town, the one thing to do: build its research building, or at an outpost, the
+   towns that research (owner, 2026-11-20: Auto-research was on and the Research button was gone). */
+const placeName = t => ((t.def && (t.def.short || t.def.name)) || t.id).replace(/ /g, ' '); // a place's name never breaks across lines
+const orList = xs => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1]);
+export function researchClosedLine(game, town) {
+  if (researchOpen(town)) return '';
+  const b = town.def && town.def.researchOpens;
+  if (b && BUILDINGS[b]) return 'Build the ' + BUILDINGS[b].name + ' to start research here.';
+  const where = Object.values(game.towns).filter(researchOpen).map(placeName);
+  // what to do, in the place's own name (review of 2026.11.20-16: "Outposts do no research" was stiff and named no action)
+  return "You can't research in " + placeName(town) + '.' + (where.length ? ' Go to ' + orList(where) + ' to start one.' : '');
+}
+/* Research running in the other towns, one line each, "Copper Gulch · Sharp Saws · 13 sec left". This town's own
+   running item is on its row below, so it is not said twice. */
+/* Every other town that can research, idle ones too, so a wasted slot shows (review of 2026.11.20-16). */
+export const elsewhereLines = (game, town) => Object.values(game.towns).filter(t => t !== town && researchOpen(t)).map(t => (t.lab && RESEARCH[t.lab.id] ? placeName(t) + ' · ' + RESEARCH[t.lab.id].name + ' · ' + leftWord(t.lab.left) : placeName(t) + ' · Nothing yet'));
 export function researchSheet(game, town) {
   return body => {
     const list = el('div', 'goods research'), rows = {}, one = el('p', 'note'); one.id = 'labOne';
-    body.append(one, list); // while one runs, the others say why they wait (the 2026.11.20-2 screenshots: "after Thick Walls" read as a need)
+    // every town's running research, so it can be seen from anywhere (owner, 2026-11-20)
+    const away = el('div', 'labaway'); away.id = 'labAway';
+    const awayHead = el('b', null, 'Researching now'), awayList = el('div');
+    away.append(awayHead, awayList);
+    const closed = el('p', 'note'); closed.id = 'labClosed';
+    body.append(away, closed, one, list);
+    let awaySig = '';
+    const paintAway = () => {
+      const lines = elsewhereLines(game, town), sig = lines.join('|');
+      if (sig !== awaySig) { awaySig = sig; awayList.replaceChildren(...lines.map(s => el('span', 'labline' + (/Nothing yet$/.test(s) ? ' idle' : ''), s))); }
+      away.hidden = !lines.length;
+      const c = researchClosedLine(game, town); if (closed.textContent !== c) closed.textContent = c; closed.hidden = !c;
+      list.hidden = !researchOpen(town);
+    }; // while one runs, the others say why they wait (the 2026.11.20-2 screenshots: "after Thick Walls" read as a need)
     for (const id of itemsOf(town)) {
       const r = RESEARCH[id], row = el('div', 'option'), txt = el('div');
       const name = el('b'), info = el('small'), price = el('span', 'need coinneed'), bar = el('i', 'depth'), fill = el('i');
@@ -235,6 +264,7 @@ export function researchSheet(game, town) {
       rows[id] = { row, name, info, price, costs, bar, fill, go };
     }
     const paint = () => {
+      paintAway();
       const o = ''; // no line: the running item's button counts down and the others read Busy (reviews of 2026.11.20-4 and -5: "One at a time." read as a rule, then the time said three times)
       if (one.textContent !== o) one.textContent = o; one.hidden = !o;
       for (const [id, x] of Object.entries(rows)) {
@@ -272,7 +302,7 @@ export function autoWait(town, cost) {
   const g = Object.entries(cost.goods || {}).find(([k, n]) => !town.has(k, n));
   return g ? 'Waiting for ' + fmt(g[1]) + ' ' + GOODS[g[0]].name.toLowerCase() : 'Waiting for ' + fmt(cost.coins * 2) + ' coins';
 }
-export function autoSheet(game, town) {
+export function autoSheet(game, town, openResearch = null) {
   return body => {
     const list = el('div', 'goods research auto'), rows = {};
     body.append(el('p', 'note', 'Automation never spends more than half your coins.'), list);
@@ -285,7 +315,9 @@ export function autoSheet(game, town) {
     add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
     add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, tries again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
-    add('research', 'Auto-research', 'Runs research you did before, one level higher.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
+    add('research', 'Auto-research', 'Keeps researching the next level of what you picked before.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
+    // its line opens Research, so what it runs is one tap away (owner, 2026-11-20)
+    if (openResearch) { const see = btn('See research', 'btn small'); see.id = 'autoSeeResearch'; see.addEventListener('click', () => openResearch()); rows.research.row.querySelector('div').append(see); rows.research.see = see; }
     const set = (x, open, on, line) => {
       x.sw.disabled = !open; const label = on ? 'Turn off' : 'Turn on';
       if (x.sw.textContent !== label) x.sw.textContent = label;
@@ -317,10 +349,11 @@ export function autoSheet(game, town) {
       const r = nextResearch(town);
       const rLine = !autoOpen(game, 'research') ? 'Build the ' + INSTITUTION[AUTO.opens.research].name + ' at the Capital first.'
         : !a.research ? 'Off'
-        : town.lab ? RESEARCH[town.lab.id].name + ' ready in ' + wait(town.lab.left)
+        : town.lab ? RESEARCH[town.lab.id].name + ' · ' + leftWord(town.lab.left) // the item and its time, as Research says it (owner, 2026-11-20)
         : r ? 'Starting ' + RESEARCH[r.id].name
         : 'Waiting for coins, or research something by hand first';
       set(rows.research, autoOpen(game, 'research'), !!a.research && autoOpen(game, 'research'), rLine === 'Off' ? '' : rLine);
+      if (rows.research.see) { const h = !autoOpen(game, 'research'); if (rows.research.see.hidden !== h) rows.research.see.hidden = h; }
     };
     paint();
     let acc = 0;
