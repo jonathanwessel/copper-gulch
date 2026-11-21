@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.21-3",
-  "notes": "Towns come alive: townsfolk walk between buildings, a wagon on the road between waves, tumbleweeds and birds"
+  "version": "2026.11.21-4",
+  "notes": "Buildings grow in steps: windows light up at level 25, a stone foundation and a taller building at 50, a gold band at 100"
 }

@@ -144,6 +144,12 @@ try {
     // and by file, the game's own files only, as a share of the time spent in them (where the script part goes)
     const files = new Map(); let own = 0;
     for (const [k, v] of self) { const f = k.slice(k.lastIndexOf(' ') + 1).split(':')[0]; if (!/^(core|ui|render|data|audio|assets|models|art|src)\//.test(f)) continue; files.set(f, (files.get(f) || 0) + v); own += v; }
+    // and by kind: waiting for the GPU, three.js, the game's own files, the browser's own work, garbage collection
+    const kinds = new Map();
+    for (const [k, v] of self) { const name = k.split(' ')[0], url = k.slice(k.lastIndexOf(' ') + 1);
+      const c = name === 'readPixels' ? 'GPU wait' : name === '(garbage' || k.startsWith('(garbage collector)') ? 'garbage' : name === '(program)' ? 'browser' : name === '(idle)' ? 'idle' : /three/.test(url) ? 'three.js' : /^(core|ui|render|data|audio|assets|models|art|src)/.test(url) ? 'game' : url.startsWith(':') ? 'native calls' : 'other';
+      kinds.set(c, (kinds.get(c) || 0) + v); }
+    console.log('by kind: ' + [...kinds].sort((a, b) => b[1] - a[1]).map(([c, v]) => c + ' ' + (100 * v / total).toFixed(1) + '%').join(', '));
     console.log('game files (' + (100 * own / total).toFixed(1) + '% of all):');
     for (const [f, v] of [...files].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log((100 * v / own).toFixed(1).padStart(5) + '%  ' + f);
   }

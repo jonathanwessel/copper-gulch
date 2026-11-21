@@ -23,6 +23,12 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
   const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
+  /* The sun's shadow map is drawn only when something that casts a shadow changes: a building or tower built or
+     raised, a tower head turning (at most every third frame), an entrance sinking as the camera turns, the graphics
+     tier, and every 60 frames besides. Raiders and moving parts cast none (a soft shadow under each raider instead), so
+     a still town no longer draws every object twice a frame (Room on the Silver Falls script gate, 2026.11.21-4). */
+  const shadows = v.renderer.shadowMap; shadows.autoUpdate = false;
+  let shadowAt = -1e9, shadowKey = '', shadowDraws = 0;
   const size = { w: 0, h: 0 }; // the canvas as measured at the top of this frame (project reads it, never the page)
   const api = {
     view: v, board, battle, rig, game, selection, holds: new Set(),
@@ -41,6 +47,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */
     pause(reason, on) { if (on) api.holds.add(reason); else api.holds.delete(reason); },
     get frames() { return frames; },
+    /* How many times the sun's shadow map was drawn (smoke checks it is not every frame). */
+    get shadowDraws() { return shadowDraws; },
     /* The Graphics setting: 'auto' (the device's tier, stepping down when slow) or a tier kept as picked. */
     get quality() { return q.auto ? 'auto' : q.tier; },
     setQuality(choice) {
@@ -76,6 +84,9 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     rig.update(dt);
     battle.update(dt, t, v.cam, game.clock.alpha, game.stats.steps);
     selection.update(t);
+    let gates = ''; for (const e of board.entrances) gates += e.obj.scale.y + ',';
+    const key = v.tier + '|' + lastLevels + '|' + lastTowers + '|' + gates, since = frames - shadowAt;
+    if (key !== shadowKey || since >= 60 || (battle.shadowMoved && since >= 3)) { shadows.needsUpdate = true; shadowAt = frames; shadowKey = key; shadowDraws++; }
     v.render(); frames++;
     onFrame(dt);
   }

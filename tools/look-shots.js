@@ -1,6 +1,6 @@
 // node tools/look-shots.js <dir> [town,...]: the look pass (PLAN.md M5b) before and after shots. Every town's home view at
 // phone, landscape and desktop sizes, a low view across the town, and the town built up (every plot at level 30, so the
-// buildings show their later steps). Faster than tools/shots.js, and only the board, so the look can be judged alone.
+// buildings show their later steps), and the steps: every plot at a level mark in turn (1, 10, 25, 50, 100). Faster than tools/shots.js, and only the board, so the look can be judged alone.
 import fs from 'node:fs';
 import path from 'node:path';
 import { start } from './serve.js';
@@ -14,6 +14,9 @@ const VIEWS = [
   ['low', () => { const r = CG.town.rig, B = CG.game.town.def.board, v = { x: B.cols / 2, z: B.rows / 2 + 1, yaw: .5, pitch: .55, dist: 11 }; Object.assign(r.t, v); Object.assign(r.c, v); }],
   ['built', () => { const t = CG.game.town; for (const id of Object.keys(t.def.board.plots)) t.buildings[id] = 30; CG.town.rig.reset(); }],
   ['built-low', () => { const r = CG.town.rig, B = CG.game.town.def.board, v = { x: B.cols / 2 - 1, z: B.rows / 2, yaw: -.6, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); }],
+  // every plot at one of the level marks in turn (1, 10, 25, 50, 100), so the steps a building grows by show side by side
+  ['steps', () => { const t = CG.game.town, L = [1, 10, 25, 50, 100]; Object.keys(t.def.board.plots).forEach((id, i) => { t.buildings[id] = L[i % L.length]; }); CG.town.rig.reset(); }],
+  ['steps-low', () => { const r = CG.town.rig, B = CG.game.town.def.board, v = { x: B.cols / 2 - 1, z: B.rows / 2, yaw: -.6, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 fs.mkdirSync(dir, { recursive: true });

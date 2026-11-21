@@ -387,7 +387,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
     // on a short landscape screen Sell sits in the head, since a row above the pinned price was cut under it (review of
     // 2026.11.20-15: short-land, mortar-land); CSS shows one of the two, so a turn of the phone needs no repaint
-    const sellHead = el('button', 'btn small sellhead', 'Sell ' + fmt(Math.floor(t.spent * SELL_BACK))); sellHead.id = 'sellTowerHead';
+    const sellHead = el('button', 'btn small sellhead', 'Sell '); sellHead.id = 'sellTowerHead'; // the coin square is the unit (review of 2026.11.21-2: "Sell 60" had none)
+    sellHead.append(el('span', 'coin'), fmt(Math.floor(t.spent * SELL_BACK)));
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
@@ -646,15 +647,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // in a fight a quiet level pill steps aside while a raider is under it, and stays solid otherwise (review of
     // 2026.11.20-5: pills faded to half all through a wave read as a glitch)
     const foes = ui.classList.contains('fighting') && viewApi.foePoints ? viewApi.foePoints() : null;
+    // every write below is made only when the value changes: setting hidden to true on a hidden tag still counts as a
+    // change to the page, and two tags did it every frame (Room on the Silver Falls script gate, 2026.11.21-4)
     for (const [id, t] of Object.entries(tag)) {
       const p = viewApi.project(id), L = town.level(id), un = unlocked(town, id);
       const flat = !p && document.documentElement.classList.contains('flat');
       // an empty plot's Build tag hides while a tower card is open: it sat on the selected tower's ring (review of 2026.11.19-11)
-      if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { t.hidden = true; continue; }
+      if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { if (!t.hidden) t.hidden = true; continue; }
       // a tag stays whole on screen while its building shows (review of 2026.11.19-11: "Lv 1" cut at the right edge)
       const marked = markTg && markTg.plot === id && markW;
       // the open card names it and says its level, and the glow marks it (review of 2026.11.20-10: "Level 10" over "Level 10")
-      if (p && !marked && openId === id) { t.hidden = true; continue; }
+      if (p && !marked && openId === id) { if (!t.hidden) t.hidden = true; continue; }
       // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
       // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
       // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)
@@ -666,7 +669,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const tl = t.firstChild, q = t.classList.contains('quiet') === full;
       if (tl.textContent !== txt || q) { tl.textContent = txt; if (q) t.classList.toggle('quiet', !full); if (p && t.offsetWidth) tagSize.set(t, [t.offsetWidth, t.offsetHeight]); } // (a hidden tag keeps its last size)
       const half = Math.max(marked ? markW / 2 : 0, (tagSize.get(t) || [56])[0] / 2 + 2);
-      if (p && !marked && (p.x < -half || p.x > viewW + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
+      if (p && !marked && (p.x < -half || p.x > viewW + half)) { if (!t.hidden) t.hidden = true; continue; } // the goal's tag always shows, at the edge
       const px = p && Math.min(Math.max(p.x, half), viewW - half);
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
@@ -675,7 +678,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // the goal's tag never hides under the top bar: it sits just below it, over its building (review of 2026.11.20-2:
       // in landscape the Sawmill's lifted tag went under the goal strip, and the goal named a tag no one could see)
       if (p && marked) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of coverBoxes) if ((c.n === left || c.n === right) && px - tw / 2 < c.r && px + tw / 2 > c.l && py - th < c.b + 2) py = Math.max(py, c.b + 2 + th); markAt = { x: px, y: py }; }
-      if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { t.hidden = true; if (marked) markAt = null; continue; } }
+      if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { if (!t.hidden) t.hidden = true; if (marked) markAt = null; continue; } }
       if (t.hidden) t.hidden = false;
       if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } }
       // a goal tag kept on screen points its stem at its building, or an arrow its way when the building is off screen

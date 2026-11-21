@@ -2,7 +2,7 @@
 // protocol. Needs Node 22+ (built-in fetch and WebSocket), nothing else.
 // The browser runs headless on a free port with its own temporary profile, and is closed and cleaned up
 // by browser.close(). Set CHROME_PATH to pick a browser.
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -38,7 +38,21 @@ function connect(url) {
   });
 }
 
+/* Once a run: stop headless browsers this driver left behind more than 3 hours ago (their profile folder starts with
+   cg-cdp- or the older gulch-cdp-). One left from 2026-11-16 kept about four cores busy for five days and put every
+   perf reading 3-8 ms up, so the Silver Falls gate looked like a coin toss (2026.11.21-4). */
+let swept = false;
+function sweepStale() {
+  if (swept || process.platform !== 'win32') return; swept = true;
+  const ps = "$cut = (Get-Date).AddHours(-3); Get-CimInstance Win32_Process -Filter \"Name='msedge.exe' OR Name='chrome.exe'\" | Where-Object { $_.CommandLine -match '(cg|gulch)-cdp-' -and $_.CreationDate -lt $cut } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; 'stopped ' + $_.ProcessId } catch {} }";
+  try {
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 20000 }).trim();
+    if (out) console.log('cdp: stopped ' + out.split('\n').length + ' headless browser processes left over from an earlier run');
+  } catch (e) { /* best effort */ }
+}
+
 async function launch(opts = {}) {
+  sweepStale();
   const exe = findBrowser();
   if (!exe) throw new Error('No Edge or Chrome found. Install one, or set CHROME_PATH to its executable.');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-'));

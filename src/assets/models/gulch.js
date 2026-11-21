@@ -41,11 +41,10 @@ export function planks(k, x, z, n = 4) { for (let i = 0; i < n; i++) k.box(x, i 
 export function ingots(k, x, z, c = 'steel') { for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) k.box(x + (i - (2 - row) / 2) * .1, row * .05, z, .08, .05, .16, c, { mat: 'metal' }); }
 export function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .1, z + Math.sin(a) * d * .7, .14 + R() * .18, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }
 let LAMPS = null; // filled while a building is made, so it knows where its lamps are
-export function lantern(k, x, z, h = .62) { if (LAMPS) LAMPS.push(new THREE.Vector3(x + .12, h - .11, z)); k.box(x, 0, z, .04, h, .04, 'woodD'); k.box(x + .06, h - .02, z, .14, .03, .03, 'woodD'); k.box(x + .12, h - .16, z, .07, .1, .07, 'glowW', { mat: 'glow' }); k.box(x + .12, h - .07, z, .09, .03, .09, 'iron'); }
+export function lantern(k, x, z, h = .62, y = 0) { if (LAMPS) LAMPS.push(new THREE.Vector3(x + .12, y + h - .11, z)); k.box(x, y, z, .04, h, .04, 'woodD'); k.box(x + .06, y + h - .02, z, .14, .03, .03, 'woodD'); k.box(x + .12, y + h - .16, z, .07, .1, .07, 'glowW', { mat: 'glow' }); k.box(x + .12, y + h - .065, z, .1, .015, .1, 'woodD'); }
 export function flag(k, x, y, z, c = 'paintR') { k.box(x, y, z, .025, .5, .025, 'woodD'); k.box(x + .13, y + .34, z, .24, .14, .015, c); }
 export function rails(k, x, z, len, ry = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (const o of [-.07, .07]) k.box(x + c * o, 0, z - s * o, .025, .025, len, 'steel', { ry, mat: 'metal' }); for (let i = -len / 2 + .05; i < len / 2; i += .12) k.box(x + s * i, 0, z + c * i, .22, .015, .04, 'woodD', { ry }); }
 export function cart(k, y = 0, load = 'rock', x = 0, z = 0) { k.box(x, y + .05, z, .2, .12, .26, 'iron', { mat: 'metal' }); for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(x + sx * .1, y + .04, z + sz * .08, .04, .02, 'black', { rz: Math.PI / 2, seg: 8 }); k.dode(x, y + .17, z, .09, load, { sy: .6 }); }
-const lampRow = (k, xs, z) => { for (const x of xs) lantern(k, x, z); };
 
 // --- the recipes: (kit, add) => top height. add(name, group, pos, axis, speed) registers a moving part ----------
 const R = {
@@ -212,12 +211,62 @@ const R = {
 };
 
 
-/* Milestones show on every building: crates at level 10, lanterns at 25, a flag at 50, gold trim at 100+. */
-function milestones(k, tier, top, id) {
-  if (tier >= 1) { crate(k, .78, .78, .16); barrel(k, -.8, .8); }
-  if (tier >= 2) lampRow(k, [-.88, .7], .88);
-  if (tier >= 3 && !['hall'].includes(id)) flag(k, -.7, top - .25, -.6, tier >= 4 ? 'gold' : 'paintR');
-  if (tier >= 4) { k.box(0, 0, .92, 1.7, .05, .05, 'goldD'); for (let i = 0; i < 6; i++) k.box(-.75 + i * .3, .05, .92, .06, .08, .06, 'gold', { mat: 'metal' }); }
+/* The steps every building grows by, at the same level marks (the look pass, part 3; GDD.md, Look and sound):
+   - level 10 (tier 1): crates and a barrel by the front;
+   - level 25 (tier 2): two lanterns, and the windows are lit (dark glass before);
+   - level 50 (tier 3): the building stands on a stone foundation and grows a course taller, with a flag;
+   - level 100 (tier 4): a wide gold band round the top of the foundation and a gold flag.
+   Decision (review of 2026.11.21-4 before release): a shop sign on its own post read as a gallows or a road barrier,
+   and no recipe says where its wall is, so level 10 has no sign. */
+export const GROW = { found: .14, tall: 1.16 };
+function milestones(k, tier, top, id, base) {
+  const at = (x, z) => base && base.has(x, z) ? GROW.found : 0; // on the foundation
+  if (tier >= 1) { crate(k, .78, .78, .16, at(.78, .78)); barrel(k, -.8, .8, at(-.8, .8)); }
+  // lanterns at the plot's front corners, clear of the barrel and the crate (review of 2026.11.21-4: they stood on them)
+  if (tier >= 2) for (const [x, z] of [[-.92, .92], [.56, .92]]) lantern(k, x, z, .62, at(x, z));
+  // the flag stands on the foundation's front corner, so it belongs to its own building (it stood at the back of the
+  // plot, by a pad or a neighbor, in the same review)
+  if (tier >= 3 && !['hall'].includes(id)) { const c = tier >= 4 ? 'gold' : 'paintR'; if (base) flag(k, base.x0 + .07, GROW.found, base.z1 - .07, c); else flag(k, -.7, top - .25, -.6, c); }
+  if (tier >= 4 && base) { // a wide gold band round the foundation's top course
+    const { x0, x1, z0, z1 } = base, y = GROW.found * .5 - .045, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, t = .035; // over the line between the courses
+    for (const [x, z, w, d] of [[cx, z1, x1 - x0 + 2 * t, t], [cx, z0, x1 - x0 + 2 * t, t], [x0, cz, t, z1 - z0], [x1, cz, t, z1 - z0]]) k.box(x, y, z, w, .09, d, 'gold', { mat: 'metal' });
+  }
+}
+/* Level 50 and up: the building's main mass (every part taller than a prop, standing on the ground) goes up onto a
+   stone foundation and grows a course taller; yard props outside the foundation stay on the ground. Returns the
+   foundation's box with has(x, z) (for what stands on it), or null when nothing is tall enough. */
+const _grow = new THREE.Matrix4(), _lift = new THREE.Matrix4();
+function foundation(k) {
+  const all = Object.values(k.parts).flat(), bb = new THREE.Box3();
+  for (const g of all) g.computeBoundingBox();
+  // the main mass: parts standing on the ground taller than a prop, or (a low building such as the Clay Bank's cut
+  // bank) taller than a crate
+  for (const h of [.3, .15]) { for (const g of all) { const b = g.boundingBox; if (b.max.y - b.min.y > h && b.min.y < .06) bb.union(b); } if (!bb.isEmpty()) break; }
+  if (bb.isEmpty()) return null;
+  const c = v => Math.max(-.9, Math.min(.9, v)), m = .05;
+  const base = { x0: c(bb.min.x - m), x1: c(bb.max.x + m), z0: c(bb.min.z - m), z1: c(bb.max.z + m) };
+  base.has = (x, z, e = 0) => x >= base.x0 - e && x <= base.x1 + e && z >= base.z0 - e && z <= base.z1 + e;
+  _grow.makeScale(1, GROW.tall, 1).premultiply(_lift.makeTranslation(0, GROW.found, 0));
+  for (const g of all) { const b = g.boundingBox; if (base.has((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, .02)) g.applyMatrix4(_grow); }
+  const w = base.x1 - base.x0, d = base.z1 - base.z0, cx = (base.x0 + base.x1) / 2, cz = (base.z0 + base.z1) / 2, F = GROW.found;
+  // two courses of dressed stone, the top one set back a little, and joints on every side so it reads as laid stone
+  k.box(cx, 0, cz, w, F * .5, d, 'stoneD', { jit: .14, ao: false });
+  k.box(cx, F * .5, cz, w - .08, F * .5, d - .08, 'stone', { jit: .14, ao: false }); // set back, so the two courses read apart
+  for (const [y, h, off, i] of [[0, F * .5, 0, 0], [F * .5, F * .5, .12, .04]]) { // i: how far the course is set back
+    for (let x = base.x0 + .1 + off; x < base.x1 - .05 - i; x += .24) for (const z of [base.z1 - i + .002, base.z0 + i - .002]) k.box(x, y + .01, z, .014, h - .02, .01, 'rockD', { ao: false });
+    for (let z = base.z0 + .1 + off; z < base.z1 - .05 - i; z += .24) for (const x of [base.x1 - i + .002, base.x0 + i - .002]) k.box(x, y + .01, z, .01, h - .02, .014, 'rockD', { ao: false });
+  }
+  k.box(cx, F * .5 - .006, base.z1 + .002, w, .012, .01, 'rockD', { ao: false }); // the line between the courses
+  return base;
+}
+/* Below level 25 the windows are dark glass; at 25 they light up. */
+function darkWindows(k) {
+  k.win = (x, y, z, w, h, o = {}) => {
+    if (o.c) return Kit.prototype.win.call(k, x, y, z, w, h, o); // a furnace's glow or a colored pane stays as it is
+    const f = o.frame || 'woodD', ry = o.ry || 0, dz = .012, cs = Math.cos(ry), sn = Math.sin(ry);
+    k.box(x, y - .03, z, w + .06, h + .06, .03, f, { ry, ao: false });
+    return k.box(x + sn * dz, y, z + cs * dz, w, h, .03, '#3b4652', { ry, ao: false });
+  };
 }
 /* A plot not built yet: survey stakes and a little sign. */
 function emptyLot(k) {
@@ -280,7 +329,20 @@ export function makeBuilding(id, tier = 0) {
     node.position.copy(pos); obj.add(node); movers.push({ kind, node, axis, speed, base: node.rotation.clone(), y0: pos.y });
   };
   let top = 1;
-  if (id === '_lot') emptyLot(k); else if (R[id] || MORE[id]) { top = (R[id] || MORE[id])(k, add); milestones(k, tier, top, id); } else { shed(k, 0, 0, 1.2, .9, .6, 'wood', 'roofR'); }
+  if (id === '_lot') emptyLot(k);
+  else if (R[id] || MORE[id]) {
+    if (tier < 2) darkWindows(k);
+    top = (R[id] || MORE[id])(k, add) || 1;
+    let base = null;
+    if (tier >= 3) { // the recipe's parts, moving parts, chimneys and lamps all go up onto the foundation
+      base = foundation(k);
+      const up = v => { if (base && base.has(v.x, v.z, .02)) v.y = v.y * GROW.tall + GROW.found; };
+      for (const m of movers) { up(m.node.position); m.y0 = m.node.position.y; }
+      smoke.forEach(up); lights.forEach(up);
+      if (base) top = top * GROW.tall + GROW.found;
+    }
+    milestones(k, tier, top, id, base);
+  } else { shed(k, 0, 0, 1.2, .9, .6, 'wood', 'roofR'); }
   obj.add(k.build());
   obj.traverse(o => { if (o.isMesh) { o.castShadow = o.castShadow !== false && o.material.type !== 'MeshBasicMaterial'; o.receiveShadow = true; } });
   LAMPS = null;

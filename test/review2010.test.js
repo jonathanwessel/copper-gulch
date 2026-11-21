@@ -73,9 +73,9 @@ test('the bridges arch high enough for boats, and raiders turn along the road an
   assert.ok(read('src/assets/models/units.js').includes('root.userData.stack = stack'));
 });
 
-test('Influence shows under the map coins, and the selected building has no tag over its card', () => {
+test('Influence shows under the map coins', () => {
   assert.ok(read('src/ui/map.js').includes("infl.id = 'influence'"));
-  assert.ok(read('src/ui/play.js').includes("if (p && !marked && openId === id) { t.hidden = true; continue; }"));
+  // the selected building's tag is checked on screen by tools/smoke.js (the building card), not in source here
 });
 
 test('Auto-towers names the good it waits for, not "its goods"', async () => {

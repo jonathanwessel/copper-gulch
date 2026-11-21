@@ -95,8 +95,17 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...nameRules(), ...capRules(), ...modelRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules());
   return { problems, unlisted };
+}
+
+/* Code after a line comment never runs. A trailing comment followed by statements ("// why ; this.x = 1") is a bug
+   twice over in this repo: raiders never turned (review of 2026.11.20-10), and the raiders' shadows never joined the
+   scene (2026.11.21-4). */
+export function swallowRules() {
+  const out = [], code = /\/\/[^'"`]*; *(this\.|const |let |if \(|for \(|return\b|[a-zA-Z_]+\.[a-zA-Z_]+ *(=|\())/;
+  for (const f of walk('src').filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line, i) => { if (code.test(line) && !/https?:/.test(line)) out.push(f + ':' + (i + 1) + ' has code after a // comment, so it never runs'); });
+  return out;
 }
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind

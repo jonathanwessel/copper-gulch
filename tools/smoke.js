@@ -157,12 +157,32 @@ async function run() {
         return { picked: B.pickables.some(o => own.has(o)) || (B.hits || []).some(o => own.has(o)), folk, wagon: L.wagon.obj.visible };
       });
       if (life.picked || (!life.folk && !life.wagon)) bad.push('the town life is missing or can be tapped: ' + JSON.stringify(life));
+      // buildings that grow (M5b part 3): every building at every level mark builds, stands taller from level 50, and
+      // no building has its windows lit before level 25 that are dark after it; some light up at 25
+      const grow = await page.evaluate(async () => {
+        const { makeBuilding } = await import('./src/assets/models/gulch.js'), { BUILDINGS } = await import('./src/data/buildings.js');
+        const out = [], glow = b => { let n = 0; b.obj.traverse(o => { if (o.isMesh && o.material.type === 'MeshBasicMaterial') n += o.geometry.attributes.position.count; }); return n; };
+        for (const [id, def] of Object.entries(BUILDINGS)) {
+          if (!def.model) continue;
+          const t = [0, 1, 2, 3, 4].map(tier => makeBuilding(def.model, tier));
+          if (!(t[3].top > t[2].top)) out.push(id + ' is no taller at level 50');
+          if (glow(t[1]) > glow(t[2])) out.push(id + ' has more lit windows at level 10 than at 25');
+          for (const b of t) b.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+        }
+        let lit = 0; for (const def of Object.values(BUILDINGS)) if (def.model) { const a = makeBuilding(def.model, 1), b = makeBuilding(def.model, 2); if (glow(b) - glow(a) > 72) lit++; } // more than the two lanterns (36 corners each)
+        if (!lit) out.push('no windows light up at level 25');
+        return out;
+      });
+      if (grow.length) bad.push('buildings that grow: ' + grow.slice(0, 4).join(', '));
       const buy = await page.evaluate(async () => {
         const t = CG.game.town; t.coins = 100; CG.play.open('camp'); await new Promise(r => setTimeout(r, 100));
         const b = document.getElementById('buy'), before = t.level('camp'); b.click();
-        return { ok: t.level('camp') === before + 1, card: !document.getElementById('card').hidden };
+        await new Promise(r => setTimeout(r, 100));
+        const own = document.querySelector('.tag[data-plot="camp"]'); // the open card names it, so its own tag is gone
+        return { ok: t.level('camp') === before + 1, card: !document.getElementById('card').hidden, ownTag: !!own && !own.hidden };
       });
       if (!buy.ok || !buy.card) bad.push('the card did not buy a level');
+      if (buy.ownTag) bad.push('the building whose card is open still shows its tag over the card');
       // a tower: build a crossbow on a spot through its card, then call the wave
       const tower = await page.evaluate(async () => {
         const t = CG.game.town; t.coins = 500; t.goods.timber = 50; CG.play.openSpot(3); await new Promise(r => setTimeout(r, 100));
@@ -172,6 +192,19 @@ async function run() {
         return { built, wave: t.waves.phase === 'wave' };
       });
       if (!tower.built || !tower.wave) bad.push('the tower card or the call button failed');
+      // shadows (2026.11.21-4): raiders cast no sun shadow and have a soft one under them; the shadow map is drawn when
+      // a building levels up, not every frame
+      const shade = await page.evaluate(async () => {
+        const v = CG.town, wait = ms => new Promise(r => setTimeout(r, ms)), sm = v.view.renderer.shadowMap;
+        for (let i = 0; i < 40 && ![...v.battle.foes.values()].some(u => u.obj.visible); i++) await wait(100);
+        const seen = [...v.battle.foes.values()].filter(u => u.obj.visible).length;
+        let cast = 0; for (const u of v.battle.foes.values()) u.obj.traverse(o => { if (o.isMesh && o.castShadow) cast++; });
+        const d0 = v.shadowDraws, f0 = v.frames; await wait(1000); const rate = (v.shadowDraws - d0) / Math.max(1, v.frames - f0);
+        const t = CG.game.town, d1 = v.shadowDraws; t.buildings.camp = (t.buildings.camp || 0) + 1; await wait(700);
+        return { seen, blobs: v.battle.blobs.count, cast, auto: sm.autoUpdate, rate: +rate.toFixed(2), redrawn: v.shadowDraws > d1 };
+      });
+      if (shade.seen && shade.blobs < shade.seen) bad.push('a raider has no soft shadow under it: ' + JSON.stringify(shade));
+      if (shade.cast || shade.auto || shade.rate > .5 || !shade.redrawn) bad.push('raiders cast a sun shadow, the shadow map is drawn every frame, or not after a level up: ' + JSON.stringify(shade));
       // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins
       await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 4321); CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
       bad.push(...(await uncovered(page)).map(b => 'tower card: ' + b));

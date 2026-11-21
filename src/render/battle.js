@@ -18,7 +18,8 @@ import { pointAt } from '../core/path.js';
 import { FOES } from '../data/foes.js';
 import { FIRE } from '../data/towers.js';
 import { disposeTree } from './board.js';
-import { padFooting } from './dress.js';
+import { padFooting, blobMesh } from './dress.js';
+const FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
 
 const towerKey = t => t.kind + (t.path || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
 const barGeo = new THREE.PlaneGeometry(1, 1), _q = new THREE.Quaternion();
@@ -57,6 +58,10 @@ export class Battle {
     this.roadPts = [...B0.road, B0.vault]; // the road as points, for the steamer's stack (the lanes are path objects) // raiders stay hidden inside their lane's entrance
     this.hideS = [(B0.entrance && B0.entrance.hide) || 0, (B0.river && B0.river.entrance && B0.river.entrance.hide) || 0];
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
+    // a soft shadow under each raider, drawn over the road (which pulls itself toward the camera too)
+    this.blobs = blobMesh(FOE_BLOBS, .8); this.blobs.material.polygonOffsetFactor = -6; this.blobs.renderOrder = 1;
+    this.blobs.count = 0; this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.group.add(this.blobs);
+    this.shadowMoved = false;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
     const B = this.town.def.board;
     const pads = B.spots.map(([x, z], i) => {
@@ -140,7 +145,8 @@ export class Battle {
         back.scale.set(w + .06, .1, 1); fill.scale.set(w, .06, 1); fill.position.z = .001; bar.add(back, fill); bar.position.y = boss ? 1.25 : 1.05; bar.renderOrder = 5;
         back.renderOrder = fill.renderOrder = 5; obj.add(bar);
         if (boss) obj.scale.setScalar(1.4);
-        this.group.add(obj); u = { obj, bar, fill, w, phase: Math.random() * 6, s0: f.s, s1: f.s }; this.foes.set(f.id, u);
+        obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); // a soft shadow under it instead (foeBlobs), on every tier
+        this.group.add(obj); u = { obj, bar, fill, w, boss, phase: Math.random() * 6, s0: f.s, s1: f.s }; this.foes.set(f.id, u);
       }
       if (moved) { u.s0 = u.s1; u.s1 = f.s; }
       const s = u.s0 + (u.s1 - u.s0) * alpha;
@@ -160,11 +166,22 @@ export class Battle {
       u.bar.visible = r < .999;
     }
     for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); disposeTree(u.obj); this.foes.delete(id); }
-    // towers turn toward their last target
+    // a soft round shadow under every raider in sight, in one draw call, so raiders need no sun shadow (that redrew the
+    // shadow map every frame of a wave: Room on the Silver Falls script gate, 2026.11.21-4)
+    let nb = 0;
+    for (const u of this.foes.values()) {
+      if (!u.obj.visible || nb >= FOE_BLOBS) continue;
+      const w = u.boss ? 1.7 : .95;
+      _bm.compose(_bp.set(u.obj.position.x, Math.max(0, u.obj.position.y) + .04, u.obj.position.z), _bq, _bs.set(w, 1, w)); this.blobs.setMatrixAt(nb++, _bm);
+    }
+    this.blobs.count = nb; this.blobs.visible = nb > 0; if (nb) this.blobs.instanceMatrix.needsUpdate = true;
+    // towers turn toward their last target; shadowMoved: a tower head turned or a tower rose, so its shadow moved
+    this.shadowMoved = false;
     for (const [spot, tw] of this.towers) {
-      const up = spot === this.lift ? .14 : 0; tw.obj.position.y += (.06 + up - tw.obj.position.y) * Math.min(1, dt * 14);
+      const up = spot === this.lift ? .14 : 0, dy = (.06 + up - tw.obj.position.y) * Math.min(1, dt * 14); tw.obj.position.y += dy;
       const h = tw.obj.userData.head; let da = tw.aim - h.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da));
       h.rotation.y += da * Math.min(1, dt * 12);
+      if (Math.abs(dy) > 1e-4 || Math.abs(da) > 2e-3) this.shadowMoved = true;
       if (tw.obj.userData.float) tw.obj.userData.bar.position.y = Math.sin(t * 2 + tw.obj.position.x) * .05;
     }
     // shots and their effects; what a finished shot sets off (a blast, a cloud) joins the list after this pass,

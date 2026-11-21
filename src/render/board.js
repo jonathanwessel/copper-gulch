@@ -129,6 +129,8 @@ export class Board {
     b.obj.position.set(x, 0, z);
     if (key === 'lock') b.obj.scale.setScalar(.85);
     b.obj.traverse(o => { o.userData.plot = id; if (o.isMesh) this.pickables.push(o); });
+    // moving parts cast no sun shadow, so the shadow map is drawn only when something still changes (town-view.js)
+    for (const m of b.movers) m.node.traverse(o => { if (o.isMesh) o.castShadow = false; });
     this.group.add(b.obj);
     this.bld[id] = { ...b, key, level, born: cur ? 0 : 1 };
   }

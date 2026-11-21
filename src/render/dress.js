@@ -164,14 +164,19 @@ function blobTexture() {
   return BLOB;
 }
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+/* n soft round shadows on the ground in one draw call (instances placed with setMatrixAt, a unit square scaled). */
+export function blobMesh(n, opacity = .5) {
+  const mat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity, color: '#000', polygonOffset: true, polygonOffsetFactor: -1, fog: false });
+  mat.userData.own = true;
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, n);
+  mesh.name = 'blobs'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false; mesh.renderOrder = 0;
+  return mesh;
+}
 export class Blobs {
   constructor(B) {
     this.B = B; this.ids = Object.keys(B.plots);
     const n = (B.spots || []).length + 1 + this.ids.length;
-    const mat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: .5, color: '#000', polygonOffset: true, polygonOffsetFactor: -1, fog: false });
-    mat.userData.own = true;
-    this.mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, n);
-    this.mesh.name = 'blobs'; this.mesh.castShadow = false; this.mesh.receiveShadow = false; this.mesh.frustumCulled = false; this.mesh.renderOrder = 0;
+    this.mesh = blobMesh(n);
     let i = 0;
     const put = (x, z, w, d = w) => { _m.compose(_p.set(x, .02, z), _q.identity(), _s.set(w, 1, d)); this.mesh.setMatrixAt(i++, _m); };
     for (const [x, z] of B.spots || []) put(x, z, 1.75);

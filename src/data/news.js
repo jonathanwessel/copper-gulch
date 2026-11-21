@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-4',
+    lines: [
+      'Buildings change as you level them up. At level 25 the windows light up.',
+      'At level 50 a building gets taller and stands on a stone base with a flag.',
+      'At level 100 it gets a gold band and a gold flag.',
+      'Raiders have a soft shadow under them, and big towns run smoother.',
+      'The Sell button on a tower card in landscape shows a coin.',
+      'The line at the bottom of the title screen is easier to read.',
+    ],
+  },
+  {
     v: '2026.11.21-3',
     lines: [
       'People walk between the buildings now, and birds circle high above.',
