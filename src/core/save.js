@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -159,6 +159,15 @@ export const MIGRATIONS = {
       if (w && w.size === undefined) w.size = w.phase === 'wave' ? (w.queue || []).length + (w.foes || []).length : 0;
     }
     return { ...s, v: 21, game: g };
+  },
+  // v22: the second fork at level 20 (src/data/towers.js, FORKS): every tower has taken none yet, and no raider rots
+  21: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) {
+      for (const x of (t && t.towers) || []) if (x.fork === undefined) x.fork = null;
+      for (const f of (t && t.waves && t.waves.foes) || []) if (f.rot === undefined) f.rot = 0;
+    }
+    return { ...s, v: 22, game: g };
   },
 };
 

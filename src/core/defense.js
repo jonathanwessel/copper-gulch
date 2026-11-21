@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -52,17 +52,23 @@ export const roadOf = town => lanesOf(town)[0];
 export const laneFor = (town, kind) => (FOES[kind].water && town.def && town.def.board && town.def.board.river ? 1 : 0);
 
 // --- towers: stats and costs -----------------------------------------------------------------------------------------
+/* The second fork a tower took at FORK_LEVEL (t.fork, 'a' or 'b'), or {}. */
+export const forkOf = t => (t.fork && FORKS[t.kind] && FORKS[t.kind][t.fork]) || {};
+/* Does this tower pick a second fork with its next level? */
+export const forkNext = t => t.level + 1 === FORK_LEVEL && !!FORKS[t.kind];
 export function towerStats(town, t) {
-  const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : {};
+  const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : {}, k = forkOf(t);
   const s = {
-    dmg: d.dmg * (d.grow || PER_LEVEL.dmg) ** (L - 1) * (p.dmg || 1) * town.mods.factor('towerDmg'),
+    dmg: d.dmg * (d.grow || PER_LEVEL.dmg) ** (L - 1) * (p.dmg || 1) * (k.dmg || 1) * town.mods.factor('towerDmg'),
     rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * town.mods.factor('towerRate'),
     range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * town.mods.factor('towerRange'),
     splash: (d.splash || 0) * (p.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
-    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire,
+    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, near: !!k.near, rot: 0,
   };
+  // Slow Rot: a share of its hit damage a second, in place of the normal poison
+  if (k.rot) { s.rot = k.rot * s.dmg * s.rate; s.poison = 0; }
   return s;
 }
 /* Coins and goods to build (level 0 -> 1) or to raise a tower from level L to L + 1. */
@@ -96,21 +102,24 @@ export function buildTower(game, town, spot, kind) {
   const c = towerCost(town, kind, 0);
   if (!canPay(town, c)) return false;
   pay(town, c);
-  town.towers.push({ spot, kind, level: 1, path: null, cd: 0, spent: c.coins, pulses: 0 });
+  town.towers.push({ spot, kind, level: 1, path: null, fork: null, cd: 0, spent: c.coins, pulses: 0 });
   game.bus.emit('tower:build', { town: town.id, spot, kind });
   return true;
 }
-/* Raise a tower one level. Reaching PATH_LEVEL needs a path ('a' or 'b'). */
+/* Raise a tower one level. Reaching PATH_LEVEL needs a path ('a' or 'b'), and reaching FORK_LEVEL, for a kind with a
+   second fork, needs a fork ('a' or 'b', passed the same way). */
 export function upgradeTower(game, town, spot, path) {
   const t = towerAt(town, spot);
   if (!t) return false;
   if (t.level + 1 === PATH_LEVEL && !PATHS[t.kind][path]) return false;
+  if (forkNext(t) && !FORKS[t.kind][path]) return false;
   const c = towerCost(town, t.kind, t.level);
   if (!canPay(town, c)) return false;
   pay(town, c);
   t.level++; t.spent += c.coins;
   if (t.level === PATH_LEVEL) t.path = path;
-  game.bus.emit('tower:upgrade', { town: town.id, spot, level: t.level, path: t.path });
+  if (t.level === FORK_LEVEL && FORKS[t.kind]) t.fork = path;
+  game.bus.emit('tower:upgrade', { town: town.id, spot, level: t.level, path: t.path, fork: t.fork || null });
   return true;
 }
 export function sellTower(game, town, spot) {
@@ -198,7 +207,7 @@ function spawn(town, kind) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
   const W = wavesOf(town), base = f.boss ? bossHp(W, town.wave) : W.hp(town.wave);
   const hp = base * f.hp * T.hp * town.mods.factor('foeHp');
-  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, brittle: 0 });
+  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, brittle: 0 });
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
@@ -214,6 +223,8 @@ export function bestFactor(kind, foe) {
   if (!b || !F) return 1;
   return b[foe] || (F.boss && b.boss) || (F.armor > 0 && b.armored) || 1;
 }
+/* Last Call: how much harder a hit lands on a raider s along its lane (NEAR in src/data/towers.js). */
+export const nearFactor = (lane, s) => NEAR.base + NEAR.gain * Math.min(1, Math.max(0, s / (lane.length || 1)));
 function hurt(game, town, f, dmg, pierce = false, by = null) {
   const armor = pierce ? 0 : FOES[f.kind].armor, n = dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1);
   tally(game, town, by, Math.min(Math.max(0, f.hp), n));
@@ -247,6 +258,7 @@ export function fight(game, town, dt) {
   // move, poison, leak
   for (const f of ws.foes) {
     if (f.poisonT > 0) { const n = f.poison * Math.min(dt, f.poisonT); tally(game, town, 'still', Math.min(Math.max(0, f.hp), n)); f.hp -= n; f.poisonT -= dt; }
+    if (f.rot > 0) { const n = f.rot * dt; tally(game, town, 'still', Math.min(Math.max(0, f.hp), n)); f.hp -= n; } // Slow Rot never wears off
     if (f.thawT > 0) f.thawT -= dt;
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
@@ -304,9 +316,13 @@ export function fight(game, town, dt) {
         }
       } else if (st.splash) {
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg, false, t.kind);
-      } else if (st.poison) {
-        hurt(game, town, target, st.dmg, false, t.kind);
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; f.spread = f.spread || st.spread; }
+      } else if (st.poison || st.rot) {
+        hurt(game, town, target, st.dmg * (st.near ? nearFactor(laneOf(target), target.s) : 1), false, t.kind);
+        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) {
+          if (st.rot) f.rot = Math.max(f.rot || 0, st.rot * bestFactor(t.kind, f.kind));
+          else { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; }
+          f.spread = f.spread || st.spread;
+        }
       } else hurt(game, town, target, st.dmg, false, t.kind);
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
     }
@@ -314,7 +330,8 @@ export function fight(game, town, dt) {
   // the fallen pay their bounty (a fever-carrier passes its poison on)
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);
-    if (f.spread && f.poisonT > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, f.poison / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
+    const dose = Math.max(f.poisonT > 0 ? f.poison : 0, f.rot || 0); // a rotting carrier passes its rot on as a normal dose
+    if (f.spread && dose > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, dose / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
   if (town.vault.hp <= 0) { fall(game, town, 'vault'); return; }
@@ -369,7 +386,7 @@ const RUN_KEEP = 48;
 const runKey = town => {
   const ws = town.waves, m = town.mods;
   return [town.wave, ws.type, ws.gap, ws.queue.join(','), ...['towerDmg', 'towerRate', 'towerRange', 'blast', 'foeHp'].map(k => m.factor(k).toFixed(6)),
-    town.towers.map(t => t.spot + t.kind + t.level + (t.path || '')).join(',')].join('|');
+    town.towers.map(t => t.spot + t.kind + t.level + (t.path || '') + (t.fork || '')).join(',')].join('|');
 };
 export function waveRun(town) {
   const runs = RUNS.get(town.def) || new Map(), key = runKey(town);

@@ -21,7 +21,7 @@ import { disposeTree } from './board.js';
 import { padFooting, blobMesh } from './dress.js';
 const FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
 
-const towerKey = t => t.kind + (t.path || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
+const towerKey = t => t.kind + (t.path || '') + (t.fork || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
 const barGeo = new THREE.PlaneGeometry(1, 1), _q = new THREE.Quaternion();
 const barBack = new THREE.MeshBasicMaterial({ color: '#1d120c', depthTest: false, transparent: true });
 const barFill = new THREE.MeshBasicMaterial({ color: '#f07067', depthTest: false, transparent: true });
@@ -88,7 +88,7 @@ export class Battle {
       const cur = this.towers.get(t.spot), key = towerKey(t);
       if (cur && cur.key === key) continue;
       if (cur) { this.group.remove(cur.obj); this.unpick(cur.obj); disposeTree(cur.obj); }
-      const obj = makeTower(t.kind, t.path, t.level), [x, z] = this.town.def.board.spots[t.spot];
+      const obj = makeTower(t.kind, t.path, t.level, t.fork), [x, z] = this.town.def.board.spots[t.spot];
       obj.position.set(x, .06, z);
       obj.traverse(o => { o.userData.spot = t.spot; if (o.isMesh) this.board.pickables.push(o); });
       if (cur) obj.userData.head.rotation.y = cur.obj.userData.head.rotation.y;

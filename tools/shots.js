@@ -35,6 +35,10 @@ const SCREENS = [
     for (let i = 0; i < 150; i++) { await wait(100); const sh = t.waves.shells || []; if (sh.some(x => x.t > .9)) break; }
   }],
   ['path', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, tw = t.towers.find(x => x.spot === t.def.board.far); if (tw) { let spent = 0; for (let L = 0; L < 4; L++) spent += D.towerCost(t, tw.kind, L).coins; Object.assign(tw, { level: 4, spent }); } CG.play.close(); CG.play.openSpot(t.def.board.far); }], // spent counts every level, so its sell price is real (review of 2026.11.19-5: a level 4 Mortar sold for 240 like a new one)
+  // the second fork at level 20 (M6a): a level-19 Still with both sides on its card, then a Still that took Slow Rot
+  ['fork', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2); let spent = 0; for (let L = 0; L < 19; L++) spent += D.towerCost(t, 'still', L).coins; t.towers.push({ spot: 2, kind: 'still', level: 19, path: 'a', fork: null, cd: 0, spent, pulses: 0 }); CG.play.openSpot(2); }],
+  ['fork-rot', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 2); if (tw) Object.assign(tw, { level: 20, fork: 'a' }); CG.play.close(); CG.play.openSpot(2); }],
+  ['fork-last', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 2); if (tw) Object.assign(tw, { level: 20, fork: 'b' }); CG.play.close(); CG.play.openSpot(2); }],
   // the wave bar (owner, 2026-11-19): the raiders card from the wave number, then the bar twice a few seconds apart, to
   // show it keeps its width while the timer runs, and the quiet building tags
   ['wave-card', () => { CG.play.close(); CG.play.sheets.close(); CG.play.openWave(); }],

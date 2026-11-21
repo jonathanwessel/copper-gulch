@@ -50,13 +50,13 @@ function diorama(town) {
   }
   const vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); vault.position.set(B.vault[0], 0, B.vault[1]); objs.push(vault);
   for (const t of town.towers || []) {
-    const o = makeTower(t.kind, t.path, t.level), [x, z] = B.spots[t.spot]; o.position.set(x, 0, z); objs.push(o);
+    const o = makeTower(t.kind, t.path, t.level, t.fork), [x, z] = B.spots[t.spot]; o.position.set(x, 0, z); objs.push(o);
   }
   const g = merged(objs);
   g.scale.setScalar(S);
   return g;
 }
-const signature = town => Object.keys(town.def.board.plots).map(id => tierOf(town.level(id)) * (town.level(id) > 0 ? 1 : 0)).join() + '|' + (town.towers || []).map(t => t.spot + t.kind + t.level + (t.path || '')).join();
+const signature = town => Object.keys(town.def.board.plots).map(id => tierOf(town.level(id)) * (town.level(id) > 0 ? 1 : 0)).join() + '|' + (town.towers || []).map(t => t.spot + t.kind + t.level + (t.path || '') + (t.fork || '')).join();
 
 /* A supply wagon (one mesh, so every wagon on the map is one instanced draw): bed, canvas cover, wheels, a mule. */
 function wagonGeometry() {

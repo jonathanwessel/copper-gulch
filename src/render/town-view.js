@@ -79,7 +79,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w, f.d); }
     if (board.life.tier !== v.tier) board.life.setTier(v.tier);
     board.update(dt, t, id => !town.starved[id], rig.c, town.waves.foes.length > 0);
-    const towers = stepped || !lastTowers ? town.towers.map(x => x.spot + x.kind + x.level + x.path).join() : lastTowers;
+    const towers = stepped || !lastTowers ? town.towers.map(x => x.spot + x.kind + x.level + x.path + (x.fork || '')).join() : lastTowers;
     if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);
     battle.update(dt, t, v.cam, game.clock.alpha, game.stats.steps);

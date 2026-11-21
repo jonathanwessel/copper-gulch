@@ -18,11 +18,11 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, nearFactor } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
-import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS } from '../src/data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
@@ -61,6 +61,24 @@ export function cover(town, spot, lo, hi) {
   }
   return m.get(key);
 }
+/* Where on the road a spot's reach [lo, hi] lies: { first, mid } as shares of the road (0 at the entrance, 1 at the
+   vault): the first point in reach and the middle of the stretch in reach (memoized like cover). */
+const ALONG = new WeakMap();
+export function along(town, spot, lo, hi) {
+  const b = town.def.board, key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2);
+  if (!ALONG.has(b)) ALONG.set(b, new Map());
+  const m = ALONG.get(b);
+  if (!m.has(key)) {
+    const r = lanesOf(town)[0], p = b.spots[spot]; let first = null, sum = 0, n = 0;
+    for (let s = 0; s <= r.length; s += .1) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) { first ??= s; sum += s; n++; } }
+    m.set(key, { first: first === null ? 1 : first / r.length, mid: n ? sum / n / r.length : 1, length: r.length });
+  }
+  return m.get(key);
+}
+/* Slow Rot keeps ticking after a raider leaves the tower's reach: a careful player counts ROT_LIVES of the road left
+   after it. At .5 it picked Last Call on 34 of 36 pads of the late Ridge, where a run of the waves showed Slow Rot dealing
+   twice as much at the first pads; at 1 the picks match those runs. */
+export const ROT_LIVES = 1;
 /* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
    kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
    boss wave adds its boss: the town's own wagon, in a wave of about count(w) raiders. */
@@ -81,7 +99,10 @@ export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
   const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
-  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave);
+  const at = st.near || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
+  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave) * (st.near ? nearFactor({ length: 1 }, at.mid) : 1);
+  // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
+  if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
   else if (st.splash) dps *= targets(st.splash);
   if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
@@ -129,9 +150,10 @@ export function options(town) {
   const out = [], pad = town.towers.length ? .5 * town.towers.reduce((a, x) => a + x.spent, 0) / town.towers.length : 0;
   for (const t of town.towers) {
     const c = towerCost(town, t.kind, t.level), now = worth(town, t);
-    const paths = t.level + 1 === PATH_LEVEL ? Object.keys(PATHS[t.kind]) : [t.path];
+    // the level-5 path and the level-20 fork (FORKS) are both picked by the value of each side
+    const fork = forkNext(t), paths = t.level + 1 === PATH_LEVEL ? Object.keys(PATHS[t.kind]) : fork ? Object.keys(FORKS[t.kind]) : [t.path];
     for (const path of paths) {
-      const gain = worth(town, { ...t, level: t.level + 1, path: t.level + 1 >= PATH_LEVEL ? path : null }) - now;
+      const gain = worth(town, { ...t, level: t.level + 1, path: t.level + 1 >= PATH_LEVEL ? (fork ? t.path : path) : null, fork: fork ? path : t.fork }) - now;
       out.push({ up: true, kind: t.kind, spot: t.spot, path, level: t.level, value: gain / price(c), can: canPay(town, c) });
     }
   }
@@ -282,6 +304,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     const ok =pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
     if (!ok) return false;
     if (!pick.up) r.firstTower ??= t.t;
+    if (pick.up && pick.level + 1 === FORK_LEVEL && FORKS[pick.kind]) { const k = pick.kind + ' ' + FORKS[pick.kind][pick.path].name; (r.forks ||= {})[k] = (r.forks[k] || 0) + 1; }
     r.bought[pick.kind] = (r.bought[pick.kind] || 0) + 1;
     if (t.t <= 3600) r.firstBuy[pick.kind] ??= Math.round(t.t / 60);
     return true;
@@ -751,6 +774,33 @@ export function strategies(seeds = SEEDS) {
   return { rows, misses };
 }
 
+/* The second fork (M6a, owner idea 2026-11-20): each side is the best buy somewhere. In the Ridge and the Falls as the
+   active player has them at the end, a level-19 tower of each kind with a fork is put on every free pad (or in place of
+   the tower there) in turn, and the careful player's pick (options, by worth) is counted per side. A side that wins
+   no pad is a miss. Also prints the forks the bots took on the way. */
+export function forkCheck(actives) {
+  const rows = [], misses = [];
+  for (const e of actives) for (const id of ['ridge', 'falls']) {
+    const t = e.game && e.game.towns[id];
+    if (!t) continue;
+    for (const kind of Object.keys(FORKS)) {
+      if (!towerOpen(t, kind)) continue;
+      const won = Object.fromEntries(Object.keys(FORKS[kind]).map(k => [k, 0])), keep = t.towers;
+      for (let i = 0; i < t.def.board.spots.length; i++) {
+        if (!fitsSpot(t, i, kind)) continue;
+        for (const path of Object.keys(PATHS[kind])) {
+          t.towers = keep.filter(x => x.spot !== i).concat([{ spot: i, kind, level: FORK_LEVEL - 1, path, fork: null, cd: 0, spent: 0, pulses: 0 }]);
+          const o = options(t).filter(o => o.up && o.spot === i).sort((a, b) => b.value - a.value)[0];
+          if (o) won[o.path]++;
+        }
+      }
+      t.towers = keep;
+      rows.push({ seed: e.dc.seed, town: id, kind, won, took: (e.falls && e.falls.forks) || {} });
+      for (const [k, n] of Object.entries(won)) if (!n) misses.push(`seed ${e.dc.seed}: ${FORKS[kind][k].name} is the best pick on no pad in ${id}`);
+    }
+  }
+  return { rows, misses };
+}
 /* Tower balance (M2, fresh-eyes issue 2): no kind does more than SHARE_MAX of the damage for any strategy, and every
    kind does the most damage in some wave for at least one strategy. Returns the misses. `where` names the town for a
    run of another town (Silver Falls, since M5); lead: false leaves out the second check there (fallsCheck has its own:
@@ -861,6 +911,12 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log(`Silver Falls by strategy (median over ${EMPIRE_SEEDS} seeds, ${FALLS_STRATEGY} min from the active player's arrival): strategy | wave 10 | best wave | buys by kind | damage by kind`);
   for (const x of fc.rows) { const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1; console.log(`  ${x.strategy} | ${mm(x.w10)} | ${x.wave ?? '-'} | ${Object.entries(x.bought).map(([k, n]) => k + ' ' + n).join(', ')} | ${Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', ')}`); }
   console.log('Silver Falls wave leaders: ' + fc.tops.join(', '));
+  const fk = forkCheck(actives);
+  console.log('second fork (active, at the end): seed | town | tower | pads where each side is the best pick (a level-19 tower of each path) | forks the bots took in the Ridge and the Falls');
+  for (const x of fk.rows) console.log(`  ${x.seed} | ${x.town} | ${x.kind} | ${Object.entries(x.won).map(([k, n]) => FORKS[x.kind][k].name + ' ' + n).join(', ')}`);
+  const took = {}; for (const e of actives) for (const r of [e.ridge, e.capSave, e.fSave, e.falls]) for (const [k, n] of Object.entries((r && r.forks) || {})) took[k] = (took[k] || 0) + n;
+  console.log('  forks taken by the active bots: ' + (Object.entries(took).map(([k, n]) => k + ' ' + n).join(', ') || 'none'));
+  misses.push(...fk.misses);
   misses.push(...fc.misses, ...towerBalance(fc.rows, 'Silver Falls', false));
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));

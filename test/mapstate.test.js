@@ -79,7 +79,7 @@ test('every label word fits its 12-character cell, and a hold Auto will lift rea
 });
 
 test('save v21: a wave on the road keeps how many raiders it has', () => {
-  assert.equal(SAVE_VERSION, 21);
+  assert.ok(SAVE_VERSION >= 21);
   const m = migrate({ v: 20, at: 0, game: { towns: { gulch: { waves: { phase: 'wave', queue: ['raider', 'raider'], foes: [{}] } }, ridge: { waves: { phase: 'break', queue: [], foes: [] } } } } });
   assert.equal(m.game.towns.gulch.waves.size, 3);
   assert.equal(m.game.towns.ridge.waves.size, 0);

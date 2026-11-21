@@ -17,6 +17,7 @@ import { nextTowns } from '../core/empire.js';
 import { capitalNext, capitalOpen } from '../core/capital.js';
 import { foundCost } from '../core/tree.js';
 import { NODE_COST } from '../data/institutions.js';
+import { FORKS, FORK_LEVEL } from '../data/towers.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -57,6 +58,7 @@ export function helper(town, game = null) {
     kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
     stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
+    forkReady: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && FORKS[x.kind]); return t ? t.spot : null; })(), // a tower one level from its second fork
   };
 }
 

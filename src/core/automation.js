@@ -1,7 +1,7 @@
 /* Automation (GDD.md, Automation): per-town switches that keep buying what the player already chose by hand.
    - Foremen (Auto-build) are hired per building (src/core/foremen.js); the sheet switches all of a town's on or off.
    - Auto-towers (opened by the War Office): one tower level every towerEvery seconds, the cheapest raise of a tower
-     that stands, never a new tower and never past level 4 until the player picks that tower's path.
+     that stands, never a new tower and never past level 4 until the player picks that tower's path (or past 19 until they pick its second fork).
    - Auto-research (opened by the University): when the lab is idle, the cheapest next level of an item the player has
      researched at least once.
    - Keep trying the boss (opened with Auto-towers, owner 2026-11-17): a town that lost a boss wave, or whose vault fell
@@ -17,7 +17,7 @@
 import { AUTO } from '../data/automation.js';
 import { PATH_LEVEL } from '../data/towers.js';
 import { founded } from './tree.js';
-import { towerCost, canPay, upgradeTower, setHold, bossWave, wavesOf } from './defense.js';
+import { forkNext, towerCost, canPay, upgradeTower, setHold, bossWave, wavesOf } from './defense.js';
 import { itemsOf, researchLevel, researchBlock, researchCost, startResearch } from './research.js';
 import { hasForeman, foremanOn, setForeman } from './foremen.js';
 
@@ -47,7 +47,7 @@ export function setAuto(game, town, kind, on) {
 export function nextTowerUp(town) {
   let best = null, needPath = 0;
   for (const t of town.towers || []) {
-    if (t.level + 1 === PATH_LEVEL && !t.path) { needPath++; continue; }
+    if ((t.level + 1 === PATH_LEVEL && !t.path) || forkNext(t)) { needPath++; continue; } // the player picks a path or a fork by hand
     const c = towerCost(town, t.kind, t.level);
     if (!best || c.coins < best.cost.coins) best = { tower: t, cost: c };
   }

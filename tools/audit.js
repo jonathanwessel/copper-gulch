@@ -10,7 +10,7 @@ import { shellFiles } from './bump-version.js';
 import { GOODS } from '../src/data/goods.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { TOWNS, TOWN_ORDER, isPitSpot } from '../src/data/towns/index.js';
-import { TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
+import { FORKS, TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
 import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
@@ -119,6 +119,7 @@ export function requiredFeatures() {
   for (const t of TOWN_ORDER) f.add('welcome:' + t);                                  // every town says hello
   for (const x of Object.values(FOES)) if (x.boss) f.add(x === FOES.wagon ? 'boss' : 'boss:' + Object.keys(FOES).find(k => FOES[k] === x));
   if (Object.keys(PATHS).length) f.add('path');
+  if (Object.keys(FORKS).length) f.add('fork'); // the second fork at level 20
   if (Object.values(FOES).some(x => x.boss)) f.add('boss');
   return [...f];
 }

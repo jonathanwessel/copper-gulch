@@ -186,6 +186,12 @@ export const EXPLAINERS = [
     when: h => h.towerAtLevel(4) !== null, at: h => ({ tower: h.towerAtLevel(4) }),
   },
   {
+    id: 'fork', covers: ['fork'],
+    title: 'One more choice',
+    text: 'At level 20 this Still picks one more upgrade. Slow Rot poisons raiders until they fall, so it is best near the start of the road. Last Call hits hardest near the vault. Tap the Still to pick.',
+    when: h => h.forkReady !== null, at: h => ({ tower: h.forkReady }),
+  },
+  {
     id: 'boss', town: 'gulch', covers: ['boss'],
     title: 'The war wagon',
     text: 'Every 10th wave brings the war wagon. It\'s slow and heavily armored. If it reaches the vault, it does a lot of damage.',

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-7',
+    lines: [
+      'Tap a level 19 Snake Oil Still to pick Slow Rot or Last Call.',
+      'Slow Rot poisons raiders until they fall. Best near the start of the road.',
+      'Last Call hits up to 3 times harder near the vault. Best near the end of the road.',
+    ],
+  },
+  {
     v: '2026.11.21-6',
     lines: [
       'Town names on the map now sit beside each town, not on top of it.',

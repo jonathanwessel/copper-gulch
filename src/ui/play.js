@@ -6,8 +6,8 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
-import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK } from '../data/towers.js';
+import { forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
@@ -361,7 +361,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   function paintSpot(i, force) {
     const t = towerAt(town, i), pit = isPit(town, i), kinds = Object.keys(TOWERS).filter(k => towerIn(town, k) && fitsSpot(town, i, k));
     const shorts = t ? shortText(towerCost(town, t.kind, t.level)) : kinds.map(k => shortText(towerCost(town, k, 0)));
-    const now = ['spot', i, t ? [t.kind, t.level, t.path, whyStat, fmtDmg(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level)), haveSig(towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k) + haveSig(towerCost(town, k, 0)))), JSON.stringify(shorts)].join();
+    const now = ['spot', i, t ? [t.kind, t.level, t.path, t.fork, whyStat, fmtDmg(towerStats(town, t).dmg)] : '', ...(t ? [canPay(town, towerCost(town, t.kind, t.level)), haveSig(towerCost(town, t.kind, t.level))] : kinds.map(k => canPay(town, towerCost(town, k, 0)) + towerOpen(town, k) + haveSig(towerCost(town, k, 0)))), JSON.stringify(shorts)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -384,13 +384,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       }
       return;
     }
-    const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
+    const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null, fk = t.fork && FORKS[t.kind] ? FORKS[t.kind][t.fork] : null;
     // on a short landscape screen Sell sits in the head, since a row above the pinned price was cut under it (review of
     // 2026.11.20-15: short-land, mortar-land); CSS shows one of the two, so a turn of the phone needs no repaint
     const sellHead = el('button', 'btn small sellhead', 'Sell '); sellHead.id = 'sellTowerHead'; // the coin square is the unit (review of 2026.11.21-2: "Sell 60" had none)
     sellHead.append(el('span', 'coin'), fmt(Math.floor(t.spent * SELL_BACK)));
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), sellHead, x); card.append(head);
+    head.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
     const line = (a, b, key) => {
@@ -401,12 +401,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
       r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; showWhy = !!whyStat; paintCard(); });
     };
-    line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison ? ' + ' + fmtDmg(st.poison) + '/s poison' : ''), 'dmg');
+    line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison || st.rot ? ' + ' + fmtDmg(st.poison || st.rot) + '/s poison' : ''), 'dmg');
+    if (st.rot) line('Poison lasts', 'Until the raider falls');
+    if (st.near) line('Near the vault', 'Up to 3 times the damage');
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', blastWord(st.splash), 'splash');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
     if (d.bestText) line('Best against', bossWords(d.bestText));
+    if (fk && p) line('Path', p.name); // the card's name is the fork now, so the level-5 path still shows
     card.append(stats);
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
@@ -421,14 +424,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const c = towerCost(town, t.kind, t.level), row = el('div', 'row');
     // the main action stays at the card's bottom edge while the card scrolls (Evaluation 2, landscape): the path choice,
     // or the cost, what is short and the Upgrade button
-    const path = t.level + 1 === PATH_LEVEL, bar = el('div', path ? 'buybar pathbar' : 'buybar');
-    if (t.level + 1 === PATH_LEVEL) {
+    // the level-5 path and the level-20 fork (FORKS) are the same choice on the card: two sides, one price
+    const forkUp = forkNext(t), choices = t.level + 1 === PATH_LEVEL ? PATHS[t.kind] : forkUp ? FORKS[t.kind] : null;
+    const path = !!choices, bar = el('div', path ? 'buybar pathbar' : 'buybar');
+    if (choices) {
       const ph = el('div', 'pathhead'), pt = el('div');
-      pt.append(el('b', null, 'Pick a path'), el('small', null, 'Can\'t be undone'));
+      pt.append(el('b', null, forkUp ? 'Pick an upgrade' : 'Pick a path'), el('small', null, 'Can\'t be undone'));
       const pc = costRow(c, true); // one price above two Choose buttons (review of 2026.11.19-13), on its own row under Pick a path with no label (review of 2026.11.20-13: "Either path 9.99M / 2.31K coins" read as a cut-off label, and Bricks wrapped)
-      const pw = el('div', 'pathcost'); pw.append(el('small', null, 'Either path costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
+      const pw = el('div', 'pathcost'); pw.append(el('small', null, forkUp ? 'Either one costs' : 'Either path costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
       ph.append(pt, pw); bar.append(ph);
-      for (const [key, P] of Object.entries(PATHS[t.kind])) {
+      for (const [key, P] of Object.entries(choices)) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
         const go = el('button', 'btn small build', sure ? 'Tap again to choose' : 'Choose'); go.dataset.path = key; go.disabled = !canPay(town, c);
@@ -446,7 +451,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       bar.append(costRow(c));
       row.append(up);
     }
-    const sh = shortText(c); pathNext = t.level + 1 === PATH_LEVEL;
+    const sh = shortText(c); pathNext = path;
     const lines = path ? card : bar;
     if (sh.length) for (const s of sh) lines.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
     // the kept goods line sits over the pinned bar, not in it, so the bar stays short and the stats stay in view (review

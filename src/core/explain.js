@@ -9,7 +9,7 @@
    'reach' (Short, Medium, Long). */
 import { BUILDINGS, MILESTONES } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { TOWERS, PATHS, PER_LEVEL } from '../data/towers.js';
+import { FORKS, TOWERS, PATHS, PER_LEVEL } from '../data/towers.js';
 import { FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { milestonesAt, output, uses, isGrid, gridOf, buildingsOf } from './economy.js';
@@ -88,26 +88,29 @@ export const paysEach = (game, town, good) => explainPrice(game, town, good).val
 /* A tower's damage, shots and reach, each from its kind, its level, its path and the town's bonuses.
    Returns { dmg, rate, range, poison? }, each explained. */
 export function explainTower(town, t) {
-  const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : null, lv = 'Level ' + L;
-  const part = (stat, base, levelMul, pathMul, unit, name) => {
+  const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : null, lv = 'Level ' + L, k = t.fork && FORKS[t.kind] ? FORKS[t.kind][t.fork] : null;
+  const part = (stat, base, levelMul, pathMul, unit, name, forkMul = 1) => {
     const rows = [{ label: name, base }];
     if (L > 1 && levelMul !== 1) rows.push({ label: lv, mul: levelMul });
     if (p && pathMul && pathMul !== 1) rows.push({ label: p.name + ' path', mul: pathMul });
+    if (k && forkMul !== 1) rows.push({ label: k.name, mul: forkMul });
     // the old-waves bonus names the wave it lasts to (review of 2026.11.19-10: "Until you beat your best wave" was unclear)
     rows.push(...modRows(town.mods, stat).map(r => (r.label === OLD_LABEL ? { ...r, label: oldWavesLabel(town) } : r)));
     return done(unit, rows);
   };
   const out = {
-    dmg: part('towerDmg', d.dmg, (d.grow || PER_LEVEL.dmg) ** (L - 1), p && p.dmg, 'dmg', 'Base damage'),
+    dmg: part('towerDmg', d.dmg, (d.grow || PER_LEVEL.dmg) ** (L - 1), p && p.dmg, 'dmg', 'Base damage', (k && k.dmg) || 1),
     rate: part('towerRate', d.rate, PER_LEVEL.rate ** (L - 1), p && p.rate, 'shots', 'Base shots'),
     range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range'),
   };
-  if (d.poison) out.poison = part('towerDmg', d.poison, PER_LEVEL.poison ** (L - 1), p && p.poison, 'dmg', 'Base poison');
+  if (d.poison && !(k && k.rot)) out.poison = part('towerDmg', d.poison, PER_LEVEL.poison ** (L - 1), p && p.poison, 'dmg', 'Base poison');
   // the blast opens like Damage, Shots and Range (review of 2026.11.20-1: Blast had no ">")
   if (d.splash) out.splash = part('blast', d.splash, 1, p && p.splash, 'blast', 'Base blast');
   const st = towerStats(town, t); // the same numbers the battle uses
   out.dmg.value = st.dmg; out.rate.value = st.rate; out.range.value = st.range;
-  if (out.poison) out.poison.value = st.poison;
+  // Slow Rot: its poison is a share of its damage a second (src/core/defense.js, towerStats)
+  if (st.rot) { out.poison = done('dmg', [{ label: 'Damage a second', base: st.dmg * st.rate }, { label: k.name, mul: k.rot }]); out.poison.value = st.rot; }
+  else if (out.poison) out.poison.value = st.poison;
   if (out.splash) out.splash.value = st.splash;
   return out;
 }

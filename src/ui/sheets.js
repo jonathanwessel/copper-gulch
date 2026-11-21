@@ -26,7 +26,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns, deedsOf } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
 import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
-import { TOWERS } from '../data/towers.js';
+import { PATH_LEVEL, TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
 import { bossName } from './lost.js';
@@ -335,7 +335,7 @@ export function autoSheet(game, town, openResearch = null) {
         : !a.towers ? 'Every ' + wait(towerEvery(game)) + (a.last ? ' · last ' + TOWERS[a.last.kind].name + ' to level ' + a.last.level : '')
         : tb === 'won' ? 'Upgrades a tower when a raid gets through.'
         : tb === 'none' ? 'Nothing to upgrade yet. Build a tower first.'
-        : tb === 'path' ? 'Tap a level 4 tower and pick its path.'
+        : tb === 'path' ? (town.towers.some(t => t.level + 1 === PATH_LEVEL && !t.path) ? 'Tap a level 4 tower and pick its path.' : 'Tap a level 19 tower and pick its upgrade.')
         : tb === 'coins' ? autoWait(town, n.cost) // the good it waits for, by name (review of 2026.11.20-11: "150 coins or its goods" beside 9.25M coins)
         : tb === 'wait' ? 'Next upgrade in ' + wait(a.wait)
         : 'Upgrading a tower now';

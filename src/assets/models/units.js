@@ -151,7 +151,7 @@ export function makeFoe(kind) {
 }
 
 /* --- towers: a base, and a head that turns to aim (barrel along +x) --------------------------------------------- */
-export function makeTower(type, br, lvl) {
+export function makeTower(type, br, lvl, fk = null) {
   const root = G(), head = G(), bar = G(); root.add(head); head.add(bar); root.userData = { head, bar };
   const gold = lvl >= 3, R2 = rng(type.length * 7 + (br || '').length);
   const base = part(k => {
@@ -164,7 +164,10 @@ export function makeTower(type, br, lvl) {
       k.ball(0, .36, 0, .24, 'copper', { det: 1, sy: .9, mat: 'metal' }); k.cyl(0, .55, 0, .06, .22, 'copper', { r2: .03, mat: 'metal' }); k.cyl(.12, .75, 0, .025, .3, 'copper', { rz: -1.2, mat: 'metal' });
       for (let i = 0; i < 4; i++) k.torus(.32, .3 + i * .07, 0, .07, .015, 'copper', { rx: Math.PI / 2, mat: 'metal', ts: 8 }); k.cyl(.32, 0, .18, .09, .26, 'glowT', { seg: 8, mat: 'glow' }); k.cyl(.32, .26, .18, .05, .05, 'woodD', { seg: 6 });
       if (br === 'a') for (let i = 0; i < 3; i++) k.ball(-.2 + i * .12, .75 + i * .05, -.1, .06 + i * .02, 'verd', { mat: 'glow' });
-      if (br === 'b') { k.cyl(-.3, 0, .2, .08, .2, 'paintR', { seg: 8 }); k.box(-.3, .2, .2, .06, .06, .06, 'white'); } }
+      if (br === 'b') { k.cyl(-.3, 0, .2, .08, .2, 'paintR', { seg: 8 }); k.box(-.3, .2, .2, .06, .06, .06, 'white'); }
+      // the level-20 fork: Slow Rot a green vat bubbling over, Last Call a rack of red bottles with gold caps
+      if (fk === 'a') { k.cyl(-.26, 0, -.22, .11, .28, 'woodD', { seg: 8 }); k.ball(-.26, .3, -.22, .1, 'verd', { sy: .5, mat: 'glow' }); k.ball(-.2, .36, -.18, .04, 'verd', { mat: 'glow' }); }
+      if (fk === 'b') { k.box(.02, 0, -.3, .3, .06, .1, 'woodD'); for (let i = 0; i < 3; i++) { k.cyl(-.08 + i * .1, .06, -.3, .035, .16, 'paintR', { seg: 6 }); k.cyl(-.08 + i * .1, .22, -.3, .02, .04, 'gold', { seg: 6, mat: 'metal' }); } } }
     else { for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; k.ball(Math.cos(a) * .3, .07 + (i % 2) * .02, Math.sin(a) * .3, .1, 'sand', { sy: .6, ry: a }); } k.cyl(0, 0, 0, .06, .4, 'iron', { seg: 6 }); for (const a of [0, 2.1, 4.2]) k.box(Math.cos(a) * .12, 0, Math.sin(a) * .12, .03, .3, .03, 'iron', { rz: Math.cos(a) * .4, rx: -Math.sin(a) * .4 }); }
     if (gold) k.cyl(0, .02, 0, type === 'crossbow' ? .4 : .38, .04, 'gold', { seg: 10, mat: 'metal' });
     if (lvl >= 6) for (let i = 0; i < 3; i++) k.box(-.2 + i * .2, 0, .42, .06, .06, .06, 'gold', { mat: 'metal' });

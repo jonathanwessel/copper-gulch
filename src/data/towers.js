@@ -67,6 +67,23 @@ export const PATHS = {
 };
 
 export const PATH_LEVEL = 5;          // the level at which a tower picks its path
+/* The second fork (owner idea, 2026-11-20): at FORK_LEVEL a tower of a kind listed here picks one of two more upgrades on
+   top of its level-5 path, so it has 4 ways to finish (GDD.md, Second fork at level 20). The bots put the Ridge's
+   towers at level 17-21 by the time Silver Falls is founded, and the Falls' own at 16 an hour later, so 20 lands
+   around the Falls. The trade-off is where on the road, never just a bigger number:
+     Slow Rot (rot: a share of its hit damage a second, past armor, that never wears off until the raider falls, in
+       place of the normal poison; its hits are softer, dmg) wants the start of the road, where it ticks the whole way.
+     Last Call (near) hits harder the farther the raider has come: NEAR.base + NEAR.gain times the share of its lane
+       behind it, so a Still by the vault hits three times as hard and one at the entrance at 0.4 (rot .07 and gain 2.6 from A/B runs
+       on the bots' late Ridge and Falls: Slow Rot deals the most at the first pads, Last Call from the middle on). */
+export const FORK_LEVEL = 20;
+export const FORKS = {
+  still: {
+    a: { name: 'Slow Rot', about: 'Softer hits and weak poison that lasts until the raider falls. Best at the start of the road.', dmg: .7, rot: .07 },
+    b: { name: 'Last Call', about: 'Hits much harder near the vault. Best at the end of the road.', near: true },
+  },
+};
+export const NEAR = { base: .4, gain: 2.6 };
 export const SLOW_SECONDS = 1.5;
 export const POISON_SECONDS = 4;
 /* Deep Freeze: every third pulse freezes the raiders in reach for FREEZE.seconds. A raider that thaws cannot be frozen
