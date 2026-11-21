@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-3',
+    lines: [
+      'People walk between the buildings now, and birds circle high above.',
+      'A wagon comes up the road between waves and leaves when raiders come.',
+      'Tumbleweeds roll by in the wind. During a wave, people stay indoors.',
+    ],
+  },
+  {
     v: '2026.11.21-2',
     lines: [
       'Towns have a new look. The sand has ripples, grass grows along the roads, and rocks sit around each town.',

@@ -69,7 +69,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     const stepped = game.stats.steps !== lastStep; lastStep = game.stats.steps;
     const levels = stepped || !lastLevels ? JSON.stringify(town.buildings) : lastLevels;
     if (levels !== lastLevels) { board.sync(); lastLevels = levels; const f = board.focus(); rig.frame(f.x, f.z, f.w, f.d); }
-    board.update(dt, t, id => !town.starved[id], rig.c);
+    if (board.life.tier !== v.tier) board.life.setTier(v.tier);
+    board.update(dt, t, id => !town.starved[id], rig.c, town.waves.foes.length > 0);
     const towers = stepped || !lastTowers ? town.towers.map(x => x.spot + x.kind + x.level + x.path).join() : lastTowers;
     if (towers !== lastTowers) { battle.sync(); lastTowers = towers; }
     rig.update(dt);

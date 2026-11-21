@@ -23,7 +23,7 @@ export const CAPS = {
 };
 
 export class Mods {
-  constructor(caps = CAPS) { this.caps = caps; this.src = {}; } // src[stat][source] = { mul, add }
+  constructor(caps = CAPS) { this.caps = caps; this.src = {}; this.memo = new Map(); } // src[stat][source] = { mul, add }; memo: each stat's sums, cleared on any change
   /* A stat may be narrowed to one thing with a colon ("prod:saw" is the Sawmill's own production); it shares the cap
      of its family ("prod"). */
   cap(stat) { return this.caps[stat] || this.caps[stat.split(':')[0]]; }
@@ -33,13 +33,31 @@ export class Mods {
     this.check(stat);
     const s = this.src[stat] || (this.src[stat] = {});
     if (mul === 1 && add === 0) delete s[source]; else s[source] = { mul, add };
+    this.memo.clear();
   }
-  remove(stat, source) { if (this.src[stat]) delete this.src[stat][source]; }
+  remove(stat, source) { if (this.src[stat]) delete this.src[stat][source]; this.memo.clear(); }
   /* Drop every source whose name starts with a prefix (e.g. 'research:' when research resets). */
-  clear(prefix = '') { for (const st in this.src) for (const k in this.src[st]) if (k.startsWith(prefix)) delete this.src[st][k]; }
-  /* The total factor on a stat, inside its cap. */
-  factor(stat) { return this.explain(stat, 1).factor; }
-  value(stat, base) { return this.explain(stat, base).value; }
+  clear(prefix = '') { for (const st in this.src) for (const k in this.src[st]) if (k.startsWith(prefix)) delete this.src[st][k]; this.memo.clear(); }
+  /* The total factor on a stat, inside its cap. The same sums as explain(), kept until a source changes (perf: the
+     simulation asks for these many times a step in every town, and explain() builds and sorts a list each time). */
+  sums(stat) {
+    let m = this.memo.get(stat);
+    if (!m) {
+      this.check(stat);
+      const s = this.src[stat] || {}, keys = Object.keys(s).sort();
+      let add = 0, mul = 1;
+      for (const k of keys) add += s[k].add;
+      for (const k of keys) mul *= s[k].mul;
+      m = { add, mul, cap: this.cap(stat) }; this.memo.set(stat, m);
+    }
+    return m;
+  }
+  factor(stat) { return this.value(stat, 1); }
+  value(stat, base) {
+    const { add, mul, cap } = this.sums(stat), raw = base ? ((base + add) / base) * mul : mul;
+    const factor = cap.max !== undefined ? Math.min(cap.max, raw) : Math.max(cap.min, raw);
+    return base ? base * factor : (add * mul);
+  }
   /* Every part of a stat: [{ source, mul, add }], the raw factor, the capped factor and the value. */
   explain(stat, base = 1) {
     this.check(stat);

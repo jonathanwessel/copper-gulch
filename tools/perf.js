@@ -1,4 +1,4 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|map] [--limit 33] [--eval "js run in the page first"] [--profile] [--script ms] [--calls n]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|map] [--limit 33] [--eval "js run in the page first"] [--report "js read after"] [--profile] [--script ms] [--calls n]
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
 // --town falls-empire: Silver Falls in play with the Gulch, the Ridge, the Capital, Dry Creek, Pine Hollow and Sandy Bend
@@ -19,7 +19,7 @@ import { start } from './serve.js';
 import { chromium } from './cdp.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const TOWN = arg('town', 'gulch'), DPR = +arg('dpr', 2), THROTTLE = +arg('throttle', 4), SECONDS = +arg('seconds', 6), EVAL = arg('eval', ''), LIMIT = +arg('limit', 33);
+const TOWN = arg('town', 'gulch'), DPR = +arg('dpr', 2), THROTTLE = +arg('throttle', 4), SECONDS = +arg('seconds', 6), EVAL = arg('eval', ''), REPORT = arg('report', ''), LIMIT = +arg('limit', 33);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // software WebGL (SwiftShader): its cost grows with pixels, passes, lights and shadow taps the way a phone GPU's does
@@ -134,6 +134,7 @@ try {
   const PROFILE = process.argv.includes('--profile');
   if (PROFILE) { await p.cdp('Profiler.enable'); await p.cdp('Profiler.start'); }
   out = await measure();
+  if (REPORT) console.log('report ' + JSON.stringify(await p.evaluate(REPORT))); // --report "js": a value read from the page after measuring
   if (PROFILE) { // --profile: the functions that took the most time of their own while measuring, with their share
     const { profile } = await p.cdp('Profiler.stop'), self = new Map(), dt = profile.timeDeltas || [];
     const byId = new Map(profile.nodes.map(n => [n.id, n])); let total = 0;
@@ -152,6 +153,14 @@ try {
     if (again.median < out.median) out = again;
     out.retried = first;
   }
+  // and so is the script part (PLAN.md: a close script gate is measured twice; 2026.11.21-3 read 8.9-10.8 ms with
+  // nothing changed): a near miss is measured once more, and the better of the two runs counts
+  const SCRIPT_GATE = +arg('script', 0);
+  if (SCRIPT_GATE && out.script > SCRIPT_GATE && out.script <= SCRIPT_GATE * 1.15) {
+    const again = await measure(), first = +out.script.toFixed(1);
+    if (again.script < out.script) out = again;
+    out.scriptRetried = first;
+  }
   out.audio = await p.evaluate(() => { const s = CG.audio.state(); return s.ctx + ' ' + s.mood + ' bars ' + s.bars + ' sounds ' + s.sounds; }).catch(() => 'none'); // music and sound play during the run, as on a phone
   await p.cdp('Emulation.setCPUThrottlingRate', { rate: 1 });
 } finally { await b.close(); srv.close(); }
@@ -167,5 +176,8 @@ const CALLS = +arg('calls', 0), manyCalls = CALLS && out.calls >= CALLS; // --ca
 const ok = out && !errs.length && out.median <= LIMIT && !slowScript && !manyCalls && out.tier === startTier && !jerky;
 console.log(JSON.stringify({ ...out, median: +out.median.toFixed(1), script: +out.script.toFixed(1), p90: +out.p90.toFixed(1), fps: +out.fps.toFixed(1), dpr: DPR, throttle: THROTTLE }));
 console.log(ok ? 'ok' : errs.length ? 'FAIL the page threw: ' + errs[0].split('\n')[0] : manyCalls ? `FAIL ${out.calls} draw calls, not fewer than ${CALLS}` : slowScript ? `FAIL the script part of a frame is ${out.script.toFixed(1)} ms, over ${SCRIPT} ms` : jerky ? 'FAIL not smooth: ' + jerky : out.tier !== startTier ? `FAIL frames were slow enough to step down from ${startTier} to ${out.tier}` : `FAIL median frame ${out.median.toFixed(1)} ms is over ${LIMIT} ms`);
+// gates within 10% of their limit print "close", like the bots' gate margins (2026.11.21-3: the Silver Falls script
+// part sat at 9.5 ms against 10 and read 8.9-10.8 run to run, so a change that cost nothing seemed to break it)
+for (const [name, v, lim] of [['frame', out.median, LIMIT], ['script', out.script, SCRIPT], ['draw calls', out.calls, CALLS]]) if (lim && v <= lim && v > lim * .9) console.log(`close ${name} ${+v.toFixed(1)} against ${lim}`);
 process.exitCode = ok ? 0 : 1;
 setTimeout(() => process.exit(), 100);

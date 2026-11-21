@@ -149,6 +149,14 @@ async function run() {
       await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5);
       await sleep(300);
       bad.push(...(await check(page)).map(b => 'town: ' + b));
+      // the town's life (M5b): townsfolk or the wagon are out between waves, and none of it can be tapped
+      const life = await page.evaluate(async () => {
+        const L = CG.town.board.life, B = CG.town.board; await new Promise(r => setTimeout(r, 1500));
+        const own = new Set(); L.group.traverse(o => own.add(o));
+        let folk = 0; for (let i = 0; i < L.cloth.count; i++) if (L.cloth.instanceMatrix.array[i * 16] !== 0) folk++;
+        return { picked: B.pickables.some(o => own.has(o)) || (B.hits || []).some(o => own.has(o)), folk, wagon: L.wagon.obj.visible };
+      });
+      if (life.picked || (!life.folk && !life.wagon)) bad.push('the town life is missing or can be tapped: ' + JSON.stringify(life));
       const buy = await page.evaluate(async () => {
         const t = CG.game.town; t.coins = 100; CG.play.open('camp'); await new Promise(r => setTimeout(r, 100));
         const b = document.getElementById('buy'), before = t.level('camp'); b.click();

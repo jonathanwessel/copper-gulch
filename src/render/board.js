@@ -11,6 +11,7 @@ import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { groundDetail, tufts, edgeStones, rim, Blobs } from './dress.js';
+import { Life } from './life.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 
@@ -91,6 +92,9 @@ export class Board {
     this.group.add(this.rim.obj);
     // soft contact shadows under the pads, the vault and every building
     this.blobs = new Blobs(B); this.group.add(this.blobs.mesh);
+    // townsfolk, a wagon, tumbleweeds and birds (src/render/life.js); never picked, so taps go through them
+    this.life = new Life(this, height, (x, z) => (RIV ? bridgeLift(polyDist(x, z, RIV).d) : 0), lod === 'low' ? 'low' : 'med');
+    this.group.add(this.life.group);
     this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
     this.entrances = gates.map(e => new Entrance(this, e));
@@ -111,7 +115,7 @@ export class Board {
   }
 
   /* Make each plot's model match the town: rebuilt only when a plot's tier (or built/locked state) changes. */
-  sync() { for (const id of Object.keys(this.def.plots)) this.place(id); this.blobs.sync(id => this.town.level(id) > 0); }
+  sync() { const built = id => this.town.level(id) > 0; for (const id of Object.keys(this.def.plots)) this.place(id); this.blobs.sync(built); this.life.sync(built); }
   place(id) {
     const level = this.town.level(id), key = level > 0 ? 'b' + tierOf(level) : unlocked(this.town, id) ? 'lot' : 'lock';
     const cur = this.bld[id];
@@ -159,8 +163,9 @@ export class Board {
   /* A point above a plot's model, for labels. */
   anchor(id, out = new THREE.Vector3()) { const [x, z] = this.def.plots[id], b = this.bld[id]; return out.set(x, (b ? b.top : 1) + .3, z); }
 
-  /* Animate: t is seconds; working(id) says whether a building is producing right now. */
-  update(dt, t, working = () => true, view = null) {
+  /* Animate: t is seconds; working(id) says whether a building is producing right now; fighting: a wave is on. */
+  update(dt, t, working = () => true, view = null, fighting = false) {
+    if (this.lod !== 'low') this.life.update(dt, t, fighting);
     for (const e of this.entrances) e.update(dt, view);
     if (view) this.rim.update(view.yaw, dt);
     for (const [id, b] of Object.entries(this.bld)) {
