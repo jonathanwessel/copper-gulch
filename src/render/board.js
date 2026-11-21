@@ -10,6 +10,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
 import { isPitSpot } from '../data/towns/index.js';
+import { groundDetail, tufts, edgeStones, rim, Blobs } from './dress.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 
@@ -17,6 +18,7 @@ import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();
 export const tierOf = level => level >= 100 ? 4 : level >= 50 ? 3 : level >= 25 ? 2 : level >= 10 ? 1 : 0;
 const MAXPUFF = 80;
+const FIT = .96; // how far a building may reach from its plot's middle (a plot is 2 across, pads stand 1.5 away)
 
 export class Board {
   constructor(town, { lod = 'full' } = {}) {
@@ -45,15 +47,24 @@ export class Board {
     const sand = new THREE.Color(look.sand), sandD = new THREE.Color(look.sandD), dirt = new THREE.Color(look.dirt), rut = new THREE.Color(look.rut);
     // a plot's yard: the town's own ground, a little toward its dirt (review of 2026.11.20-6: a fixed orange on the gray
     // Ridge and Falls ground read as every building glowing at once); in Copper Gulch it is the old #c79b6b, near enough
-    const pad = sand.clone().lerp(dirt, .28);
+    const pad = sand.clone().lerp(dirt, .28), packed = sand.clone().lerp(dirt, .62);
+    // how far a point is from the nearest plot's middle, as a square (a plot is 2 across)
+    const plotD = (x, z) => { let d = Infinity; for (const [px, pz] of plots) d = Math.min(d, Math.max(Math.abs(x - px), Math.abs(z - pz))); return d; };
     const color = (x, z, c) => {
       c.copy(sand).lerp(sandD, fbm(x * .5 + 3, z * .5));
+      c.lerp(sandD, Math.max(0, fbm(x * 1.7 + 11, z * 1.7) - .55) * .9); // darker patches, smaller than the dunes
+      // a yard: the town's ground toward its dirt, and darker packed dirt in a ragged band round it (the look pass)
+      const pd = plotD(x, z), edge = pd + (fbm(x * 1.3, z * 1.3 + 7) - .5) * .5;
       if (onPlot(x, z)) c.lerp(pad, .7);
+      c.lerp(packed, (1 - sstep(1.05, 1.7, edge)) * (1 - sstep(0, .75, 1.05 - pd)) * .85);
       const r = polyDist(x, z, B.road);
       if (r.d < 1.1) c.lerp(dirt, (1 - sstep(.6, 1.1, r.d)) * .5); // trampled verges; the road itself is a ribbon
       if (RIV) { const rd = riverD(x, z); if (rd < 1.4) c.lerp(GREEN, (1 - sstep(.7, 1.4, rd)) * .55); } // reeds and grass on the banks
     };
-    this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color });
+    // sand ripples show on open sand, never on a yard, a pad, the road or a riverbank
+    const rip = (x, z) => sstep(1.2, 1.9, plotD(x, z)) * sstep(.9, 1.6, polyDist(x, z, B.road).d) * sstep(1.2, 2, riverD(x, z))
+      * (B.spots || []).reduce((k, [sx, sz]) => k * sstep(.55, 1, Math.hypot(x - sx, z - sz)), 1) * (.55 + fbm(x * .3 + 21, z * .3) * .9);
+    this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color, rip, detail: groundDetail });
     this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, sand.clone().lerp(dirt, .55)]));
     if (RIV) this.group.add(riverRibbon(RIV, look, (B.river.width || 1.1))), this.group.add(...bridges(B.road, RIV));
     const cx = B.cols / 2, cz = B.rows / 2;
@@ -63,14 +74,23 @@ export class Board {
     for (let i = 0, placed = 0; i < n * 4 && placed < n; i++) {
       const x = -4 + R() * (B.cols + 8), z = -3 + R() * (B.rows + 6);
       const inGate = gates.some(e => Math.abs(x - e.mouth[0]) < e.width / 2 + 3.2 && z < e.mouth[1] + 1.4); // the canyon and its walls
-      if (inGate || polyDist(x, z, B.road).d < 1.1 || riverD(x, z) < 1.3 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < .9)) continue;
+      if (inGate || polyDist(x, z, B.road).d < 1.1 || riverD(x, z) < 1.3 || onPlot(x, z, 1.4) || Math.hypot(x - B.vault[0], z - B.vault[1]) < 1.4 || (B.spots || []).some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 1.35)) continue; // a big boulder never touches a pad (review of 2026.11.21-2)
       const kind = R() < .4 ? 'cactus' : R() < .55 ? 'rock' : R() < .7 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 13);
       o.position.set(x, Math.max(0, height(x, z)), z); o.rotation.y = R() * 6; o.scale.setScalar(.7 + R() * .6);
       scenery.push(o); placed++;
     }
+    // grass tufts (no shadows: too small to cast one) and stones along the road's edges
+    const grass = tufts(B, height, town.id.length * 17 + 3, lod === 'low' ? 40 : 130);
+    scenery.push(edgeStones(B, height, town.id.length * 13 + 1));
     // all of it is static: one mesh per material instead of a draw call (and a shadow draw) per rock and cactus
     this.group.add(mergeStatic(scenery));
-    scenery.forEach(disposeTree);
+    this.group.add(mergeStatic(grass, { cast: false }));
+    scenery.forEach(disposeTree); grass.forEach(disposeTree);
+    // rock ledges round the board, so the town sits in a valley; each side sinks when the camera looks across it
+    this.rim = rim(B, height, town.id.length * 7 + 2, lod);
+    this.group.add(this.rim.obj);
+    // soft contact shadows under the pads, the vault and every building
+    this.blobs = new Blobs(B); this.group.add(this.blobs.mesh);
     this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
     this.entrances = gates.map(e => new Entrance(this, e));
@@ -91,7 +111,7 @@ export class Board {
   }
 
   /* Make each plot's model match the town: rebuilt only when a plot's tier (or built/locked state) changes. */
-  sync() { for (const id of Object.keys(this.def.plots)) this.place(id); }
+  sync() { for (const id of Object.keys(this.def.plots)) this.place(id); this.blobs.sync(id => this.town.level(id) > 0); }
   place(id) {
     const level = this.town.level(id), key = level > 0 ? 'b' + tierOf(level) : unlocked(this.town, id) ? 'lot' : 'lock';
     const cur = this.bld[id];
@@ -99,6 +119,9 @@ export class Board {
     if (cur) { this.group.remove(cur.obj); this.pickables = this.pickables.filter(o => o.userData.plot !== id); disposeTree(cur.obj); }
     const b = level > 0 ? makeBuilding(BUILDINGS[id].model, tierOf(level)) : makeBuilding('_lot');
     const [x, z] = this.def.plots[id];
+    // every model stays on its plot, clear of the pads beside it (review of 2026.11.21-2: the Logging Camp reached 1.09)
+    const bx = new THREE.Box3().setFromObject(b.obj), reach = Math.max(-bx.min.x, bx.max.x, -bx.min.z, bx.max.z);
+    if (reach > FIT) { b.obj.scale.setScalar(FIT / reach); b.top *= FIT / reach; }
     b.obj.position.set(x, 0, z);
     if (key === 'lock') b.obj.scale.setScalar(.85);
     b.obj.traverse(o => { o.userData.plot = id; if (o.isMesh) this.pickables.push(o); });
@@ -107,7 +130,12 @@ export class Board {
   }
   /* What the camera frames at home: the town's frame from its data, or else every plot that is built or can be built. */
   focus() {
-    if (this.def.frame) return this.def.frame;
+    if (this.def.frame) { // the town's frame, grown to take in every pad whole (the look pass: the new edge pads)
+      const f = this.def.frame, sp = this.def.spots || [], M = .62;
+      let x0 = f.x - f.w / 2, x1 = f.x + f.w / 2, z0 = f.z - f.d / 2, z1 = f.z + f.d / 2;
+      for (const [x, z] of sp) { x0 = Math.min(x0, x - M); x1 = Math.max(x1, x + M); z0 = Math.min(z0, z - M); z1 = Math.max(z1, z + M); }
+      return { x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 };
+    }
     const xs = [], zs = [];
     for (const [id, [x, z]] of Object.entries(this.def.plots)) if (this.town.level(id) > 0 || unlocked(this.town, id)) { xs.push(x); zs.push(z); }
     if (!xs.length) { xs.push(this.center.x); zs.push(this.center.z); }
@@ -134,6 +162,7 @@ export class Board {
   /* Animate: t is seconds; working(id) says whether a building is producing right now. */
   update(dt, t, working = () => true, view = null) {
     for (const e of this.entrances) e.update(dt, view);
+    if (view) this.rim.update(view.yaw, dt);
     for (const [id, b] of Object.entries(this.bld)) {
       const on = b.level > 0 && working(id);
       for (const m of b.movers) {

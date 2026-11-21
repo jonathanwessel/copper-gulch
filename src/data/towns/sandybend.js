@@ -33,9 +33,9 @@ export const SANDYBEND = {
     vault: [2.2, .5],
     entrance: { kind: 'riverbed', mouth: [3.6, -1.8], portal: [3.6, -5.6], width: 2.4, hide: .6 },
     spots: [
-      [3.6, 2.2], [1.6, 5.9], [5.6, 5.9], [3.6, 5], [3.6, 9.2], [-1.9, 3.8], [9.1, 3.8],
+      [3.6, 2.2], [1.6, 5.9], [5.6, 5.9], [3.6, 4.8], [3.6, 9.2], [-1.9, 3.8], [9.1, 3.8],
       // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
-      [5.4, 1.5], [5.6, -.5], [1.1, 1.8], [3.35, 6.5], // pads 7-10
+      [5.4, 1.65], [5.6, -.65], [1.25, 1.8], [3.35, 6.35], // pads 7-10
     ],
     crowd: 7,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 7,

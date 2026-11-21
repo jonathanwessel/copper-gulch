@@ -50,7 +50,7 @@ export const RIDGE = {
       // mortar pits (their indexes are in `pits`): well back from the line, with several passes inside the Mortar's ring
       [-3.4, 6.4], [13.6, 3.6], [4.4, -3.2], [2, 15.6],
       // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
-      [1.9, 13.5], [-.6, 11.75], [3.65, 13.5], [-.6, 3.75], [10.65, 7.75], [-.6, 1], // pads 16-21
+      [1.9, 13.55], [-.75, 11.85], [3.65, 13.55], [-.75, 3.85], [10.75, 7.85], [-.75, 1], // pads 16-21
       [12, 9.8], // mortar pit 22
     ],
     crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)

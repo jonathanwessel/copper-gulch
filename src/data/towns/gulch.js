@@ -37,7 +37,7 @@ export const GULCH = {
       // with the bend and two or three passes inside the Mortar's ring
       [3.8, -4], [10, -3.5], [6.8, 14.6], [-.8, 15.8],
       // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
-      [2.65, 0], [-.6, 2.25], [-.6, 6.25], [-.6, 10.5], [9.65, 4.5], [9.65, .25], // pads 16-21
+      [2.65, 0], [-.75, 2.25], [-.75, 6.25], [-.75, 10.5], [9.75, 4.5], [9.75, .25], // pads 16-21
       [11.6, 5.2], // mortar pit 22
     ],
     crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)

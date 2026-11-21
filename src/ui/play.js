@@ -652,9 +652,20 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // an empty plot's Build tag hides while a tower card is open: it sat on the selected tower's ring (review of 2026.11.19-11)
       if ((!p && !flat) || (!L && !un) || (!L && openId && openId.startsWith('spot:'))) { t.hidden = true; continue; }
       // a tag stays whole on screen while its building shows (review of 2026.11.19-11: "Lv 1" cut at the right edge)
-      const marked = markTg && markTg.plot === id && markW, half = marked ? markW / 2 : ((tagSize.get(t) || [56])[0] / 2 + 2);
+      const marked = markTg && markTg.plot === id && markW;
       // the open card names it and says its level, and the glow marks it (review of 2026.11.20-10: "Level 10" over "Level 10")
       if (p && !marked && openId === id) { t.hidden = true; continue; }
+      // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
+      // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
+      // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)
+      const full = !!(flat || marked || openId === id);
+      const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Level ' + L : 'Build') : (L ? String(L) : 'Build'); // "Level" as the cards say it (review of 2026.11.20-1)
+      // the text and its style change before the tag is placed, and a new width is measured then, so this frame already
+      // keeps it whole at the edge (review of 2026.11.19-13: "Sand Pit · Lv 1" cut at the left; smoke, 2026.11.21-2: the
+      // Quarry's goal tag placed one frame with the small pill's width)
+      const tl = t.firstChild, q = t.classList.contains('quiet') === full;
+      if (tl.textContent !== txt || q) { tl.textContent = txt; if (q) t.classList.toggle('quiet', !full); if (p && t.offsetWidth) tagSize.set(t, [t.offsetWidth, t.offsetHeight]); } // (a hidden tag keeps its last size)
+      const half = Math.max(marked ? markW / 2 : 0, (tagSize.get(t) || [56])[0] / 2 + 2);
       if (p && !marked && (p.x < -half || p.x > viewW + half)) { t.hidden = true; continue; } // the goal's tag always shows, at the edge
       const px = p && Math.min(Math.max(p.x, half), viewW - half);
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
@@ -674,13 +685,6 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         if (t.dataset.side !== side) { t.dataset.side = side; t.classList.toggle('offl', side === 'l'); t.classList.toggle('offr', side === 'r'); }
         const sv = sx + 'px'; if (t.style.getPropertyValue('--sx') !== sv) t.style.setProperty('--sx', sv);
       } else if (t.dataset.side) { t.dataset.side = ''; t.classList.remove('offl', 'offr'); t.style.removeProperty('--sx'); } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
-      // quiet by default: a small dark pill with the level (an up mark when it can be upgraded, a red line when it is
-      // short). The full tag only for the goal's building, the one whose card is open, and the list view without 3D
-      // (owner, 2026-11-19: a big orange "Lv 25" box on every building, always on, covered the models)
-      const full = !!(flat || marked || openId === id);
-      const txt = full ? (flat || marked ? BUILDINGS[id].name + ' · ' : '') + (L ? 'Level ' + L : 'Build') : (L ? String(L) : 'Build'); // "Level" as the cards say it (review of 2026.11.20-1)
-      const tl = t.firstChild; if (tl.textContent !== txt) { tl.textContent = txt; if (p) tagSize.set(t, [t.offsetWidth, t.offsetHeight]); } // a new width now, so the next frame keeps it whole at the edge (review of 2026.11.19-13: "Sand Pit · Lv 1" cut at the left)
-      if (t.classList.contains('quiet') === full) t.classList.toggle('quiet', !full);
       const over = !!(foes && !full && p && foes.length && (() => { const [tw, th] = tagSize.get(t) || [32, 32]; return foes.some(f => Math.abs(f.x - px) < tw / 2 + 14 && f.y > py - th - 14 && f.y < py + 18); })());
       if (t.classList.contains('overfoe') !== over) t.classList.toggle('overfoe', over);
       t.classList.toggle('short', !!(L && town.starved[id] === true)); // held for towers is not a problem to fix

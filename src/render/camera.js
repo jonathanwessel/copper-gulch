@@ -24,7 +24,7 @@ const TOP_GAP = 56;
 /* The room a selection keeps from the screen's left and right edges (review of 2026.11.20-5: in landscape a selected pit
    at the left edge, half off the screen, counted as on screen). */
 const SIDE_GAP = 72;
-export const MIN_PAD = 32;  // pixels across the smallest stone pad at home (the touch rule is 30)
+export const MIN_PAD = 31;  // pixels across the smallest stone pad at home (the touch rule is 30; 32 cut the outposts' edge pads on a phone)
 const PAD_R = .5;           // a stone pad's radius in world units (src/render/battle.js)
 const _pv = new THREE.Vector3();
 
@@ -104,7 +104,8 @@ export class CameraRig {
      but never so far out that a stone pad drops under MIN_PAD pixels. Tall phones get a wider lens and a steeper
      view; wide screens a lower one, so the town's depth takes less height. Solved by projecting the frame's corners. */
   fit(aspect, w = 0, h = 0) {
-    const key = w + 'x' + h + ':' + Math.round(this.view.top) + ':' + (this.coverKey || '') + ':' + this.fw + ',' + this.fd + ',' + this.fx + ',' + this.fz; // (no reads of the page each frame)
+    const lowT = this.view.low ? Math.round(this.view.low.t / 8) : 0;
+    const key = w + 'x' + h + ':' + Math.round(this.view.top) + ':' + lowT + ':' + (this.coverKey || '') + ':' + this.fw + ',' + this.fd + ',' + this.fx + ',' + this.fz; // (no reads of the page each frame)
     if (key === this.fitKey) return;
     const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
     this.fitKey = key; this.aspect = aspect;
@@ -116,6 +117,8 @@ export class CameraRig {
     const cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z;
     const s = { x: cx, z: cz, yaw: turn ? -Math.PI / 2 : 0, pitch: tall ? 1.08 : aspect > 1.5 ? .72 : .8, dist: 19 };
     const m = 8, top = Math.min(H * .45, this.view.top) + m, R = { l: r.left + m, r: r.left + W - m, t: r.top + top, b: r.top + H - m };
+    // the goods strip at the bottom: the frame ends above it, so no pad sits under it at home (review of 2026.11.20-17)
+    const lw = this.view.low; if (lw && lw.t > R.t + H * .4) R.b = Math.min(R.b, lw.t - 4);
     // the empire map with a card open: the whole map fits in the part the card leaves, so no town's label sits under it
     // (review of 2026.11.19-9: Dry Creek's label under the card, so the labels in view did not add up to the top bar)
     const side = this.fitCover && this.coverKey;
@@ -145,10 +148,34 @@ export class CameraRig {
     const fits = () => { const b = box(s); return b.x1 - b.x0 <= R.r - R.l && b.y1 - b.y0 <= R.b - R.t; };
     for (let k = 0; k < 3; k++) { search(fits, false); center(); }  // the closest view where the whole frame fits
     for (let k = 0; k < 3 && this.pads.length && this.padPx(s) < MIN_PAD - .5; k++) { search(() => this.padPx(s) >= MIN_PAD, true); center(); } // the farthest with pads big enough
+    if (this.pads.length) this.unclip(s, r.left, r.left + W);
     Object.assign(this.home, s);
     if (!this.fitted || this.atHome) { Object.assign(this.t, this.home); if (!this.fitted) Object.assign(this.c, this.home); }
     if (this.flyIn && !this.fitted && this.fw !== undefined) { this.flyIn = false; this.c.dist = this.home.dist * 2.2; this.c.pitch = Math.min(1.3, this.home.pitch + .25); }
     this.fitted = true; this.slid = null;
+  }
+  /* A town wider than the screen at its pad size (a phone, the larger towns): slide the home view sideways, at most
+     3 units, so no pad is cut by the screen's left or right edge. Each one shows whole or sits a pan away (review of
+     2026.11.20-17 and 2026.11.21-2: half pads at both edges looked broken). */
+  unclip(s, left, right) {
+    const ux = Math.cos(s.yaw), uz = -Math.sin(s.yaw), L = left + 2, Rr = right - 2, x0 = s.x, z0 = s.z;
+    const cut = () => {
+      let n = 0;
+      for (const [x, z] of this.pads) {
+        let a = Infinity, b = -Infinity;
+        for (const [dx, dz] of [[PAD_R, 0], [-PAD_R, 0], [0, PAD_R], [0, -PAD_R]]) { const p = this.proj(s, x + dx, 0, z + dz); a = Math.min(a, p.x); b = Math.max(b, p.x); }
+        if ((a < L && b > L) || (a < Rr && b > Rr)) n++;
+      }
+      return n;
+    };
+    if (!cut()) return;
+    let best = { d: 0, score: Infinity };
+    for (let d = -3; d <= 3.001; d += .05) {
+      s.x = x0 + ux * d; s.z = z0 + uz * d;
+      const score = cut() * 100 + Math.abs(d) * 4;
+      if (score < best.score) best = { d, score };
+    }
+    s.x = x0 + ux * best.d; s.z = z0 + uz * best.d;
   }
   /* Keep the selected thing (world point p, or null when no card is open) out from under its card: if the card covers
      it, slide the camera's target so it sits in the nearest free part of the screen. key names the selection; once the

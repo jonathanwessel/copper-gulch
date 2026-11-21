@@ -24,8 +24,9 @@ export function polyDist(px, pz, pts) {
   return { d: best, along, side };
 }
 
-/* A ground mesh: w x d units centered on (cx, cz), seg segments a side; height(x, z) and color(x, z, out Color). */
-export function makeGround({ cx = 0, cz = 0, w = 64, d = 64, seg = 96, height, color }) {
+/* A ground mesh: w x d units centered on (cx, cz), seg segments a side; height(x, z) and color(x, z, out Color).
+   rip(x, z), if given, is how much sand ripple shows there (0 to 1), drawn by the ground's shader (src/render/dress.js). */
+export function makeGround({ cx = 0, cz = 0, w = 64, d = 64, seg = 96, height, color, rip = null, detail = null }) {
   const g = new THREE.PlaneGeometry(w, d, seg, Math.round(seg * d / w)); g.rotateX(-Math.PI / 2); g.translate(cx, 0, cz);
   const pos = g.attributes.position, cols = new Float32Array(pos.count * 3), c = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
@@ -34,7 +35,11 @@ export function makeGround({ cx = 0, cz = 0, w = 64, d = 64, seg = 96, height, c
     cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3)); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  if (rip) { const r = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) r[i] = rip(pos.getX(i), pos.getZ(i)); g.setAttribute('rip', new THREE.BufferAttribute(r, 1)); }
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  if (rip && detail) detail(mat);
+  mat.userData.own = true;
+  const m = new THREE.Mesh(g, mat);
   m.receiveShadow = true; m.name = 'ground';
   return m;
 }

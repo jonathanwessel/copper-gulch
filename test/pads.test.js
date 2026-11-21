@@ -11,7 +11,9 @@ const segDist = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L = 
 const polyD = (x, z, P) => { let d = Infinity; for (let i = 0; i + 1 < P.length; i++) d = Math.min(d, segDist(x, z, P[i], P[i + 1])); return d; };
 // the pads every map had before 2026.11.20-17, in order: a saved tower's spot index must still mean the same pad
 const BEFORE = { drycreek: 6, pinehollow: 7, sandybend: 7, gulch: 16, ridge: 16, falls: 15 };
-const FIRST = { gulch: [2.5, 3], ridge: [3.5, 2.4], falls: [3.5, 2.4], drycreek: [3.6, 2.2], pinehollow: [3.6, 2.2], sandybend: [3.6, 2.2] };
+// (the look pass, 2026.11.21-2, moved Pine Hollow's first pad back from the Logging Camp: the same pad, a
+// third of a step over)
+const FIRST = { gulch: [2.5, 3], ridge: [3.5, 2.4], falls: [3.5, 2.4], drycreek: [3.6, 2.2], pinehollow: [3.6, 1.85], sandybend: [3.6, 2.2] };
 
 test('every map has about half again as many pads: outposts 10-11, towns 22-24', () => {
   for (const id of TOWN_ORDER) {
@@ -33,7 +35,9 @@ test('each pad is clear of the road, the river, the plots, the vault and every o
   for (const id of TOWN_ORDER) {
     const B = TOWNS[id].board;
     B.spots.forEach(([x, z], i) => {
-      assert.ok(polyD(x, z, B.road) >= .95, id + ' pad ' + i + ' is on the road');
+      // a footing (0.5 across its middle) stays off the road's light edge (0.66 from its middle): review of 2026.11.20-17,
+      // pads looked pressed against the road
+      assert.ok(polyD(x, z, [...B.road, B.vault]) >= 1.149, id + ' pad ' + i + ' sits on the edge of the road');
       if (B.river) assert.ok(polyD(x, z, B.river.path) >= 1.05, id + ' pad ' + i + ' is in the river');
       for (const [p, [px, pz]] of Object.entries(B.plots)) assert.ok(Math.max(Math.abs(x - px), Math.abs(z - pz)) >= 1.35, id + ' pad ' + i + ' is on the ' + p + ' lot'); // the Falls' pad 3 has sat 1.4 from the Water Wheel since it opened
       assert.ok(Math.hypot(x - B.vault[0], z - B.vault[1]) >= 1.45, id + ' pad ' + i + ' is on the vault');

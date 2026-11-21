@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-2',
+    lines: [
+      'Towns have a new look. The sand has ripples, grass grows along the roads, and rocks sit around each town.',
+      'Stone pads look like real stone now, with soft shadows. A few sit a little farther from the road.',
+      'On a phone, no stone pad is cut in half at the edge of the screen when a town opens.',
+    ],
+  },
+  {
     v: '2026.11.21-1',
     lines: [
       'In Goods, Save for towers has two buttons, 2 upgrades and 4 upgrades. Each building card uses the same name.',

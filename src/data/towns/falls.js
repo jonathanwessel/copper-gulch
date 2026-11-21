@@ -63,7 +63,7 @@ export const FALLS = {
       // the north pit sits 1 back from where it was (2, -3.2), so it reaches less of both lanes as they come in
       [-3.4, 6.4], [3.6, 16.6], [2, -4.2],
       // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
-      [-.6, 1], [10.65, 7.75], [1.9, 13.5], [-.6, 11.75], [1.9, -.75], [11.4, 4], [-.6, 9], // pads 15-21. None by the river's mouth or where the road comes in: raiders leave the cut bunched, and a Frost Lens there did 40-46% of the damage in the bots (2026.11.20-17)
+      [-.75, 1], [10.75, 7.85], [1.9, 13.55], [-.75, 11.85], [1.9, -.75], [11.4, 4], [-.75, 9], // pads 15-21. None by the river's mouth or where the road comes in: raiders leave the cut bunched, and a Frost Lens there did 40-46% of the damage in the bots (2026.11.20-17)
     ],
     crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 12,
