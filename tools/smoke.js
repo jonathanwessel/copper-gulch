@@ -917,10 +917,12 @@ async function run() {
       });
       if (states) bad.push('map states: ' + states);
       const m = await page.evaluate(() => ({
-        canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
+        canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(), land: CG.map.land, kind: CG.map.routeKind,
         badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),
         pause: !!document.getElementById('pauseBtn'), coins: document.getElementById('coins').textContent, back: document.getElementById('mapBack').getAttribute('aria-label'),
       }));
+      // the look pass (M5b): no plate under any town, a surveyors' camp on land not open yet, dirt roads before the Rail Office
+      if (m.land.plates || !m.land.camps.includes('falls') || !m.land.camps.includes('sandybend') || m.kind !== 'road') bad.push('the map land is wrong (' + JSON.stringify(m.land) + ', ' + m.kind + ')');
       if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge,sandybend,falls' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
       bad.push(...(await check(page)).map(b => 'map: ' + b));
       // the ground under the finger stays under it
@@ -1012,6 +1014,9 @@ async function run() {
         await sleep(1200);
         const city = await page.evaluate(() => { const c = CG.map.city, p = CG.map.badgePoint('capital'), q = CG.map.projectSite('capital'); return c && { ...c, above: p && q ? q.y - p.y : 0 }; });
         if (!city || city.founded.join() !== 'bank' || city.rising.length || !(city.clear > .45) || !(city.above > 0)) bad.push('the Capital city is wrong (' + JSON.stringify(city) + ')');
+        // the Rail Office lays rails on every route, and trains run on them in place of wagons
+        const rail = await page.evaluate(async () => { CG.game.shared.purse.coins += 1e7; (await import('./src/core/tree.js')).foundInstitution(CG.game, 'transport'); CG.meter.flow['gulch>ridge'] = 4; await new Promise(r => setTimeout(r, 2200)); return { kind: CG.map.routeKind, trains: CG.map.trains, wagons: CG.map.wagons, routes: CG.map.routes.join() }; });
+        if (rail.kind !== 'rail' || !(rail.trains > 0) || rail.wagons || !rail.routes.includes('gulch>ridge')) bad.push('the Rail Office did not lay rails (' + JSON.stringify(rail) + ')');
         await page.evaluate(() => document.getElementById('capTabContracts').click()); await sleep(300);
       }
       bad.push(...errs);

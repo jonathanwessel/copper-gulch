@@ -3,6 +3,17 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-5',
+    lines: [
+      'The map is redrawn. Each town now sits right on its own land.',
+      'Pines grow around Pine Hollow and gray rocks around Iron Ridge.',
+      'A river falls from a cliff and runs down to Silver Falls.',
+      'Each town shows the canyon or tunnel its raiders come from.',
+      'Build the Rail Office in the Capital to run trains between your towns.',
+      'Cloud shadows drift over the map. Towns you have not started show a tent and a campfire.',
+    ],
+  },
+  {
     v: '2026.11.21-4',
     lines: [
       'Buildings change as you level them up. At level 25 the windows light up.',

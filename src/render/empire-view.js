@@ -1,14 +1,16 @@
 /* The empire map in 3D (GDD.md, Empire map): open country with every town as a small diorama of its board (its
-   buildings at their tiers, its road, its vault and towers), surveyed land where a town is not open yet and in the
-   middle where the Capital will stand, and dirt roads between towns that carry goods, with wagons rolling along them
-   (more and faster as a route gets busier). The game keeps running while the map is up. Every gesture moves the map
-   under the fingers (src/render/camera.js). startEmpireView returns an api the interface uses. */
+   buildings at their tiers, its road and entrance, its vault and towers) standing on land that fits it (the plan is in
+   src/render/empire-plan.js, the models in src/render/empire-land.js), surveyed land with a surveyors' camp where a
+   town is not open yet and in the middle where the Capital will stand, and roads between towns that carry goods, with
+   wagons rolling along them (more and faster as a route gets busier), laid with rails and run by trains once the Rail
+   Office is founded. Cloud shadows drift over all of it. The game keeps running while the map is up. Every gesture
+   moves the map under the fingers (src/render/camera.js). startEmpireView returns an api the interface uses. */
 import * as THREE from 'three';
 import { createScene } from './scene.js';
 import { startQuality, autoStep } from './autoquality.js';
 import { CameraRig } from './camera.js';
-import { makeGround, makeMesas, polyDist, fbm, sstep, lerp } from './terrain.js';
-import { Kit, MAT, mergeStatic, rng } from './kit.js';
+import { makeGround, fbm, sstep, lerp } from './terrain.js';
+import { Kit, rng } from './kit.js';
 import { roadRibbon, riverRibbon, bridges, disposeTree, tierOf } from './board.js';
 import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/gulch.js';
 import { makeTower } from '../assets/models/units.js';
@@ -19,9 +21,11 @@ import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
 import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
+import { rectDist, gateDist, polyDist, blockers, routeLine, mesaPlan, flavor, camp, routeKind, duneHeight } from './empire-plan.js';
+import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, engineGeometry, carGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
-const S = DIORAMA, MAXWAGONS = 48;
+const S = DIORAMA, MAXWAGONS = 48, MAXTRAINS = 24, MAXCARS = 72, GAP = .36;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _e = new THREE.Euler(), _v = new THREE.Vector3();
 /* How far a site reaches on the map (map units): an open town's board at diorama scale, the Capital's plaza, or a
    surveyed plot. */
@@ -31,15 +35,14 @@ export const siteRadius = id => {
 };
 const RISE = .9; // seconds a newly founded institution takes to rise out of its lot
 
-/* A town's diorama: its board at diorama scale, merged into a few meshes. Rebuilt when a tier or a tower changes. */
+/* A town's diorama: its board at diorama scale, merged into a few meshes, standing straight on the map's ground (no
+   plate under it: the ground there takes the town's own colors), with its entrance. Rebuilt when a tier or a tower
+   changes. */
 function diorama(town) {
   const B = town.def.board, look = B.look, objs = [];
-  const plate = new Kit({ ao: false });
-  plate.box(B.cols / 2, -.2, B.rows / 2, B.cols + 1.2, .2, B.rows + 1.2, look.sandD);
-  plate.box(B.cols / 2, -.06, B.rows / 2, B.cols + .9, .08, B.rows + .9, look.sand);
-  objs.push(plate.build({ cast: false }));
   objs.push(roadRibbon(B.road, [new THREE.Color(look.dirt), new THREE.Color(look.rut), new THREE.Color('#a57a52')]));
   if (B.river) { const r = B.river.path.concat([B.vault]), w = riverRibbon(r, look, B.river.width || 1.1); w.position.y = .05; objs.push(w, ...bridges(B.road, r)); }
+  objs.push(...entranceModels(B));
   for (const [id, [x, z]] of Object.entries(B.plots)) {
     const level = town.level(id);
     if (!(level > 0) || !BUILDINGS[id]) continue;
@@ -49,27 +52,11 @@ function diorama(town) {
   for (const t of town.towers || []) {
     const o = makeTower(t.kind, t.path, t.level), [x, z] = B.spots[t.spot]; o.position.set(x, 0, z); objs.push(o);
   }
-  const g = mergeStatic(objs);
-  objs.forEach(disposeTree);
+  const g = merged(objs);
   g.scale.setScalar(S);
   return g;
 }
 const signature = town => Object.keys(town.def.board.plots).map(id => tierOf(town.level(id)) * (town.level(id) > 0 ? 1 : 0)).join() + '|' + (town.towers || []).map(t => t.spot + t.kind + t.level + (t.path || '')).join();
-
-/* Surveyed land: stakes and string round a plot, a sign, and for the Capital a gold flag. */
-function surveyed(capital) {
-  const k = new Kit({ ao: false }), R = rng(capital ? 3 : 9), n = capital ? 10 : 6, r = capital ? 2.1 : 1.6;
-  for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r * .8;
-    k.box(x, 0, z, .07, .3, .07, 'woodL');
-    const b = (i + 1) / n * Math.PI * 2, x2 = Math.cos(b) * r, z2 = Math.sin(b) * r * .8, L = Math.hypot(x2 - x, z2 - z);
-    k.box((x + x2) / 2, .24, (z + z2) / 2, .015, .015, L, 'white', { ry: Math.atan2(x2 - x, z2 - z), ao: false });
-  }
-  k.box(.3, 0, .2, .06, .6, .06, 'woodD'); k.box(.3, .42, .23, .46, .24, .03, 'cream');
-  if (capital) { k.box(-.2, 0, -.3, .05, 1.2, .05, 'woodD'); k.box(.05, .92, -.3, .46, .26, .02, 'gold'); }
-  for (let i = 0; i < 4; i++) k.dode(-1 + R() * 2, .05, -.8 + R() * 1.6, .1 + R() * .08, R() < .5 ? 'rock' : 'rockD');
-  return k.build();
-}
 
 /* A supply wagon (one mesh, so every wagon on the map is one instanced draw): bed, canvas cover, wheels, a mule. */
 function wagonGeometry() {
@@ -84,27 +71,26 @@ function wagonGeometry() {
   return geo;
 }
 
-/* A route's road: a gentle curve from one site's edge to the other's. Returns { pts: [[x, z]], len, at(u, out) }. */
-function routePath(a, b, ra, rb, avoid) {
-  const A = new THREE.Vector3(a[0], 0, a[1]), B = new THREE.Vector3(b[0], 0, b[1]), mid = A.clone().add(B).multiplyScalar(.5);
-  const d = B.clone().sub(A), n = new THREE.Vector3(-d.z, 0, d.x).normalize().multiplyScalar(d.length() * .3);
-  // bow out on the side away from the Capital's site, so no road crosses it
-  const c1 = mid.clone().add(n), c2 = mid.clone().sub(n), far = p => Math.hypot(p.x - avoid[0], p.z - avoid[1]);
-  const curve = new THREE.QuadraticBezierCurve3(A, far(c1) >= far(c2) ? c1 : c2, B);
-  const all = curve.getSpacedPoints(Math.ceil(curve.getLength() / .3));
-  const pts = all.filter(p => Math.hypot(p.x - A.x, p.z - A.z) > ra && Math.hypot(p.x - B.x, p.z - B.z) > rb).map(p => [p.x, p.z]);
+/* A route's line as a path wagons follow: { pts: [[x, z]], len, at(u, out) } with u from 0 to 1. */
+function pathOf(pts) {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
   const len = cum[cum.length - 1] || 1;
-  // a point and heading u of the way along (0 to 1)
   const at = (u, out) => {
-    const s = u * len;
+    const s = Math.max(0, Math.min(1, u)) * len;
     let i = 1; while (i < cum.length - 1 && cum[i] < s) i++;
     const f = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1), p0 = pts[i - 1], p1 = pts[i];
     out.x = lerp(p0[0], p1[0], f); out.z = lerp(p0[1], p1[1], f); out.yaw = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
     return out;
   };
   return { pts, len, at };
+}
+
+/* One instanced mesh for a moving kind (wagons, engines, cars). */
+function fleet(geo, mat, max) {
+  const m = new THREE.InstancedMesh(geo, mat, max);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
+  return m;
 }
 
 export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () => {}, from = null, meter = null } = {}) {
@@ -118,66 +104,97 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const x0 = Math.min(...xs) - 4, x1 = Math.max(...xs) + 4, z0 = Math.min(...zs) - 4, z1 = Math.max(...zs) + 4.5;
   const center = new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2);
   const root = new THREE.Group(); root.name = 'empire'; v.scene.add(root);
+  const mats = mapMaterials(), add = o => { root.add(mats.apply(o)); return o; };
+  // every road and rail bed on the map shares one material (one draw for all of them)
+  const ribbonMat = cloudy(new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const flat = objs => { for (const o of objs) o.traverse(n => { if (n.isMesh && n.material.userData.own && n.material !== ribbonMat && (n.name === 'road' || n.name === 'rails' || n.name === 'creek')) { n.material.dispose(); n.material = ribbonMat; } }); return objs; };
 
-  // every pair of towns a route could join, for the flat strips of the ground (routes appear as goods move)
-  // (each pair's road is laid out once; a link uses it in either direction)
-  const pairs = [], paths = {};
-  for (const a of sites) for (const b of sites) if (a.id < b.id && !a.capital && !b.capital) {
-    pairs.push([a, b]);
-    paths[a.id + '|' + b.id] = routePath(a.at, b.at, siteRadius(a.id) * .9, siteRadius(b.id) * .9, at.capital);
-  }
+  // every pair of towns a route could join (routes appear as goods move): each pair's road is laid out once, clear of
+  // every board, entrance and the Capital's plaza, and a link uses it in either direction
+  const B = blockers(sites), river = B.river, creek = B.creek, paths = {};
+  for (const a of sites) for (const b of sites) if (a.id < b.id && !a.capital && !b.capital) paths[a.id + '|' + b.id] = pathOf(routeLine(a, b, B).pts);
   const pathPts = Object.values(paths).map(p => p.pts);
+  // land not open yet takes only a hint of its town's colors (the ground is laid once, when the map opens)
+  const feet = B.towns.map(([id, f]) => [id, f, TOWNS[id].board.look, game.towns[id] ? 1 : .35]);
   const height = (x, z) => {
-    let h = (fbm(x * .07 + 2, z * .07) - .45) * 2.4 + (fbm(x * .4, z * .4) - .5) * .25;
-    let flat = 0;
-    for (const s of sites) flat = Math.max(flat, 1 - sstep(siteRadius(s.id) + .4, siteRadius(s.id) + 3, Math.hypot(x - s.at[0], z - s.at[1])));
-    for (const pts of pathPts) { const r = polyDist(x, z, pts); flat = Math.max(flat, 1 - sstep(1.2, 4, r.d)); }
+    let h = (fbm(x * .07 + 2, z * .07) - .45) * 2.4 + (fbm(x * .4, z * .4) - .5) * .25, flat = 0, road = 0;
+    for (const [, f] of feet) {
+      flat = Math.max(flat, 1 - sstep(.3, 3, rectDist(x, z, f.rect)));
+      for (const g of f.gates) flat = Math.max(flat, 1 - sstep(0, 2.5, gateDist(x, z, g)));
+    }
+    for (const s of sites) if (!TOWNS[s.id]) flat = Math.max(flat, 1 - sstep(siteRadius(s.id) + .4, siteRadius(s.id) + 3, Math.hypot(x - s.at[0], z - s.at[1])));
+    for (const pts of pathPts) road = Math.max(road, 1 - sstep(1.2, 4, polyDist(x, z, pts)));
+    if (river) road = Math.max(road, 1 - sstep(river.width, river.width + 3, polyDist(x, z, river.pts)));
+    if (creek) road = Math.max(road, 1 - sstep(creek.width, creek.width + 2.5, polyDist(x, z, creek.pts)));
+    flat = Math.max(flat, road);
     h = Math.max(-.3, h);
-    return lerp(h, -.02, flat);
+    return lerp(h, -.02, flat) + duneHeight(x, z) * (1 - road);
   };
-  const sand = new THREE.Color('#d8b382'), sandD = new THREE.Color('#bf9465'), tint = new THREE.Color();
-  const looks = sites.filter(s => TOWNS[s.id]).map(s => [s.at, new THREE.Color(TOWNS[s.id].board.look.sand), siteRadius(s.id)]);
+  // the ground: open desert, and round each board its own town's colors, so a town sits on its land with no tile under it
+  const sand = new THREE.Color('#d8b382'), sandD = new THREE.Color('#bf9465'), tint = new THREE.Color(), tint2 = new THREE.Color();
+  const bank = new THREE.Color('#8f9a5a'), bedC = new THREE.Color('#e4cc9c'), pineG = new THREE.Color('#a7a072');
   const color = (x, z, c) => {
     c.copy(sand).lerp(sandD, fbm(x * .3 + 3, z * .3));
-    for (const [[sx, sz], lc, r] of looks) { const d = Math.hypot(x - sx, z - sz); if (d < r + 5) c.lerp(tint.copy(lc), (1 - sstep(r, r + 5, d)) * .6); }
+    for (const [id, f, look, open] of feet) {
+      let d = rectDist(x, z, f.rect);
+      for (const g of f.gates) d = Math.min(d, gateDist(x, z, g) + .8);
+      if (d > 7) continue;
+      tint.set(look.sand).lerp(tint2.set(look.sandD), fbm(x * .5 + 9, z * .5) * .8);
+      c.lerp(tint, (1 - sstep(-1.2, 3.2, d)) * open * .8);
+      if (id === 'pinehollow') c.lerp(pineG, (1 - sstep(1, 7, d)) * .35);
+    }
+    if (river) { const d = polyDist(x, z, river.pts); if (d < 1.8) c.lerp(bank, (1 - sstep(.4, 1.8, d)) * .4); }
+    if (creek) { const d = polyDist(x, z, creek.pts); if (d < 1.4) c.lerp(bedC, (1 - sstep(.3, 1.4, d)) * .5); }
   };
   const W = Math.max(90, (x1 - x0) + 50), D = Math.max(100, (z1 - z0) + 50);
   const ground = makeGround({ cx: center.x, cz: center.z, w: W, d: D, seg: 110, height, color });
-  root.add(ground);
-  // mesas round the edge, and scenery between the towns, merged into a few meshes
-  const R = rng(41), mesaSpots = [];
-  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + R() * .3, rx = (x1 - x0) / 2 + 14 + R() * 8, rz = (z1 - z0) / 2 + 13 + R() * 6; mesaSpots.push([center.x + Math.cos(a) * rx, center.z + Math.sin(a) * rz, 3 + R() * 3]); }
-  const scenery = [makeMesas(mesaSpots)];
-  for (let i = 0, placed = 0; i < 400 && placed < 70; i++) {
+  add(ground);
+  // the land: varied mesas round the edge, the land that fits each town, the river and the falls, the dry creek, and
+  // scenery between the towns, merged into a few meshes
+  const free = (x, z, m) => !B.hit(x, z, m) && !pathPts.some(pts => polyDist(x, z, pts) < .6 + m) && !(river && polyDist(x, z, river.pts) < river.width * .6 + m) && !(creek && polyDist(x, z, creek.pts) < creek.width * .6 + m * .5);
+  const land = [...mesas(mesaPlan({ x0, x1, z0, z1 }, sites))];
+  for (const s of sites) if (TOWNS[s.id]) land.push(...flavorModels(flavor(s.id, free).map(p => ({ ...p, y: Math.max(0, height(p.x, p.z)) - .02 }))));
+  if (river) land.push(...fallsModels(river));
+  if (creek) land.push(...flat(creekModels(creek)));
+  const R = rng(41);
+  for (let i = 0, placed = 0; i < 500 && placed < 60; i++) {
     const x = x0 - 3 + R() * (x1 - x0 + 6), z = z0 - 3 + R() * (z1 - z0 + 6);
-    if (sites.some(s => Math.hypot(x - s.at[0], z - s.at[1]) < siteRadius(s.id) + 1.2) || pathPts.some(pts => polyDist(x, z, pts).d < 1.6)) continue;
-    const kind = R() < .4 ? 'cactus' : R() < .6 ? 'rock' : R() < .8 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 7);
+    if (!free(x, z, 1.1)) continue;
+    const nearPines = at.pinehollow && Math.hypot(x - at.pinehollow[0], z - at.pinehollow[1]) < 9;
+    const kind = nearPines ? (R() < .55 ? 'tree' : 'shrub') : R() < .35 ? 'cactus' : R() < .55 ? 'rock' : R() < .8 ? 'shrub' : 'boulder', o = PROPS[kind](1, i * 7);
     o.position.set(x, Math.max(0, height(x, z)) - .02, z); o.rotation.y = R() * 6; o.scale.setScalar(.9 + R() * .8);
-    scenery.push(o); placed++;
+    land.push(o); placed++;
   }
-  root.add(mergeStatic(scenery)); scenery.forEach(disposeTree);
+  add(merged(land));
 
   v.sun.position.set(center.x - 14, 26, center.z + 12); v.sun.target.position.copy(center);
   const sc = v.sun.shadow.camera, half = Math.max(x1 - x0, z1 - z0) / 2 + 2; sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.far = 90; sc.updateProjectionMatrix();
 
   // the dioramas and the surveyed land, kept in step with the game once a second
-  const dio = {}, land = {};
+  const dio = {}, plots = {};
   const placeSites = () => {
     for (const s of sites) {
       const town = game.towns[s.id];
       if (town) {
-        if (land[s.id]) { root.remove(land[s.id]); disposeTree(land[s.id]); delete land[s.id]; }
+        if (plots[s.id]) { root.remove(plots[s.id]); disposeTree(plots[s.id]); delete plots[s.id]; }
         const sig = signature(town), cur = dio[s.id];
         if (cur && cur.sig === sig) continue;
         if (cur) { root.remove(cur.obj); disposeTree(cur.obj); }
-        const obj = diorama(town), B = town.def.board;
-        obj.position.set(s.at[0] - B.cols / 2 * S, .07, s.at[1] - B.rows / 2 * S);
-        root.add(obj); dio[s.id] = { obj, sig };
+        const obj = diorama(town), TB = town.def.board;
+        obj.position.set(s.at[0] - TB.cols / 2 * S, 0, s.at[1] - TB.rows / 2 * S);
+        add(obj); dio[s.id] = { obj, sig };
       } else if (s.capital && capitalOpen(game)) {
-        if (land[s.id]) { root.remove(land[s.id]); disposeTree(land[s.id]); delete land[s.id]; }
+        if (plots[s.id]) { root.remove(plots[s.id]); disposeTree(plots[s.id]); delete plots[s.id]; }
         placeCity(s);
-      } else if (!land[s.id]) {
-        const o = surveyed(s.capital); o.position.set(s.at[0], 0, s.at[1]); root.add(o); land[s.id] = o;
+      } else if (!plots[s.id]) {
+        const o = surveyed(s.capital, camp([0, 0])); o.position.set(s.at[0], 0, s.at[1]);
+        // a town with a river shows it running across its plot already, so the river from the falls ends somewhere
+        const TB = TOWNS[s.id] && TOWNS[s.id].board;
+        if (TB && TB.river) { const w = riverRibbon(TB.river.path.concat([TB.vault]).map(p => [(p[0] - TB.cols / 2) * S, (p[1] - TB.rows / 2) * S]), TB.look, (TB.river.width || 1.1) * S); w.position.y = .004; o.add(w);
+          // it ends in a pond where the town's vault will stand
+          const pond = new THREE.Mesh(new THREE.CircleGeometry(.62, 14).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: TB.look.water || '#3f7fa8' })); pond.material.userData.own = true;
+          pond.position.set((TB.vault[0] - TB.cols / 2) * S, .006, (TB.vault[1] - TB.rows / 2) * S); o.add(pond); }
+        add(o); plots[s.id] = o;
       }
     }
   };
@@ -187,12 +204,12 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   function placeCity(s) {
     const st = cityState(game.shared.capital, game.shared.tree), cur = dio[s.id];
     const fresh = cur ? st.founded.filter(id => !cur.founded.includes(id) && !rising[id]) : [];
-    for (const id of fresh) { const o = makeInstitution(id); o.position.x += s.at[0]; o.position.z += s.at[1]; o.position.y = .02; o.scale.set(.7, .01, .7); root.add(o); rising[id] = { obj: o, t: 0 }; }
+    for (const id of fresh) { const o = makeInstitution(id); o.position.x += s.at[0]; o.position.z += s.at[1]; o.position.y = .02; o.scale.set(.7, .01, .7); add(o); rising[id] = { obj: o, t: 0 }; }
     const key = st.key + '|' + Object.keys(rising).join();
     if (cur && cur.sig === key) return;
     if (cur) { root.remove(cur.obj); disposeTree(cur.obj); }
     const obj = makeCity({ ...st, skip: Object.keys(rising) }); obj.position.set(s.at[0], .02, s.at[1]);
-    root.add(obj); dio[s.id] = { obj, sig: key, founded: st.founded.slice() };
+    add(obj); dio[s.id] = { obj, sig: key, founded: st.founded.slice() };
   }
   const riseCity = dt => {
     let done = false;
@@ -207,37 +224,54 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const capSite = sites.find(s => s.capital);
   placeSites();
 
-  // routes: a dirt road for each link that has carried goods, and wagons on it
-  const routes = {}, dirt = [new THREE.Color('#9a7550'), new THREE.Color('#7a5a3c'), new THREE.Color('#b38c62')];
+  // routes: a dirt road for each link that has carried goods, with wagons on it; once the Rail Office is founded every
+  // route is laid with rails and trains run on it. A plank bridge carries a route over the river.
+  const routes = {};
+  let kind = routeKind(game);
   const placeRoutes = () => {
+    const k = routeKind(game);
+    if (k !== kind) { kind = k; for (const r of Object.values(routes)) { root.remove(r.road); disposeTree(r.road); } for (const key of Object.keys(routes)) delete routes[key]; }
     for (const l of mapRoutes(game)) {
       if (routes[l.key]) continue;
       const rev = l.from > l.to, path = paths[rev ? l.to + '|' + l.from : l.from + '|' + l.to];
       if (!path || path.pts.length < 2) continue;
-      const road = roadRibbon(path.pts, dirt, .7); road.position.y = .01; root.add(road);
+      const parts = flat(kind === 'rail' ? railModel(path.pts) : roadModel(path.pts));
+      if (river) parts.push(...routeBridges(path.pts, river));
+      const road = merged(parts, { cast: false }); road.name = kind === 'rail' ? 'rails' : 'road'; add(road);
       routes[l.key] = { ...path, rev, road, phase: (l.key.length * .137) % 1 };
     }
   };
   placeRoutes();
-  const wagons = new THREE.InstancedMesh(wagonGeometry(), MAT.solid, MAXWAGONS);
-  wagons.instanceMatrix.setUsage(THREE.DynamicDrawUsage); wagons.count = 0; wagons.frustumCulled = false; wagons.castShadow = true; wagons.receiveShadow = true;
-  root.add(wagons);
+  const wagons = fleet(wagonGeometry(), mats.solid, MAXWAGONS), engines = fleet(engineGeometry(), mats.solid, MAXTRAINS), cars = fleet(carGeometry(), mats.solid, MAXCARS);
+  root.add(wagons, engines, cars);
   const pos = { x: 0, z: 0, yaw: 0 };
+  const put = (mesh, n, r, u, y, bob, t, i, scale = 1.5) => {
+    r.at(r.rev ? 1 - u : u, pos); if (r.rev) pos.yaw += Math.PI;
+    _e.set(0, pos.yaw, bob ? Math.sin(t * 9 + i * 2) * .03 : 0); _q.setFromEuler(_e);
+    _p.set(pos.x, y + (bob ? Math.abs(Math.sin(t * 6 + i)) * .015 : 0), pos.z); _s.setScalar(scale);
+    _m.compose(_p, _q, _s); mesh.setMatrixAt(n, _m);
+  };
   const rollWagons = (dt, t) => {
-    let n = 0;
+    let nw = 0, ne = 0, nc = 0;
     for (const [key, r] of Object.entries(routes)) {
       const look = wagonsFor(meter ? meter.flow[key] || 0 : 0);
       if (!look.count) continue;
-      r.phase = (r.phase + dt * look.speed / r.len) % 1;
-      for (let i = 0; i < look.count && n < MAXWAGONS; i++) {
-        const u = (r.phase + i / look.count) % 1;
-        r.at(r.rev ? 1 - u : u, pos); if (r.rev) pos.yaw += Math.PI;
-        _e.set(0, pos.yaw, Math.sin(t * 9 + i * 2) * .03); _q.setFromEuler(_e);
-        _p.set(pos.x, .02 + Math.abs(Math.sin(t * 6 + i)) * .015, pos.z); _s.setScalar(1.5);
-        _m.compose(_p, _q, _s); wagons.setMatrixAt(n++, _m);
+      if (kind === 'rail') { // trains: one for every two wagons' worth, two to four cars each, a little faster
+        const trains = Math.max(1, Math.round(look.count / 2)), ncar = Math.min(4, 2 + Math.floor(look.count / 3)), gap = GAP / r.len;
+        r.phase = (r.phase + dt * look.speed * 1.3 / r.len) % 1;
+        for (let i = 0; i < trains && ne < MAXTRAINS; i++) {
+          const u = (r.phase + i / trains) % 1;
+          if (u < gap * ncar || u > 1 - .01) continue; // the whole train is on the line before it shows
+          put(engines, ne++, r, u, .03, false, t, i, 1.1);
+          for (let c = 1; c <= ncar && nc < MAXCARS; c++) put(cars, nc++, r, u - c * gap, .03, false, t, i, 1.1);
+        }
+        continue;
       }
+      r.phase = (r.phase + dt * look.speed / r.len) % 1;
+      for (let i = 0; i < look.count && nw < MAXWAGONS; i++) put(wagons, nw++, r, (r.phase + i / look.count) % 1, .02, true, t, i);
     }
-    wagons.count = n; wagons.instanceMatrix.needsUpdate = true;
+    wagons.count = nw; engines.count = ne; cars.count = nc;
+    wagons.instanceMatrix.needsUpdate = engines.instanceMatrix.needsUpdate = cars.instanceMatrix.needsUpdate = true;
   };
 
   // the selected site: a pulsing ring on the ground round it, for as long as its card is open
@@ -258,7 +292,15 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     get frames() { return frames; },
     get dioramas() { return Object.keys(dio); },
     get routes() { return Object.keys(routes); },
+    get routeKind() { return kind; },
     get wagons() { return wagons.count; },
+    get trains() { return engines.count; },
+    /* What the map's land is made of, for the checks: no plate under any town, the camps on land not open yet. */
+    get land() {
+      let plates = 0;
+      for (const d of Object.values(dio)) d.obj.traverse(o => { if (o.isMesh && o.name === 'plate') plates++; });
+      return { plates, camps: Object.keys(plots), clouds: CLOUD.k.value };
+    },
     /* The Capital's city as drawn: the institutions standing (merged or rising), those still rising, and how far the
        nearest road between two towns passes outside its plaza (map units, from the road's middle). */
     get city() {
@@ -316,7 +358,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       Object.assign(rig.t, { x: s[0], z: s[1], dist: 6, pitch: Math.min(1.2, rig.c.pitch + .15), yaw: rig.c.yaw }); rig.flick = null;
       setTimeout(done, 380);
     },
-    stop(lose = false) { cancelAnimationFrame(raf); disposeTree(root); v.dispose(); if (lose) v.renderer.forceContextLoss(); },
+    stop(lose = false) { cancelAnimationFrame(raf); disposeTree(root); mats.dispose(); ribbonMat.dispose(); v.dispose(); if (lose) v.renderer.forceContextLoss(); },
   };
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -326,6 +368,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     if (!api.paused) game.advance(dt);
     if (meter) meter.update(game);
     t += dt;
+    if (!api.paused) CLOUD.t.value += dt;
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
     size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
