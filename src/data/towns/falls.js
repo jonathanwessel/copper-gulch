@@ -57,13 +57,17 @@ export const FALLS = {
       [3.5, 2.4], [6.2, 2.4], [3.8, 6.4], [6.6, 6.4], [3.5, 10.4], [6.2, 10.4], // between a workshop and the river
       [3.4, 13.8], [6.2, 14.2],                                                // by the vault
       [-1.4, 2.4], [-1.4, 10.4], [11.4, 6.4], [11.4, 1.6],                     // outside the bends
-      // mortar pits (from index `far` on): well back from the road and the river
+      // mortar pits (their indexes are in `pits`): well back from the road and the river
       // 3 pits (was 4 until 2026.11.18-15: the east pit by the rock cut gave the Mortar the road first, and with it
       // half the Falls' damage; save v18 gives the pit by the vault its new number, src/core/save.js)
       // the north pit sits 1 back from where it was (2, -3.2), so it reaches less of both lanes as they come in
       [-3.4, 6.4], [3.6, 16.6], [2, -4.2],
+      // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
+      [-.6, 1], [10.65, 7.75], [1.9, 13.5], [-.6, 11.75], [1.9, -.75], [11.4, 4], [-.6, 9], // pads 15-21. None by the river's mouth or where the road comes in: raiders leave the cut bunched, and a Frost Lens there did 40-46% of the damage in the bots (2026.11.20-17)
     ],
+    crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 12,
+    pits: [12, 13, 14],             // the mortar pits by index (the first is `far`); the pads after them are normal ones. No fourth: one on the east side (12.5, 4) gave the Mortar 39-45% of the damage (the bots, 2026.11.20-17)
     frame: { x: 5, z: 6.8, w: 13.6, d: 16.4 },
     look: { sand: '#a9ad84', sandD: '#8f956c', dirt: '#7a6a4e', rut: '#56493a', water: '#3f7fa8', waterD: '#2f6488', foam: '#9cc8d8', mesa: ['#6f7a7c', '#8a9496', '#5d686a', '#9aa4a4'] },
   },

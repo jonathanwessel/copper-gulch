@@ -9,7 +9,7 @@ import { root } from './serve.js';
 import { shellFiles } from './bump-version.js';
 import { GOODS } from '../src/data/goods.js';
 import { BUILDINGS } from '../src/data/buildings.js';
-import { TOWNS, TOWN_ORDER } from '../src/data/towns/index.js';
+import { TOWNS, TOWN_ORDER, isPitSpot } from '../src/data/towns/index.js';
 import { TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
 import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
@@ -101,7 +101,7 @@ export function audit() {
 
 /* Every feature teaches itself (owner rule): the features are worked out from the game, so a new system, tower kind
    or goods tier fails the audit until an explainer covers it. The named mechanics are the ones already in play. */
-export const MECHANICS = ['river', 'power', 'upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution', 'retry', 'stock', 'auto-research'];
+export const MECHANICS = ['river', 'power', 'upgrade', 'milestone', 'starved', 'vault', 'breach', 'call', 'pause', 'hold', 'goods', 'menu', 'slots', 'export', 'pit', 'camera', 'reserve', 'perks', 'deeds', 'stockpile', 'back', 'outpost:won', 'outpost:draw', 'dots', 'explain', 'best', 'oldground', 'route', 'found', 'strip', 'map', 'away', 'lost', 'capital:sight', 'contract', 'institution', 'retry', 'stock', 'auto-research', 'crowd'];
 export function requiredFeatures() {
   const f = new Set(MECHANICS);
   for (const s of SYSTEMS) f.add('system:' + s.id);
@@ -182,7 +182,7 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
       if (!e || !e.kind) p.push(id + ': the ' + lane + ' has no entrance');
       else if (!new RegExp('^\\s+' + e.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + e.kind + '"');
     }
-    const far = b.far ?? b.spots.length, n = b.spots.length - far;
+    const pitIdx = b.spots.map((_, i) => i).filter(i => isPitSpot(b, i)), n = pitIdx.length; // the mortar pits (board.pits)
     if (towns[id].kind === 'outpost') { // outposts: no pits; the road loops round the camp and ends where the loop began
       if (n) p.push(id + ' is an outpost with mortar pits');
       const road = makePath([...b.road, b.vault]); let closes = false;
@@ -193,7 +193,7 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
     if (n < 3 || n > 5) { p.push(id + ' has ' + n + ' mortar pits (want 3 to 5)'); continue; }
     const pts = []; // every lane: the road, and the river where there is one
     for (const line of [b.road, ...(b.river ? [b.river.path] : [])]) { const lane = makePath([...line, b.vault]); for (let s = 0; s <= lane.length; s += .1) pts.push(pointAt(lane, s)); }
-    for (let i = far; i < b.spots.length; i++) {
+    for (const i of pitIdx) {
       let min = Infinity, cover = 0;
       for (const q of pts) { const d = dist(b.spots[i], q); min = Math.min(min, d); if (long && d >= (long.minRange || 0) && d <= long.range) cover += .1; }
       if (min <= NORMAL_REACH) p.push(id + ' mortar pit ' + i + ' is within a normal tower\'s reach of the road (' + min.toFixed(2) + ')');

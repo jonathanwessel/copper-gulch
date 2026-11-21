@@ -20,7 +20,7 @@ export const TOWERS = {
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot also hits the raiders around it.', bestText: 'Bunched-up raiders',
-    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.25,
+    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.24, // 1.24 since 2026.11.20-17 (was 1.25): with more pads one Cannon did 37% of the economy player's damage in Silver Falls
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
@@ -76,7 +76,12 @@ export const POISON_SECONDS = 4;
 export const FREEZE = { seconds: .8, again: 1.2 };
 /* Shrapnel's burning ground: how long it burns, how much it slows, and its damage per second as a share of a hit. */
 export const FIRE = { seconds: 3, slow: .3, dps: .35 };
+/* A town's normal towers past board.crowd (the pads it had before 2026.11.20-17) each cost this much more coin and goods than
+   the one before, so more pads give room to build without making many cheap towers the best buy every time (owner,
+   2026-11-20: more pads; the swarm bot won Pine Hollow 40% ahead of min-max with every pad cheap). Upgrades cost the same. Goods count
+   too: in an outpost late in the game coins are plenty and timber is what limits towers (the bots, 2026.11.20-17). */
+export const EXTRA_TOWER = 1.25;
 export const SELL_BACK = .6;           // share of the coins spent that selling a tower returns
-/* Per level after the first: damage x1.3 (the Cannon 1.25, the Frost Lens 1.24, the Mortar 1.19: grow), poison x1.15 (one high Still must not carry a town: its poison grows
+/* Per level after the first: damage x1.3 (the Cannon and the Frost Lens 1.24, the Mortar 1.19: grow), poison x1.15 (one high Still must not carry a town: its poison grows
    slower than a hit), rate x1.04, range +0.05. Costs: coins x1.55 and goods x1.35 per level. */
 export const PER_LEVEL = { dmg: 1.3, poison: 1.15, rate: 1.04, range: .05, coins: 1.55, goods: 1.35 };

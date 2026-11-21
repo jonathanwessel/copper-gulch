@@ -33,11 +33,16 @@ export const GULCH = {
       [2.5, 3], [2.5, 6], [2.5, 9], [6.5, 3], [6.5, 6], [6.5, 9],  // between the plots: each reaches two passes
       [2.45, 12.25], [6.55, -.25],                                 // inside the bends
       [-1.1, 4.5], [-1.1, 9], [10.1, 3], [10.1, 7.5],              // outside the first and last pass
-      // mortar pits (from index `far` on): beyond the bends, too far from the road for a normal tower,
+      // mortar pits (their indexes are in `pits`): beyond the bends, too far from the road for a normal tower,
       // with the bend and two or three passes inside the Mortar's ring
       [3.8, -4], [10, -3.5], [6.8, 14.6], [-.8, 15.8],
+      // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
+      [2.65, 0], [-.6, 2.25], [-.6, 6.25], [-.6, 10.5], [9.65, 4.5], [9.65, .25], // pads 16-21
+      [11.6, 5.2], // mortar pit 22
     ],
+    crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 12,
+    pits: [12, 13, 14, 15, 22],     // the mortar pits by index (the first is `far`); the pads after them are normal ones
     // what the camera frames at home: the whole town, bends included
     frame: { x: 4.5, z: 6, w: 12.4, d: 15.4 },
     look: { sand: '#d8b382', sandD: '#bf9465', dirt: '#8c6242', rut: '#6a4630', mesa: ['#b35a3a', '#d98a55', '#a94f33', '#e0a46c'] },

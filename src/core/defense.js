@@ -16,13 +16,14 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { Town } from './town.js';
 import { STEP } from './clock.js';
+import { isPitSpot } from '../data/towns/index.js';
 
 /* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
 const WAVES = new WeakMap();
@@ -66,16 +67,21 @@ export function towerStats(town, t) {
 }
 /* Coins and goods to build (level 0 -> 1) or to raise a tower from level L to L + 1. */
 export function towerCost(town, kind, L = 0) {
-  const d = TOWERS[kind], goods = {};
-  for (const [g, n] of Object.entries(d.goods[town.id] || {})) goods[g] = Math.ceil(n * PER_LEVEL.goods ** L);
-  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** L * town.mods.factor('cost') * town.mods.factor(L ? 'cost:towerUp' : 'cost:towerNew')), goods };
+  const d = TOWERS[kind], goods = {}, crowd = L ? 1 : crowdFactor(town, kind); // a new tower past board.crowd costs more coins and goods (in an outpost the goods are what limit it)
+  for (const [g, n] of Object.entries(d.goods[town.id] || {})) goods[g] = Math.ceil(n * PER_LEVEL.goods ** L * crowd);
+  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** L * town.mods.factor('cost') * town.mods.factor(L ? 'cost:towerUp' : 'cost:towerNew') * crowd), goods };
 }
+/* Normal towers the town has, and how many of them cost the list price (board.crowd, the pads it had before more were
+   added). A new normal tower past that costs EXTRA_TOWER times more coin per tower over (src/data/towers.js). */
+export const normalTowers = town => (town.towers || []).filter(t => TOWERS[t.kind] && !TOWERS[t.kind].long).length;
+export const crowdOf = town => (town.def && town.def.board && town.def.board.crowd) || Infinity;
+export const crowdFactor = (town, kind) => (TOWERS[kind] && TOWERS[kind].long ? 1 : EXTRA_TOWER ** Math.max(0, normalTowers(town) + 1 - crowdOf(town)));
 export function canPay(town, c) { return town.coins + 1e-9 >= c.coins && Object.entries(c.goods).every(([g, n]) => town.has(g, n)); }
 function pay(town, c) { town.coins -= c.coins; for (const [g, n] of Object.entries(c.goods)) town.goods[g] -= n; }
 export const towerAt = (town, spot) => town.towers.find(t => t.spot === spot) || null;
 
-/* Mortar pits: the far pads. board.spots lists the near pads first; from board.far on they are pits. */
-export const isPit = (town, spot) => spot >= (town.def.board.far ?? town.def.board.spots.length);
+/* Mortar pits: the far pads, listed by index in board.pits (src/data/towns/index.js, isPitSpot). */
+export const isPit = (town, spot) => isPitSpot(town.def.board, spot);
 export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i => isPit(town, i));
 /* Is this tower kind built in this town at all? (An outpost lists its few kinds in town.def.towers.) */
 export const towerIn = (town, kind) => !!TOWERS[kind] && !(town.def && town.def.towers && !town.def.towers.includes(kind));

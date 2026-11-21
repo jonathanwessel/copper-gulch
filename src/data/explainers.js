@@ -309,6 +309,13 @@ export const EXPLAINERS = [
     when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {
+    id: 'crowd', covers: ['crowd'],
+    title: 'More towers cost more',
+    text: 'Each new tower here costs more than the one before. Upgrades cost the same as always.',
+    say: h => 'You have ' + h.towerCount + ' towers here. Each new tower costs more than the one before. Upgrades cost the same as always.',
+    when: h => h.crowded && h.t > 2,
+  },
+  {
     id: 'auto-research', covers: ['auto-research'],
     title: 'Auto-research',
     text: 'The University is built. Tap Auto and turn on Auto-research. It keeps researching the next level of what you picked before. Tap Research in any town to see what is running.',

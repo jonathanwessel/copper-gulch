@@ -9,7 +9,8 @@ import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
-import { towerIn } from '../core/defense.js';
+import { towerIn, normalTowers, crowdOf } from '../core/defense.js';
+import { isPitSpot } from '../data/towns/index.js';
 import { bossName } from './lost.js';
 import { tabs, dots } from '../core/reveal.js';
 import { nextTowns } from '../core/empire.js';
@@ -30,6 +31,8 @@ export function helper(town, game = null) {
     t: town.t, towers: town.towers || [], flags: town.flags || {}, phase: ws.phase, wave: town.wave, vault: town.vault,
     autoHold: !!ws.autoHold, // this town lost while away and holds its waves (src/core/defense.js, fall)
     // it lost a boss wave and Keep trying the boss could take the next try (src/core/automation.js)
+    crowded: normalTowers(town) >= crowdOf(town), // a new tower here now costs more (src/core/defense.js, crowdFactor)
+    towerCount: normalTowers(town),
     autoResearch: !!game && autoOpen(game, 'research'), // the University stands: Auto-research is open in every town (owner, 2026-11-20)
     bossLost: !!game && lostBoss(town) && autoOpen(game, 'retry') && !autoOf(game, town).retry,
     // another town (not a won outpost) with towers keeps fighting out of sight
@@ -42,7 +45,7 @@ export function helper(town, game = null) {
     // the Capital can found an institution or buy an upgrade (src/core/tree.js)
     treeReady: !!game && capitalOpen(game) && !!game.shared.tree && (game.shared.purse.coins >= foundCost(game) || (game.shared.capital.influence >= NODE_COST[0] && game.shared.tree.founded.length > 0)),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0 && town.starved[id] === true) || null,
-    firstPit: town.def && town.def.board && town.def.board.far < town.def.board.spots.length ? town.def.board.far : null,
+    firstPit: (() => { const B = town.def && town.def.board, i = B ? B.spots.findIndex((_, k) => isPitSpot(B, k)) : -1; return i >= 0 ? i : null; })(), // the first mortar pit (board.pits), null where there is none
     // a building whose good the town is holding back for towers right now
     keptPlot: Object.keys(town.buildings).find(id => town.level(id) > 0 && town.def && town.def.board && town.def.board.plots[id] && BUILDINGS[id] && ((town.keep || {})[BUILDINGS[id].makes] || 0) > 0 && (town.goods[BUILDINGS[id].makes] || 0) >= town.keep[BUILDINGS[id].makes] - 1e-6 && town.sell[BUILDINGS[id].makes] !== false) || null,
     // a building on the board that can get a foreman, while the town has none yet

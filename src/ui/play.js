@@ -7,7 +7,7 @@ import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } 
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, SELL_BACK } from '../data/towers.js';
-import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround } from '../core/defense.js';
+import { buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
@@ -41,6 +41,8 @@ const GOAL_LIFT = 18;
 export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
+/* On a stone pad's card once the town has its list-price towers: why a new one costs more (src/core/defense.js, crowdFactor). */
+export const crowdLine = town => { const n = normalTowers(town); return n >= crowdOf(town) ? 'You have ' + n + ' towers here. The prices below go up with each new tower.' : ''; };
 /* A good's square, in its color (GOODS[g].color). */
 const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
 
@@ -367,6 +369,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const x = el('button', 'btn small close', 'Close'); x.addEventListener('click', close);
     if (!t) {
       head.append(el('h2', null, pit ? 'Mortar pit' : 'Stone pad'), x); card.append(head);
+      const cl = pit ? '' : crowdLine(town); if (cl) card.append(el('p', 'uses crowdline', cl)); // why the price is up (owner, 2026-11-20: more pads)
       if (pit && !kinds.some(k => towerOpen(town, k))) {
         card.append(el('p', 'uses', 'You can build a Mortar here at wave ' + TOWERS.mortar.opens + '.'));
         return;

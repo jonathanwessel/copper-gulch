@@ -37,8 +37,12 @@ export const DRYCREEK = {
       [1.6, 5.9], [5.6, 5.9],      // inside the bottom corners: each reaches two sides of the loop
       [3.6, 9.2],                  // outside the bottom
       [-1.9, 3.8], [9.1, 3.8],     // outside the west and east sides
+      // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
+      [5.4, 1.5], [5.6, -.5], [1.1, 1.8], [3.4, 6.5], // pads 6-9
     ],
+    crowd: 6,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 6,                        // no mortar pits
+    pits: [],                       // the mortar pits by index (the first is `far`); the pads after them are normal ones
     frame: { x: 3.6, z: 3.6, w: 12.5, d: 12 },
     look: { sand: '#dcc08f', sandD: '#c4a06e', dirt: '#93704c', rut: '#6e5036', mesa: ['#a8705a', '#c99a6c', '#9a6650', '#d8b282'] },
   },

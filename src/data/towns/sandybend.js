@@ -34,8 +34,12 @@ export const SANDYBEND = {
     entrance: { kind: 'riverbed', mouth: [3.6, -1.8], portal: [3.6, -5.6], width: 2.4, hide: .6 },
     spots: [
       [3.6, 2.2], [1.6, 5.9], [5.6, 5.9], [3.6, 5], [3.6, 9.2], [-1.9, 3.8], [9.1, 3.8],
+      // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
+      [5.4, 1.5], [5.6, -.5], [1.1, 1.8], [3.35, 6.5], // pads 7-10
     ],
+    crowd: 7,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 7,
+    pits: [],                       // the mortar pits by index (the first is `far`); the pads after them are normal ones
     frame: { x: 3.6, z: 3.6, w: 12.5, d: 12 },
     look: { sand: '#e3cf9a', sandD: '#c9b47e', dirt: '#a88a5a', rut: '#7a6240', mesa: ['#c9a46a', '#dcb97c', '#b08e58', '#e6c890'] },
   },

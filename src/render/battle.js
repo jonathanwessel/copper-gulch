@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
 import { part, mergeStatic } from './kit.js';
 import { lanesOf } from '../core/defense.js';
+import { isPitSpot } from '../data/towns/index.js';
 import { polyDist } from './terrain.js';
 import { bridgeLift } from './board.js';
 import { pointAt } from '../core/path.js';
@@ -55,9 +56,9 @@ export class Battle {
     this.hideS = [(B0.entrance && B0.entrance.hide) || 0, (B0.river && B0.river.entrance && B0.river.entrance.hide) || 0];
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
-    const B = this.town.def.board, far = B.far ?? B.spots.length;
+    const B = this.town.def.board;
     const pads = B.spots.map(([x, z], i) => {
-      const pad = i < far
+      const pad = !isPitSpot(B, i)
         ? part(k => { k.cyl(0, 0, 0, .5, .06, 'stoneL', { seg: 8, jit: .08 }); k.cyl(0, .06, 0, .41, .015, 'stone', { seg: 8 }); })
         : part(k => { // a mortar pit: a dug-out floor in a ring of sandbags
           k.cyl(0, 0, 0, .5, .03, 'stoneD', { seg: 12 });

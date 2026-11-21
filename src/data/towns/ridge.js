@@ -47,10 +47,15 @@ export const RIDGE = {
       [3.5, 2.4], [6.5, 2.4], [3.5, 6.4], [6.5, 6.4], [3.5, 10.4], [6.5, 10.4], // between the workshops: two passes each
       [8.4, 10.4],                                                             // beside the vault
       [-1.4, 2.4], [-1.4, 10.4], [11.4, 6.4], [11.4, 1.6], [5, 14.4],          // outside the bends and the last pass
-      // mortar pits (from index `far` on): well back from the line, with several passes inside the Mortar's ring
+      // mortar pits (their indexes are in `pits`): well back from the line, with several passes inside the Mortar's ring
       [-3.4, 6.4], [13.6, 3.6], [4.4, -3.2], [2, 15.6],
+      // more pads (owner, 2026-11-20: "Add more tower pads per map"), added at the end so a saved tower keeps its pad
+      [1.9, 13.5], [-.6, 11.75], [3.65, 13.5], [-.6, 3.75], [10.65, 7.75], [-.6, 1], // pads 16-21
+      [12, 9.8], // mortar pit 22
     ],
+    crowd: 12,                     // normal towers up to this many cost the list price; each one after costs EXTRA_TOWER times the last (src/core/defense.js, towerCost)
     far: 12,
+    pits: [12, 13, 14, 15, 22],     // the mortar pits by index (the first is `far`); the pads after them are normal ones
     frame: { x: 5, z: 6.4, w: 13.6, d: 15.4 },
     look: { sand: '#b8ab92', sandD: '#9d8f77', dirt: '#6e6150', rut: '#4d4337', mesa: ['#6f6a62', '#8a8478', '#5d5850', '#9b9488'] },
   },

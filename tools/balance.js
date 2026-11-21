@@ -260,7 +260,11 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
     // a few strong towers, but no more than two of a kind (where only one kind can be built, Dry Creek, it keeps its
     // few towers: two Crossbows could not stop the bandit wagon once boss waves became gates)
-    if (S.most && Object.keys(TOWERS).filter(k => towerOpen(t, k)).length > 1) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < ((S.one || []).includes(o.kind) ? 1 : S.most));
+    // An outpost with two kinds (Pine Hollow, Sandy Bend) lets it have half its towers of each: with one Cannon and two
+    // Crossbows it stopped at 3 towers there, under its own count of 4-5 (2026.11.20-17: with more pads every other
+    // strategy won Pine Hollow 40% sooner while it sat at 3)
+    const nk = Object.keys(TOWERS).filter(k => towerOpen(t, k)).length, capOf = k => nk === 2 && isOutpost(t) ? Math.max(S.most, Math.ceil(want / 2)) : (S.one || []).includes(k) ? 1 : S.most;
+    if (S.most && nk > 1) opts = opts.filter(o => o.up || t.towers.filter(x => x.kind === o.kind).length < capOf(o.kind));
     if (S.ups) opts.sort((x, y) => (y.up - x.up) || (y.value - x.value));
     let pick = opts[0];
     // when it adds a tower and the goal strip asks for a kind it has not built yet, it builds that kind (if it can pay)

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-17',
+    lines: [
+      'Every map has more stone pads to build towers on, about half again as many.',
+      'Copper Gulch and Iron Ridge each have one more mortar pit.',
+      'Once a town has as many towers as it used to have pads, each new one costs more than the last. Upgrades cost the same.',
+    ],
+  },
+  {
     v: '2026.11.20-16',
     lines: [
       'The Research button is in every town and outpost once you have research anywhere.',

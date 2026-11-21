@@ -9,6 +9,7 @@ import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/
 import { BUILDINGS } from '../data/buildings.js';
 import { unlocked } from '../core/economy.js';
 import { Entrance } from './entrance.js';
+import { isPitSpot } from '../data/towns/index.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 
@@ -38,8 +39,7 @@ export class Board {
       if (rd < 1.2) h = lerp(-.14, h, sstep(.55, 1.2, rd)); // the riverbed, a little under the water
       if (onPlot(x, z, 1.15)) h = Math.min(h, 0); // plots are level
       // so are the pads, and a wider floor round each mortar pit (its dead zone lies on it)
-      const far = B.far ?? (B.spots || []).length;
-      (B.spots || []).forEach(([sx, sz], i) => { const d = Math.hypot(x - sx, z - sz), a = i >= far ? 1.7 : .8, b = i >= far ? 2.8 : 1.4; if (d < b) h = lerp(Math.min(h, 0), h, sstep(a, b, d)); });
+      (B.spots || []).forEach(([sx, sz], i) => { const pit = isPitSpot(B, i), d = Math.hypot(x - sx, z - sz), a = pit ? 1.7 : .8, b = pit ? 2.8 : 1.4; if (d < b) h = lerp(Math.min(h, 0), h, sstep(a, b, d)); });
       return h;
     };
     const sand = new THREE.Color(look.sand), sandD = new THREE.Color(look.sandD), dirt = new THREE.Color(look.dirt), rut = new THREE.Color(look.rut);

@@ -54,7 +54,7 @@ test('reach: from half to twice a normal tower, and the pits sit beyond a normal
 
 test('the dead zone: a raider too close is never fired at, one in the ring is', () => {
   // a test board where the first pit sits inside the bottom bend, so road passes within the dead zone
-  const g = newGame('m4', 'gulch'), t = rich(g); t.def = { ...t.def, board: { ...t.def.board, far: 6 } }; open(g, t); assert.ok(buildTower(g, t, 6, 'mortar'));
+  const g = newGame('m4', 'gulch'), t = rich(g); t.def = { ...t.def, board: { ...t.def.board, far: 6, pits: null } }; open(g, t); assert.ok(buildTower(g, t, 6, 'mortar'));
   const close = sAt(t, 6, 0, 1.2), far = sAt(t, 6, 3, 5);
   assert.ok(close !== null && far !== null);
   const ev = g.bus.record();
@@ -112,7 +112,7 @@ test('the Siege Mortar reaches 2.4 times a normal tower', () => {
 
 test('the map rule: a town with too few pits, or a pit too near the road, fails the audit', () => {
   const b = TOWNS.gulch.board;
-  const few = { x: { board: { ...b, far: b.spots.length - 2 } } };
+  const few = { x: { board: { ...b, pits: b.pits.slice(0, 2) } } };
   assert.ok(mapRules(few, ['x']).some(p => /2 mortar pits/.test(p)));
   const near = { x: { board: { ...b, spots: [...b.spots.slice(0, -1), [2.5, 3]] } } };
   assert.ok(mapRules(near, ['x']).some(p => /within a normal tower/.test(p)));

@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.20-16';
-export const GAME_NEWS = 'Research button in every town and outpost, research running everywhere on one sheet, Auto-research names what it runs';
+export const GAME_VERSION = '2026.11.20-17';
+export const GAME_NEWS = 'More tower pads on every map, extra towers cost more, Cannon grows a little slower';

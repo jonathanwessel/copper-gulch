@@ -16,7 +16,7 @@ const grow = k => TOWERS[k].grow || PER_LEVEL.dmg;
 test('a tower that hits a group grows slower each level than one that hits one raider, the Mortar slowest', () => {
   assert.equal(grow('crossbow'), PER_LEVEL.dmg, 'the Crossbow keeps the normal growth');
   for (const k of ['cannon', 'frost', 'mortar']) assert.ok(grow(k) < grow('crossbow'), k + ' grows slower');
-  assert.ok(grow('mortar') < grow('frost') && grow('frost') < grow('cannon'));
+  assert.ok(grow('mortar') < grow('frost') && grow('frost') <= grow('cannon')); // the Cannon grows like the Frost Lens since 2026.11.20-17
   // the hit at a level follows its own growth, and level 1 is unchanged
   const g = newGame('gr1', 'gulch'), t = g.town;
   for (const k of ['crossbow', 'cannon', 'frost', 'mortar']) {
@@ -29,13 +29,14 @@ test('a tower that hits a group grows slower each level than one that hits one r
 });
 
 test('Silver Falls has 3 mortar pits, only the Mortar builds there, and the map rules hold', () => {
-  const b = TOWNS.falls.board, pits = b.spots.length - b.far;
+  const b = TOWNS.falls.board, pits = b.pits.length;
   assert.equal(pits, 3);
   const g = newGame('gr2', 'gulch'); g.addTown('ridge');
   const f = TOWNS.falls.found; g.towns.ridge.bestWave = f.wave; g.town.coins = f.coins * 2; g.shared.charter.deeds = f.deeds;
   assert.ok(foundTown(g, 'falls'));
   const ft = g.towns.falls;
-  assert.deepEqual(pitSpots(ft), [12, 13, 14]);
+  assert.deepEqual(pitSpots(ft), [12, 13, 14]); // no fourth: it gave the Mortar too much of the damage (2026.11.20-17)
+  for (let i = 15; i < 22; i++) assert.ok(!isPit(ft, i) && fitsSpot(ft, i, 'crossbow'), 'pad ' + i + ' is a normal pad');
   for (const i of pitSpots(ft)) { assert.ok(isPit(ft, i)); assert.ok(fitsSpot(ft, i, 'mortar')); assert.ok(!fitsSpot(ft, i, 'crossbow')); }
   assert.deepEqual(mapRules().filter(p => p.startsWith('falls')), []);
 });
