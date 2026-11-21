@@ -862,6 +862,19 @@ async function run() {
         return Math.abs(sum - total) <= Math.max(.051, total * .002) ? '' : rows.join(' + ') + ' is not ' + document.querySelector('.mapui .inc').textContent;
       });
       if (sums) bad.push('map labels: ' + sums);
+      // every open place's label shows what its waves do (owner, 2026-11-20: "In map view it's hard to see the status of
+      // the waves in each city"), a won outpost says Raids, and no label changes its size as the timers run
+      const states = await page.evaluate(async () => {
+        const read = () => Object.fromEntries([...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden && CG.game.towns[b.dataset.site]).map(b => [b.dataset.site, { w: b.offsetWidth, h: b.offsetHeight, word: b.querySelector('.sword').textContent, mark: b.querySelector('.smark').dataset.mark, shown: !b.querySelector('.mstate').hidden }]));
+        const a = read(); await new Promise(r => setTimeout(r, 2100)); const b = read(), out = [];
+        for (const [id, x] of Object.entries(b)) {
+          if (!x.shown || !x.mark || !/^(Fighting|On hold|No towers|Retry soon|(Next|Raid) in \d:\d\d)$/.test(x.word)) out.push(id + ' shows "' + x.word + '"');
+          if (CG.game.towns[id].won && !x.word.startsWith('Raid in') && x.word !== 'Fighting') out.push(id + ' is won but shows "' + x.word + '"');
+          if (a[id] && (a[id].w !== x.w || a[id].h !== x.h) && a[id].word.split(' ')[0] === x.word.split(' ')[0]) out.push(id + ' changed size ' + a[id].w + 'x' + a[id].h + ' to ' + x.w + 'x' + x.h);
+        }
+        return out.join(', ');
+      });
+      if (states) bad.push('map states: ' + states);
       const m = await page.evaluate(() => ({
         canvases: document.querySelectorAll('canvas#view').length, town: !!CG.town, dio: CG.map.dioramas.join(), routes: CG.map.routes.join(),
         badges: [...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden).map(b => b.dataset.site + (b.classList.contains('on') ? '*' : '')).join(),

@@ -9,7 +9,7 @@ import { CAPITAL_DEF } from '../data/capital.js';
 import { INSTITUTIONS, boughtText, outpostWords } from '../data/institutions.js';
 import { isOutpost } from '../core/economy.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
-import { fmt, haveWords } from './format.js';
+import { fmt, haveWords, priceOver } from './format.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 /* A line with a small label chip in front ("Next" and what it does), so no dot stands where a colon would go (review of 2026.11.20-5). */
@@ -105,8 +105,8 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
 /* What the second tap on Give up or Switch costs: the goods already sent stay at the Capital, unpaid. */
 export const lostAsk = a => (a.got >= 1 ? 'Lose ' + fmt(Math.floor(a.got)) + ' sent?' : 'Tap again');
 
-/* "35 Influence · have 12", red when short. */
-function cost(small, have, need, unit) { setText(small, fmt(need) + ' ' + unit + ' · ' + haveWords(Math.floor(have))); // the price first (review of 2026.11.20-14)
+/* "35 Influence" over "have 12", red when short. */
+function cost(small, have, need, unit) { priceOver(small, need, unit, have); // the price over what you have, as on every card (review of 2026.11.20-15)
   small.classList.toggle('short', have + 1e-9 < need); }
 
 /* The Institutions tab: one row per institution. Not founded, what it does and Found. Founded, how many upgrades it has

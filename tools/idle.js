@@ -22,7 +22,7 @@
 // Why halves and not every 3-hour block: a town at its wall breaks in and drops back every few minutes, so its bounties
 // swing by up to 2M coins an hour; seed 6 earned 11.2M, 9.4M, 9.8M and 14.7M in its four blocks.
 // Prints a table per seed and "ok" or the misses.
-import { empire, CAP_AT } from './balance.js';
+import { empire, CAP_AT, nearMin, nearMax, nearWin, printClose } from './balance.js';
 import { STEP } from '../src/core/clock.js';
 import { KINDS, autoOpen, setAuto, setForemen, lostTry } from '../src/core/automation.js';
 import { setHold, bossWave } from '../src/core/defense.js';
@@ -129,6 +129,13 @@ export function idleCheck(runs, cap = Math.min(AUTO.share, SHARE)) {
     if (r.capital == null) { misses.push(`seed ${r.seed}: the Capital was never built`); continue; }
     if (r.capital < CAP_AT[0] * 60 || r.capital > CAP_AT[1] * 60) misses.push(`seed ${r.seed}: the Capital built at ${(r.capital / 3600).toFixed(2)} h (want ${CAP_AT.map(x => x / 60).join('-')} h)`);
     const n = r.hours.length, sum = (a, b) => r.hours.slice(a, b).reduce((s, x) => s + x.income - (x.trade - (x.sales ?? x.trade)), 0), half = Math.floor(n / 2);
+    // gates within 5% of their limit print a close line (Gate margins, 2026-11-20)
+    nearWin(`seed ${r.seed}: the Capital built at ${(r.capital / 3600).toFixed(2)} h`, r.capital, CAP_AT.map(x => x * 60));
+    if (n >= 2) nearMin(`seed ${r.seed}: idle hours ${half + 1}-${n} earned ${fmtK(sum(half, n))} against ${fmtK(sum(0, half))}`, sum(half, n) / sum(0, half), 1);
+    if (n >= 2 * BLOCK) nearMin(`seed ${r.seed}: the last ${BLOCK} idle hours earned ${fmtK(sum(n - BLOCK, n))} against ${fmtK(sum(0, BLOCK))}`, sum(n - BLOCK, n) / sum(0, BLOCK), 1);
+    for (let h = 1; h < r.hours.length; h++) nearMin(`seed ${r.seed}: idle hour ${h + 1} sold ${Math.round(100 * (r.hours[h].sales ?? r.hours[h].trade) / (r.hours[0].sales ?? r.hours[0].trade))}% of hour 1 (limit ${Math.round(100 * TRADE_HOLD)}%)`, (r.hours[h].sales ?? r.hours[h].trade) / (r.hours[0].sales ?? r.hours[0].trade), TRADE_HOLD);
+    // (not the towers' share of the coins: Auto-towers spends at most that cap by design, so it always sits on it)
+    if (false && r.top) nearMax(`seed ${r.seed}: ${r.top.kind} spent ${Math.round(100 * r.top.share)}% of the coins on hand (cap ${Math.round(100 * cap)}%)`, r.top.share, cap);
     if (n >= 2 && !(sum(half, n) > sum(0, half))) misses.push(`seed ${r.seed}: idle hours ${half + 1}-${n} earned ${fmtK(sum(half, n))}, not more than hours 1-${half} (${fmtK(sum(0, half))})`);
     if (n >= 2 * BLOCK && !(sum(n - BLOCK, n) > sum(0, BLOCK))) misses.push(`seed ${r.seed}: the last ${BLOCK} idle hours earned ${fmtK(sum(n - BLOCK, n))}, not more than the first ${BLOCK} (${fmtK(sum(0, BLOCK))})`);
     const sold = x => x.sales ?? x.trade;
@@ -151,6 +158,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/idle.
     console.log(`  boss: ${r.retry.lost} lost, ${r.retry.tries} tries again, ${r.retry.beaten} beaten | most one purchase took: ${r.top ? Math.round(100 * r.top.share) + '% (' + r.top.kind + ' in ' + r.top.town + ', ' + fmtK(r.top.coins) + ')' : 'nothing bought'}`);
   }
   const misses = idleCheck(runs);
+  printClose();
   console.log(misses.length ? misses.map(x => 'FAIL ' + x).join('\n') : 'ok');
   process.exitCode = misses.length ? 1 : 0;
 }

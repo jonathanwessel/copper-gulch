@@ -96,6 +96,15 @@ export function vaultCount(v) {
 }
 /* What you have, under a price: "have 400" (review of 2026.11.20-14: "400 / 12 coins" read as 400 out of 12). */
 export const haveWords = n => 'have ' + fmtLive(Math.max(0, n));
+/* A price over what you have, as every cost reads ("600 coins" over "have 10.0K", review of 2026.11.20-15: research
+   and the Capital still wrote them on one line). Writes into a node as <b> and <small>, only when the words change. */
+export function priceOver(node, need, unit, have) {
+  const top = fmt(need) + ' ' + unit, low = haveWords(Math.floor(have)), sig = top + '|' + low;
+  if (node.dataset.p === sig) return;
+  node.dataset.p = sig;
+  const b = document.createElement('b'), s = document.createElement('small');
+  b.textContent = top; s.textContent = low; node.classList.add('pover'); node.replaceChildren(b, s);
+}
 /* How long ago, from milliseconds: "just now", "5 min ago", "3 h ago", "2 days ago". */
 export function ago(ms) {
   const s = Math.max(0, ms) / 1000;

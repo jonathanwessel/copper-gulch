@@ -29,7 +29,7 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   g = gulch('rb1', 20, 500);
   const hold = goalNow(g);
   assert.equal(hold.id, 'g-hold');
-  assert.equal(hold.text, 'Tap Hold waves so no wave can cost you coins');
+  assert.equal(hold.text, 'Tap Hold waves while you save for Iron Ridge');
   assert.deepEqual(hold.at(goalContext(g, g.town)), { el: '#holdWaves' });
   g.town.waves.hold = true; g.step(.25); // held: that step is done, and the next one counts the coins
   const save = goalNow(g);
@@ -41,7 +41,7 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   g.town.coins = 15000;
   const go = goalNow(g);
   assert.equal(go.id, 'g-found');
-  assert.equal(go.text, 'Tap Map, Iron Ridge, then Start Iron Ridge');
+  assert.equal(go.text, 'Tap Map, then tap Iron Ridge to start it');
   assert.deepEqual(go.at({ back: 'drycreek' }), { el: '#mapBtn', go: 'ridge' });
   foundTown(g, 'ridge'); g.step(.25);
   assert.ok(g.shared.goals.done['g-save'] && g.shared.goals.done['g-found'], 'both done once the Ridge is founded');

@@ -54,12 +54,12 @@ test('a lined-up research waits for coins, can be taken off the line, and never 
 });
 
 test('a save from before research could line up loads with nothing lined up', () => {
-  assert.equal(SAVE_VERSION, 20);
+  assert.ok(SAVE_VERSION >= 20);
   const g = newGame('q3', 'gulch'), raw = JSON.parse(encode(g, 1));
   for (const t of Object.values(raw.game.towns)) delete t.labNext;
   raw.v = 19;
   const m = migrate(raw);
-  assert.equal(m.v, 20);
+  assert.equal(m.v, SAVE_VERSION);
   for (const t of Object.values(m.game.towns)) assert.equal(t.labNext, null);
   assert.ok(decode(JSON.stringify(m)));
 });

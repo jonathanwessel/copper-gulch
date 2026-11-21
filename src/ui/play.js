@@ -29,7 +29,7 @@ const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (stri
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
-import { waveSheet, waveTimer } from './wave.js';
+import { waveSheet, waveTimer, waveTitle } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -175,7 +175,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
-  const openWave = () => sheets.open('wave', 'Wave ' + town.wave, waveSheet(town));
+  const openWave = () => sheets.open('wave', waveTitle(town), waveSheet(town));
   waveBtn.addEventListener('click', openWave);
   goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); perksBtn.addEventListener('click', openPerks);
 
@@ -698,7 +698,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     paintStrip(); paintCoinCosts();
     sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;
-    setText(waveNum, 'Wave ' + town.wave);
+    setText(waveNum, waveTitle(town)); // a won outpost says Raids, not a wave number that never moves (owner, 2026-11-20)
     wave.classList.toggle('old', oldGround(town)); // gold while the towers hit harder on waves beaten before (review of 2026.11.19-12)
     setText(vault, vaultCount(town.vault)); const vlow = town.vault.hp < .5 * town.vault.max; if (vault.classList.contains('low') !== vlow) vault.classList.toggle('low', vlow);
     paintCtl();

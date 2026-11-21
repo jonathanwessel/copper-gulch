@@ -2,6 +2,7 @@
    works out: the starting value, one row per level, path, market or bonus, and the total. Also the Income sheet
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
+import { heart } from './heart.js';
 import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive } from './format.js';
 import { explainVault } from '../core/explain.js';
 
@@ -134,7 +135,8 @@ export function vaultSheet(town) {
       const ex = explainVault(town), s = JSON.stringify([ex.rows, ex.value, ex.left]);
       if (s === sig) return; sig = s;
       const box = explainBox(ex, { total: 'Full strength' }), left = el('div', 'total');
-      left.append(el('span', null, 'Hits left'), el('b', null, unitText('hits', ex.left)));
+      const hits = el('b', 'hitsleft'); hits.append(heart(), el('span', null, unitText('hits', ex.left))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
+      left.append(el('span', null, 'Hits left'), hits);
       box.append(left); top.replaceChildren(box);
       each.replaceChildren(...ex.raiders.map(r => { const d = el('div'); d.append(el('span', null, r.label), el('b', null, unitText('hits', r.hits))); return d; }));
     };

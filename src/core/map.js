@@ -16,6 +16,7 @@ import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
 import { retryState } from './automation.js';
+import { waitsAway } from './defense.js';
 
 /* The map is open once a second town is, or a town to start is in sight (its Start card lives on the map). */
 export const mapOpen = game => Object.keys(game.towns).length > 1 || nextTowns(game).length > 0;
@@ -85,6 +86,28 @@ export function siteInfo(game, id, meter = null) {
     income: meter ? meter.income[id] || 0 : 0,
     alert: retryState(game, t) === 'wait' ? 'retry' : retryState(game, t) === 'climb' ? 'retrying' : t.waves && t.waves.autoHold ? 'lost' : game.active !== id && (t.breaches || 0) > ((t.flags && t.flags.breachSeen) || 0) ? 'raided' : vault < .5 ? 'vault' : short ? 'short' : null, short, needs,
   };
+}
+
+/* What a town's waves are doing, the same words in every town (owner, 2026-11-20: "In map view it's hard to see the
+   status of the waves in each city"): { state, timer, left, size, wave, raid }, where state is
+     'fight'  a wave (or a won outpost's raid) is on the road: left raiders of size still to come or riding;
+     'next'   counting down to the next wave: timer seconds;
+     'raids'  a won outpost counting down to its next light raid (raid: seconds between raids);
+     'hold'   its waves are held: by the player, or after a loss (needs: the player must go there), or by Keep trying
+              the boss while Auto waits for a tower to go up a level (needs false);
+     'wait'   out of play with no tower yet, so its clock waits for the player (src/core/defense.js, waitsAway).
+   null for a place not open. */
+export function siteState(game, id) {
+  const t = game.towns[id];
+  if (!t || !t.waves) return null;
+  const ws = t.waves, raid = t.won ? (t.def.raid || 120) : 0, base = { wave: t.wave || 0, won: !!t.won, raid };
+  if (ws.phase !== 'break') {
+    const left = (ws.queue || []).length + (ws.foes || []).filter(f => f.hp > 0).length;
+    return { ...base, state: 'fight', left, size: Math.max(left, ws.size || 0), timer: 0 };
+  }
+  if (ws.hold) return { ...base, state: 'hold', needs: retryState(game, t) !== 'wait', timer: ws.timer, left: 0, size: 0 };
+  if (waitsAway(game, t)) return { ...base, state: 'wait', timer: ws.timer, left: 0, size: 0 };
+  return { ...base, state: t.won ? 'raids' : 'next', timer: Math.max(0, ws.timer), left: 0, size: 0 };
 }
 
 /* The outposts that make a good (an outpost's goods go to the towns that use them). */

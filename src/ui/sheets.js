@@ -17,7 +17,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -276,9 +276,9 @@ export function researchSheet(game, town) {
           : block === 'max' ? 'All ' + r.max + ' levels done'
           : [levelsDone(L, r.max), 'takes ' + span(researchTime(town, id))].map(keep).join(' · ');
         if (x.info.textContent !== info) x.info.textContent = info;
-        const need = researchCost(town, id), pt = fmt(need) + ' coins · ' + haveWords(town.coins); // the price first (review of 2026.11.20-14)
+        const need = researchCost(town, id); // the price over what you have, as on every card (review of 2026.11.20-15)
         x.costs.hidden = !!lab || block === 'max';
-        if (x.price.textContent !== pt) x.price.textContent = pt;
+        priceOver(x.price, need, 'coins', town.coins);
         x.price.classList.toggle('low', town.coins + 1e-9 < need);
         x.bar.hidden = !lab;
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }

@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.20-18',
+    lines: [
+      'On the map, every town shows what its waves are doing. Fighting, the time to the next wave, or On hold in red.',
+      'A won outpost shows Raids and the time to the next raid. Its raids keep coming and its towers hold them.',
+      'A thin bar under each map label fills as raiders fall or the next wave gets close.',
+      'Research and Capital prices show the price first, with what you have under it.',
+    ],
+  },
+  {
     v: '2026.11.20-17',
     lines: [
       'Every map has more stone pads to build towers on, about half again as many.',

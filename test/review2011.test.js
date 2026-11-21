@@ -57,7 +57,7 @@ test('plainer words for the old-wave bonus, the foreman, the hold goal and the s
   assert.equal(STOCK_LABEL, 'Each tower keeps goods for');
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   assert.ok(read('src/ui/play.js').includes("'Keep for towers'"), 'the building card uses the same name');
-  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves so no wave can cost you coins', 'Won before signing']) assert.deepEqual(textIssues(s), []);
+  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves while you save for Iron Ridge', 'Won before signing']) assert.deepEqual(textIssues(s), []);
 });
 
 test('towers name the town\'s own boss, and the Rail Office names the outposts', () => {

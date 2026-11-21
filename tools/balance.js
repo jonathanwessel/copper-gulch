@@ -646,6 +646,8 @@ export function empireCheck(runs) {
   const m = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';
   for (const e of runs.filter(e => e.strategy === 'active')) {
     const s = e.dc.seed;
+    nearWin(`seed ${s}: Iron Ridge founded at ${m(e.found)} (window ${FOUND_MIN}-${FOUND_MAX} min)`, e.found, [FOUND_MIN * 60, FOUND_MAX * 60]);
+    nearWin(`seed ${s}: Iron Ridge wave 10 at ${m(e.ridge && e.ridge.w10)} (window ${RIDGE_W10.join('-')} min)`, e.ridge && e.ridge.w10, RIDGE_W10.map(x => x * 60));
     if (e.found === null || e.found < FOUND_MIN * 60 || e.found > FOUND_MAX * 60) misses.push(`seed ${s}: Iron Ridge founded at ${m(e.found)} of play (want ${FOUND_MIN}-${FOUND_MAX} min)`);
     if (!e.ph || e.ph.won === null || e.ph.won > PH_MAX * 60) misses.push(`seed ${s}: Pine Hollow won at ${m(e.ph && e.ph.won)} after getting there (want within ${PH_MAX} min)`);
     if (!e.ridge || e.ridge.w10 === null || e.ridge.w10 < RIDGE_W10[0] * 60 || e.ridge.w10 > RIDGE_W10[1] * 60) misses.push(`seed ${s}: Iron Ridge wave 10 at ${m(e.ridge && e.ridge.w10)} after getting there (want ${RIDGE_W10[0]}-${RIDGE_W10[1]} min)`);
@@ -660,6 +662,7 @@ export function empireCheck(runs) {
   const names = { found: 'Iron Ridge founded', ph: 'Pine Hollow won', w10: 'Ridge wave 10' };
   for (const key of ['found', 'ph', 'w10']) {
     const best = Math.min(...rows.map(x => x[key] ?? Infinity));
+    for (const x of rows) nearMax(`${x.strategy}: ${names[key]} ${Math.round(100 * (x[key] / best - 1))}% behind the best (limit 25%)`, x[key] / best, STRATEGY_SLACK);
     for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${names[key]} at ${m(x[key])}, more than 25% behind the best (${m(best)})`);
   }
   return { rows, misses };
@@ -675,6 +678,7 @@ export function capitalCheck(runs) {
   const misses = [];
   for (const e of runs) {
     if (e.capital == null) { misses.push('seed ' + e.dc.seed + ': the Capital was never built'); continue; }
+    nearWin('seed ' + e.dc.seed + ': the Capital built at ' + (e.capital / 60).toFixed(0) + ' min (window ' + CAP_AT.join('-') + ')', e.capital, CAP_AT.map(x => x * 60));
     if (e.capital < CAP_AT[0] * 60 || e.capital > CAP_AT[1] * 60) misses.push('seed ' + e.dc.seed + ': the Capital built at ' + (e.capital / 60).toFixed(0) + ' min (want ' + CAP_AT.join('-') + ')');
     if (!e.contracts || e.contracts.filled < 1) misses.push('seed ' + e.dc.seed + ': no contract filled in ' + CAP_PLAY + ' min');
     // the Empire tree: an upgrade every TREE_GAP minutes for the active bot
@@ -698,6 +702,8 @@ export function fallsCheck(actives, strat) {
   const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
   for (const e of actives) {
     const s = e.dc.seed, f = e.falls, im = f && f.imports;
+    nearWin(`seed ${s}: Silver Falls founded at ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} (window ${FALLS_AT[0] / 60}-${FALLS_AT[1] / 60} h)`, e.fallsFound, FALLS_AT.map(x => x * 60));
+    if (f) nearWin(`seed ${s}: Silver Falls wave 10 at ${m(f.w10)} (window ${FALLS_W10.join('-')} min)`, f.w10, FALLS_W10.map(x => x * 60));
     if (e.fallsFound == null || e.fallsFound < FALLS_AT[0] * 60 || e.fallsFound > FALLS_AT[1] * 60) misses.push(`seed ${s}: Silver Falls founded at ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} of play (want ${FALLS_AT[0] / 60}-${FALLS_AT[1] / 60} h)`);
     if (!e.sb || e.sb.won == null || e.sb.won > SB_MAX * 60) misses.push(`seed ${s}: Sandy Bend won at ${m(e.sb && e.sb.won)} after getting there (want within ${SB_MAX} min)`);
     if (!f) continue;
@@ -714,6 +720,7 @@ export function fallsCheck(actives, strat) {
     return { strategy: k, n: rs.length, w10: med(rs.map(r => r.w10)), early: rs.filter(r => r.breaches.some(w => w <= 3)).length, wave: med(rs.map(r => r.final.best)), dealt, bought, runs: rs };
   });
   const best = Math.min(...rows.map(x => x.w10 ?? Infinity));
+  for (const x of rows) nearMax(`${x.strategy}: Silver Falls wave 10 ${Math.round(100 * (x.w10 / best - 1))}% behind the best (limit 25%)`, x.w10 / best, STRATEGY_SLACK);
   for (const x of rows) if (x.w10 === null || x.w10 > best * STRATEGY_SLACK) misses.push(`${x.strategy}: Silver Falls wave 10 at ${m(x.w10)}, more than 25% behind the best (${m(best)})`);
   for (const x of rows) if (x.early) misses.push(`${x.strategy}: a breach in Silver Falls' waves 1-3 on ${x.early} seed(s)`);
   const kinds = Object.keys(TOWERS).filter(k => TOWERS[k].goods.falls);
@@ -736,6 +743,7 @@ export function strategies(seeds = SEEDS) {
   const misses = [];
   for (const key of ['won', 'wave10', 'wave20']) {
     const best = Math.min(...rows.map(x => x[key] ?? Infinity));
+    for (const x of rows) nearMax(`${x.strategy}: ${key} ${Math.round(100 * (x[key] / best - 1))}% behind the best (limit 25%)`, x[key] / best, STRATEGY_SLACK);
     for (const x of rows) if (x[key] === null || x[key] > best * STRATEGY_SLACK) misses.push(`${x.strategy}: ${key === 'won' ? 'Dry Creek won' : key === 'wave10' ? 'wave 10' : 'wave 20'} at ${x[key] === null ? 'never' : (x[key] / 60).toFixed(1) + ' min'}, more than 25% behind the best (${(best / 60).toFixed(1)} min)`);
   }
   for (const x of rows) if (x.early) misses.push(`${x.strategy}: a breach in waves 1-3 on ${x.early} seed(s)`);
@@ -748,10 +756,19 @@ export function strategies(seeds = SEEDS) {
    run of another town (Silver Falls, since M5); lead: false leaves out the second check there (fallsCheck has its own:
    no one kind leads every wave). */
 export const SHARE_MAX = .36; // "about 35%"
+/* Gate margins (roadmap review, 2026-11-20): a gate within MARGIN of its limit prints a "close" line with the run's
+   result, so the next change that tips it is expected, not a surprise (the economy Cannon sat at 35.4% against 36% for
+   weeks before the new pads tipped it; idle seed 6 passed by 10%, then failed). */
+export const MARGIN = .05, CLOSE = [];
+export const nearMax = (what, v, max) => { if (v != null && Number.isFinite(v) && v <= max && v > max * (1 - MARGIN)) CLOSE.push(what); };
+export const nearMin = (what, v, min) => { if (v != null && Number.isFinite(v) && v >= min && v < min * (1 + MARGIN)) CLOSE.push(what); };
+export const nearWin = (what, v, [lo, hi]) => { nearMin(what, v, lo); nearMax(what, v, hi); };
+export const printClose = () => { if (CLOSE.length) console.log([...new Set(CLOSE)].map(x => 'close ' + x).join(String.fromCharCode(10))); };
 export function towerBalance(rows, where = '', lead = true) {
   const misses = [], led = new Set();
   for (const x of rows) {
     const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1;
+    for (const [k, n] of Object.entries(x.dealt)) nearMax(`${where ? where + ', ' : ''}${x.strategy}: ${k} does ${(100 * n / tot).toFixed(1)}% of the damage (limit ${Math.round(100 * SHARE_MAX)}%)`, n / tot, SHARE_MAX);
     for (const [k, n] of Object.entries(x.dealt)) if (n / tot > SHARE_MAX) misses.push(`${where ? where + ', ' : ''}${x.strategy}: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
     for (const r of x.runs) for (const [, k, n] of r.top) if (n > 1) led.add(k);
   }
@@ -867,5 +884,6 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
     + (v.never.length ? ' · never the best buy in the first hour: ' + v.never.join(', ') : '')
     + (v.oneKind ? ' · ' + v.oneKind + ' does the most damage in every wave' : ' · wave leaders: ' + v.tops.join(', ')));
   console.log(misses.length ? misses.map(m => 'FAIL ' + m).join('\n') : 'ok');
+  printClose(); // gates within 5% of their limit (Gate margins)
   process.exitCode = misses.length ? 1 : 0;
 }

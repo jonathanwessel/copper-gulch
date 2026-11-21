@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 21;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -149,6 +149,16 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t && t.labNext === undefined) t.labNext = null;
     return { ...s, v: 20, game: g };
+  },
+  // v21: a wave keeps how many raiders it started with (waves.size, for the map's progress bar): a wave on the road
+  // counts what is left
+  20: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) {
+      const w = t && t.waves;
+      if (w && w.size === undefined) w.size = w.phase === 'wave' ? (w.queue || []).length + (w.foes || []).length : 0;
+    }
+    return { ...s, v: 21, game: g };
   },
 };
 

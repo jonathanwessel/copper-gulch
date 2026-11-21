@@ -149,7 +149,7 @@ export function startWave(game, town, rush = 0) {
   // a called wave brings more raiders (RUSH.more): copies of its own, in order, so the random stream is untouched
   for (let i = 0, extra = Math.round(n * (wavesOf(town).rushMore ?? RUSH.more) * rush); i < extra; i++) q.push(q[i % n]);
   if (boss) q.push(boss);
-  ws.phase = 'wave'; ws.type = type; ws.queue = q; ws.timer = 0; ws.age = 0; ws.gap = wavesOf(town).gap(w) * WAVE_TYPES[type].gap;
+  ws.phase = 'wave'; ws.type = type; ws.queue = q; ws.size = q.length; ws.timer = 0; ws.age = 0; ws.gap = wavesOf(town).gap(w) * WAVE_TYPES[type].gap;
   game.bus.emit('wave:start', { town: town.id, wave: w, type, boss: bossWave(town, w) });
   return true;
 }

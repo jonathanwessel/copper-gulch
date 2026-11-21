@@ -360,11 +360,30 @@ html.flat .tag { position: static; transform: none !important; }
 .mapbadge .heart { width: 11px; height: 10px; }
 .mapbadge .mvault[hidden] { display: none; }
 .mapbadge .vnum { width: auto; font-size: inherit; }
-.mapbadge .minc { color: var(--good); }
+.hitsleft { display: inline-flex; align-items: center; gap: 5px; } .statgrid .heart { width: 11px; height: 10px; vertical-align: -1px; }
+.pover b, .pover small { display: block; font: inherit; } /* a price over what you have (src/ui/format.js, priceOver) */
+.pover small { font-size: .85em; opacity: .85; }
+.pover.short b, .pover.short small, .pover.low b, .pover.low small { color: var(--bad); } /* red when short (review of 2026.11.20-18: the Capital's have line stayed yellow) */
+.mapbadge .minc { color: var(--good); display: inline-block; min-width: 9ch; text-align: left; font-variant-numeric: tabular-nums; } /* "· +29/s" to "· +3.9K/s" in one width */
 .mapbadge .mline .minc::before { content: "· "; color: var(--ink); } /* "Wave 10 · +29/s" */
 .mapbadge .minc:empty { display: none; }
-.mapbadge.small .mline, .mapbadge.small .minc { display: none; } /* crowded: just the name (src/ui/map.js, crowdedBadges) */
-.mapbadge.small { min-width: 0; align-content: center; }
+/* the waves' state (src/ui/state.js): a mark, one fixed-width word with tabular digits, and a thin bar along the bottom */
+.mapbadge .mstate { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); }
+.mapbadge .mstate[hidden], .mapbadge .sbar[hidden] { display: none; }
+.mapbadge .smark { display: inline-block; width: 9px; height: 9px; flex: none; }
+.mapbadge .smark svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.mapbadge .sword { display: inline-block; width: 12ch; text-align: left; font-variant-numeric: tabular-nums; }
+.mapbadge .mstate[data-state="fight"] { color: var(--copper-hi); }
+.mapbadge .mstate[data-state="fight"] .smark { animation: markPulse 1.6s ease-in-out infinite; }
+.mapbadge .mstate[data-state="raids"] { color: var(--good); }
+.mapbadge .mstate.needs { color: #ff6b5b; }
+@keyframes markPulse { 50% { opacity: .45; } }
+.mapbadge .sbar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .35); pointer-events: none; }
+.mapbadge .sbar i { display: block; height: 100%; width: 0; background: var(--copper); }
+.mapbadge .sbar[data-state="fight"] i { background: var(--copper-hi); }
+.mapbadge .sbar[data-state="raids"] i { background: var(--good); }
+.mapbadge.small .mline, .mapbadge.small .minc, .mapbadge.small .sbar { display: none; } /* crowded: the name and the state's mark and word on one row (src/ui/map.js, crowdedBadges; review of 2026.11.20-18: a mark alone said nothing) */
+.mapbadge.small { min-width: 0; align-content: center; grid-auto-flow: column; gap: 5px; }
 .mapbadge.on { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 2px 2px 0 rgba(22, 15, 11, .6); }
 .mapbadge.locked { background: #2e211a; border-style: dashed; color: var(--muted); }
 .mapbadge.locked b { color: var(--muted); }

@@ -2,6 +2,7 @@
 // what they measure, the Goods switch named like each building's Keep switch, the bonus named, the path price first,
 // one name for one thing (the town's boss, Build and Upgrade at the Capital, the Copper Camp), charter and deeds
 // explained on Perks, the Cannon's best target, Sandy Bend goals, and a selection kept clear of the goods strip.
+import { stateWord } from '../src/ui/state.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -63,7 +64,7 @@ test('the Capital says Influence the same way on its card and map label, and the
   assert.equal(influenceWords(10.7), '10 Influence');
   const map = read('src/ui/map.js');
   assert.ok(map.includes('Influence') && map.includes("id = 'influence'")); // under the coins since review of 2026.11.20-10
-  assert.ok(map.includes("info.alert === 'retry' ? ' · On hold'"));
+  assert.ok(stateWord({ state: 'hold', needs: true }) === 'On hold'); // the state row since 2026.11.20-18
   assert.ok(map.includes('Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.'));
   assert.match(read('src/data/towns/ridge.js'), /makesText: 'iron, steel, rails, boilers and locomotives'/);
 });
@@ -93,7 +94,7 @@ test('Sandy Bend has its own goals, walking to the win and back to Silver Falls;
   const g = newGame('sb1', 'gulch'); g.addTown('sandybend'); g.go('sandybend'); g.step(.25);
   assert.equal(goalNow(g, false).id, 's-tower');
   for (const id of ['f-copper', 'f-steel', 'f-rails', 'r-tools']) assert.match(GOALS.find(x => x.id === id).text, /^Tap Map, /, id + ' names what to tap');
-  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves so no wave can cost you coins');
+  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves while you save for Iron Ridge');
 });
 
 test('a selection slides clear of the goods strip as well as the card', () => {

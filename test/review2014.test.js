@@ -2,6 +2,7 @@
 // same at a town and an outpost; a price reads first with "have" under it; the path card says either path costs it; the
 // old-wave row says why; plainer switch, research, contract and map words; the strip keeps to one row in short
 // landscape so a picked building and its ring stay clear of it.
+import { stateWord } from '../src/ui/state.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -36,8 +37,8 @@ test('a price comes first, with what you have under it', () => {
   assert.ok(play.includes("const coinCost = need => fmt(need) + ' coins'"));
   assert.ok(play.includes("el('small', 'hv hn', haveWords(have))"));
   assert.ok(play.includes("el('small', null, 'Either path costs')"));
-  assert.ok(sheets.includes("pt = fmt(need) + ' coins · ' + haveWords(town.coins)"));
-  assert.ok(cap.includes("fmt(need) + ' ' + unit + ' · ' + haveWords(Math.floor(have))"));
+  assert.ok(sheets.includes("priceOver(x.price, need, 'coins', town.coins)")); // price over have since 2026.11.20-18
+  assert.ok(cap.includes('priceOver(small, need, unit, have)'));
   assert.match(html, /\.costrow \.need \{ display: inline-flex; flex-direction: column;/);
   for (const s of ['have 400', 'Either path costs', '35 Influence · have 12']) assert.deepEqual(textIssues(s), [], s);
 });
@@ -51,7 +52,7 @@ test('the words the review flagged', () => {
   const sheets = read('src/ui/sheets.js'), cap = read('src/ui/capital.js'), map = read('src/ui/map.js');
   assert.ok(sheets.includes("lineUp ? 'Research next' : 'Research'") && !sheets.includes("'Do next'"));
   assert.ok(cap.includes("el('button', 'btn small', 'Give up'); drop.id = 'contractDrop';") && !cap.includes("'Drop'"));
-  assert.ok(map.includes("info.alert === 'retry' ? ' · On hold'") && !map.includes("' · Waiting'"));
+  assert.ok(stateWord({ state: 'hold', needs: true }) === 'On hold' && !map.includes("' · Waiting'"));
   assert.ok(map.includes('That town starts over at wave 1 and you get deeds.'));
   for (const s of ['Won before signing', 'Each tower keeps goods for', '2 upgrades', 'Research next', 'Give up', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.']) assert.deepEqual(textIssues(s), [], s);
 });

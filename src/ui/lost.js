@@ -45,5 +45,5 @@ export function retryLine(game, town) {
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */
 export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
-  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.') + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.';
+  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.') + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play, then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
 }

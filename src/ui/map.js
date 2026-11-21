@@ -4,7 +4,8 @@
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { siteInfo, lockedRules, mapRoutes, makesOf } from '../core/map.js';
+import { siteInfo, siteState, lockedRules, mapRoutes, makesOf } from '../core/map.js';
+import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive, splitLive, vaultCount } from './format.js';
 import { heart } from './heart.js';
@@ -144,10 +145,14 @@ export function mountMap(root, game, view, shell) {
     const b = el('button', 'mapbadge'); b.dataset.site = s.id;
     const nm = el('b', '', shortOf(s.id)), line = el('span', 'mline'), vault = el('span', 'mvault'), fill = el('span', 'vnum'), extra = el('span', 'minc');
     vault.append(el('span', '', '·'), heart(), fill); // the wave bar's heart and count, "♥ 12" (review of 2026.11.20-14; review of 2026.11.20-13: a bar with no word)
-    b.append(nm, line); line.append(extra); // the wave and what it earns on one line: two lines tall, so a label covers less of the town above it (review of 2026.11.20-13: Iron Ridge's label over Pine Hollow)
+    // the waves' state on its own row: a mark, a word in a fixed cell and a thin bar (owner, 2026-11-20: "In map view it's
+    // hard to see the status of the waves in each city"); a crowded label keeps the mark beside its name
+    const st = el('span', 'mstate'), mark = markEl(), word = el('span', 'sword'), bar = el('i', 'sbar'), barFill = el('i');
+    bar.append(barFill); st.append(mark, word);
+    b.append(nm, line, st, bar); line.append(extra); // the wave and what it earns on one line: two lines tall, so a label covers less of the town above it (review of 2026.11.20-13: Iron Ridge's label over Pine Hollow)
     b.addEventListener('click', () => openSite(s.id));
     badges.append(b);
-    badge[s.id] = { b, line, vault, fill, extra, wave: el('span') };
+    badge[s.id] = { b, line, vault, fill, extra, wave: el('span'), st, mark, word, bar, barFill };
     badge[s.id].line.prepend(badge[s.id].wave, vault);
   }
 
@@ -182,7 +187,10 @@ export function mountMap(root, game, view, shell) {
       kids.push(head(d.name, '')); // no "Playing now": its label's yellow border marks it, and Play beside it read as a second answer (review of 2026.11.20-13)
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
-      grid.append(stat(info.won ? 'Won' : 'Wave', info.won ? 'Wave ' + info.wave : String(info.wave)), stat(store + ' can take', vaultHits(t), info.alert === 'vault' ? 'low' : ''), sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
+      const ss = siteState(game, id);
+      for (const line of stateLines(ss, { lost: info.alert === 'lost' || info.alert === 'retry' })) kids.push(el('p', 'note state', line)); // the waves now, in words, as its label shows them
+      const vs = stat(store + ' can take', vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
+      grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
       // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);
@@ -251,6 +259,25 @@ export function mountMap(root, game, view, shell) {
   // each label's rate is its share of the top bar's +N/s, so the labels add up to it (review of 2026.11.19-6); a town on
   // hold still earns from its buildings, so it shows its rate too and says On hold after its wave
   let rates = { words: {}, nums: {} };
+  // each countdown's full length, seen when it starts, so the bar fills as the time runs out
+  const spans = {};
+  function paintState(id, B, ss) {
+    B.st.hidden = B.bar.hidden = !ss;
+    if (!ss) return;
+    const sp = spans[id] || (spans[id] = { state: null, span: 0, last: 0 });
+    if (ss.state === 'next' || ss.state === 'raids') {
+      if (sp.state !== ss.state || ss.timer > sp.last + .5) sp.span = Math.max(ss.timer, 1);
+      sp.last = ss.timer;
+    }
+    sp.state = ss.state;
+    setMark(B.mark, stateMark(ss)); setText(B.word, stateWord(ss));
+    const k = ss.state, needs = stateNeeds(ss);
+    if (B.st.dataset.state !== k) B.st.dataset.state = k;
+    B.st.classList.toggle('needs', needs);
+    const f = stateBar(ss, sp.span), w = f === null ? '0%' : (f * 100).toFixed(1) + '%';
+    if (B.barFill.style.width !== w) B.barFill.style.width = w;
+    B.bar.dataset.state = k;
+  }
   function paintBadges() {
     const infos = {}; for (const s of view.sites) infos[s.id] = siteInfo(game, s.id, shell.meter);
     rates = badgeRates(shell.meter ? shell.meter.total : 0, infos);
@@ -262,8 +289,9 @@ export function mountMap(root, game, view, shell) {
       // a place ready to build or start is not locked (review of 2026.11.20-9: a lock on "Capital · Ready to build")
       B.b.classList.toggle('locked', !info && !(s.id === 'capital' && capitalOpen(game)) && !lockedRules(game, s.id).ready);
       if (info) {
-        const st = info.alert === 'lost' ? ' · On hold' : info.alert === 'retry' ? ' · On hold' : info.alert === 'retrying' ? ' · Retrying' : '';
-        setText(B.wave, (info.won ? 'Won' : 'Wave ' + info.wave) + st);
+        const ss = siteState(game, s.id), st = !!ss && ss.state === 'hold'; // the state row says On hold (owner, 2026-11-20)
+        setText(B.wave, info.won ? 'Won' : 'Wave ' + info.wave);
+        paintState(s.id, B, ss);
         // a town on hold shows its status in place of the vault bar, which refilled when it dropped back (review of
         // 2026.11.20-9: the bar poked out of "Wave 18 · Tries again soon")
         // the vault only once it took hits: a full one says nothing (labels are quiet by default, games/CLAUDE.md)
@@ -276,11 +304,12 @@ export function mountMap(root, game, view, shell) {
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
+        B.vault.hidden = true; B.st.hidden = B.bar.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game));
       } else {
         const lr = lockedRules(game, s.id);
         setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : '');
+        B.st.hidden = B.bar.hidden = true;
         B.line.hidden = !lr.ready; // a locked place is just its name: what it needs is on its card (review of 2026.11.19-11: long locked labels covered the towns)
         B.vault.hidden = true; setText(B.extra, '');
         B.b.classList.toggle('dot', lr.ready);

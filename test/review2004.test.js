@@ -31,7 +31,7 @@ test('the foreman, old-waves, research and lost lines read as plain statuses', (
   assert.ok(oldWavesLabel({ record: 22 }).length <= 20);
   assert.equal(levelsDone(0, 5), '0 of 5 done');
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss', back: 18 } };
-  assert.equal(lostLine(town), 'The war wagon got through. Back to wave 18. Tap Play Copper Gulch, then Resume waves.');
+  assert.equal(lostLine(town), 'The war wagon got through. Back to wave 18. Tap Play, then Resume waves.');
   assert.doesNotMatch(lostLine(town), /full again/);
   assert.doesNotMatch(read('src/ui/sheets.js'), /'One at a time\. '/);
   for (const t of [f, lostLine(town), oldWavesLabel({})]) assert.deepEqual(textIssues(t), []);

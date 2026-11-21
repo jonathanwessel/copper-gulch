@@ -1,6 +1,7 @@
 // M5, words and layout from the screenshot review of 2026.11.20-10: goals name the empty lot, one name for each place
 // and for the boss retry, Goods rows always say what is spare, price words say how far down, the bridges arch over the
 // river so the steamer passes under, and raiders face along the road again.
+import { stateWord } from '../src/ui/state.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -29,7 +30,7 @@ test('one name for each place and one phrase for the boss retry', () => {
   const sheets = read('src/ui/sheets.js'), lost = read('src/ui/lost.js'), map = read('src/ui/map.js');
   assert.ok(sheets.includes("'Fight the ' + bossName(town) + ' again'"));
   assert.ok(!sheets.includes('Keep trying') && !sheets.includes('Starts the waves again'));
-  assert.ok(lost.includes("'Tries again once Auto-towers upgrades a tower.'") && map.includes("info.alert === 'retry' ? ' · On hold'"));
+  assert.ok(lost.includes("'Tries again once Auto-towers upgrades a tower.'") && stateWord({ state: 'hold', needs: true }) === 'On hold');
   const ex = EXPLAINERS.find(e => e.id === 'retry' || e.title === 'Try again');
   assert.ok(ex && ex.title === 'Try again' && /tries again/.test(ex.text));
   assert.ok(!map.includes("'Back to ' : 'Play '"), 'the map card says Play for every town');

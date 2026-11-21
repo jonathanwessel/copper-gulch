@@ -12,6 +12,9 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const many = name => { const f = Object.values(FOES).find(x => x.name === name); return (f && f.many) || (name.endsWith('s') ? name : name + 's'); };
 const plural = (n, name) => n + ' ' + (n === 1 ? name : many(name));
 
+/* The wave bar's name for the waves: the wave number, or Raids at a won outpost, whose light raids never climb
+   (owner, 2026-11-20: "Does Dry Creek waves keep going?"). */
+export const waveTitle = town => (town.won ? 'Raids' : 'Wave ' + town.wave);
 /* The wave bar's timer: what the next wave waits for, in a box of fixed width. */
 export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
 
@@ -45,7 +48,8 @@ export function waveInfo(town) {
     lines.push(plural(left, 'raider') + ' left.');
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
-  lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : 'It comes in ' + Math.ceil(ws.timer) + ' seconds.');
+  if (town.won) lines.push('Won. Light raids keep coming and your towers hold them.');
+  lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : (town.won ? 'The next raid comes in ' : 'It comes in ') + Math.ceil(ws.timer) + ' seconds.');
   if (bossWave(town, w)) lines.push('A boss wave. The ' + FOES[boss].name.toLowerCase() + ' comes last. Stop it to pass.');
   const kinds = new Set();
   for (const [t, T] of Object.entries(WAVE_TYPES)) if (w >= T.from && (t === 'mixed' || w >= 4)) for (const k of Object.keys(T.mix)) if (w >= FOES[k].from) kinds.add(k);
