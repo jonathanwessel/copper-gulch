@@ -27,7 +27,7 @@ test('the map card says Full or the hits left, and the contract names its good',
 
 test('the old-waves row says what it is in a few words', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.match(s, /^Won before signing$/);
+  assert.match(s, /^[A-Z][a-z ]{2,19}$/); // short beside × 3 (the words are pinned in test/words.test.js)
   assert.deepEqual(textIssues(s), []);
 });
 

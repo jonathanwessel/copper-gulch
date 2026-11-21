@@ -30,7 +30,7 @@ const FX = {
   frost: new THREE.MeshBasicMaterial({ color: '#b8ecff', transparent: true, depthWrite: false, side: THREE.DoubleSide }),
   flask: new THREE.MeshStandardMaterial({ color: '#7ad36a', emissive: '#1e4a10' }),
   cloud: new THREE.MeshBasicMaterial({ color: '#8fd57a', transparent: true, depthWrite: false }),
-  mark: new THREE.MeshBasicMaterial({ color: '#ff5a3a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false }),
+  mark: new THREE.MeshBasicMaterial({ color: '#2a1408', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false }),
   fire: new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, fog: false }),
 };
 // which geometry and material each kind of effect uses; fading kinds get their own material per pooled mesh
@@ -42,7 +42,8 @@ const KINDS = {
 const GEO = {
   bolt: new THREE.BoxGeometry(.32, .03, .03), ball: new THREE.IcosahedronGeometry(.08, 1), boom: new THREE.IcosahedronGeometry(1, 1),
   ring: new THREE.RingGeometry(.9, 1, 32).rotateX(-Math.PI / 2), flask: new THREE.IcosahedronGeometry(.07, 0), cloud: new THREE.IcosahedronGeometry(1, 1),
-  shell: new THREE.IcosahedronGeometry(.19, 1), mark: new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), fire: new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2),
+  shell: new THREE.IcosahedronGeometry(.19, 1), mark: new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), // a dark spot that grows as the shell falls, like its shadow (review of 2026.11.20-15: a red ring had no explainer and cut the Mortar's ring)
+  fire: new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2),
 };
 
 export class Battle {
@@ -99,7 +100,7 @@ export class Battle {
     const u = this.foes.get(e.foe), y0 = e.kind === 'still' ? .9 : e.kind === 'cannon' ? .5 : .7;
     const from = new THREE.Vector3(fx, y0, fz), to = u ? new THREE.Vector3(u.obj.position.x, .35, u.obj.position.z) : new THREE.Vector3(tx, .35, tz);
     if (this.fx.length > 120) return;
-    if (e.flight) { // a lobbed shell: a high arc to where it will land, and a closing ring on the ground there
+    if (e.flight) { // a lobbed shell: a high arc to where it will land, and its shadow growing on the ground there
       const land = new THREE.Vector3(tx, .05, tz), muzzle = new THREE.Vector3(fx, .75, fz);
       this.add('shell', { from: muzzle, to: land, life: e.flight + .1, arc: 3.2, then: 'bigboom', splash: e.splash || 1.3 });
       const m = this.add('mark', { life: e.flight + .1, mark: e.splash || 1.3 }); m.mesh.position.set(tx, .04, tz);
@@ -174,7 +175,7 @@ export class Battle {
         f.mesh.position.lerpVectors(f.from, f.to, k); f.mesh.position.y += Math.sin(k * Math.PI) * f.arc;
         if (f.aim) f.mesh.rotation.y = Math.atan2(-(f.to.z - f.from.z), f.to.x - f.from.x);
       } else if (f.ring) { const s = .3 + k * f.ring; f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .7 * (1 - k); }
-      else if (f.mark) { const s = f.mark * (1.6 - k * .6); f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .35 + .55 * k; }
+      else if (f.mark) { const s = f.mark * (.35 + k * .65); f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .12 + .38 * k; }
       else if (f.grow) { const s = f.grow * (.4 + k * .6); f.mesh.scale.set(s, f.flat ? s * .5 : s, s); f.mesh.material.opacity = f.op * (1 - k); }
       if (k < 1) return true;
       this.release(f);

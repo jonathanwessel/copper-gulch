@@ -33,9 +33,9 @@ test('where research is not open, the sheet says the one thing to do', () => {
   const g = empire(); g.towns.gulch.flags['open:research'] = true;
   assert.equal(researchClosedLine(g, g.towns.gulch), '');
   assert.equal(researchClosedLine(g, g.towns.ridge), 'Build the Blast Furnace to start research here.');
-  assert.equal(sp(researchClosedLine(g, g.towns.drycreek)), "You can't research in Dry Creek. Go to Copper Gulch to start one.");
+  assert.equal(sp(researchClosedLine(g, g.towns.drycreek)), "You can't research in Dry Creek. Go to Copper Gulch to research.");
   g.towns.ridge.flags['open:research'] = true;
-  assert.equal(sp(researchClosedLine(g, g.towns.pinehollow)), "You can't research in Pine Hollow. Go to Copper Gulch or Iron Ridge to start one.");
+  assert.equal(sp(researchClosedLine(g, g.towns.pinehollow)), "You can't research in Pine Hollow. Go to Copper Gulch or Iron Ridge to research.");
   for (const t of Object.values(g.towns)) assert.deepEqual(textIssues(researchClosedLine(g, t)), [], t.id);
 });
 

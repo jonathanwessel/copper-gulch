@@ -18,7 +18,8 @@ export function lostToast(town, here = false, game = null, onMap = false) {
   if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' Its waves ' + AGAIN;
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
-  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.')
+  // which town and where to go, not what happened: the map card says that (review of 2026.11.20-15: one loss told three ways)
+  return town.def.name + ' lost ' + (l.wave ? 'wave ' + l.wave : 'a wave') + '.'
     + (onMap ? ' Tap ' + (town.def.short || town.def.name) + ' to see it.' : ' Tap Map to go there.'); // one step: the map card says the rest (lostLine). Review of 2026.11.19-9: four steps in one toast
 }
 /* The card when the boss gets through in the town in play (boss waves are gates, owner rule 2026-11-17): what
@@ -39,11 +40,12 @@ export function retryLine(game, town) {
   const w = a ? a.wave : (town.lost || {}).wave, what = w && !bossWave(town, w) ? 'wave ' + w : 'the ' + bossName(town);
   if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
   if (st === 'stuck') return 'Play ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
-  return 'Tries again once Auto-towers upgrades a tower.'; // review of 2026.11.20-5: the old two-step line narrated
+  return whatHappened(town) + ' Once a tower goes up a level, ' + here + ' fights ' + what + ' again.'; // review of 2026.11.20-18: the line never said the town lost // review of 2026.11.20-5: the old two-step line narrated
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */
+const whatHappened = town => ((town.lost || {}).why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.');
 export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
-  return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.') + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play, then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
+  return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
 }

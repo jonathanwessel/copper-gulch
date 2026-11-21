@@ -3,7 +3,7 @@
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
 import { heart } from './heart.js';
-import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive } from './format.js';
+import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive, LITTLE } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -105,7 +105,7 @@ export function incomeSheet(income) {
     const paint = () => {
       // the rows add up to the total as written (review of 2026.11.19-5: 4.7 + 0.6 + 0.0 under +5.4/s)
       const ex = income(), sp = splitLive(ex.value, ex.rows.map(r => r.value));
-      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, (v.startsWith('under') ? '' : '+') + v + '/s']);
+      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, (v === LITTLE ? v : '+' + v + '/s')]);
       if (!rows.length) rows.push(['No coins in the last few seconds', '']);
       else rows.push(['Total', '+' + sp.total + '/s', 'total']);
       const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), mulText(r.mul)]);

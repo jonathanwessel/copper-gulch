@@ -62,7 +62,7 @@ export const EXPLAINERS = [
   {
     id: 'towers', covers: ['system:defense', 'tower:crossbow'],
     title: 'Raiders are coming',
-    text: 'They follow the road to your vault. Tap a stone pad and build a Crossbow. A pad between two bends of the road can shoot at both.',
+    text: 'They ride down the road to rob you. Tap a stone pad and build a Crossbow. A pad between two bends of the road can shoot at both.',
     when: h => h.t > 8 && !h.towers.length, at: () => ({ spot: 0 }),
   },
   {
@@ -86,13 +86,13 @@ export const EXPLAINERS = [
   {
     id: 'reserve', covers: ['reserve'],
     title: 'Saved for towers',
-    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and other buildings leave them alone. To use all of a good, tap its building and switch Keep for towers off.",
+    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and other buildings leave them alone. To use all of a good, tap its building and switch Save for towers off.",
     when: h => h.towers.length > 0 && h.keptPlot !== null && h.t > 45, at: h => ({ plot: h.keptPlot }),
   },
   {
     id: 'stock', covers: ['stock'],
     title: 'Goods for towers',
-    text: 'Tap this switch to keep enough for 4 upgrades of every tower. Building towers waits less, but you sell fewer goods.',
+    text: 'Tap 4 upgrades to save enough for 4 upgrades of every tower. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -122,7 +122,7 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through damages the vault. If it falls, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
+    text: 'Every raider that gets through damages the vault, like the stockpile in Dry Creek. If it falls, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
   },
   {
@@ -244,7 +244,7 @@ export const EXPLAINERS = [
   {
     id: 'map', covers: ['map'],
     title: 'The map',
-    text: 'Tap Map to see all your towns. Tap a town there, then tap Play to go to it. A red dot on Map means a town needs you.',
+    text: 'Tap Map to see all your towns. Tap a town there, then tap Play to go to it. A red dot on Map means a town needs you. The thin bar under a town fills as its wave goes on.',
     when: h => h.towns > 1 && !h.outpost && h.t > 30, at: () => ({ el: '#mapBtn' }),
   },
   {
@@ -262,7 +262,7 @@ export const EXPLAINERS = [
   {
     id: 'mortar', covers: ['tower:mortar'],
     title: 'The Mortar is open',
-    text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. It can\'t hit raiders close to it.',
+    text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. A dark spot shows where each one will land. It can\'t hit raiders close to it.',
     when: h => !!h.flags['open:mortar'] && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
   },
   {

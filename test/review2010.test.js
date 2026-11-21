@@ -30,7 +30,7 @@ test('one name for each place and one phrase for the boss retry', () => {
   const sheets = read('src/ui/sheets.js'), lost = read('src/ui/lost.js'), map = read('src/ui/map.js');
   assert.ok(sheets.includes("'Fight the ' + bossName(town) + ' again'"));
   assert.ok(!sheets.includes('Keep trying') && !sheets.includes('Starts the waves again'));
-  assert.ok(lost.includes("'Tries again once Auto-towers upgrades a tower.'") && stateWord({ state: 'hold', needs: true }) === 'On hold');
+  assert.ok(stateWord({ state: 'hold', needs: true }) === 'On hold');
   const ex = EXPLAINERS.find(e => e.id === 'retry' || e.title === 'Try again');
   assert.ok(ex && ex.title === 'Try again' && /tries again/.test(ex.text));
   assert.ok(!map.includes("'Back to ' : 'Play '"), 'the map card says Play for every town');
@@ -56,7 +56,6 @@ test('every Goods row says what is kept and what is spare, and the price word sa
 });
 
 test('the old-wave bonus says how long it lasts, and the foreman line says who is paused', () => {
-  assert.equal(oldWavesLabel({ record: 22 }), 'Won before signing');
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
   assert.ok(read('src/ui/play.js').includes('Not enough power, so it works slower.')); // said for that card since 2026.11.20-13

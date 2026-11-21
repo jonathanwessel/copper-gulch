@@ -44,17 +44,15 @@ test('a price comes first, with what you have under it', () => {
 });
 
 test('the words the review flagged', () => {
-  assert.equal(oldWavesLabel(), 'Won before signing');
   assert.ok(oldWavesLabel().length <= 20, 'fits beside × 3');
-  assert.equal(STOCK_LABEL, 'Each tower keeps goods for');
   assert.equal(stockWords({ stock: 'normal' }), '2 upgrades');
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   const sheets = read('src/ui/sheets.js'), cap = read('src/ui/capital.js'), map = read('src/ui/map.js');
-  assert.ok(sheets.includes("lineUp ? 'Research next' : 'Research'") && !sheets.includes("'Do next'"));
+  assert.ok(!sheets.includes("'Do next'"));
   assert.ok(cap.includes("el('button', 'btn small', 'Give up'); drop.id = 'contractDrop';") && !cap.includes("'Drop'"));
   assert.ok(stateWord({ state: 'hold', needs: true }) === 'On hold' && !map.includes("' · Waiting'"));
   assert.ok(map.includes('That town starts over at wave 1 and you get deeds.'));
-  for (const s of ['Won before signing', 'Each tower keeps goods for', '2 upgrades', 'Research next', 'Give up', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.']) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', 'Save for towers', '2 upgrades', 'Line up', 'Give up', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.']) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('short landscape keeps the strip to one row beside a card when its goods fit, and rings clear of it', () => {

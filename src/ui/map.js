@@ -7,7 +7,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, siteState, lockedRules, mapRoutes, makesOf } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
-import { fmt, fmtLive, splitLive, vaultCount } from './format.js';
+import { fmt, fmtLive, splitLive, vaultCount, LITTLE } from './format.js';
 import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
@@ -33,7 +33,7 @@ export function badgeRates(total, infos) {
   const sp = splitLive(total, ids.map(id => (sendsOnly(infos[id]) ? 0 : infos[id].income))), out = {}, nums = {};
   ids.forEach((id, i) => {
     const v = sp.rows[i]; nums[id] = v || '0';
-    out[id] = v ? (v.startsWith('under') ? v + '/s' : '+' + v + '/s') : sendsOnly(infos[id]) ? 'Sends goods' : '+0/s';
+    out[id] = v ? (v === LITTLE ? v : '+' + v + '/s') : sendsOnly(infos[id]) ? 'Sends goods' : '+0/s';
   });
   return { words: out, nums, total: '+' + sp.total + '/s' };
 }
@@ -300,19 +300,20 @@ export function mountMap(root, game, view, shell) {
         if (hit) setText(B.fill, vaultCount(tv));
         B.fill.classList.toggle('low', info.alert === 'vault');
         setText(B.extra, rates.words[s.id]);
-        B.b.classList.toggle('dot', !!info.alert && info.alert !== 'retry' && info.alert !== 'retrying');
+        B.b.classList.toggle('dot', !!info.alert && !st && info.alert !== 'retry' && info.alert !== 'retrying'); // On hold says itself in red, so a red dot is only a problem the label does not name (review of 2026.11.20-18: one dot meant three things)
+        B.b.classList.remove('gold');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
         setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
         B.vault.hidden = true; B.st.hidden = B.bar.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
-        B.b.classList.toggle('dot', !a || treeCalls(game));
+        B.b.classList.toggle('dot', !a || treeCalls(game)); B.b.classList.add('gold'); // gold: something ready to take, not a problem
       } else {
         const lr = lockedRules(game, s.id);
         setText(B.wave, lr.ready ? (s.id === 'capital' ? 'Ready to build' : 'Ready to start') : '');
         B.st.hidden = B.bar.hidden = true;
         B.line.hidden = !lr.ready; // a locked place is just its name: what it needs is on its card (review of 2026.11.19-11: long locked labels covered the towns)
         B.vault.hidden = true; setText(B.extra, '');
-        B.b.classList.toggle('dot', lr.ready);
+        B.b.classList.toggle('dot', lr.ready); B.b.classList.add('gold');
       }
     }
   }

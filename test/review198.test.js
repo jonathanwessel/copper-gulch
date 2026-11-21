@@ -45,7 +45,7 @@ test('every institution says how much it gives in amounts a player can check', (
 
 test('the map line after a loss says what happened and the wave it went back to', () => {
   const town = { def: { name: 'Copper Gulch', short: 'Copper Gulch', boss: 'wagon' }, lost: { why: 'boss' } };
-  assert.match(lostLine(town), /got through. Tap Play, then Resume waves./); // the Play button under it names the town (2026.11.20-18)
+  assert.match(lostLine(town), /got through. Tap Play .+, then Resume waves./); // the Play button under it names the town (2026.11.20-18)
   assert.match(lostLine({ ...town, lost: { why: 'vault' } }), /^The vault fell\./);
 });
 

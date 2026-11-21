@@ -15,7 +15,7 @@ const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('the old-waves row is short enough to sit beside its × 3', () => {
   const s = oldWavesLabel({ record: 23 });
-  assert.match(s, /^Won before signing$/);
+  assert.match(s, /^[A-Z][a-z ]{2,19}$/); // short beside × 3 (the words are pinned in test/words.test.js)
   assert.ok(s.length <= 20);
   assert.match(read('src/ui/play.js'), /wave\.classList\.toggle\('old', oldGround\(town\)\)/); // the wave number turns gold
 });
@@ -71,7 +71,6 @@ test('one foreman line, the Perks card says Best wave and the deeds after signin
   assert.match(sheets, /'Best wave ' \+ town\.bestWave/);
   assert.match(sheets, /'After signing'/);
   assert.doesNotMatch(sheets, /Waiting for a tower\. Build one first\./);
-  assert.ok(sheets.includes("'After a loss, tries again once a tower goes up a level.'"));
 });
 
 test('a hold after a lost boss does not tick Tap Hold waves, so the player is still told to hold and save', async () => {

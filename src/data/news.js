@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-1',
+    lines: [
+      'In Goods, Save for towers has two buttons, 2 upgrades and 4 upgrades. Each building card uses the same name.',
+      'A Mortar shell now shows a dark spot where it will land, like its shadow.',
+      'On the map, a red dot means a town has a problem. A gold dot means something is ready, like a Capital contract.',
+      'In landscape, a tower card has its Sell button at the top, so nothing hides under the price.',
+      'Clearer words for lost waves, research and the income list.',
+    ],
+  },
+  {
     v: '2026.11.20-18',
     lines: [
       'On the map, every town shows what its waves are doing. Fighting, the time to the next wave, or On hold in red.',

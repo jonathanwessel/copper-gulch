@@ -13,7 +13,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, leftWord } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, leftWord, STOCK_LABEL } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen, labsRunning } from '../core/research.js';
 import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
@@ -168,7 +168,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
   const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', 'Automation', autoSheet(game, town, () => openResearch())); };
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
-  const openIncome = () => sheets.open('income', 'Income', incomeSheet(income));
+  const openIncome = () => sheets.open('income', 'Coins a second', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
   const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id), capital: openCapital }));
@@ -293,7 +293,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = setSwitch(el('button', 'btn small'), 'Keep for towers', keepOn ? 'On' : 'Off', keepOn);
+      const ks = setSwitch(el('button', 'btn small'), STOCK_LABEL, keepOn ? 'On' : 'Off', keepOn); // one name with the Goods sheet (review of 2026.11.20-15)
       ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
@@ -385,7 +385,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       return;
     }
     const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null;
-    head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), x); card.append(head);
+    // on a short landscape screen Sell sits in the head, since a row above the pinned price was cut under it (review of
+    // 2026.11.20-15: short-land, mortar-land); CSS shows one of the two, so a turn of the phone needs no repaint
+    const sellHead = el('button', 'btn small sellhead', 'Sell ' + fmt(Math.floor(t.spent * SELL_BACK))); sellHead.id = 'sellTowerHead';
+    sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
+    head.append(el('h2', null, p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
     const line = (a, b, key) => {
@@ -451,7 +455,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const sell = el('button', 'btn small', 'Sell for ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
     sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     // Sell sits above the pinned bar, never beside Upgrade under its price (review of 2026.11.19-13)
-    const sr = el('div', 'row'); sr.append(sell);
+    const sr = el('div', 'row sellrow2'); sr.append(sell);
     if (path) card.append(sr); else { card.append(sr); bar.append(row); card.append(bar); }
   }
 

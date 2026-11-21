@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.20-18';
-export const GAME_NEWS = 'Every town shows its wave state on the map, Raids at a won outpost, price over have for research and the Capital, gate margins in the bots';
+export const GAME_VERSION = '2026.11.21-1';
+export const GAME_NEWS = 'Save for towers as two buttons, a dark spot where Mortar shells land, red and gold map dots, Sell in the head on landscape cards, clearer words';

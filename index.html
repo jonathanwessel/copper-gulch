@@ -240,12 +240,15 @@ html.flat .tag { position: static; transform: none !important; }
 @media (orientation: portrait), (min-height: 501px) {
   .play .card { max-height: calc(100% - var(--hudtop, 10px) - 130px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
 }
+.cardhead > .sellhead { display: none; }
+@media (orientation: landscape) and (max-height: 500px) { .cardhead > .sellhead { display: inline-flex; white-space: nowrap; } }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
+  .card .sellrow2 { display: none; } /* Sell is in the card's head here */
   .hudleft > .place { grid-column: 1 / -1; } /* its own row, so the names never squeeze the wave chip */
   .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }
@@ -378,7 +381,7 @@ html.flat .tag { position: static; transform: none !important; }
 .mapbadge .mstate[data-state="raids"] { color: var(--good); }
 .mapbadge .mstate.needs { color: #ff6b5b; }
 @keyframes markPulse { 50% { opacity: .45; } }
-.mapbadge .sbar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .35); pointer-events: none; }
+.mapbadge .sbar { position: absolute; left: 4px; right: 4px; bottom: 2px; height: 3px; background: #5c4230; pointer-events: none; } /* a visible track, so a bar that has just begun reads as a bar, not a stray pixel (review of 2026.11.20-18) */
 .mapbadge .sbar i { display: block; height: 100%; width: 0; background: var(--copper); }
 .mapbadge .sbar[data-state="fight"] i { background: var(--copper-hi); }
 .mapbadge .sbar[data-state="raids"] i { background: var(--good); }
@@ -388,6 +391,7 @@ html.flat .tag { position: static; transform: none !important; }
 .mapbadge.locked { background: #2e211a; border-style: dashed; color: var(--muted); }
 .mapbadge.locked b { color: var(--muted); }
 .mapbadge.locked b::before { content: ""; display: inline-block; width: 7px; height: 8px; margin-right: 5px; background: currentColor; clip-path: polygon(0 40%, 15% 40%, 15% 15%, 30% 0, 70% 0, 85% 15%, 85% 40%, 100% 40%, 100% 100%, 0 100%); vertical-align: -1px; }
+.mapbadge.dot.gold::after { background: var(--gold); animation: none; }
 .mapbadge.dot::after { content: ""; position: absolute; top: -6px; right: -6px; width: 12px; height: 12px; border-radius: 50%; background: #e8392c; border: 2px solid var(--line); animation: dotPulse 1.2s ease-in-out infinite; }
 .vault i.low { background: var(--bad); }
 .mapui.flying .tags, .mapui.flying .card { display: none; }
@@ -427,6 +431,11 @@ html.flat .tag { position: static; transform: none !important; }
 .sheetbody .research > .option, .sheetbody .goods > .option { scroll-snap-align: start; scroll-margin-top: 4px; } /* a scrolled list stops on a whole row, never one sliced under the title (review of 2026.11.20-5) */
 .sheetbody:has(> .stockrow) .goods > .option { scroll-margin-top: 54px; } /* rows snap below the pinned switch */
 .sheetbody > .stockrow { position: sticky; top: -10px; z-index: 2; margin: -10px 0 -6px; padding: 10px 0 6px; background: var(--panel); } /* the town switch stays whole at the top while the goods scroll under it (review of 2026.11.20-6: cut under the title in landscape) */
+.stockrow { align-items: center; justify-content: center; gap: 10px; flex-wrap: nowrap; }
+.stockrow .seglabel { font-weight: 700; font-size: .9rem; white-space: nowrap; }
+.seg { display: inline-flex; gap: 0; }
+.seg > .btn { white-space: nowrap; }
+.seg > .btn + .btn { margin-left: -2px; } /* two buttons that read as one choice, the picked one gold (review of 2026.11.20-15: the copper pill did not look tappable) */
 .sheetbody::-webkit-scrollbar { width: 8px; }
 .sheetbody::-webkit-scrollbar-track { background: var(--line); }
 .sheetbody::-webkit-scrollbar-thumb { background: var(--copper); border: 2px solid var(--line); }
@@ -520,7 +529,7 @@ html.flat .tag { position: static; transform: none !important; }
 .pathhead { flex-wrap: wrap; }
 .pathhead .costrow { margin-top: 0; flex-basis: 100%; }
 .option .depth { display: block; height: 6px; margin-top: 3px; background: var(--line); }
-.option .depthrow { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.option .depthrow { display: flex; align-items: center; gap: 6px; justify-content: space-between; margin-top: 3px; }
 .option .depthrow small { font-size: .78rem; color: var(--ink); white-space: nowrap; } /* "2 coins each" never wraps (review of 2026.11.20-6) */
 .option .depthrow .depth { flex: 1 1 auto; margin-top: 0; }
 .option .depthrow .pword { flex: none; width: 7.2em; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; } /* one width for every word, so the bar never moves */

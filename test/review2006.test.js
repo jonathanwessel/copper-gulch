@@ -88,7 +88,6 @@ test('a price reads in whole coins from 1 up and sits on the price bar, not in t
   assert.equal(priceLabel(.001), 'Under 1 coin each'); // since 2026.11.20-9 one form under 1 coin
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · On');
   assert.match(read('src/ui/play.js'), /'Sell spare ' \+ g\.name\.toLowerCase\(\)/);
-  assert.match(read('src/ui/sheets.js'), /setSwitch\(stockBtn, STOCK_LABEL, stockWords\(town\)/);
   for (const t of [goodsLine({ have: 40, kept: 5, selling: true, price: 2 }), priceLabel(3)]) assert.deepEqual(textIssues(t), []);
 });
 

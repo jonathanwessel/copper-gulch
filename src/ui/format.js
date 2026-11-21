@@ -125,8 +125,9 @@ export function perSecond(n, good) {
 
 /* Rows that add up to their total as written (review of 2026.11.19-5: "4.7 + 0.6 + 0.0" under "+5.4/s"). The total is
    written as fmtLive writes it, rounding down; the rows share its last digit's steps by the largest remainder, so the
-   written rows always sum to the written total. A row too small for one step reads "under 0.1" (or "under 10" and so on
-   at a bigger total), never 0. */
+   written rows always sum to the written total. A row too small for one step reads "a little", never 0 (review of
+   2026.11.20-15: "under 1/s" on a phone and "under 0.1/s" in landscape for the same row, as the total had grown). */
+export const LITTLE = 'a little';
 const liveStep = n => {
   if (n < 1000) return 1;
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(n) / 3)), v = n / 10 ** (i * 3);
@@ -143,6 +144,6 @@ export function splitLive(total, values) {
   while (left < 0) { const i = got.indexOf(Math.max(...got)); got[i]--; left++; } // only from float slack
   // whole coins from 10 to 999 are written as whole numbers (the 2026.11.19-6 map read "+9.0/s" and "under 1.0/s" beside +37/s)
   const write = u => (tenths ? (u / 10).toFixed(1) : step === 1 ? String(u) : fmtLive(u * step * (1 + 1e-9)));
-  const under = 'under ' + (tenths ? '0.1' : step === 1 ? '1' : fmtLive(step * (1 + 1e-9)));
+  const under = LITTLE;
   return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? under : null)) };
 }

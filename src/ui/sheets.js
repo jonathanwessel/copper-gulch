@@ -70,7 +70,10 @@ export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, 
 export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades'; // "Each tower keeps goods for · 2 upgrades", one sentence (review of 2026.11.20-14: "2 levels each" was unclear) // "Keep for towers · 2 levels each": for every tower (review of 2026.11.20-13: "Next 2 levels" did not say of what)
 /* Its label: the same words as each building's "Keep 84 timber for towers", so the two read as one idea, how much and
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
-export const STOCK_LABEL = 'Each tower keeps goods for'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
+/* Review of 2026.11.20-15: "Each tower keeps goods for" read as a time span, its pill did not look tappable, and the
+   building cards called the same idea Keep for towers. Now one name, Save for towers, and two plain buttons. */
+export const STOCK_LABEL = 'Save for towers';
+export const STOCK_CHOICES = [['normal', RESERVE.levels + ' upgrades'], ['lots', RESERVE.levels * RESERVE.lots + ' upgrades']]; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
@@ -80,10 +83,10 @@ export function goodsSheet(game, town, focus = null) {
     // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
-    const stockRow = el('div', 'row stockrow'), stockBtn = btn('', 'btn small', 'stockTowers');
-    const paintStock = () => setSwitch(stockBtn, STOCK_LABEL, stockWords(town), null); // review of 2026.11.20-7: "Some" did not say how much
-    stockBtn.addEventListener('click', () => { setStock(town, town.stock === 'lots' ? 'normal' : 'lots'); paintStock(); paint(); });
-    paintStock(); stockRow.append(stockBtn);
+    const stockRow = el('div', 'row stockrow'), seg = el('div', 'seg'); seg.id = 'stockTowers';
+    const segBtns = STOCK_CHOICES.map(([k, words]) => { const b = btn(words, 'btn small'); b.dataset.stock = k; b.addEventListener('click', () => { setStock(town, k); paintStock(); paint(); }); return b; });
+    const paintStock = () => { const cur = town.stock === 'lots' ? 'lots' : 'normal'; for (const b of segBtns) { const on = b.dataset.stock === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } };
+    seg.append(...segBtns); paintStock(); stockRow.append(el('span', 'seglabel', STOCK_LABEL), seg);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
     body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     // a tapped good stays whole in view, below the pinned Save for towers row (review of 2026.11.20-6: the tap left
@@ -103,16 +106,15 @@ export function goodsSheet(game, town, focus = null) {
       list.replaceChildren();
       if (!goods.length) list.append(el('p', 'uses', 'Build a Lumber Camp to make your first good.'));
       for (const g of goods) {
-        const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), line2 = el('span'), bar = el('i', 'depth'), fill = el('i'), why = el('div');
-        bar.append(fill); bar.title = 'Price now, against its full price';
+        const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), line2 = el('span'), why = el('div');
         // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
-        const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'); barRow.append(plabel, bar, level);
+        const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'); barRow.append(plabel, level); // no bar: it had no label and said what the word says (review of 2026.11.20-15)
         txt.append(name, line, line2, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
         row.append(txt, sw); list.append(row);
-        rows[g] = { line, line2, fill, sw, why, txt, level, plabel };
+        rows[g] = { line, line2, sw, why, txt, level, plabel };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -137,7 +139,7 @@ export function goodsSheet(game, town, focus = null) {
         const note = open[g] ? priceNote({ have, kept, price: ex.value }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
-        const sat = saturation(game, g), w = Math.round(100 * sat) + '%'; if (r.fill.style.width !== w) r.fill.style.width = w;
+        const sat = saturation(game, g);
         const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
         const pl = priceLabel(ex.value); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
         setSwitch(r.sw, 'Sell spare', selling ? 'On' : 'Off', selling);
@@ -229,7 +231,7 @@ export function researchClosedLine(game, town) {
   if (b && BUILDINGS[b]) return 'Build the ' + BUILDINGS[b].name + ' to start research here.';
   const where = Object.values(game.towns).filter(researchOpen).map(placeName);
   // what to do, in the place's own name (review of 2026.11.20-16: "Outposts do no research" was stiff and named no action)
-  return "You can't research in " + placeName(town) + '.' + (where.length ? ' Go to ' + orList(where) + ' to start one.' : '');
+  return "You can't research in " + placeName(town) + '.' + (where.length ? ' Go to ' + orList(where) + ' to research.' : '');
 }
 /* Research running in the other towns, one line each, "Copper Gulch · Sharp Saws · 13 sec left". This town's own
    running item is on its row below, so it is not said twice. */
@@ -284,7 +286,7 @@ export function researchSheet(game, town) {
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
         // while another runs, the others line up one next (review of 2026.11.20-6: "Busy" on a grayed button)
         const next = town.labNext === id, lineUp = !lab && !!town.lab && block !== 'max';
-        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Research next' : 'Research'; // the same verb as the free button (review of 2026.11.20-14: "Do next" beside Research) // "Next" read as a next page (review of this release)
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Line up' : 'Research'; // review of 2026.11.20-18: "Research next" was unclear, Line up then Up next // the same verb as the free button (review of 2026.11.20-14: "Do next" beside Research) // "Next" read as a next page (review of this release)
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block && !lineUp; x.row.classList.toggle('running', !!lab); x.go.classList.toggle('on', next);
       }
@@ -314,7 +316,7 @@ export function autoSheet(game, town, openResearch = null) {
     };
     add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, tries again once a tower goes up a level.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town fights it again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Keeps researching the next level of what you picked before.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     // its line opens Research, so what it runs is one tap away (owner, 2026-11-20)
     if (openResearch) { const see = btn('See research', 'btn small'); see.id = 'autoSeeResearch'; see.addEventListener('click', () => openResearch()); rows.research.row.querySelector('div').append(see); rows.research.see = see; }
@@ -507,7 +509,7 @@ export function perksSheet(ctx) {
       const more = d => plural(d, 'deed') + ' · ' + Math.round(DEEDS.income * 100 * d) + '% more coins'; // review of 2026.11.20-13: "2 deeds, 50% more coins" ran on
       set(have.l, 'You have'); set(have.v, c.deeds ? more(c.deeds) : 'No deeds yet');
       const t = c.deeds + p.total;
-      set(after.l, 'After signing'); set(after.v, p.total ? more(t) : '');
+      set(after.l, 'After signing'); set(after.v, p.total ? Math.round(DEEDS.income * 100 * t) + '% more coins' : ''); // the coins only: the deeds signing pays are listed just above (review of 2026.11.20-15: the deed count said twice)
       after.r.hidden = !p.total;
       // what a deed gives, said once (review of 2026.11.20-12: each deed, you have and after signing said it three ways):
       // the line only while no After signing row shows it

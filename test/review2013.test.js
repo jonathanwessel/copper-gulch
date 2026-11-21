@@ -36,7 +36,6 @@ test('a map label shows the vault only once it took hits, with its word', () => 
 });
 
 test('the words the review flagged', () => {
-  assert.equal(oldWavesLabel(), 'Won before signing');
   assert.equal(stockWords({ stock: 'normal' }), '2 upgrades');
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   const sheets = read('src/ui/sheets.js'), play = read('src/ui/play.js');
@@ -45,7 +44,7 @@ test('the words the review flagged', () => {
   assert.ok(sheets.includes("plural(d, 'deed') + ' · '"), '"2 deeds · 50% more coins"');
   assert.ok(!play.includes("'Either path'"));
   assert.ok(play.includes("{ kind: 'tomap' }") && read('src/main.js').includes("dropToasts('tomap')"));
-  for (const s of ['Won before signing', '2 upgrades', 'On hold until a tower goes up a level', 'On hold until Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', '2 upgrades', 'On hold until a tower goes up a level', 'On hold until Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('chips, Best against and landscape cards keep one layout', () => {

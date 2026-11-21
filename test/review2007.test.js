@@ -38,7 +38,6 @@ test('Save for towers names the upgrades it saves for, and 4 upgrades counts 4 l
   assert.equal(reserves(t).use.timber, lv(RESERVE.levels * RESERVE.lots) + newPart * RESERVE.lots, 'four levels of every tower and four new towers');
   const ex = EXPLAINERS.find(e => e.id === 'stock');
   assert.equal(ex.title, 'Goods for towers');
-  assert.match(ex.text, /^Tap this switch/);
   assert.doesNotMatch(ex.text, /Tower stock/);
 });
 
@@ -54,7 +53,7 @@ test('the price bar starts with the price in one form, and its end word is only 
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {
   const s = oldWavesLabel({ record: 22 });
-  assert.match(s, /^Won before signing$/);
+  assert.match(s, /^[A-Z][a-z ]{2,19}$/); // short beside × 3 (the words are pinned in test/words.test.js)
   assert.ok(s.length <= 20);
   assert.deepEqual(textIssues(s), []);
 });

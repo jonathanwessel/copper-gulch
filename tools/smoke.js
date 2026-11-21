@@ -205,7 +205,7 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Keep for towers · On/.test(document.getElementById('card').textContent);
+        out.says = /Save for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
@@ -598,7 +598,7 @@ async function run() {
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
-        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /After signing\s*1 deed/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /After signing\s*25% more coins/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
         out.pairs = [...document.querySelectorAll('#sheet .pair .pairhead')].filter(h => /^Needs/.test(h.textContent)).length === 1 && /Needs 1 deed/.test(sheet.textContent); // one locked pair at a time (review of 2026.11.20-10)
         t.lifetime = life;
         return out;
@@ -617,9 +617,9 @@ async function run() {
         out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         // one runs at a time, and another lines up next with a tap (review of 2026.11.20-6: no grayed Busy), off with a second tap
         const w = document.querySelector('#sheet [data-research="walls"]');
-        out.lineUp = !w.disabled && w.textContent === 'Research next';
+        out.lineUp = !w.disabled && w.textContent === 'Line up';
         w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
-        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Research next';
+        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Line up';
         out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /burn one more timber/.test(sheet.textContent);
         return out;
@@ -858,7 +858,7 @@ async function run() {
         const num = t => { const m = /\+?([\d.]+)(K|M|B)?\/s/.exec(t); return m ? +m[1] * ({ K: 1e3, M: 1e6, B: 1e9 }[m[2]] || 1) : 0; };
         for (let i = 0; i < 30; i++) { await new Promise(r => setTimeout(r, 100)); if (num(document.querySelector('.mapui .inc').textContent) > 0) break; }
         const total = num(document.querySelector('.mapui .inc').textContent), rows = [...document.querySelectorAll('.mapbadge .minc')].map(n => n.textContent);
-        const sum = rows.filter(t => !t.startsWith('under')).reduce((a, t) => a + num(t), 0);
+        const sum = rows.filter(t => t !== 'a little').reduce((a, t) => a + num(t), 0);
         return Math.abs(sum - total) <= Math.max(.051, total * .002) ? '' : rows.join(' + ') + ' is not ' + document.querySelector('.mapui .inc').textContent;
       });
       if (sums) bad.push('map labels: ' + sums);
