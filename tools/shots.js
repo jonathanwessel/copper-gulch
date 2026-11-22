@@ -20,6 +20,21 @@ const SCREENS = [
   ['spot', () => { const t = CG.game.town; t.coins = 5000; t.goods.timber = 99; CG.play.openSpot(3); }],
   ['fight', () => { const t = CG.game.town; CG.play.close(); t.coins = 1e6; Object.assign(t.goods, { timber: 500, ore: 500, copper: 500, bricks: 500, tools: 500, planks: 500, clay: 500 }); t.sell = { timber: false, ore: false, copper: false, bricks: false, tools: false, planks: false, clay: false }; for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); } CG.play.close(); document.getElementById('callWave').click(); }],
   ['selected', () => { CG.play.openSpot(3); }],
+  // the raider card (owner, 2026-11-22): a raider on the road with poison, a slow and the armor poison ate, then the
+  // moment it falls
+  ['raider', async () => {
+    const t = CG.game.town, v = CG.town, wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view');
+    CG.play.close();
+    if (t.waves.phase === 'break') document.getElementById('callWave').click();
+    for (let i = 0; i < 150; i++) {
+      const f = t.waves.foes.find(f => { const p = v.projectFoe(f.id); return p && f.hp > 0 && p.x > 20 && p.x < cv.clientWidth - 20 && p.y > 90 && p.y < cv.clientHeight - 40; });
+      // a brute beside it (armored, so the card has its armor row), with poison, a slow and some armor eaten
+      if (f) { const ws = t.waves, b = { id: ws.nextId++, kind: 'brute', lane: f.lane || 0, hp: 6200, max: 10000, s: f.s + .4, slow: .3, slowT: 1.8, frozenT: 0, poison: .1, poisonT: 3.6, rot: 0, eat: .4, brittle: .2 }; ws.foes.push(b); await wait(150); CG.play.openFoe(b.id); break; }
+      await wait(100);
+    }
+    await wait(400);
+  }],
+  ['raider-down', async () => { const t = CG.game.town, id = +(CG.play.current() || '').slice(4), f = t.waves.foes.find(f => f.id === id); if (f) f.hp = -1; for (let i = 0; i < 40 && !document.querySelector('#card.gonefoe'); i++) await new Promise(r => setTimeout(r, 30)); }], // the shot as soon as it says so (a slow capture outlasted its moment)
   // a tower card short of a good: how much there is, about how long, and which building to upgrade
   ['strip', () => { const t = CG.game.town; CG.play.close(); t.goods.timber = 124; t.goods.planks = 18; t.goods.ore = 6; t.goods.clay = 40; }],
   ['short', () => { const t = CG.game.town; t.goods.ore = 2; t.buildings.mine = Math.max(5, t.level('mine')); CG.play.close(); CG.play.openSpot(3); }],

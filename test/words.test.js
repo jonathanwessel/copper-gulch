@@ -9,6 +9,7 @@ import { splitLive, LITTLE, MODE_WORDS, goodsSwitch } from '../src/ui/format.js'
 import { textIssues } from '../tools/audit.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
+import { EFFECT_WORDS, fxLeft } from '../src/ui/foe.js';
 
 test('the words on screen today', () => {
   assert.equal(oldWavesLabel(), 'Won last time');
@@ -19,6 +20,10 @@ test('the words on screen today', () => {
   assert.deepEqual(splitLive(5.49, [4.79, .66, .04]).rows, ['4.8', '0.6', LITTLE]);
   assert.deepEqual(MODE_WORDS, { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' });
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Always');
+  // the raider card (owner, 2026-11-22)
+  assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Brittle' });
+  assert.equal(fxLeft(null), 'No end'); assert.equal(fxLeft(3.2), '4s');
+  for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
   for (const s of ['Won last time', 'Save for towers', 'Line up', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
 });
 

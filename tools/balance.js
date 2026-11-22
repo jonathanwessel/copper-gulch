@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, hurtFactor } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, hurtFactor, foeStatus } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -325,6 +325,13 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     else for (const [k, n] of Object.entries(d)) r.late[k] = (r.late[k] || 0) + n; // after the town's first hour
   });
   on('breach', e => { if (mine(e)) { r.breaches.push(e.wave); (r.why ||= []).push(e.why); } });
+  // what each raider carried as it fell, read with the raider card's own function (foeStatus), in the town's first hour
+  r.fell = 0; r.fellWith = {};
+  on('kill', e => {
+    if (!mine(e) || t.t > 3600) return;
+    const f = t.waves.foes.find(x => x.id === e.foe); if (!f) return;
+    r.fell++; for (const x of foeStatus(t, { ...f, hp: 1 }).effects) r.fellWith[x.key] = (r.fellWith[x.key] || 0) + 1; // as it was a moment before
+  });
   // Call to arms at boss gates (M6a): what came of each wave it was called on
   r.arms = { calls: 0, won: 0, lost: 0 };
   on('wave:clear', e => { if (mine(e) && r.armsWave === e.wave && bossWave(t, e.wave)) { r.arms.won++; r.armsWave = null; } });
@@ -1108,6 +1115,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('variety: ' + (v.never.length || v.oneKind ? 'MISS' : 'ok')
     + (v.never.length ? ' · never the best buy in the first hour: ' + v.never.join(', ') : '')
     + (v.oneKind ? ' · ' + v.oneKind + ' does the most damage in every wave' : ' · wave leaders: ' + v.tops.join(', ')));
+  // what the raiders carried as they fell (the raider card's foeStatus), a report: how far the towers' effects reach
+  { const n = runs.reduce((a, r) => a + (r.fell || 0), 0), w = {}; for (const r of runs) for (const [k, c] of Object.entries(r.fellWith || {})) w[k] = (w[k] || 0) + c;
+    console.log('raiders fell carrying (Copper Gulch, first hour, every run): ' + (Object.entries(w).sort((a, b) => b[1] - a[1]).map(([k, c]) => k + ' ' + Math.round(100 * c / Math.max(1, n)) + '%').join(', ') || 'nothing') + ', of ' + n + ' raiders'); }
   console.log(misses.length ? misses.map(m => 'FAIL ' + m).join('\n') : 'ok');
   printClose(); // gates within 5% of their limit (Gate margins)
   process.exitCode = misses.length ? 1 : 0;

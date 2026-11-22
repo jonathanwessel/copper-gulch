@@ -9,7 +9,7 @@ import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
-import { towerIn, normalTowers, crowdOf, forkNext } from '../core/defense.js';
+import { towerIn, normalTowers, crowdOf, forkNext, foeStatus } from '../core/defense.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { bossName } from './lost.js';
 import { tabs, dots } from '../core/reveal.js';
@@ -34,6 +34,14 @@ export function helper(town, game = null) {
     // it lost a boss wave and Keep trying the boss could take the next try (src/core/automation.js)
     crowded: normalTowers(town) >= crowdOf(town), // a new tower here now costs more (src/core/defense.js, crowdFactor)
     towerCount: normalTowers(town),
+    // a raider out of its entrance, for the raider card's explainer: one with an effect on it when there is one
+    foeOut: (() => {
+      const B = town.def && town.def.board, hide = [(B && B.entrance && B.entrance.hide) || 0, (B && B.river && B.river.entrance && B.river.entrance.hide) || 0];
+      const out = (ws.foes || []).filter(f => f.hp > 0 && f.s > hide[f.lane || 0] + 1.5);
+      if (!out.length) return null;
+      const fx = out.find(f => foeStatus(town, f).effects.length);
+      return { id: (fx || out[0]).id, fx: !!fx };
+    })(),
     autoResearch: !!game && autoOpen(game, 'research'), // the University stands: Auto-research is open in every town (owner, 2026-11-20)
     bossLost: !!game && lostBoss(town) && autoOpen(game, 'retry') && !autoOf(game, town).retry,
     // another town (not a won outpost) with towers keeps fighting out of sight

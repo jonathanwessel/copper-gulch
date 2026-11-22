@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-9',
+    lines: [
+      'Tap a raider on the road to see its health, its armor and what is on it, like poison, frost or fire.',
+      'Each effect shows how many seconds it has left. The card follows the raider until it falls or gets through.',
+    ],
+  },
+  {
     v: '2026.11.22-8',
     lines: [
       'A Crossbow that reaches level 20 picks Piercing Bolts or Sharpshooter.',

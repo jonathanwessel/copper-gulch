@@ -204,6 +204,33 @@ async function run() {
         return { seen, blobs: v.battle.blobs.count, cast, auto: sm.autoUpdate, rate: +rate.toFixed(2), redrawn: v.shadowDraws > d1 };
       });
       if (shade.seen && shade.blobs < shade.seen) bad.push('a raider has no soft shadow under it: ' + JSON.stringify(shade));
+      // tapping a raider (owner, 2026-11-22): a real tap on a moving raider opens its card with its name and health, the
+      // ring follows it, and the game keeps running
+      const foeTap = await page.evaluate(async () => {
+        const v = CG.town, wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view'), t = CG.game.town, { FOES } = await import('./src/data/foes.js');
+        CG.play.close();
+        if (t.waves.phase === 'break') document.getElementById('callWave').click(); // the first wave may be over already
+        let id = null, p = null;
+        for (let i = 0; i < 80 && !p; i++) {
+          for (const k of v.battle.foes.keys()) { const q = v.projectFoe(k); if (q && q.x > 20 && q.x < cv.clientWidth - 20 && q.y > 20 && q.y < cv.clientHeight - 20) { id = k; p = q; break; } }
+          if (!p) await wait(100);
+        }
+        if (!p) return { none: true };
+        const rc = cv.getBoundingClientRect(), x = rc.left + p.x + 4, y = rc.top + p.y + 3; // a little off its middle, as a finger is
+        for (const type of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, bubbles: true, isPrimary: true, pointerType: 'touch' }));
+        await wait(250);
+        const card = document.getElementById('card'), sel = v.selection.target, f = sel && t.waves.foes.find(z => z.id === sel.foe);
+        const name = (card.querySelector('h2') || {}).textContent, hp = (card.querySelector('.foestat.hp b') || {}).textContent || '';
+        const want = f ? FOES[f.kind].name : null, steps = CG.game.stats.steps, wide = card.scrollWidth > card.clientWidth + 1; // never a sideways scroll (2026.11.22-9: "6.20K / 10.0K" ran out of its cell on a desktop)
+        await wait(800);
+        const u = sel && v.battle.foes.get(sel.foe), ring = v.selection.group.position, alive = !!(f && f.hp > 0 && u);
+        const follows = !alive || Math.hypot(ring.x - u.obj.position.x, ring.z - u.obj.position.z) < .3;
+        const out = { wide, open: !card.hidden && card.classList.contains('foecard'), name, want, hp, foe: sel && sel.foe, follows, runs: CG.game.stats.steps > steps, current: CG.play.current() };
+        CG.play.close();
+        return out;
+      });
+      if (!foeTap.none && (foeTap.wide || !foeTap.open || !foeTap.want || foeTap.name !== foeTap.want || !/^\S{1,4} \/ \S{1,4}$/.test(foeTap.hp) || !foeTap.follows || !foeTap.runs)) bad.push('tapping a raider: ' + JSON.stringify(foeTap));
+      if (foeTap.none) bad.push('tapping a raider: no raider came into view to tap');
       if (shade.cast || shade.auto || shade.rate > .5 || !shade.redrawn) bad.push('raiders cast a sun shadow, the shadow map is drawn every frame, or not after a level up: ' + JSON.stringify(shade));
       // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins
       await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 4321); CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });

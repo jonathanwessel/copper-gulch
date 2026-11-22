@@ -196,6 +196,28 @@ html.no3d body { background: var(--bg); }
 .option small { color: var(--gold); font-size: .8rem; }
 .option .build { flex: none; }
 .option .foepic { flex: none; width: 28px; height: 28px; image-rendering: pixelated; } /* a raider's picture, 2x its pixels */
+/* the raider card (src/ui/foe.js): its picture and name, health and armor bars with numbers in fixed cells, the effects
+   on it as small chips with a mark, a word and the seconds left */
+.foecard .cardhead .foepic { flex: none; width: 36px; height: 36px; image-rendering: pixelated; }
+.foestat { display: grid; grid-template-columns: 4.4em minmax(0, 1fr) 13.5ch; min-width: 0; align-items: center; gap: 8px; min-height: 26px; font-size: .9rem; }
+.foestat .flabel { color: var(--muted); }
+.foestat b { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+.fbar { position: relative; display: block; height: 12px; background: var(--line); border: 1px solid #000; overflow: hidden; }
+.fbar i, .fbar u { position: absolute; left: 0; top: 0; bottom: 0; display: block; text-decoration: none; }
+.foestat.hp .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
+.foestat.ar .fbar i { background: #a9adb5; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
+.foestat.ar .fbar u { background: repeating-linear-gradient(135deg, #5a8a3a 0 3px, #2f4a20 3px 6px); } /* what poison ate off the armor */
+.foefx { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; min-height: 26px; }
+.foefx .fx { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 2px 6px; background: var(--panel-2); border: 2px solid var(--line); font-size: .85rem; }
+.foefx .fxword { flex: 1; white-space: nowrap; }
+.foefx .fxleft { flex: none; width: 6ch; text-align: right; color: var(--copper-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.foefx .fxnone { grid-column: 1 / -1; align-self: center; color: var(--muted); font-size: .85rem; }
+.fxmark { flex: none; display: block; width: 14px; height: 14px; }
+.fxmark svg { display: block; width: 100%; height: 100%; }
+.fx-frozen { fill: #b8ecff; } .fx-poison { fill: #8fd57a; } .fx-rot { fill: #c8d88a; } .fx-spread { fill: #a6e07a; }
+.fx-fire { fill: #ff8a2a; } .fx-slow { fill: #9cc4ff; } .fx-brittle { fill: #e8dcc8; }
+.card > p.gone { color: var(--gold); font-size: .85rem; line-height: 1.3; } /* in place of the coins line, the same height */
+.foecard.gonefoe .foestat, .foecard.gonefoe .foefx { opacity: .55; }
 .foes { gap: 4px; }
 .foes h3 { margin: 4px 0 0; }
 .pathhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; } /* its price row takes the full width under Pick a path */

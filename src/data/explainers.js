@@ -49,6 +49,13 @@ export const EXPLAINERS = [
     text: 'You beat wave 10 at Dry Creek. Tap Play Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
   },
+  // any town: the raider card (owner, 2026-11-22), the first time a raider out on the road carries an effect, or from wave 4
+  {
+    id: 'foe-tap', covers: ['foecard'],
+    title: 'Tap a raider',
+    text: 'Tap any raider on the road to see its health and armor, and what your towers did to it, like poison or frost.',
+    when: h => !!h.foeOut && (h.foeOut.fx || h.wave >= 4), at: h => (h.foeOut ? { foe: h.foeOut.id } : null),
+  },
   // Copper Gulch
   {
     id: 'welcome', town: 'gulch', covers: ['welcome:gulch'],

@@ -75,7 +75,7 @@ async function startGame() {
     const b = game.town.def.board;
     // a screen point for a 3D target (a plot, a stone pad, a tower or the vault), for the spotlights
     const locate = tg => !CG.town ? null : tg.plot ? CG.town.project(tg.plot) : tg.spot !== undefined ? CG.town.projectSpot(tg.spot)
-      : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
+      : tg.tower !== undefined ? CG.town.projectSpot(tg.tower) : tg.foe !== undefined ? CG.town.projectFoe(tg.foe) : tg.vault ? CG.town.projectPoint(b.vault[0], .6, b.vault[1]) : null;
     // a stone pad's outline on the screen ({ x, y, w, h } round 8 points of its rim), so the goal's frame lies on the pad
     // as the camera sees it (review of 2026.11.20-7: a fixed square sat flat on the screen beside a near pad)
     locate.foot = i => {

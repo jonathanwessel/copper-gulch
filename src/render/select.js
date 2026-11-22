@@ -35,12 +35,13 @@ export class Selection {
     for (const m of [this.square, this.ring, this.range, this.fill, this.dead, this.inner, this.glow]) { m.renderOrder = 3; this.group.add(m); }
     board.group.add(this.group);
   }
-  /* { plot: id } or { spot: index } or null. */
+  /* { plot: id }, { spot: index }, { foe: id } (a raider, followed as it walks) or null. */
   set(target) { this.target = target || null; this.group.visible = !!this.target; this.battle.lift = this.target && this.target.spot !== undefined ? this.target.spot : null; }
   update(t) {
     const tg = this.target;
     if (!tg) return;
     const pulse = .5 + .5 * Math.sin(t * 6), B = this.town.def.board;
+    if (tg.foe !== undefined) return this.followFoe(tg.foe, pulse);
     const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
     this.group.position.set(x, .035, z);
     this.square.visible = !!tg.plot; this.ring.visible = !tg.plot;
@@ -60,6 +61,19 @@ export class Selection {
     if (r > 0) { this.range.scale.set(r, 1, r); this.fill.scale.set(r, 1, r); }
     this.dead.visible = this.inner.visible = r0 > 0;
     if (r0 > 0) { this.dead.scale.set(r0, 1, r0); this.inner.scale.set(r0, 1, r0); }
+  }
+  /* A raider: the ring round its feet and a short glow, where it is drawn this frame; no reach. When it is gone the
+     ring stays where it was last, while its card says so. */
+  followFoe(id, pulse) {
+    const u = this.battle.foes.get(id);
+    this.group.visible = !!u; // gone: its card says so, and the ring goes
+    if (!u) return;
+    this.group.position.set(u.obj.position.x, Math.max(0, u.obj.position.y) + .035, u.obj.position.z);
+    this.square.visible = false; this.ring.visible = true;
+    this.range.visible = this.fill.visible = this.dead.visible = this.inner.visible = false; this.reach = 0;
+    const big = u.boss ? 1.5 : 1, s = big * (1 + pulse * .08);
+    this.ring.scale.set(s, 1, s); this.ring.material.opacity = .65 + .35 * pulse;
+    this.glow.scale.set(.5 * big, 1.1 * big, .5 * big); this.glowMat.uniforms.uOp.value = .32 + .28 * pulse;
   }
   dispose() { this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
 }

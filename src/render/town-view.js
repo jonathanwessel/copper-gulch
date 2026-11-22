@@ -8,7 +8,7 @@ import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
 import { Selection } from './select.js';
-import { pickTarget, project } from './pick.js';
+import { pickTarget, pickFoe, hitPx, project } from './pick.js';
 
 const _a = new THREE.Vector3();
 /* onZoomOut: the player zoomed out past the farthest view (opens the empire map); flyIn: dive in from above. */
@@ -21,7 +21,12 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const battle = new Battle(board, game), selection = new Selection(board, battle);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
-  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => onTap(pickTarget(v.cam, canvas, board, x, y), x, y) });
+  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => {
+    // a raider when the finger is nearer its middle than the middle of the pad or building the tap would open (smoke,
+    // 2026.11.22-9: a tap on a pad's middle opened a raider walking past it)
+    const foe = pickFoe(v.cam, canvas, board, battle, x, y), hit = pickTarget(v.cam, canvas, board, x, y);
+    onTap(foe && (!hit || foe.px < hitPx(v.cam, canvas, board, hit, x, y)) ? { foe: foe.id } : hit, x, y);
+  } });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   /* The sun's shadow map is drawn only when something that casts a shadow changes: a building or tower built or
      raised, a tower head turning (at most every third frame), an entrance sinking as the camera turns, the graphics
@@ -40,6 +45,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       rig.setView(top, cover, low);
       const tg = selection.target, B = town.def.board;
       if (!tg) return;
+      // a raider: the map slides only when it walks under the card, so its ring stays in sight (it never chases it)
+      if (tg.foe !== undefined) { const u = battle.foes.get(tg.foe); if (u) rig.keep({ x: u.obj.position.x, y: .4, z: u.obj.position.z }, 'f' + tg.foe, 0); return; }
       const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
       rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot, selection.reach || 0); // a tower's circle stays in view too
     },
@@ -59,6 +66,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),
     /* Where each raider on the road is drawn on screen (client pixels), for the level pills that step aside for them. */
     foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, .45, u.obj.position.z), size); if (p) out.push(p); } return out; },
+    /* Where a raider is drawn on screen, or null when it is gone or hidden in its entrance. */
+    projectFoe: id => { const u = battle.foes.get(id); return u && u.obj.visible ? project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + (u.boss ? .7 : .4), u.obj.position.z), size) : null; },
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z), size); },
     /* Stop drawing and free the GPU memory; lose: also let go of the GPU context (the canvas is being replaced). */
     stop(lose = false) { cancelAnimationFrame(raf); selection.dispose(); battle.dispose(); board.dispose(); v.dispose(); if (lose) v.renderer.forceContextLoss(); },

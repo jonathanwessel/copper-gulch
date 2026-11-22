@@ -233,6 +233,33 @@ export function bestFactor(kind, foe) {
 export const hurtFactor = f => HURT.base + HURT.gain * Math.min(1, Math.max(0, 1 - f.hp / (f.max || 1)));
 /* The share of this raider's armor poison eats right now (EATS_ARMOR): the strongest dose it carries, while it carries poison or rot. */
 export const eaten = f => (f.poisonT > 0 || f.rot > 0 ? f.eat || 0 : 0);
+
+/* One raider's state as the raider card shows it and the bots count it (owner, 2026-11-22: "Can I click on a mob to see
+   the current buffs and debuffs?"): its health and its most, its armor now (the share of each hit it blocks) beside its
+   armor at full and the share poison ate, each effect on it now with the seconds left (left null: it lasts until the
+   raider falls), the coins it pays and whether it is gone (gone: 'down' when it fell, 'through' when it reached the
+   vault). Effects, in the order the card lists them: frozen, poison, rot, spread (it passes its poison on when it falls),
+   fire (it stands in Shrapnel's burning ground), slow and brittle (it takes more from each hit while slowed). Nothing
+   here gives other raiders anything yet; a raider that does adds its own effect here. */
+export function foeStatus(town, f) {
+  const F = FOES[f.kind], ws = town.waves || {}, full = F.armor || 0, fx = [];
+  const gone = f.leaked ? 'through' : f.hp <= 0 ? 'down' : null, eat = full > 0 && !gone ? eaten(f) : 0;
+  if (!gone) {
+    if (f.frozenT > 0) fx.push({ key: 'frozen', left: f.frozenT });
+    if (f.poisonT > 0) fx.push({ key: 'poison', left: f.poisonT });
+    if (f.rot > 0) fx.push({ key: 'rot', left: null });
+    if (f.spread && (f.poisonT > 0 || f.rot > 0)) fx.push({ key: 'spread', left: null });
+    const fires = ws.fires || [];
+    if (fires.length) {
+      const lane = lanesOf(town)[f.lane || 0], at = lane && pointAt(lane, f.s);
+      let left = 0; for (const fi of fires) if (at && fi.t > 0 && dist(fi.at, at) <= fi.r) left = Math.max(left, fi.t);
+      if (left > 0) fx.push({ key: 'fire', left });
+    }
+    if (f.slowT > 0 && f.slow > 0) fx.push({ key: 'slow', left: f.slowT });
+    if (f.slowT > 0 && f.brittle > 0) fx.push({ key: 'brittle', left: f.slowT });
+  }
+  return { id: f.id, kind: f.kind, boss: !!F.boss, hp: Math.max(0, f.hp), max: f.max, armor: full * (1 - eat), armorFull: full, eaten: eat, effects: fx, worth: bountyOf(town, f.kind), gone };
+}
 function hurt(game, town, f, dmg, pierce = false, by = null) {
   const full = pierce ? 0 : FOES[f.kind].armor, armor = full * (1 - eaten(f));
   const k = dmg * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1), n = k * (1 - armor), left = Math.max(0, f.hp);
@@ -242,8 +269,10 @@ function hurt(game, town, f, dmg, pierce = false, by = null) {
   f.hp -= n;
 }
 
+/* The coins a raider of this kind pays when it falls in this town now. */
+export const bountyOf = (town, kind) => wavesOf(town).bounty(town.wave) * FOES[kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
 function kill(game, town, f) {
-  const coins = wavesOf(town).bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
+  const coins = bountyOf(town, f.kind);
   town.earn(coins, false, 'bounty');
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
 }

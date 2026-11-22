@@ -53,6 +53,36 @@ export function pickTarget(cam, el, board, clientX, clientY) {
   }
   return nearest(cam, el, board, clientX, clientY);
 }
+/* The raider under a screen point (owner, 2026-11-22: tap a raider to see its state): the raider in sight whose middle
+   on screen is nearest the finger, within FOE_NEAR px (a boss, drawn bigger, within more), so a moving raider is easy to
+   hit. Tested before the ground and the pads, but a building or tower the ray meets well in front of the raider hides
+   it. battle.foes: id -> { obj, boss } as drawn this frame. Returns { id, px } (px: how far its middle is from the finger
+   on screen), or null. */
+export const FOE_NEAR = 26;
+const _f = new THREE.Vector3();
+export function pickFoe(cam, el, board, battle, clientX, clientY) {
+  const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top;
+  let best = null, bd = Infinity;
+  for (const [id, u] of battle.foes) {
+    if (!u.obj.visible) continue;
+    const p = u.obj.position, s = project(cam, el, _f.set(p.x, p.y + (u.boss ? .7 : .4), p.z));
+    if (!s) continue;
+    const near = u.boss ? FOE_NEAR * 1.6 : FOE_NEAR, d = Math.hypot(s.x - x, s.y - y) / near;
+    if (d <= 1 && d < bd) { bd = d; best = { id, u, px: d * near }; }
+  }
+  if (!best) return null;
+  const m = groundPoint(cam, el, clientX, clientY).intersectObjects(board.pickables, false)[0];
+  if (m && m.distance < cam.position.distanceTo(best.u.obj.position) - .8) return null;
+  return { id: best.id, px: best.px };
+}
+/* How far a pad's or plot's middle is from a screen point on screen, in px (Infinity when behind the camera). */
+export function hitPx(cam, el, board, hit, clientX, clientY) {
+  const rc = el.getBoundingClientRect(), def = board.def;
+  const [wx, wz] = hit.plot ? def.plots[hit.plot] : def.spots[hit.spot], wy = hit.plot ? .5 : board.town.towers.some(t => t.spot === hit.spot) ? .6 : .1;
+  const s = project(cam, el, _f.set(wx, wy, wz));
+  return s ? Math.hypot(s.x - (clientX - rc.left), s.y - (clientY - rc.top)) : Infinity;
+}
+
 /* The pad or plot whose middle is closest to a screen point on screen, if within NEAR px. */
 export function nearest(cam, el, board, clientX, clientY, near = NEAR, skip = null) {
   const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top, def = board.def;

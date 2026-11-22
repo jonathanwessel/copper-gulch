@@ -32,6 +32,7 @@ import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goal
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
 import { waveSheet, waveBar, waveTitle } from './wave.js';
+import { foeCard } from './foe.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -218,19 +219,32 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (down > 0) card.scrollTop += down;
     });
   }
+  let foeUi = null; // the raider card while it is open (src/ui/foe.js)
   function open(id) {
     if (sheets.current) sheets.close();
+    if (foeUi) { foeUi = null; card.classList.remove('foecard', 'gonefoe'); }
     openId = id; why = false; whyStat = null; card.hidden = false; paintCard();
     viewApi.select(id.startsWith('spot:') ? { spot: +id.slice(5) } : { plot: id }); // highlight it on the board while the card is open
   }
   function openSpot(i) { open('spot:' + i); }
-  function close() { openId = null; card.hidden = true; viewApi.select(null); }
-  viewApi.onTap = hit => { if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
+  /* A raider's card (owner, 2026-11-22): it follows the raider live, with the ring on it, while the game runs. */
+  function openFoe(id) {
+    const f = town.waves.foes.find(x => x.id === id && x.hp > 0);
+    if (!f) return false;
+    if (sheets.current) sheets.close();
+    openId = 'foe:' + id; why = false; whyStat = null; card.hidden = false;
+    foeUi = foeCard(card, town, f, { store, onClose: () => close() });
+    viewApi.select({ foe: id });
+    return true;
+  }
+  function close() { openId = null; foeUi = null; card.hidden = true; card.classList.remove('foecard', 'gonefoe'); viewApi.select(null); }
+  viewApi.onTap = hit => { if (hit && hit.foe !== undefined) { if (!openFoe(hit.foe)) close(); } else if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
   let sig = '', madeEl = null, usedEl = null;
   function paintCard(force = true) {
     if (!openId) return;
+    if (foeUi) return; // painted from the frame (foeAcc)
     if (openId.startsWith('spot:')) return paintSpot(+openId.slice(5), force);
     const id = openId, b = BUILDINGS[id], L = town.level(id), g = GOODS[b.makes];
     const kept = Math.ceil((town.keep || {})[b.makes] || 0), keepOn = !(town.reserveOff || {})[b.makes];
@@ -682,8 +696,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     for (const e of es) if (e.target === strip) { const sh = strip.hidden ? 0 : Math.round(e.target.getBoundingClientRect().height + 4); if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); } }
   }) : null;
   if (ro) { ro.observe(card); ro.observe(strip); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
+  let foeAcc = 0;
   function frame(dt) {
     acc += dt; cardAcc += dt;
+    // a raider's card keeps up with it ten times a second (the simulation steps four times a second)
+    if (foeUi && (foeAcc += dt) > .1) { foeAcc = 0; if (!foeUi.update()) close(); }
     viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
     if (reMeasure) { reMeasure = false; measure(); }
     sheets.frame(dt);
@@ -784,7 +801,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { if (ro) ro.disconnect(); for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
+  return { frame, open, openSpot, openFoe, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or
