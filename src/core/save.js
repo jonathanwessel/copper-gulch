@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -180,6 +180,14 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t && !t.arms) t.arms = { t: 0, cd: 0, clock: 0 };
     return { ...s, v: 24, game: g };
+  },
+  // v25: Keep trying the boss plays the wave before the lost one again (src/core/automation.js): no loss waiting to be
+  // taken up (auto.fell), and a try in progress has not sent its auto:retry yet (boss.go). A town held after a loss with
+  // the switch on plays on by itself once it loads.
+  24: s => {
+    const g = s.game || {};
+    for (const a of Object.values((g.shared && g.shared.auto) || {})) { if (!a) continue; if (a.fell === undefined) a.fell = 0; if (a.boss && a.boss.go === undefined) a.boss.go = false; }
+    return { ...s, v: 25, game: g };
   },
 };
 

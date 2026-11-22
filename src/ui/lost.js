@@ -3,10 +3,12 @@
    { why: 'vault' | 'boss', wave, back, coins }. */
 import { FOES } from '../data/foes.js';
 import { fmt } from './format.js';
-import { willRetry, retryState, autoOf } from '../core/automation.js';
+import { willRetry, retryState, autoOf, againWave } from '../core/automation.js';
 import { bossWave } from '../core/defense.js';
 
-const AGAIN = 'start again by themselves after a tower goes up a level.';
+/* Keep trying the boss never holds: it climbs back to the wave before the one lost and stays there until a tower goes
+   up a level ("stays at", not "plays again": review of 2026.11.22-2, the screen said Fighting wave 18 beside "plays wave 19 again"). */
+const AGAIN = l => 'Your waves stay at wave ' + againWave({ wave: l.wave || 1 }) + ' until a tower goes up a level.';
 
 export const bossName = town => ((FOES[town.def.boss || 'wagon'] || FOES.wagon).name).toLowerCase();
 const storeOf = town => town.def.store || 'vault';
@@ -15,7 +17,7 @@ const storeOf = town => town.def.store || 'vault';
    Keep trying the boss on says it tries again by itself. */
 export function lostToast(town, here = false, game = null, onMap = false) {
   const l = town.lost || { why: 'vault', back: town.wave };
-  if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' Its waves ' + AGAIN;
+  if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' ' + AGAIN(l);
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
   // which town and where to go, not what happened: the map card says that (review of 2026.11.20-15: one loss told three ways)
@@ -30,17 +32,18 @@ export function lostCard(town, game = null) {
   return {
     title: 'Wave ' + l.wave + ' lost',
     lines: ['The ' + bossName(town) + ' got through. You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
-      again ? 'Your waves are on hold. They ' + AGAIN : 'Your waves are on hold. Build more towers, then tap Resume waves.'],
+      again ? AGAIN(l) + ' Then the ' + bossName(town) + ' comes back.' : 'Your waves are on hold. Build more towers, then tap Resume waves.'],
   };
 }
-/* The line on the town's map card while it tries its boss again (Keep trying the boss): on hold until a tower goes up,
-   stuck (Auto-towers cannot raise one), or playing back up to the boss. */
+/* The line on the town's map card while it tries its boss again (Keep trying the boss): playing the last wave it beat
+   again until a tower goes up, stuck (Auto-towers cannot raise one), or playing on to the wave it lost. */
 export function retryLine(game, town) {
   const st = retryState(game, town), a = autoOf(game, town).boss, here = town.def.short || town.def.name;
   const w = a ? a.wave : (town.lost || {}).wave, what = w && !bossWave(town, w) ? 'wave ' + w : 'the ' + bossName(town);
   if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
   if (st === 'stuck') return 'Play ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
-  return whatHappened(town) + ' Once a tower goes up a level, ' + here + ' fights ' + what + ' again.'; // review of 2026.11.20-18: the line never said the town lost // review of 2026.11.20-5: the old two-step line narrated
+  // the loss and what it does now (review of 2026.11.20-18: the line never said the town lost)
+  return here + ' lost wave ' + w + '. It stays at wave ' + againWave({ wave: w || 1 }) + ' until a tower goes up a level.';
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */

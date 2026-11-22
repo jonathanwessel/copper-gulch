@@ -2,7 +2,8 @@
 // The careful player of tools/balance.js plays a new game up to the Capital and two hours past it (founding
 // institutions and buying their upgrades, `empire(..., { capital: true })`). Then an idle player takes over, sets the
 // switches once and leaves the game alone:
-//   - every open Automation switch goes on in every town: Auto-towers, Auto-research and Keep trying the boss, and
+//   - every open Automation switch goes on in every town: Auto-towers, Auto-research, Keep trying the boss and Auto
+//     Call to arms, and
 //     every hired foreman works (`leave`);
 //   - a town that holds its waves gets Resume waves, except one that lost (Keep trying the boss has it);
 //   - after that it never taps anything again: no new towers, paths, buildings, research picks or contracts.
@@ -46,9 +47,10 @@ export const ceiling = game => Object.entries(GOODS).reduce((a, [, x]) => {
 /* The idle player sets the switches once: every open one on in every town, every foreman working, and Resume waves
    where a town holds (a town that lost its boss is left to Keep trying the boss). Returns the switches it turned on. */
 export function leave(game) {
-  // Auto Call to arms trades goods for boss waves, not an income tool, so the income run leaves it Off (--arms turns it on;
-  // 2026.11.21-10: on seed 1 it won 38 boss waves against 32 and lost none, and earned 1.8% less over the 12 hours)
-  const on = KINDS.filter(k => autoOpen(game, k) && (k !== 'arms' || process.argv.includes('--arms')));
+  // Auto Call to arms is on too (--noarms leaves it Off). It was Off from 2026.11.21-10, when it tipped the growth gate
+  // that sat within 5% for several releases; since 2026.11.22-2 (Keep trying the boss plays on instead of holding) every
+  // seed's second half earns 26-61% more than its first with it on
+  const on = KINDS.filter(k => autoOpen(game, k) && (k !== 'arms' || !process.argv.includes('--noarms')));
   for (const t of Object.values(game.towns)) {
     for (const k of on) setAuto(game, t, k, true);
     setForemen(t, true);

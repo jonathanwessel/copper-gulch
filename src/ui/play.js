@@ -64,7 +64,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const backBtn = el('button', 'btn small backbtn'); backBtn.id = 'backBtn'; backBtn.hidden = true;
   backBtn.addEventListener('click', () => { const b = game.back; if (b && shell.go) shell.go(b); });
   place.append(name, mapBtn, backBtn);
-  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold && retryState(game, o) !== 'wait') || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
+  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold && retryState(game, o) !== 'again') || retryState(game, o) === 'stuck' || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
   const paintPlace = () => {
     const b = game.back, next = nextTowns(game);
     if (backBtn.hidden !== !b) backBtn.hidden = !b;
@@ -656,8 +656,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // a card or sheet that grows or shrinks (a stat row opened, a sheet scrolled in) is measured again before the next
   // frame places the tags, so no tag shows cut under it in between the 5-a-second measures (smoke, tower card)
   let reMeasure = false;
-  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { reMeasure = true; }) : null;
-  if (ro) { ro.observe(card); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
+  // the goods strip that wraps to a second row (a card that opens adds its goods to it) moves the card up in the same
+  // frame, before it is drawn: at 5 measures a second the phone tower card sat over the strip's new row for up to 0.2 s
+  // (smoke failed on it in 3 of 7 runs, 2026.11.22-1 and -2)
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(es => {
+    reMeasure = true;
+    for (const e of es) if (e.target === strip) { const sh = strip.hidden ? 0 : Math.round(e.target.getBoundingClientRect().height + 4); if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); } }
+  }) : null;
+  if (ro) { ro.observe(card); ro.observe(strip); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
   function frame(dt) {
     acc += dt; cardAcc += dt;
     viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)

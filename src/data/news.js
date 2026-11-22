@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-2',
+    lines: [
+      'Turn on Fight the war wagon again in Auto. A town that loses then keeps playing.',
+      'Lose wave 20 and it plays wave 19 again and again. You still earn coins for each raider.',
+      'Once a tower goes up a level, it tries wave 20 again.',
+    ],
+  },
+  {
     v: '2026.11.22-1',
     lines: [
       'Buy the Armory at the War Office and every town gets a To arms button.',

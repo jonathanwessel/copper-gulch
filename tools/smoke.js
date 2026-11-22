@@ -1214,11 +1214,11 @@ async function run() {
       await page.evaluate(() => document.querySelector('[data-auto="towers"]').click());
       if (!await waitFor(page, () => CG.game.town.towers[0].level > 1 && document.querySelector('[data-auto="towers"]').textContent === 'Turn off' && /Next upgrade in/.test(document.querySelector('.sheet').textContent), 4000)) bad.push('Auto-towers did not raise the tower (level ' + before + ')');
       bad.push(...(await check(page)).map(b => 'automation on: ' + b));
-      // Keep trying the boss: on, then a lost war wagon holds the waves and the sheet says what it waits for
+      // Keep trying the boss: on, then a lost war wagon: the waves play on (wave 19 again until a tower goes up, 2026.11.22-2) and the sheet says so
       await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());
       if (!await waitFor(page, () => document.querySelector('[data-auto="retry"]').textContent === 'Turn off' && /Ready if a boss gets through/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('Keep trying the boss did not switch on');
       await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
-      if (!await waitFor(page, () => /On hold until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
+      if (!await waitFor(page, () => /Stays at wave 19 until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent) && !CG.game.town.waves.hold, 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
       bad.push(...(await check(page)).map(b => 'retry: ' + b));
       // Call to arms (M6a): the War Office's Armory brings out To arms; its sheet says what a call costs; a call sends the
       // workers out (drawn on the board), stops the buildings, and the button shows the time in a fixed-width cell

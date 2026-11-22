@@ -4,13 +4,17 @@
      that stands, never a new tower and never past level 4 until the player picks that tower's path (or past 19 until they pick its second fork).
    - Auto-research (opened by the University): when the lab is idle, the cheapest next level of an item the player has
      researched at least once.
-   - Keep trying the boss (opened with Auto-towers, owner 2026-11-17): a town that lost a boss wave, or whose vault fell
-     on any wave (since 2026.11.19-1), holds its waves as always, then starts them again by itself once a tower has gone up a level (or a new one stands) since the loss, so
-     it drops back, climbs and tries the boss again. One coin loss per try, and every try meets stronger towers.
+   - Keep trying the boss (opened with Auto-towers, owner 2026-11-17: "the town drops back and keeps playing, so
+     Auto-towers can upgrade until it breaks through the gate"): after any loss, a boss that got through or a vault that
+     fell, in play or away, the town never sits on hold. It plays the last wave it beat again and again, for its bounty,
+     until a tower has gone up a level (or a new one stands) since the loss, then tries the wave it lost again. One coin
+     loss per try, and every try meets stronger towers. Until 2026.11.22-2 it held its waves while it waited, and from
+     about hour 3 of the idle run the Gulch sat on hold 45-60 minutes an hour and earned nothing (the idle Gulch wall).
    Each buys only when the price is at most AUTO.share of the coins on hand, so half the purse always stays.
-   State: game.shared.auto[town id] = { towers, research, retry, wait, last, boss, raids } where raids (a won outpost
+   State: game.shared.auto[town id] = { towers, research, retry, wait, last, boss, raids, fell } where fell (optional,
+   0 when missing) is the lowest wave lost since the last step (set from the 'breach' event), and raids (a won outpost
    only, optional, 0 when missing) is its breaches at the last raise (raidsHeld) and boss is the try in progress
-   { wave, power, at, tries } (power: the town's tower levels when it lost); it survives a charter (the switches are the
+   { wave, power, at, tries, go } (power: the town's tower levels when it lost; go: auto:retry was sent for this try); it survives a charter (the switches are the
    player's settings). It keeps working out of play and while time away is caught up.
    Events: 'auto:set' { town, kind, on }, 'auto:tower' { town, spot, level }, 'auto:research' { town, id, level },
    'auto:retry' { town, wave, tries }.
@@ -97,27 +101,35 @@ export const lostBoss = town => !!(town.waves && town.waves.autoHold && town.los
 export const lostTry = town => !!(town.waves && town.waves.autoHold && town.lost);
 /* The town in play just lost its boss and will try again by itself. */
 export const willRetry = (game, town) => autoOn(game, town, 'retry') && lostTry(town);
-/* Where a try stands: null (no try, or the switch is off), 'wait' (on hold until a tower goes up a level, which
-   Auto-towers will do), 'stuck' (on hold, and Auto-towers cannot raise one: it is off, there is no tower, or every
-   tower waits for its path), or 'climb' (playing back up to the boss wave). */
+/* Where a try stands: null (no try, or the switch is off), 'again' (playing the last wave it beat again until a tower
+   goes up a level, which Auto-towers will do), 'stuck' (the same, but Auto-towers cannot raise one: it is off, there is
+   no tower, or every tower waits for its path), or 'climb' (a tower went up, so it plays on to the wave it lost). */
 export function retryState(game, town) {
-  if (!autoOn(game, town, 'retry')) return null;
-  if (lostTry(town)) {
-    const b = towerBlock(game, town);
-    return b === 'off' || b === 'none' || b === 'path' ? 'stuck' : 'wait';
-  }
+  if (!autoOn(game, town, 'retry') || town.won) return null;
   const a = autoOf(game, town).boss;
-  return a && !town.waves.autoHold && town.bestWave < a.wave ? 'climb' : null;
+  if (!a && !lostTry(town)) return null;
+  if (a && !lostTry(town) && towerPower(town) > a.power) return 'climb';
+  const b = towerBlock(game, town);
+  return b === 'off' || b === 'none' || b === 'path' ? 'stuck' : 'again';
 }
+/* The wave a town with a try on plays again while it waits: the one before the wave it lost. */
+export const againWave = a => Math.max(1, a.wave - 1);
 function retry(game, town, a) {
-  if (lostTry(town)) {
-    const l = town.lost;
-    if (!a.boss || a.boss.at !== l.at || a.boss.wave !== l.wave) a.boss = { wave: l.wave, power: towerPower(town), at: l.at, tries: (a.boss && a.boss.wave === l.wave ? a.boss.tries : 0) + 1 };
-    if (towerPower(town) > a.boss.power) {
-      setHold(game, town, false);
-      game.bus.emit('auto:retry', { town: town.id, wave: a.boss.wave, tries: a.boss.tries });
-    }
-  } else if (a.boss && (town.bestWave >= a.boss.wave || town.wave < a.boss.wave - wavesOf(town).breachBack)) a.boss = null; // beaten, or fell further back (a charter, a vault)
+  if (town.won) { a.fell = 0; a.boss = null; return; }
+  // a fresh loss: one the 'breach' event saw this step, or a town held after a loss (an old save, or the switch just turned on)
+  const w = a.fell || (lostTry(town) ? town.lost.wave : 0);
+  a.fell = 0;
+  if (w) {
+    const same = a.boss && a.boss.wave === w;
+    a.boss = { wave: w, power: towerPower(town), at: town.t, tries: same ? a.boss.tries + 1 : 1, go: false };
+    if (town.waves.autoHold) setHold(game, town, false); // it keeps playing: the wave before the lost one comes again
+  }
+  const b = a.boss, ws = town.waves;
+  if (!b) return;
+  if (town.wave > b.wave) { a.boss = null; return; } // beaten
+  if (ws.phase !== 'break' || ws.hold || town.wave !== b.wave) return;
+  if (towerPower(town) <= b.power) town.wave = againWave(b); // no tower went up yet: the last wave it beat comes again
+  else if (!b.go) { b.go = true; game.bus.emit('auto:retry', { town: town.id, wave: b.wave, tries: b.tries }); }
 }
 
 /* A wave the militia could save: one is on the road with its boss out, or the vault is low. */
@@ -155,7 +167,7 @@ function work(game, town, dt) {
   // on the road, or the vault is down to AUTO.armsVault of its strength
   if (autoOn(game, town, 'arms') && armsWanted(town) && !armsBlock(game, town)) callToArms(game, town);
   if (autoOn(game, town, 'retry')) retry(game, town, a);
-  else if (a.boss) a.boss = null;
+  else { if (a.boss) a.boss = null; a.fell = 0; }
   if (autoOn(game, town, 'research') && !town.lab && !town.labNext) { // a lined-up item is the player's pick
     const n = nextResearch(town);
     if (n && startResearch(game, town, n.id)) game.bus.emit('auto:research', { town: town.id, id: n.id, level: researchLevel(town, n.id) + 1 });
@@ -164,6 +176,10 @@ function work(game, town, dt) {
 
 export const automation = {
   id: 'automation',
-  setup(game) { if (!game.shared.auto) game.shared.auto = {}; },
+  setup(game) {
+    if (!game.shared.auto) game.shared.auto = {};
+    // Keep trying the boss learns of every loss here, an in-play vault too (that one does not hold the waves)
+    game.bus.on('breach', e => { const a = game.shared.auto && game.shared.auto[e.town]; if (a && a.retry && e.wave > 0) a.fell = a.fell ? Math.min(a.fell, e.wave) : e.wave; });
+  },
   step(town, dt, game) { work(game, town, dt); },
 };

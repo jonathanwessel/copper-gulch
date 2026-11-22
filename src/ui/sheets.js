@@ -25,7 +25,7 @@ import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/c
 import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns, deedsOf } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
-import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
+import { autoOpen, autoOf, setAuto, retryState, againWave, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
 import { PATH_LEVEL, TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
@@ -318,7 +318,7 @@ export function autoSheet(game, town, openResearch = null) {
     };
     add('foremen', 'Foremen', 'Upgrades buildings that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
-    add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town fights it again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
+    add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town keeps playing and tries again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Keeps researching the next level of what you picked before.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     // Call to arms by Auto: only at a boss or a low vault, with its own switch (owner idea, 2026-11-20)
     add('arms', 'Call to arms', 'Calls your workers out when the boss is on the road or the vault is low.').sw.addEventListener('click', () => { setAuto(game, town, 'arms', !autoOf(game, town).arms); paint(); });
@@ -347,8 +347,8 @@ export function autoSheet(game, town, openResearch = null) {
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
-        : rs === 'wait' ? 'On hold until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
-        : rs === 'stuck' ? (a.towers ? 'On hold until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
+        : rs === 'again' ? 'Stays at wave ' + againWave(a.boss || { wave: bw }) + ' until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
+        : rs === 'stuck' ? (a.towers ? 'Stays at wave ' + againWave(a.boss || { wave: bw }) + ' until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);

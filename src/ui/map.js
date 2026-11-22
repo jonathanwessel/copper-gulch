@@ -393,11 +393,15 @@ export function mountMap(root, game, view, shell) {
   function placeBadges() {
     const W = innerWidth, H = innerHeight, shown = [];
     for (const s of view.sites) {
-      const B = badge[s.id], p = view.badgePoint(s.id), w = widths[s.id] || 80;
+      const B = badge[s.id], p = view.badgePoint(s.id);
       // a town off the screen has no label: clamped to the edge, they piled up under the coins (review of 2026.11.20-3, the
       // Capital close-up)
       if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }
       B.b.hidden = false;
+      // a label shown for the first time is measured now, not at the next 0.25 s measure: placed with a guessed width,
+      // one by the screen's edge stuck out past it (smoke, rotate, Dry Creek and Sandy Bend, 2026.11.22-1 and -2)
+      if (!widths[s.id]) { widths[s.id] = B.b.offsetWidth; heights[s.id] = B.b.offsetHeight; }
+      const w = widths[s.id] || 80;
       // a town left of a side card keeps its label left of the card, never pushed under it (review of 2026.11.20-4: the
       // open card's own town lost its label in landscape)
       const R = cardBox && cardBox.l > W * .35 && p.x < cardBox.l ? cardBox.l - 4 : W;

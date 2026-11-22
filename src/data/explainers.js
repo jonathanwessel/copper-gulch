@@ -343,8 +343,8 @@ export const EXPLAINERS = [
   {
     id: 'retry', covers: ['retry'],
     title: 'Try again',
-    text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town tries again by itself once a tower goes up a level.',
-    say: h => 'Tap Auto and turn on Fight the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town tries again by itself once a tower goes up a level.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
+    text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town plays the wave before it again and again. Once a tower goes up a level, it tries again.',
+    say: h => 'Tap Auto and turn on Fight the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town plays the wave before it again and again. Once a tower goes up a level, it tries again.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {

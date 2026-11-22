@@ -1,6 +1,7 @@
 // Keep trying the boss (M4 Automation, owner 2026-11-17): a per-town switch, Off by default and opened with Auto-towers.
-// On, a town that loses its boss wave holds its waves as always, then starts them again by itself once a tower has gone
-// up a level, so it drops back, climbs and tries again. One coin loss per try, and its map badge says Retrying.
+// On, a town that loses never sits on hold (2026.11.22-2, the idle Gulch wall): it plays the last wave it beat again and
+// again, for its bounty, until a tower has gone up a level, then tries the wave it lost again. One coin loss per try,
+// and its map badge says Retrying.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
@@ -36,6 +37,7 @@ function gulch(seed, towers, inst = ['war']) {
   return { g, G };
 }
 const breaches = ev => ev.filter(([n, e]) => n === 'breach' && e.town === 'gulch').map(([, e]) => e);
+const clears = (ev, w) => ev.filter(([n, e]) => n === 'wave:clear' && e.town === 'gulch' && e.wave === w).length;
 const starts = (ev, w) => ev.filter(([n, e]) => n === 'wave:start' && e.town === 'gulch' && e.wave === w).length;
 
 test('Keep trying the boss opens with Auto-towers and starts Off', () => {
@@ -61,41 +63,56 @@ test('Off, a lost boss holds the waves even after a tower goes up a level', () =
   assert.equal(siteInfo(g, 'gulch').alert, 'lost');
 });
 
-test('On, the town waits for a stronger tower, then climbs back and tries again, one coin loss per try', () => {
+test('On, the town plays the wave before the lost one again until a tower goes up, then tries again, one coin loss per try', () => {
   const { g, G } = gulch('r2', weak());
   setAuto(g, G, 'retry', true);
   const ev = g.bus.record();
   run(g, 4 * 60);
   assert.equal(breaches(ev).length, 1, 'the boss got through once');
-  assert.equal(G.wave, 10 - wavesOf(G).breachBack);
-  assert.ok(G.waves.autoHold, 'held right after the loss');
-  assert.equal(retryState(g, G), 'stuck', 'Auto-towers is off, so it waits for the player');
+  assert.equal(G.waves.autoHold, false, 'not held: it keeps playing');
+  assert.equal(G.waves.hold, false);
+  assert.equal(retryState(g, G), 'stuck', 'Auto-towers is off, so a tower must go up by hand');
   assert.equal(siteInfo(g, 'gulch').alert, 'lost', 'stuck: the map asks for the player');
-  assert.match(lostCard(G, g).lines[1], /start again by themselves after a tower goes up a level/);
-  assert.match(lostToast(G, false, g), /start again by themselves/);
   const a = autoOf(g, G);
   assert.deepEqual([a.boss.wave, a.boss.tries, a.boss.power], [10, 1, towerPower(G)]);
-  // no stronger tower: nothing comes, however long it waits
+  // no stronger tower: wave 9 comes again and again, and the war wagon never does
+  const nine = clears(ev, 9), coins = G.tally.bounty || 0;
   run(g, 10 * 60);
-  assert.equal(starts(ev, 8), 0, 'no wave while no tower went up');
+  assert.ok(clears(ev, 9) - nine >= 4, 'wave 9 played again (' + (clears(ev, 9) - nine) + ' times)');
+  assert.equal(starts(ev, 10), 1, 'the boss wave did not come again');
+  assert.ok((G.tally.bounty || 0) > coins, 'each wave 9 again pays its bounty');
   assert.equal(breaches(ev).length, 1, 'no second coin loss while it waits');
-  // a tower goes up a level: the waves start again by themselves
+  assert.equal(G.bestWave, 9);
+  // a tower goes up a level: the next break brings the war wagon again
   const mark = ev.length;
   G.towers[0].level++;
-  g.step(.25);
-  assert.equal(G.waves.autoHold, false);
-  assert.equal(G.waves.hold, false);
-  assert.deepEqual(ev.slice(mark).filter(([n]) => n === 'auto:retry').map(([, e]) => [e.wave, e.tries]), [[10, 1]]);
   assert.equal(retryState(g, G), 'climb');
   assert.equal(siteInfo(g, 'gulch').alert, 'retrying');
-  // still too weak: it loses the boss again, once, and holds again for the next stronger tower
-  run(g, 8 * 60);
-  assert.ok(starts(ev, 8) >= 1 && starts(ev, 10) === 2, 'it climbed back and met the boss again');
+  for (let i = 0; i < 4 * 60 * 4 && !starts(ev.slice(mark), 10); i++) g.step(.25);
+  assert.equal(starts(ev, 10), 2, 'it met the boss again');
+  assert.deepEqual(ev.slice(mark).filter(([n]) => n === 'auto:retry').map(([, e]) => [e.wave, e.tries]), [[10, 1]]);
+  // still too weak: it loses the boss again, once, and plays wave 9 again
+  run(g, 4 * 60);
   assert.equal(breaches(ev).length, 2, 'one coin loss per try');
-  assert.ok(G.waves.autoHold);
   assert.equal(a.boss.tries, 2);
+  assert.equal(G.waves.hold, false);
   run(g, 10 * 60);
   assert.equal(breaches(ev).length, 2, 'still one loss per try');
+});
+
+test('the words while it plays a wave again', () => {
+  const { g, G } = gulch('r2w', weak());
+  setAuto(g, G, 'retry', true); setAuto(g, G, 'towers', true);
+  autoOf(g, G).wait = 1e9; // Auto-towers is on, its next raise far off
+  const ev = g.bus.record();
+  let toastLine = null, card = null;
+  g.bus.on('breach', () => { toastLine = lostToast(G, false, g); card = lostCard(G, g); });
+  run(g, 4 * 60);
+  assert.equal(breaches(ev).length, 1);
+  assert.match(toastLine, /Your waves stay at wave 9 until a tower goes up a level/);
+  assert.match(card.lines[1], /^Your waves stay at wave 9 until a tower goes up a level\. Then the war wagon comes back\.$/);
+  assert.equal(retryState(g, G), 'again', 'Auto-towers will raise one');
+  assert.equal(siteInfo(g, 'gulch').alert, 'retry', 'no call for the player: it is handling it');
 });
 
 test('On with Auto-towers, the town breaks through by itself', () => {
@@ -109,12 +126,7 @@ test('On with Auto-towers, the town breaks through by itself', () => {
   // the loss came: it waits for Auto-towers, never longer than one Auto-towers wait
   const at = ev.findIndex(([n, e]) => n === 'breach' && e.town === 'gulch');
   assert.ok(at >= 0);
-  if (G.waves.autoHold) {
-    assert.equal(retryState(g, G), 'wait');
-    assert.equal(siteInfo(g, 'gulch').alert, 'retry', 'no call for the player: it is handling it');
-    run(g, towerEvery(g) + 5);
-    assert.equal(G.waves.autoHold, false, 'Auto-towers raised a tower and the waves started again');
-  }
+  assert.equal(G.waves.hold, false, 'it keeps playing while Auto-towers raises a tower');
   // given time (and Auto-towers raising every few minutes), it gets past the war wagon
   for (let m = 0; m < 240 && G.bestWave < 10; m++) run(g, 60);
   assert.ok(G.bestWave >= 10, 'it broke through the gate (best wave ' + G.bestWave + ')');
@@ -128,10 +140,8 @@ test('a boss killed on the next try lets the town pass and ends the try', () => 
   const { g, G } = gulch('r4', weak());
   setAuto(g, G, 'retry', true);
   run(g, 4 * 60);
-  assert.ok(G.waves.autoHold);
+  assert.equal(G.waves.hold, false);
   G.towers = strong();
-  g.step(.25);
-  assert.equal(G.waves.autoHold, false);
   run(g, 6 * 60);
   assert.ok(G.bestWave >= 10);
   assert.equal(autoOf(g, G).boss, null);
@@ -165,24 +175,52 @@ test('away and in catch-up, the town keeps trying and breaks through with Auto-t
 
 // Evaluation 2 (2026-11-19): in the 24 h idle run every seed's Gulch lost its vault on a plain wave while away and sat
 // on hold for the whole day. Keep trying the boss now takes up a fallen vault too.
-test('On, a vault that fell on a plain wave while away starts again once a tower goes up a level', async () => {
+test('On, a vault that fell on a plain wave while away plays the wave before it again', async () => {
   const { fall } = await import('../src/core/defense.js');
   const { retryLine } = await import('../src/ui/lost.js');
   const { g, G } = gulch('r9', weak());
   G.wave = 14; G.bestWave = 13; g.active = 'ridge';
   setAuto(g, G, 'retry', true);
   fall(g, G, 'vault');
-  assert.equal(G.waves.autoHold, true, 'away, a fallen vault holds the waves');
+  assert.equal(G.waves.autoHold, true, 'away, a fallen vault holds the waves for the moment it falls');
   assert.equal(G.lost.why, 'vault');
+  g.step(.25);
+  assert.equal(G.waves.hold, false, 'Keep trying the boss plays on');
   assert.equal(retryState(g, G), 'stuck', 'Auto-towers is off');
   assert.equal(retryLine(g, G), 'Play Copper Gulch and upgrade a tower one level. Then it fights wave 14 again.');
-  run(g, 60);
-  assert.equal(G.waves.hold, true, 'no stronger tower yet');
   G.towers[0].level++;
-  g.step(.25);
-  assert.equal(G.waves.hold, false, 'a tower went up: the waves start again');
   assert.equal(retryState(g, G), 'climb');
   assert.equal(retryLine(g, G), 'Copper Gulch fights wave 14 again.');
+  G.towers[0].level--;
+  G.towers[1].path = 'a'; G.towers[1].level = 5; autoOf(g, G).boss.power = towerPower(G); setAuto(g, G, 'towers', true);
+  assert.equal(retryState(g, G), 'again');
+  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14. It stays at wave 13 until a tower goes up a level.');
+});
+
+test('On, a vault that fell in play moves the try down, so a wave it cannot beat is not played in a loop', async () => {
+  const { fall } = await import('../src/core/defense.js');
+  const { g, G } = gulch('r11', weak());
+  G.wave = 14; G.bestWave = 13;
+  setAuto(g, G, 'retry', true);
+  fall(g, G, 'vault');
+  assert.equal(G.waves.hold, false, 'in play a fallen vault never held the waves');
+  g.step(.25);
+  assert.equal(autoOf(g, G).boss.wave, 14);
+  G.wave = 13; fall(g, G, 'vault'); g.step(.25);
+  assert.equal(autoOf(g, G).boss.wave, 13, 'the lower loss is the wave to beat');
+  assert.equal(autoOf(g, G).boss.tries, 1);
+});
+
+test('a town held after a loss plays on once the switch goes on (an old save too)', async () => {
+  const { fall } = await import('../src/core/defense.js');
+  const { g, G } = gulch('r12', weak());
+  G.wave = 14; G.bestWave = 13; g.active = 'ridge';
+  fall(g, G, 'vault');
+  assert.equal(G.waves.hold, true);
+  setAuto(g, G, 'retry', true);
+  g.step(.25);
+  assert.equal(G.waves.hold, false, 'turning the switch on takes up the loss');
+  assert.equal(autoOf(g, G).boss.wave, 14);
 });
 
 test('Off, a vault that fell while away stays on hold until the player goes there', async () => {
@@ -193,4 +231,16 @@ test('Off, a vault that fell while away stays on hold until the player goes ther
   G.towers[0].level++;
   run(g, 60);
   assert.equal(G.waves.hold, true);
+});
+
+test('a v24 save gets no loss waiting and its try marked as not sent yet', () => {
+  const { g, G } = gulch('r13', weak());
+  setAuto(g, G, 'retry', true);
+  const old = JSON.parse(encode(g, 1)); old.v = 24;
+  const a = old.game.shared.auto.gulch;
+  delete a.fell; a.boss = { wave: 10, power: 3, at: 0, tries: 1 };
+  const m = migrate(old);
+  assert.equal(m.v, SAVE_VERSION);
+  assert.equal(m.game.shared.auto.gulch.fell, 0);
+  assert.equal(m.game.shared.auto.gulch.boss.go, false);
 });
