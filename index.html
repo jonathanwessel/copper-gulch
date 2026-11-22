@@ -526,6 +526,12 @@ html.flat .tag { position: static; transform: none !important; }
 .option .gnamerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
 .option .gnamerow .evword { flex: none; width: 6em; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
 .option .gnamerow .evword.bust { color: #e0503a; }
+.option .gnamerow .oleft { flex: none; width: 6.5em; text-align: right; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; } /* an order's time left, in a fixed cell */
+.orders h3 { margin: 4px 0 6px; }
+.sheetbody .orders { scroll-snap-align: start; scroll-margin-top: 54px; } /* the sheet opens on the Orders heading, not snapped to the first offer under it */
+.orders .option.static .depth { margin: 4px 0 2px; position: relative; }
+.orders .depth > .mark { position: absolute; top: -3px; bottom: -3px; height: auto; width: 2px; background: var(--gold); } /* where rush orders start */
+.orders > .goods { margin-bottom: 10px; }
 .option .gnamerow .evword[hidden] { display: none; }
 .sellpick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px 8px 6px; margin-top: -6px; background: var(--panel-2); border: 2px solid var(--line); border-top: 0; }
 .sellpick[hidden] { display: none; }

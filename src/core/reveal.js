@@ -77,7 +77,8 @@ export function dots(game, town) {
     if ((o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)) towns[id] = true; // raided while you were away
   }
   const want = {
-    goods: t.goods && listedGoods(town).some(g => !f['listed:' + g]),
+    // new goods to see, or an order board the player has not looked at yet (src/core/orders.js)
+    goods: t.goods && (listedGoods(town).some(g => !f['listed:' + g]) || (!!(game.shared.orders && game.shared.orders.towns && game.shared.orders.towns[town.id]) && !f['orders:seen'])),
     research: t.research && !town.lab && itemsOf(town).some(id => !researchBlock(town, id)),
     perks: t.perks && (perksToPick(game) > 0 || deedsFor(town) > (f.deedsShown || 0)),
     auto: t.auto && !((game.shared.seen || {})['auto:sheet']), // never opened yet
@@ -90,6 +91,9 @@ export function dots(game, town) {
 /* The player is looking at this town: what happened to it while away is now known. */
 export function look(town) { town.flags.breachSeen = town.breaches || 0; }
 /* The player opened the Goods list. */
-export function lookGoods(town) { for (const g of listedGoods(town)) town.flags['listed:' + g] = true; }
+export function lookGoods(town, game = null) {
+  for (const g of listedGoods(town)) town.flags['listed:' + g] = true;
+  if (game && game.shared.orders && game.shared.orders.towns && game.shared.orders.towns[town.id]) town.flags['orders:seen'] = true;
+}
 /* The player opened the Perks sheet. */
 export function lookPerks(town) { town.flags.deedsShown = deedsFor(town); }

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-4',
+    lines: [
+      'Beat wave 10 in Iron Ridge and buyers in each town start to send orders. Tap Goods to see them.',
+      'Tap Take on an order. Your town sends the goods by itself. You get more coins than if you sold them.',
+      'Fill orders in time to raise your reputation. When it reaches 60, rush orders start. They pay more.',
+    ],
+  },
+  {
     v: '2026.11.22-3',
     lines: [
       'Once Iron Ridge is open, every few minutes one good sells for more, for 90 sec. This is a boom. Sometimes one sells for less, a bust.',

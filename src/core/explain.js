@@ -132,7 +132,7 @@ export function explainVault(town) {
   return ex;
 }
 
-/* Income. Town.earn files every coin under a key (town.tally, not saved): 'sale:<good>', 'bounty', 'call', 'contract'. Given two
+/* Income. Town.earn files every coin under a key (town.tally, not saved): 'sale:<good>', 'bounty', 'call', 'contract', 'order'. Given two
    snapshots of the tally and the seconds between them, the coins a second from each, biggest first, and the bonuses
    already in those numbers. explainEmpireIncome adds a row for every other town and outpost ('town:<id>'), since all
    their coins go into the same purse. */
@@ -144,6 +144,7 @@ export function incomeLabel(key) {
   if (kind === 'bounty') return 'Raiders beaten';
   if (kind === 'call') return 'Waves called early';
   if (kind === 'contract') return 'Contracts for the Capital';
+  if (kind === 'order') return 'Orders filled';
   return 'Other';
 }
 export function explainIncome(town, before, now, seconds) {

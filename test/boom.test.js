@@ -157,7 +157,7 @@ test('save v26: an old save gets the boom clock of a new game; a game with a boo
   delete old.game.shared.market.wait; delete old.game.shared.market.boom; delete old.game.shared.market.last; delete old.game.shared.market.rng;
   old.v = 25;
   const m = migrate(old);
-  assert.equal(m.v, SAVE_VERSION); assert.equal(SAVE_VERSION, 26);
+  assert.equal(m.v, SAVE_VERSION); assert.ok(SAVE_VERSION >= 26);
   assert.equal(m.game.shared.market.wait, BOOM.first); assert.equal(m.game.shared.market.boom, null);
   const back = loadGame(m.game); assert.ok(Array.isArray(back.shared.market.rng));
   run(g, BOOM.first + 5);

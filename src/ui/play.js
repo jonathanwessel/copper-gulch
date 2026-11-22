@@ -14,6 +14,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
+import { orderDone, orderMissed } from './sheets.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, STOCK_LABEL } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen, labsRunning } from '../core/research.js';
@@ -174,7 +175,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   root.append(ui);
   requestAnimationFrame(placeToasts); // a toast from the switch here came before this top bar
   const sheets = createSheets(ui, { onOpen: () => { close(); requestAnimationFrame(placeToasts); } });
-  const openGoods = (focus = null) => { lookGoods(town); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
+  const openGoods = (focus = null) => { lookGoods(town, game); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
   const menuCtx = { game, audio: shell.audio || null, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
@@ -493,6 +494,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
+    game.bus.on('order:done', e => { if (!game.catching) toast(orderDone(e, e.town === town.id), 4000); }),
+    game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
     game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),

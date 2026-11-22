@@ -338,6 +338,13 @@ export const EXPLAINERS = [
     when: h => !!h.boom && h.boomChip && h.t > 2, at: h => ({ el: '#goodsStrip [data-good="' + h.boom.good + '"]' }),
   },
   {
+    // town orders open here (src/core/orders.js, GDD.md Market)
+    id: 'orders', covers: ['system:orders'],
+    title: 'Town orders',
+    text: 'Buyers in this town want goods by a set time. Tap Goods, then Take on an order. Your town sends the goods by itself. Fill it in time to get coins and reputation. Miss it and your reputation falls.',
+    when: h => !!h.ordersOpen && !!h.tabs.goods && h.t > 2, at: () => ({ el: '#goodsBtn' }),
+  },
+  {
     id: 'crowd', covers: ['crowd'],
     title: 'More towers cost more',
     text: 'Each new tower here costs more than the one before. Upgrades cost the same as always.',

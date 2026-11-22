@@ -32,6 +32,8 @@ import { AUTO } from '../data/automation.js';
 import { ARMS } from '../data/arms.js';
 import { armsBlock, armsLoss, callToArms, militia, armsWait } from '../core/arms.js';
 import { bossName } from './lost.js';
+import { ordersOf, takeOrder, giveUpOrder } from '../core/orders.js';
+import { ORDERS } from '../data/orders.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls = 'btn small', id) => { const b = el('button', cls, text); if (id) b.id = id; return b; };
@@ -77,6 +79,59 @@ export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESE
 export const STOCK_LABEL = 'Save for towers';
 export const STOCK_CHOICES = [['normal', RESERVE.levels + ' upgrades'], ['lots', RESERVE.levels * RESERVE.lots + ' upgrades']]; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
+/* Town orders on the Goods sheet (src/core/orders.js): the town's reputation, the order running with how much is sent and
+   the time left, and the offers with Take. Taking another while one runs, or Give up, takes two taps, since it costs
+   reputation. Rows are built once for each set of orders (sig) and only their words and bars change after that. */
+export const orderName = o => fmt(o.need) + ' ' + GOODS[o.good].name.toLowerCase();
+export const orderDone = (e, here) => GOODS[e.good].name + ' order filled' + (here ? '' : ' in ' + (TOWN_NAMES[e.town] || e.town)) + '. You got ' + fmt(e.coins) + ' coins.';
+export const orderMissed = (e, here) => (e.gaveUp ? 'You gave up the ' : 'The ') + GOODS[e.good].name.toLowerCase() + ' order' + (here ? '' : ' in ' + (TOWN_NAMES[e.town] || e.town)) + (e.gaveUp ? '.' : ' ran out of time.') + ' Reputation is now ' + e.rep + '.';
+const repAsk = 'Lose ' + ORDERS.miss + ' reputation?';
+export function ordersPanel(game, town) {
+  const st = ordersOf(game, town);
+  if (!st) return null;
+  const box = el('div', 'orders'); box.id = 'orders';
+  const live = [];
+  box.append(el('h3', '', 'Orders'));
+  const rep = el('div', 'option static'), repTxt = el('div'), repN = el('b'), bar = el('i', 'depth'), fill = el('i'), rush = el('small');
+  const mark = el('i', 'mark'); mark.style.left = Math.round(100 * ORDERS.rushAt / ORDERS.max) + '%'; bar.append(fill, mark); repTxt.append(repN, bar, rush); rep.append(repTxt); box.append(rep); rep.id = 'orderRep'; // a mark where rush orders start (review of 2026.11.22-4)
+  live.push(() => {
+    setText(repN, 'Reputation ' + Math.round(st.rep) + ' of ' + ORDERS.max);
+    const w = Math.round(100 * st.rep / ORDERS.max) + '%'; if (fill.style.width !== w) fill.style.width = w;
+    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders are open' : 'Rush orders come at ' + ORDERS.rushAt);
+  });
+  const a = st.active;
+  if (a) {
+    const row = el('div', 'option running'), txt = el('div'), head = el('div', 'gnamerow'), name = el('b', '', orderName(a)), left = el('small', 'oleft');
+    head.append(name, left); left.id = 'orderLeft';
+    const got = el('small'), b2 = el('i', 'depth'), f2 = el('i'); b2.append(f2);
+    txt.append(head, el('span', '', 'Pays ' + fmt(a.coins) + ' coins'), got, b2);
+    const drop = btn('Give up'); drop.id = 'orderDrop';
+    confirmTap(drop, repAsk, () => { giveUpOrder(game, town); });
+    row.append(txt, drop); box.append(row); row.id = 'orderRun';
+    live.push(() => {
+      setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' so far');
+      const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (f2.style.width !== w) f2.style.width = w;
+      setText(left, clock(a.left) + ' left');
+    });
+  }
+  const list = el('div', 'goods research');
+  if (!st.offers.length) list.append(el('p', 'uses', 'No new orders right now.'));
+  for (const o of st.offers) {
+    const row = el('div', 'option'), txt = el('div'), name = el('b');
+    if (o.rush) name.append(el('i', 'lbl', 'Rush'));
+    name.append(document.createTextNode(orderName(o)));
+    txt.append(name, el('span', '', 'Pays ' + fmt(o.coins) + ' coins'), el('small', '', 'Deliver in ' + span(o.time)));
+    const take = btn(a ? 'Take instead' : 'Take', 'btn small build'); take.dataset.order = o.id;
+    const go = () => { takeOrder(game, town, o.id); };
+    if (a) confirmTap(take, repAsk, go); else take.addEventListener('click', go);
+    row.append(txt, take); list.append(row);
+  }
+  box.append(list);
+  const paint = () => { for (const fn of live) fn(); };
+  paint();
+  return { el: box, paint, sig: () => (st.active ? st.active.id : 0) + '|' + st.offers.map(o => o.id).join(',') };
+}
+
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
   return body => {
@@ -90,7 +145,11 @@ export function goodsSheet(game, town, focus = null) {
     const paintStock = () => { const cur = town.stock === 'lots' ? 'lots' : 'normal'; for (const b of segBtns) { const on = b.dataset.stock === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } };
     seg.append(...segBtns); paintStock(); stockRow.append(el('span', 'seglabel', STOCK_LABEL), seg);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
-    body.append(list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
+    // town orders, once they are open here, above the goods (src/core/orders.js)
+    const ordersBox = el('div'); let op = null, osig = '';
+    const orders = () => { const p = ordersPanel(game, town); op = p; osig = p ? p.sig() : ''; ordersBox.replaceChildren(...(p ? [p.el] : [])); };
+    orders();
+    body.append(ordersBox, list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     // a tapped good stays whole in view, below the pinned Save for towers row (review of 2026.11.20-6: the tap left
     // Timber's name under it)
     const inView = row => {
@@ -166,7 +225,11 @@ export function goodsSheet(game, town, focus = null) {
       if (at + row.offsetHeight <= body.clientHeight) body.scrollTop = 0; else row.scrollIntoView({ block: 'start' }); // its snap point, so the row above is gone whole
     }); }
     // painted only when the strip is (sync), so its counts always match the strip's
-    const tick = () => {}; tick.sync = () => { if (shown().join() + '|' + shipped().join() !== sig) build(); else paint(); };
+    const tick = () => {}; tick.sync = () => {
+      if (shown().join() + '|' + shipped().join() !== sig) build(); else paint();
+      const st = ordersOf(game, town), now = st ? (st.active ? st.active.id : 0) + '|' + st.offers.map(o => o.id).join(',') : '';
+      if (!!st !== !!op || now !== osig) orders(); else if (op) op.paint();
+    };
     return tick;
   };
 }

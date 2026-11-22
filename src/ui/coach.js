@@ -18,6 +18,7 @@ import { capitalNext, capitalOpen } from '../core/capital.js';
 import { foundCost } from '../core/tree.js';
 import { NODE_COST } from '../data/institutions.js';
 import { FORKS, FORK_LEVEL } from '../data/towers.js';
+import { ordersOf } from '../core/orders.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -58,6 +59,7 @@ export function helper(town, game = null) {
     kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
     // a boom or bust on now (src/core/market.js), and whether its good has a chip on this town's goods strip
     boom: game && game.shared.market ? game.shared.market.boom || null : null,
+    ordersOpen: !!game && !!ordersOf(game, town), // this town has an order board (src/core/orders.js)
     boomChip: (() => { const b = game && game.shared.market && game.shared.market.boom; if (!b || typeof document === 'undefined') return false; const n = document.querySelector('#goodsStrip [data-good="' + b.good + '"]'); return !!n && n.offsetParent !== null; })(),
     stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },

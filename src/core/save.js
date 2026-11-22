@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -199,6 +199,14 @@ export const MIGRATIONS = {
     const m = g.shared.market = g.shared.market || { rate: {}, event: {}, sold: {} };
     if (m.wait === undefined) { m.wait = 480; m.boom = null; m.last = null; m.event = {}; }
     return { ...s, v: 26, game: g };
+  },
+  // v27: town orders (src/core/orders.js): their clock starts as in a new game (a minute, counted once two towns have
+  // beaten wave 10), no town has a board or reputation yet. The random stream is made from the seed when it loads.
+  26: s => {
+    const g = s.game || {};
+    g.shared = g.shared || {};
+    g.shared.orders = g.shared.orders || { wait: 60, towns: {} };
+    return { ...s, v: 27, game: g };
   },
 };
 

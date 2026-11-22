@@ -627,6 +627,42 @@ async function run() {
         return out;
       });
       for (const [k, v] of Object.entries(goods)) if (!v) bad.push('the Goods sheet sell modes: not ' + k);
+      // town orders (Market depth, part 2): the board on the Goods sheet, Take with one tap, Switch with two, each
+      // row inside the sheet with no sideways scroll, and the time left in a fixed cell
+      const ord = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, o = CG.game.shared.orders, out = {};
+        const keep = { wait: o.wait, st: o.towns[t.id], seen: (CG.game.shared.seen || {}).orders };
+        CG.game.shared.seen.orders = true; o.wait = 0;
+        const offer = (id, rush) => ({ id, good: 'timber', need: 330, got: 0, coins: 396, minutes: 5.5, time: 660, left: 660, rush, age: 0 });
+        const st = o.towns[t.id] = { rep: 24, offers: [offer(1, false), offer(2, true)], active: null, n: 3, wait: 999, filled: 0, missed: 0 };
+        document.getElementById('sheetClose').click(); await wait(80); document.getElementById('goodsBtn').click(); await wait(400);
+        const sheet = document.getElementById('sheet'), body = sheet.querySelector('.sheetbody'), sr = sheet.getBoundingClientRect();
+        const inside = n => { const r = n.getBoundingClientRect(); return r.height >= 30 && r.left >= sr.left - 1 && r.right <= sr.right + 1; };
+        out.board = !!document.getElementById('orders') && /^Reputation 24 of 100$/.test(document.querySelector('#orderRep b').textContent);
+        // the sheet opens on the Orders heading and the reputation, not scrolled past them (2026.11.22-4 shots)
+        const h = document.querySelector('#orders h3').getBoundingClientRect(), br = body.getBoundingClientRect(), pin = sheet.querySelector('.stockrow');
+        out.headingShows = h.top >= (pin ? pin.getBoundingClientRect().bottom : br.top) - 1 && document.querySelector('#orderRep').getBoundingClientRect().bottom <= br.bottom + 1;
+        const takes = [...sheet.querySelectorAll('button[data-order]')];
+        out.offers = takes.length === 2 && takes.every(inside) && !!sheet.querySelector('#orders .lbl');
+        out.noSideways = body.scrollWidth <= body.clientWidth + 1;
+        takes[0].click(); await wait(400);
+        out.took = !!st.active && st.active.id === 1 && !!document.getElementById('orderRun');
+        const left = document.getElementById('orderLeft');
+        out.left = !!left && /^\d+:\d\d left$/.test(left.textContent);
+        const w0 = left && left.getBoundingClientRect().width; st.active.left = 9; await wait(400);
+        out.fixed = !!left && left.isConnected && Math.abs(left.getBoundingClientRect().width - w0) < .5;
+        const sw = sheet.querySelector('button[data-order="2"]');
+        sw.click(); await wait(80); out.armed = st.active.id === 1 && /reputation/.test(sw.textContent);
+        sw.click(); await wait(400); out.switched = !!st.active && st.active.id === 2 && st.rep === 9;
+        document.getElementById('orderDrop').click(); await wait(60); document.getElementById('orderDrop').click(); await wait(400);
+        out.gaveUp = !st.active && !document.getElementById('orderRun');
+        o.wait = keep.wait; if (keep.st) o.towns[t.id] = keep.st; else delete o.towns[t.id];
+        if (keep.seen) CG.game.shared.seen.orders = keep.seen; else delete CG.game.shared.seen.orders;
+        document.getElementById('sheetClose').click(); await wait(80); document.getElementById('goodsBtn').click(); await wait(300);
+        out.gone = !document.getElementById('orders');
+        return out;
+      });
+      for (const [k, v] of Object.entries(ord)) if (!v) bad.push('the Goods sheet orders: not ' + k);
       // the sheet's counts read as the strip's in every frame (review of 2026.11.19-7: 46 copper ore beside the strip's 45)
       const goodsDiff = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
@@ -850,6 +886,20 @@ async function run() {
         return lit && text.includes(chip.title.split(',')[0]) ? '' : 'spotlight ' + lit + ' text ' + text;
       });
       if (boomCard) bad.push('the boom explainer: ' + boomCard);
+      // town orders: their explainer shows once, with the spotlight on Goods (Market depth, part 2)
+      const ordCard = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, o = CG.game.shared.orders, keep = { wait: o.wait, st: o.towns[t.id] };
+        const btn = document.getElementById('goodsBtn');
+        if (!btn || btn.hidden) return 'no Goods button';
+        delete CG.game.shared.seen.orders; o.wait = 0; o.towns[t.id] = { rep: 0, offers: [], active: null, n: 1, wait: 999, filled: 0, missed: 0 };
+        for (let i = 0; i < 40 && CG.coach.current !== 'orders'; i++) await wait(100);
+        const cur = CG.coach.current, hole = document.querySelector('#coach .hole').getBoundingClientRect(), c = btn.getBoundingClientRect();
+        const lit = hole.left <= c.left && hole.right >= c.right && hole.top <= c.top && hole.bottom >= c.bottom;
+        if (cur === 'orders') CG.coach.dismiss();
+        o.wait = keep.wait; if (keep.st) o.towns[t.id] = keep.st; else delete o.towns[t.id];
+        return cur !== 'orders' ? 'no card (' + cur + ')' : lit ? '' : 'no spotlight on Goods';
+      });
+      if (ordCard) bad.push('the orders explainer: ' + ordCard);
       // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
       const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
