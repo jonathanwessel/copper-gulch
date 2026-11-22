@@ -1372,10 +1372,29 @@ async function run() {
         const wait = ms => new Promise(res => setTimeout(res, ms)), b = document.getElementById('researchBtn'); await wait(500);
         const out = { button: !!b && !b.hidden };
         if (!out.button) return out;
+        // the button shows only this place's own research time, never Copper Gulch's (owner, 2026-11-22)
+        { const tm = b.querySelector('.btime'); out.ownTime = id === 'gulch' ? !!tm && !tm.hidden : !!CG.game.town.lab || !tm || tm.hidden; }
         b.click(); await wait(400);
-        const sh = document.getElementById('sheet'), text = sh.textContent;
+        const sh = document.getElementById('sheet'), name = CG.game.town.def.short || CG.game.town.def.name;
         out.sheet = !sh.hidden && sh.dataset.id === 'research';
-        out.running = id === 'gulch' ? /Researching level/.test(text) : /Copper\sGulch · Sharp Saws · [0-9]+ (sec|min) left/.test(text);
+        // owner, 2026-11-22: the heading names the place, an outpost says it has no research of its own, and in a town
+        // the other towns come after its own list, folded until tapped
+        out.title = sh.querySelector('h2').textContent.replace(/\s/g, ' ') === 'Research · ' + name.replace(/\s/g, ' ');
+        const outpost = CG.game.town.def.kind === 'outpost', fold = document.getElementById('labAwayFold'), awayList = document.getElementById('labAwayList');
+        if (outpost) out.outpostLine = /has no research\. Each town researches on its own\./.test(document.getElementById('labClosed').textContent) && !awayList.hidden;
+        else if (fold && fold.offsetParent) {
+          out.folded = awayList.hidden; fold.click(); await wait(100); out.unfolds = !awayList.hidden;
+          const own = sh.querySelector('.sheetbody > .goods.research');
+          out.below = !own || own.hidden || own.getBoundingClientRect().top < document.getElementById('labAway').getBoundingClientRect().top;
+        }
+        const row = document.querySelector('#labAwayList [data-town="gulch"]');
+        out.running = id === 'gulch' ? /Researching level/.test(sh.textContent) : !!row && /Sharp Saws · [0-9]+ (sec|min) left/.test(row.textContent);
+        // a row under Your towns opens that town's Research
+        if (id === 'drycreek' && row) {
+          row.click();
+          for (let i = 0; i < 40 && !(CG.game.active === 'gulch' && !document.getElementById('sheet').hidden); i++) await wait(100);
+          out.goes = CG.game.active === 'gulch' && document.getElementById('sheet').dataset.id === 'research' && !document.getElementById('sheet').hidden;
+        }
         document.getElementById('sheetClose').click(); await wait(200);
         return out;
       }, id);
@@ -1388,7 +1407,8 @@ async function run() {
     const au = await page.evaluate(async () => {
       const wait = ms => new Promise(res => setTimeout(res, ms)); document.getElementById('autoBtn').click(); await wait(500);
       const text = document.getElementById('sheet').textContent, see = document.getElementById('autoSeeResearch');
-      const out = { names: /Sharp Saws · [0-9]+ (sec|min) left/.test(text), see: !!see && !see.hidden };
+      const out = { names: /Sharp Saws · [0-9]+ (sec|min) left/.test(text), see: !!see && !see.hidden, title: /^Auto · Copper\sGulch$/.test(document.querySelector('#sheet h2').textContent), here: /in this town/.test(text) };
+      { const n = document.querySelector('#sheet .sheetbody > p.note'), b = document.querySelector('#sheet .sheetbody').getBoundingClientRect(); out.noteShows = !!n && n.getBoundingClientRect().top >= b.top - 1 && /half your coins/.test(n.textContent); }
       if (see) { see.click(); await wait(400); out.opens = document.getElementById('sheet').dataset.id === 'research'; }
       document.getElementById('sheetClose').click();
       return out;

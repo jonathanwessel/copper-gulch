@@ -439,6 +439,7 @@ html.flat .tag { position: static; transform: none !important; }
 .sheetbody { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 10px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--copper) var(--line); }
 /* a sheet that scrolls shows it (review of 2026.11.19-13: the Goods sheet's last row ran off a landscape screen) */
 .sheetbody { scroll-snap-type: y proximity; }
+.sheetbody > :first-child:not(.stockrow) { scroll-snap-align: start; } /* a sheet opens on its first line, never snapped past it to the first row (2026.11.22-4 and -5: the Orders heading, then the Auto sheet's "These switches work in ... only") */
 .sheetbody .research > .option, .sheetbody .goods > .option { scroll-snap-align: start; scroll-margin-top: 4px; } /* a scrolled list stops on a whole row, never one sliced under the title (review of 2026.11.20-5) */
 .sheetbody:has(> .stockrow) .goods > .option { scroll-margin-top: 54px; } /* rows snap below the pinned switch */
 .sheetbody > .stockrow { position: sticky; top: -10px; z-index: 2; margin: -10px 0 -6px; padding: 10px 0 6px; background: var(--panel); } /* the town switch stays whole at the top while the goods scroll under it (review of 2026.11.20-6: cut under the title in landscape) */
@@ -543,12 +544,16 @@ html.flat .tag { position: static; transform: none !important; }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */
-.labaway { display: grid; gap: 2px; padding: 6px 8px; margin-bottom: 8px; background: var(--panel-2); border: 2px solid var(--line); } /* every other town's running research (owner, 2026-11-20) */
-.labaway[hidden] { display: none; }
-.labaway b { color: var(--copper-hi); font-size: .85rem; }
-.labaway .labline.idle { color: var(--bad); }
+.labaway { display: grid; gap: 6px; margin-top: 10px; } /* the other towns' research, after this town's own list (owner, 2026-11-22) */
+.labaway[hidden], .labaway .goods[hidden] { display: none; }
+.labaway h3 { margin: 4px 0 2px; }
+.labaway .labfold { justify-self: start; }
+button.option.labrow { width: 100%; font: inherit; color: inherit; text-align: left; justify-content: space-between; cursor: pointer; } /* a tap opens that town's Research */
+.labrow b { color: var(--copper-hi); }
+.labrow small { font-variant-numeric: tabular-nums; text-align: right; margin-left: auto; }
+button.option.labrow::after { content: '›'; flex: none; font-weight: 700; color: var(--copper-hi); } /* a row that goes somewhere */
+.labrow.idle small { color: var(--bad); }
 #autoSeeResearch { justify-self: start; align-self: flex-start; width: auto; margin-top: 4px; } /* a small second button, never the row's main one (review of 2026.11.20-16) */
-.labaway .labline { display: block; font-size: .85rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .costrow { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; font-size: .82rem; color: var(--ink); }
 .costrow .need { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; white-space: nowrap; } /* the price, then "have 400" under it (review of 2026.11.20-14) */
 .costrow .need .nd { display: inline-flex; align-items: center; gap: 4px; }

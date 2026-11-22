@@ -143,7 +143,7 @@ export const EXPLAINERS = [
   {
     id: 'research', covers: ['system:research'],
     title: 'Research',
-    text: 'Tap Research to make your saws, mines and towers better. Each item costs coins and takes some time. Only one can work at a time.',
+    text: 'Tap Research to make your saws, mines and towers better. Each item costs coins and takes some time. Each town researches its own list, one at a time.',
     when: h => !!h.flags['open:research'], at: () => ({ el: '#researchBtn' }),
   },
   {

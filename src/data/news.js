@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-5',
+    lines: [
+      'Each town researches on its own list. Outposts have no research.',
+      'Open Research in a town or outpost to see what your other towns research. Tap a town to go there.',
+      'Auto switches work only in the town where you turn them on.',
+    ],
+  },
+  {
     v: '2026.11.22-4',
     lines: [
       'Beat wave 10 in Iron Ridge and buyers in each town start to send orders. Tap Goods to see them.',

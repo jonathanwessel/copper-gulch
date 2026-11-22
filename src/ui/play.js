@@ -175,13 +175,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   root.append(ui);
   requestAnimationFrame(placeToasts); // a toast from the switch here came before this top bar
   const sheets = createSheets(ui, { onOpen: () => { close(); requestAnimationFrame(placeToasts); } });
-  const openGoods = (focus = null) => { lookGoods(town, game); goodsBtn.classList.remove('dot'); sheets.open('goods', 'Goods', goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
+  const openGoods = (focus = null) => { lookGoods(town, game); goodsBtn.classList.remove('dot'); sheets.open('goods', titled('Goods'), goodsSheet(game, town, typeof focus === 'string' ? focus : null)); };
   const menuCtx = { game, audio: shell.audio || null, view: shell.view || null, toast, leave: shell.leave || (() => {}), onHelp: shell.onHelp || (() => {}), reopen: () => openMenu() };
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
-  const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
-  const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', 'Automation', autoSheet(game, town, () => openResearch())); };
-  const openArms = () => sheets.open('arms', 'To arms', armsSheet(game, town));
-  const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
+  // every sheet that acts on one place names it (owner, 2026-11-22: "is research empire wide or town specific?")
+  const here = () => (town.def && (town.def.short || town.def.name)) || town.id;
+  const titled = name => name + ' · ' + here();
+  const researchIn = id => { sheets.close(); if (shell.go && shell.go(id) && window.CG && window.CG.play) window.CG.play.openResearch(); };
+  const openResearch = () => sheets.open('research', titled('Research'), researchSheet(game, town, researchIn));
+  const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', titled('Auto'), autoSheet(game, town, () => openResearch())); };
+  const openArms = () => sheets.open('arms', titled('To arms'), armsSheet(game, town));
+  const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', titled('Perks'), perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Coins a second', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
@@ -762,7 +766,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     goodsBtn.hidden = !T.goods; goodsBtn.classList.toggle('dot', D.goods);
     labBtn.hidden = !T.research; labBtn.classList.toggle('dot', D.research);
     menuBtn.classList.toggle('dot', !!document.getElementById('updateBar'));
-    { const lab = town.lab || labsRunning(game).sort((a, b) => a.left - b.left)[0] || null, s = lab ? leftWord(lab.left).replace(' left', '') : ''; setText(labLeft, s); if (labLeft.hidden !== !s) labLeft.hidden = !s; } // the same unit as the button on its card, and another town's time when this one runs nothing (review of 2026.11.20-16: the button looked different in an outpost)
+    // only this town's own research time (owner, 2026-11-22: in Dry Creek the button showed another town's time, so
+    // research looked shared; that town's time is on the Research sheet under Your towns)
+    { const lab = town.lab || null, s = lab ? leftWord(lab.left).replace(' left', '') : ''; setText(labLeft, s); if (labLeft.hidden !== !s) labLeft.hidden = !s; }
     labBtn.classList.toggle('on', !!town.lab);
     // the Perks button shows from the first charter offer, gold while a perk waits to be picked or the charter pays
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
