@@ -8,6 +8,7 @@ import { STOCK_LABEL, STOCK_CHOICES, stockWords } from '../src/ui/sheets.js';
 import { splitLive, LITTLE } from '../src/ui/format.js';
 import { textIssues } from '../tools/audit.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
+import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
 
 test('the words on screen today', () => {
   assert.equal(oldWavesLabel(), 'Won last time');
@@ -27,4 +28,12 @@ test('the explainers name the controls by their words on screen', () => {
   assert.match(by('map'), /thin bar under a town/);
   assert.match(by('vault'), /like the stockpile in Dry Creek/);
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
+});
+
+test('the Still card says what its poison does to armor', () => {
+  assert.equal(eatWords(.5), 'Lose half their armor');
+  assert.equal(EATS_ARMOR.from, 10);
+  assert.equal(eatWords(1), 'Lose all their armor');
+  assert.equal(eatWords(.3), 'Lose 30% of their armor');
+  for (const s of ['Poisoned raiders', eatWords(EATS_ARMOR.share)]) assert.deepEqual(textIssues(s), [], s);
 });

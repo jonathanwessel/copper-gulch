@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-8',
+    lines: [
+      'From level 10, Snake Oil Still poison eats half of the armor on brutes and bosses.',
+      'Your other towers then hit the poisoned ones harder.',
+      'In Iron Ridge a Still now costs stone and coal, not iron.',
+    ],
+  },
+  {
     v: '2026.11.21-7',
     lines: [
       'Tap a level 19 Snake Oil Still to pick Slow Rot or Last Call.',

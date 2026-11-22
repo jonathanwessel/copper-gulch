@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -168,6 +168,12 @@ export const MIGRATIONS = {
       for (const f of (t && t.waves && t.waves.foes) || []) if (f.rot === undefined) f.rot = 0;
     }
     return { ...s, v: 22, game: g };
+  },
+  // v23: poison eats armor (src/data/towers.js, EATS_ARMOR): a raider keeps the share of its armor its poison eats
+  22: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) for (const f of (t && t.waves && t.waves.foes) || []) if (f.eat === undefined) f.eat = 0;
+    return { ...s, v: 23, game: g };
   },
 };
 

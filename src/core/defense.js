@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -66,6 +66,7 @@ export function towerStats(town, t) {
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
     minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, near: !!k.near, rot: 0,
+    eat: d.poison && L >= EATS_ARMOR.from ? EATS_ARMOR.share : 0, // poison eats armor (EATS_ARMOR)
   };
   // Slow Rot: a share of its hit damage a second, in place of the normal poison
   if (k.rot) { s.rot = k.rot * s.dmg * s.rate; s.poison = 0; }
@@ -207,7 +208,7 @@ function spawn(town, kind) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
   const W = wavesOf(town), base = f.boss ? bossHp(W, town.wave) : W.hp(town.wave);
   const hp = base * f.hp * T.hp * town.mods.factor('foeHp');
-  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, brittle: 0 });
+  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 });
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
@@ -225,9 +226,14 @@ export function bestFactor(kind, foe) {
 }
 /* Last Call: how much harder a hit lands on a raider s along its lane (NEAR in src/data/towers.js). */
 export const nearFactor = (lane, s) => NEAR.base + NEAR.gain * Math.min(1, Math.max(0, s / (lane.length || 1)));
+/* The share of this raider's armor poison eats right now (EATS_ARMOR): the strongest dose it carries, while it carries poison or rot. */
+export const eaten = f => (f.poisonT > 0 || f.rot > 0 ? f.eat || 0 : 0);
 function hurt(game, town, f, dmg, pierce = false, by = null) {
-  const armor = pierce ? 0 : FOES[f.kind].armor, n = dmg * (1 - armor) * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1);
-  tally(game, town, by, Math.min(Math.max(0, f.hp), n));
+  const full = pierce ? 0 : FOES[f.kind].armor, armor = full * (1 - eaten(f));
+  const k = dmg * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1), n = k * (1 - armor), left = Math.max(0, f.hp);
+  // the hit as armor would have left it is the tower's; what the poison ate off the armor adds is the Still's
+  const own = Math.min(left, k * (1 - full));
+  tally(game, town, by, own); tally(game, town, 'still', Math.min(left, n) - own);
   f.hp -= n;
 }
 
@@ -319,6 +325,7 @@ export function fight(game, town, dt) {
       } else if (st.poison || st.rot) {
         hurt(game, town, target, st.dmg * (st.near ? nearFactor(laneOf(target), target.s) : 1), false, t.kind);
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) {
+          f.eat = Math.max(eaten(f), st.eat);
           if (st.rot) f.rot = Math.max(f.rot || 0, st.rot * bestFactor(t.kind, f.kind));
           else { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; }
           f.spread = f.spread || st.spread;
@@ -331,7 +338,7 @@ export function fight(game, town, dt) {
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);
     const dose = Math.max(f.poisonT > 0 ? f.poison : 0, f.rot || 0); // a rotting carrier passes its rot on as a normal dose
-    if (f.spread && dose > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, dose / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
+    if (f.spread && dose > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.eat = Math.max(eaten(g), f.eat || 0); g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, dose / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
   if (town.vault.hp <= 0) { fall(game, town, 'vault'); return; }

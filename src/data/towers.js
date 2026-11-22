@@ -27,8 +27,8 @@ export const TOWERS = {
     coins: 100, goods: { gulch: { planks: 4, clay: 3 }, ridge: { coal: 4, stone: 3 }, falls: { quartz: 4, sand: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true, grow: 1.24,
   },
   still: {
-    name: 'Snake Oil Still', about: 'Throws poison. Best against brutes and {boss}.',
-    coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { iron: 4, coal: 3 }, falls: { sand: 4, glass: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
+    name: 'Snake Oil Still', about: 'Throws poison that eats armor. Best against brutes and {boss}.',
+    coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { stone: 4, coal: 3 }, falls: { sand: 4, glass: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
     best: { armored: 2.2 }, bestText: 'Brutes and {boss}',
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
@@ -84,6 +84,24 @@ export const FORKS = {
   },
 };
 export const NEAR = { base: .4, gain: 2.6 };
+/* Poison eats armor (M6a, the Still late in the game): a raider carrying poison or rot from a Still of level
+   EATS_ARMOR.from or more loses EATS_ARMOR.share of its armor against every hit, from every tower. The armor it would have shrugged off is the poison's doing, so the damage
+   breakdown counts it for the Still. Before this the Still's job (getting past armor) faded as it rose: its poison grows
+   1.15 a level against 1.3 for a hit, and by Silver Falls its Stills did 4% of the damage, none in the Ridge. Stripped
+   armor grows with every tower around it, so a Still among strong towers is worth more late, not less.
+   Tried first (2026.11.21-8): half from level 1 made the Gulch's Stills a little too strong in the first hour (minmax's
+   one Still did 37% of the damage, the Ridge's wave 10 came at 6.8 min, the newcomer kept within 20% of the careful
+   player); a share that grows with the level (3% a level, or 20% plus 2%) made a new Still late in the game worth too
+   little, and the active bot built none in the Falls again; and 40% from level 1 still tipped four first-hour gates
+   (minmax's Still 37%, the first charter at 45.2 min, the Ridge's wave 10 at 6.9 and 11.9 min, the skill gap). So it
+   starts at level 10, a step a Still reaches late in the Gulch's first hour, and every Still from there eats the same.
+   In Iron Ridge the Still is paid in stone and coal (iron and coal until 2026.11.21-8): with poison that eats armor
+   the active bot keeps 2-3 Stills there to level 18-20, and their next levels kept thousands of iron back from the
+   Blast Furnace, so the Capital's contracts (pig iron, steel, rails, boilers) filled slower and seed 3 bought an Empire
+   tree upgrade only every 17.1 min (want 10-15). No Ridge workshop uses stone. */
+export const EATS_ARMOR = { share: .5, from: 10 };
+/* EATS_ARMOR in words, for the Still's card. */
+export const eatWords = k => k >= 1 ? 'Lose all their armor' : k === .5 ? 'Lose half their armor' : 'Lose ' + Math.round(k * 100) + '% of their armor';
 export const SLOW_SECONDS = 1.5;
 export const POISON_SECONDS = 4;
 /* Deep Freeze: every third pulse freezes the raiders in reach for FREEZE.seconds. A raider that thaws cannot be frozen

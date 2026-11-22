@@ -170,7 +170,7 @@ export const EXPLAINERS = [
   {
     id: 'still', covers: ['tower:still'],
     title: 'Snake Oil Still',
-    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison is best against brutes and bosses.',
+    text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts brutes and bosses most. From level 10 it also eats half their armor, so your other towers hit them harder.',
     when: h => h.can('still') && (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {

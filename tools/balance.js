@@ -22,7 +22,7 @@ import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower,
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
-import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL } from '../src/data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL, EATS_ARMOR } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
@@ -82,9 +82,9 @@ export const ROT_LIVES = 1;
 /* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
    kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
    boss wave adds its boss: the town's own wagon, in a wave of about count(w) raiders. */
-export function hitShare(town, kind, w, poison = false) {
+export function hitShare(town, kind, w, poison = false, eat = 0) {
   const kinds = Object.values(WAVE_TYPES).filter(T => w >= T.from);
-  const f = k => (poison ? 1 : 1 - FOES[k].armor) * (poison || kind !== 'still' ? bestFactor(kind, k) : 1);
+  const f = k => (poison ? 1 : 1 - FOES[k].armor * (1 - eat)) * (poison || kind !== 'still' ? bestFactor(kind, k) : 1);
   let hp = 0, a = 0;
   for (const T of kinds) { let h = 0, x = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { h += n * FOES[k].hp; x += n * FOES[k].hp * f(k); } if (h) { hp += 1; a += x / h; } }
   let share = hp ? a / hp : 1;
@@ -93,7 +93,16 @@ export function hitShare(town, kind, w, poison = false) {
 }
 /* A careful player buys for the next few waves, not just the coming one, so the boss is seen coming (HORIZON waves). */
 export const HORIZON = 5;
-const ahead = (town, kind, w, poison) => { let a = 0; for (let k = 0; k < HORIZON; k++) a += hitShare(town, kind, w + k, poison); return a / HORIZON; };
+const ahead = (town, kind, w, poison, eat = 0) => { let a = 0; for (let k = 0; k < HORIZON; k++) a += hitShare(town, kind, w + k, poison, eat); return a / HORIZON; };
+/* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
+   share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
+   below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
+   PLAN.level, set by play() before each buy) counts the full share for it all the same (with only the share it eats now,
+   or that share times (level / from) squared, the active bot built no Still late in the Falls, where a new one starts
+   at level 1). */
+export const EAT_REACH = .5;
+export const PLAN = { level: 0 };
+export const eatSoon = (t, st) => st.eat || ((st.poison || st.rot) && PLAN.level >= EATS_ARMOR.from ? EATS_ARMOR.share : 0);
 /* Damage a tower deals per second to a column of raiders passing through its reach, times the road it covers. */
 export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
@@ -111,6 +120,12 @@ export function worth(town, t, support = true) {
   let w = dps * cover(town, t.spot, st.minRange, st.range);
   // a slowing tower also gives the towers around it more time to shoot
   if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += st.slow * .5 * worth(town, o, false) / share;
+  // poison eats armor: the towers around it land more on armored raiders (its own hit is left out, as a careful guess)
+  const eat = eatSoon(t, st);
+  if (eat && support) {
+    const gain = o => ahead(town, o.kind, town.wave, false, eat) / ahead(town, o.kind, town.wave) - 1;
+    for (const o of town.towers) if (o.spot !== t.spot && o.kind !== 'still' && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += gain(o) * EAT_REACH * worth(town, o, false) / share;
+  }
   return w;
 }
 /* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market
@@ -268,6 +283,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   // urgent: short of towers, a tower more than a level behind, or the vault below 60%
   const defend = (urgent = false) => {
     const w = t.wave, want = S.want(w) + (r.bossLost || 0), lv = S.level(w, r) + bossExtra(t, r, S);
+    PLAN.level = lv; // what a Still will eat once its level target reaches EATS_ARMOR.from (eatSoon)
     // the goal strip asks for a kind it has not built yet (after the first boss): it builds one once it can pay, even
     // with all the towers it wants (seed 4 had a Mortar's coins and goods from minute 25 and its pads full, and built
     // none until minute 61: a player reads "Tap a Mortar pit and build a Mortar" and does it). Not swarm, which raises
@@ -826,6 +842,26 @@ export function towerBalance(rows, where = '', lead = true) {
   if (lead) for (const k of Object.keys(TOWERS)) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
   return misses;
 }
+/* Late damage shares (M6a, found with the Still late box): the share gate above counts only a town's first hour.
+   lateShares adds up, over the active seeds, what each kind did after it (r.late: the Ridge's plays after its first
+   hour, through the Capital and the save for the Falls, and the Falls after its own first hour) and holds it to the same
+   SHARE_MAX, with a close line. Before the Still's poison ate armor, the Frost Lens did 38-44% of the active bot's late
+   Falls damage. Returns { rows: [{ town, dealt }], misses }. */
+export function lateShares(actives) {
+  const towns = { 'Iron Ridge': e => [e.ridge, e.capSave, e.fSave], 'Silver Falls': e => [e.falls] }, rows = [], misses = [];
+  for (const [town, recs] of Object.entries(towns)) {
+    const dealt = {};
+    for (const e of actives) for (const r of recs(e)) for (const [k, n] of Object.entries((r && r.late) || {})) dealt[k] = (dealt[k] || 0) + n;
+    const tot = Object.values(dealt).reduce((a, b) => a + b, 0);
+    rows.push({ town, dealt });
+    if (!tot) { misses.push(town + ': no damage after its first hour'); continue; }
+    for (const [k, n] of Object.entries(dealt)) {
+      nearMax(`${town} after its first hour: ${k} does ${(100 * n / tot).toFixed(1)}% of the damage (limit ${Math.round(100 * SHARE_MAX)}%)`, n / tot, SHARE_MAX);
+      if (n / tot > SHARE_MAX) misses.push(`${town} after its first hour: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
+    }
+  }
+  return { rows, misses };
+}
 /* The charter's payoff (M2, fresh-eyes issue 3): a signed town gets back to its old best wave in REGAIN_MAX of the
    first climb or less (the median over the seeds; no seed over REGAIN_SEED), and something new opens between minute
    NEW_FROM and the first charter offer. */
@@ -919,6 +955,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   console.log('  forks taken by the active bots: ' + (Object.entries(took).map(([k, n]) => k + ' ' + n).join(', ') || 'none'));
   misses.push(...fk.misses);
   misses.push(...fc.misses, ...towerBalance(fc.rows, 'Silver Falls', false));
+  const ls = lateShares(actives);
+  console.log('late damage (active, every seed, after the first hour of each town): ' + ls.rows.map(x => { const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1; return x.town + ' ' + Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', '); }).join(' | '));
+  misses.push(...ls.misses);
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));
