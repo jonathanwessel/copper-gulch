@@ -6,7 +6,11 @@
 // fork's numbers and the bots' guess are both checked against real waves, not the guess alone (part 1, 2026.11.21-7:
 // the guess picked Last Call on 34 of 36 Ridge pads, against the runs). --path a runs one level-5 path only, and
 // --sets "a.dmg=.6;a.dmg=.65,b.rate=.45" tries each set of fork numbers in turn on the same late towns (one empire
-// run, about 2 minutes, then the waves for each set), with ROCKET_HITS and the like set as "hits=2". --noruns skips the waves, for trying a worth number alone.
+// run, about 2 minutes, then the waves for each set), with ROCKET_HITS and the like set as "hits=2" (Last Call's HURT as "hurtbase=1,hurtgain=2", the bots' guess as "hurtat=1"). --noruns skips the waves, for trying a worth number alone.
+// --against <file> (with --noruns) reads the side the runs favored on each pad from an earlier run's output (its first
+// set) and prints how many pads each set's guess agrees on (2026.11.22-6: the third time the guess was off after a fork
+// changed, worked out by hand before this).
+import fs from 'node:fs';
 import * as BAL from './balance.js';
 const { empire, options } = BAL;
 import { Town } from '../src/core/town.js';
@@ -16,6 +20,9 @@ import { FORKS, FORK_LEVEL, PATHS } from '../src/data/towers.js';
 import { pointAt, dist } from '../src/core/path.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
+/* The side the runs favored on each pad, from an earlier run's printed rows (its first set only). */
+const readRuns = file => { const out = {}; let sets = 0; for (const l of fs.readFileSync(file, 'utf8').split('\n')) { if (l.startsWith('set ') && ++sets > 1) break; const m = l.match(/\| (\w+) pad (\d+) (\w) at [\d.]+ \|.*\| runs ([\w ]+?) \| guess/); if (m) out[m[1] + ' ' + m[2] + ' ' + m[3]] = m[4]; } return out; };
+const AGAINST = process.argv.includes('--against') ? readRuns(process.argv[process.argv.indexOf('--against') + 1]) : null;
 const NORUNS = process.argv.includes('--noruns'), KIND = arg('kind', 'cannon'), SEED = +arg('seed', 1), WAVES = +arg('waves', 5), PATH = arg('path', null);
 
 /* Where the road passes closest to a pad: 0 at the entrance, 1 at the vault. */
@@ -73,6 +80,7 @@ if (process.argv[1].endsWith('fork-runs.js')) {
   for (const id of ['ridge', 'falls']) {
     const rs = rows.filter(r => r.town === id);
     if (!rs.length) continue;
+    if (AGAINST) { const ok = rs.filter(r => AGAINST[id + ' ' + r.spot + ' ' + r.path] === (FORKS[KIND][r.guess] || {}).name).length, n = rs.filter(r => AGAINST[id + ' ' + r.spot + ' ' + r.path]).length; console.log(`seed ${SEED} | ${id} | guess agrees with the earlier runs on ${ok} of ${n} | guess: ${F.map(k => N(k) + ' ' + rs.filter(r => r.guess === k).length).join(', ')}`); continue; }
     const won = k => rs.filter(r => r.best === k).length, guessed = k => rs.filter(r => r.guess === k).length, agree = rs.filter(r => r.guess === r.best).length;
     const sum = k => rs.reduce((a, r) => a + r[k].own, 0) / rs.length;
     console.log(`seed ${SEED} | ${id} | runs: ${F.map(k => N(k) + ' ' + won(k)).join(', ')} | guess: ${F.map(k => N(k) + ' ' + guessed(k)).join(', ')} | agree ${agree} of ${rs.length} | mean ${['none', ...F].map(k => (k === 'none' ? 'none' : N(k)) + ' ' + M(sum(k))).join(', ')}${set ? ' | set ' + set : ''}`);

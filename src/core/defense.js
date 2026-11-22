@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, ROCKETS, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -55,8 +55,10 @@ export const laneFor = (town, kind) => (FOES[kind].water && town.def && town.def
 // --- towers: stats and costs -----------------------------------------------------------------------------------------
 /* The second fork a tower took at FORK_LEVEL (t.fork, 'a' or 'b'), or {}. */
 export const forkOf = t => (t.fork && FORKS[t.kind] && FORKS[t.kind][t.fork]) || {};
-/* Does this tower pick a second fork with its next level? */
-export const forkNext = t => t.level + 1 === FORK_LEVEL && !!FORKS[t.kind];
+/* Does this tower pick a second fork with its next level? Also a tower already at FORK_LEVEL or past it with no fork:
+   one raised past 20 before its kind had a fork picks with its next level and keeps the levels it has (owner, 2026-11-22:
+   "if I already upgraded a tower past level 20, it never got this option"). */
+export const forkNext = t => t.level + 1 >= FORK_LEVEL && !t.fork && !!FORKS[t.kind];
 export function towerStats(town, t) {
   const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : {}, k = forkOf(t);
   const s = {
@@ -66,7 +68,7 @@ export function towerStats(town, t) {
     splash: (d.splash || 0) * (p.splash || 1) * (k.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
-    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, near: !!k.near, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1,
+    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, hurt: !!k.hurt, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1,
     eat: d.poison && L >= EATS_ARMOR.from ? EATS_ARMOR.share : 0, // poison eats armor (EATS_ARMOR)
   };
   // Slow Rot: a share of its hit damage a second, in place of the normal poison
@@ -117,10 +119,11 @@ export function upgradeTower(game, town, spot, path) {
   if (forkNext(t) && !FORKS[t.kind][path]) return false;
   const c = towerCost(town, t.kind, t.level);
   if (!canPay(town, c)) return false;
+  const fork = forkNext(t);
   pay(town, c);
   t.level++; t.spent += c.coins;
   if (t.level === PATH_LEVEL) t.path = path;
-  if (t.level === FORK_LEVEL && FORKS[t.kind]) t.fork = path;
+  if (fork) t.fork = path;
   game.bus.emit('tower:upgrade', { town: town.id, spot, level: t.level, path: t.path, fork: t.fork || null });
   return true;
 }
@@ -226,8 +229,8 @@ export function bestFactor(kind, foe) {
   if (!b || !F) return 1;
   return b[foe] || (F.boss && b.boss) || (F.armor > 0 && b.armored) || 1;
 }
-/* Last Call: how much harder a hit lands on a raider s along its lane (NEAR in src/data/towers.js). */
-export const nearFactor = (lane, s) => NEAR.base + NEAR.gain * Math.min(1, Math.max(0, s / (lane.length || 1)));
+/* Last Call: how much harder a hit lands on this raider, by the share of its health it has lost (HURT in src/data/towers.js). */
+export const hurtFactor = f => HURT.base + HURT.gain * Math.min(1, Math.max(0, 1 - f.hp / (f.max || 1)));
 /* The share of this raider's armor poison eats right now (EATS_ARMOR): the strongest dose it carries, while it carries poison or rot. */
 export const eaten = f => (f.poisonT > 0 || f.rot > 0 ? f.eat || 0 : 0);
 function hurt(game, town, f, dmg, pierce = false, by = null) {
@@ -353,7 +356,7 @@ export function fight(game, town, dt) {
       } else if (st.splash) { // Big Shell hits a boss st.boss times as hard
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg * (FOES[f.kind].boss ? st.boss : 1), false, t.kind);
       } else if (st.poison || st.rot) {
-        hurt(game, town, target, st.dmg * (st.near ? nearFactor(laneOf(target), target.s) : 1), false, t.kind);
+        hurt(game, town, target, st.dmg * (st.hurt ? hurtFactor(target) : 1), false, t.kind);
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) {
           f.eat = Math.max(eaten(f), st.eat);
           if (st.rot) f.rot = Math.max(f.rot || 0, st.rot * bestFactor(t.kind, f.kind));

@@ -191,7 +191,7 @@ export const EXPLAINERS = [
   {
     id: 'fork', covers: ['fork'],
     title: 'One more choice',
-    text: 'At level 20 you pick one more upgrade for this Still. Slow Rot poisons raiders until they fall, so it is best near the start of the road. Last Call hits hardest near the vault. Tap the Still to pick.',
+    text: 'At level 20 you pick one more upgrade for this Still. Slow Rot poisons raiders until they fall. Last Call hits raiders low on health much harder. Tap the Still to pick.',
     when: h => h.forkReady !== null, at: h => ({ tower: h.forkReady }),
   },
   {

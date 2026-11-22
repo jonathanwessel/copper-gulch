@@ -166,6 +166,7 @@ export function textRules(debug) {
   seen.push(['goal wait', 'Wait for 5 more coins and 3 more timber, then tap a stone pad']); // goalText's other line
   seen.push(['goal resume', 'Tap Resume waves'], ['goal resume lost', 'Build more towers, then tap Resume waves'], ['goal resume away', 'Tap Map, Iron Ridge, then tap Resume waves']); // goalNow's held-waves steps (src/core/goals.js)
   for (const [k, t] of Object.entries(TOWERS)) seen.push(['tower ' + k, t.about], ...Object.values(PATHS[k] || {}).map(q => ['path ' + q.name, q.about]));
+  for (const sides of Object.values(FORKS)) seen.push(...Object.values(sides).map(q => ['fork ' + q.name, q.about]));
   for (const [k, r] of Object.entries(RESEARCH)) seen.push(['research ' + k, r.about + (r.worse ? ' ' + r.worse : '')]);
   for (const file of walk('src/ui').filter(x => x.endsWith('.js'))) {
     for (const m of stripComments(read(file)).matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
@@ -175,6 +176,21 @@ export function textRules(debug) {
   }
   if (debug) return seen;
   for (const [where, t] of seen) for (const issue of textIssues(t || '')) p.push(where + ': ' + issue + ' in "' + t + '"');
+  p.push(...choiceRules());
+  return p;
+}
+/* Choices say what they do, not how to use them (games/CLAUDE.md; owner, 2026-11-22: "The strategy should be implied, not
+   direct ... AI slop wordy"): each side of a level-5 path or a level-20 fork is at most CHOICE_WORDS words, and never
+   advice on where or when to use it. */
+export const CHOICE_WORDS = 10;
+export const ADVICE = /\bbest (at|near|on|for|when)\b|start of the road|end of the road|near the vault|by the vault|by the entrance/i;
+export function choiceRules(paths = PATHS, forks = FORKS) {
+  const p = [];
+  for (const [kind, set] of [...Object.entries(paths), ...Object.entries(forks)]) for (const q of Object.values(set)) {
+    const n = q.about.trim().split(/\s+/).length;
+    if (n > CHOICE_WORDS) p.push(kind + ' ' + q.name + ': ' + n + ' words, keep a choice to ' + CHOICE_WORDS + ' or fewer');
+    if (ADVICE.test(q.about)) p.push(kind + ' ' + q.name + ': says where or when to use it in "' + q.about + '"');
+  }
   return p;
 }
 

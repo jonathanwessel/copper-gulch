@@ -7,7 +7,7 @@ import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } 
 import { boomNow, sellMode, setSellMode } from '../core/market.js';
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords, hurtWords } from '../data/towers.js';
 import { forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
@@ -424,7 +424,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // poison eats armor (M6a): from its level, and before it what the level brings
     if (st.eat) line('Poisoned raiders', eatWords(st.eat));
     else if (st.poison || st.rot) line('At level ' + EATS_ARMOR.from, 'Poison eats armor');
-    if (st.near) line('Near the vault', 'Up to 3 times the damage');
+    if (st.hurt) line('Raiders low on health', hurtWords());
     if (st.rockets) line('Rockets', st.rockets + ' at once');
     if (st.boss > 1) { const b = bossWords('{boss}'); line('Against ' + b, st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');

@@ -9,7 +9,7 @@ import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
-import { towerIn, normalTowers, crowdOf } from '../core/defense.js';
+import { towerIn, normalTowers, crowdOf, forkNext } from '../core/defense.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { bossName } from './lost.js';
 import { tabs, dots } from '../core/reveal.js';
@@ -17,7 +17,6 @@ import { nextTowns } from '../core/empire.js';
 import { capitalNext, capitalOpen } from '../core/capital.js';
 import { foundCost } from '../core/tree.js';
 import { NODE_COST } from '../data/institutions.js';
-import { FORKS, FORK_LEVEL } from '../data/towers.js';
 import { ordersOf } from '../core/orders.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -64,8 +63,8 @@ export function helper(town, game = null) {
     stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
     // a tower one level from its second fork, by kind (each kind's card names its own two sides)
-    forkReady: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && x.kind === 'still' && FORKS[x.kind]); return t ? t.spot : null; })(),
-    forkCannon: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && x.kind === 'cannon' && FORKS[x.kind]); return t ? t.spot : null; })(),
+    forkReady: (() => { const t = (town.towers || []).find(x => x.kind === 'still' && forkNext(x)); return t ? t.spot : null; })(),
+    forkCannon: (() => { const t = (town.towers || []).find(x => x.kind === 'cannon' && forkNext(x)); return t ? t.spot : null; })(),
   };
 }
 

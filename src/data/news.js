@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-6',
+    lines: [
+      'A Still or Cannon you raised past level 20 now gets its level 20 choice. Tap it to pick.',
+      'Last Call now hits raiders low on health much harder, wherever it stands.',
+      'The level 20 choices say what they do in one short line.',
+    ],
+  },
+  {
     v: '2026.11.22-5',
     lines: [
       'Each town researches on its own list. Outposts have no research.',

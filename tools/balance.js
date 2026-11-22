@@ -18,11 +18,11 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, nearFactor } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, hurtFactor } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
-import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL, EATS_ARMOR } from '../src/data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL, EATS_ARMOR, HURT } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
 import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
@@ -86,8 +86,11 @@ export function along(town, spot, lo, hi) {
 }
 /* Slow Rot keeps ticking after a raider leaves the tower's reach: a careful player counts ROT_LIVES of the road left
    after it. At .5 it picked Last Call on 34 of 36 pads of the late Ridge, where a run of the waves showed Slow Rot dealing
-   twice as much at the first pads; at 1 the picks match those runs. */
-export const ROT_LIVES = 1;
+   twice as much at the first pads; at 1 the picks matched those runs while Last Call hit 0.4 times as hard at the
+   entrance. With Last Call on hurt raiders (2026.11.22-6, a normal hit on a fresh one) 1 picked Last Call on 33 of 36
+   Ridge pads against a 19-17 split in the runs; at 2.2 (and HURT_AT .5) the guess agrees with the runs on 107 of 148
+   Ridge and Falls pads over seeds 1 and 2 (98 at 1), against 102 at 1.6 and 106 at 3. */
+export let ROT_LIVES = 2.2;
 /* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
    kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
    boss wave adds its boss: the town's own wagon, in a wave of about count(w) raiders. */
@@ -108,7 +111,7 @@ const ahead = (town, kind, w, poison, eat = 0, boss = 1) => { let a = 0; for (le
    find in that column (set from tools/fork-runs.js, so the guess picks the side the runs of the waves pick). */
 export let ROCKET_HITS = 1.3;
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'hits') ROCKET_HITS = v; };
+export const tune = (k, v) => { if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
    below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
@@ -116,6 +119,9 @@ export const tune = (k, v) => { if (k === 'hits') ROCKET_HITS = v; };
    or that share times (level / from) squared, the active bot built no Still late in the Falls, where a new one starts
    at level 1). */
 export const EAT_REACH = .5;
+/* Last Call (FORKS.still.b) hits a hurt raider harder: a careful player guesses a raider has lost HURT_AT times the share
+   of the road behind it by the time it passes the tower (tools/fork-runs.js sets it). */
+let HURT_AT = .5;
 export const PLAN = { level: 0 };
 export const eatSoon = (t, st) => st.eat || ((st.poison || st.rot) && PLAN.level >= EATS_ARMOR.from ? EATS_ARMOR.share : 0);
 /* Damage a tower deals per second to a column of raiders passing through its reach, times the road it covers. */
@@ -123,8 +129,8 @@ export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
   const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
-  const at = st.near || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
-  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave, false, 0, st.boss) * (st.near ? nearFactor({ length: 1 }, at.mid) : 1);
+  const at = st.hurt || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
+  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave, false, 0, st.boss) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
   if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);

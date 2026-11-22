@@ -70,17 +70,19 @@ export const PATH_LEVEL = 5;          // the level at which a tower picks its pa
 /* The second fork (owner idea, 2026-11-20): at FORK_LEVEL a tower of a kind listed here picks one of two more upgrades on
    top of its level-5 path, so it has 4 ways to finish (GDD.md, Second fork at level 20). The bots put the Ridge's
    towers at level 17-21 by the time Silver Falls is founded, and the Falls' own at 16 an hour later, so 20 lands
-   around the Falls. The trade-off is where on the road, never just a bigger number:
+   around the Falls. Each side is a plain effect, and the card never says where to put it (owner, 2026-11-22: "The
+   strategy should be implied, not direct"):
      Slow Rot (rot: a share of its hit damage a second, past armor, that never wears off until the raider falls, in
-       place of the normal poison; its hits are softer, dmg) wants the start of the road, where it ticks the whole way.
-     Last Call (near) hits harder the farther the raider has come: NEAR.base + NEAR.gain times the share of its lane
-       behind it, so a Still by the vault hits three times as hard and one at the entrance at 0.4 (rot .07 and gain 2.6 from A/B runs
-       on the bots' late Ridge and Falls: Slow Rot deals the most at the first pads, Last Call from the middle on). */
+       place of the normal poison; its hits are softer, dmg). Raiders rot the whole road after it, so it suits the start.
+     Last Call (hurt) hits a hurt raider harder: HURT.base + HURT.gain times the share of health it has lost, so a
+       fresh raider takes HURT.base and one nearly down up to HURT.base + HURT.gain times the hit. Raiders are hurt
+       late on the road, so it suits the vault end, without a bonus for its place (until 2026.11.22-6 it was NEAR, by the
+       share of the lane behind the raider: the owner found that too direct). Numbers from tools/fork-runs.js. */
 export const FORK_LEVEL = 20;
 export const FORKS = {
   still: {
-    a: { name: 'Slow Rot', about: 'Softer hits and weak poison that lasts until the raider falls. Best at the start of the road.', dmg: .7, rot: .07 },
-    b: { name: 'Last Call', about: 'Hits much harder near the vault. Best at the end of the road.', near: true },
+    a: { name: 'Slow Rot', about: 'Softer hits. Its poison never wears off.', dmg: .7, rot: .07 },
+    b: { name: 'Last Call', about: 'Hits raiders low on health much harder.', hurt: true },
   },
   /* The Cannon (part 2, 2026-11-21: the bots raise one Cannon to level 20 in Iron Ridge on every seed, while their
      Mortars stop at 15-17). The trade-off is against what:
@@ -90,14 +92,16 @@ export const FORKS = {
        Big Shell (boss) one huge, slow shot with a wider blast that hits a boss boss times as hard. It wants bunched
          raiders and the boss waves. */
   cannon: {
-    a: { name: 'Rocket Battery', about: 'Fires 4 rockets at once, each at its own raider. Reaches far, reloads slowly.', bestText: 'Spread-out raiders', rockets: true, dmg: .65, rate: .55, range: 1.6, splash: .35 },
-    b: { name: 'Big Shell', about: 'One huge shot with a wide blast. Reloads slowly. Hits {boss} twice as hard.', dmg: 2.2, rate: .5, splash: 1.25, boss: 2, bestText: 'Big groups' },
+    a: { name: 'Rocket Battery', about: 'Fires 4 rockets, each at its own raider.', bestText: 'Spread-out raiders', rockets: true, dmg: .65, rate: .55, range: 1.6, splash: .35 },
+    b: { name: 'Big Shell', about: 'One huge shot. Hits {boss} twice as hard.', dmg: 2.2, rate: .5, splash: 1.25, boss: 2, bestText: 'Big groups' },
   },
 };
 /* Rocket Battery's rockets: how many a volley fires and how long each flies. A rocket finds its raider wherever it has
    gone by then (it seeks), and its blast goes off there. */
 export const ROCKETS = { count: 4, flight: .6 };
-export const NEAR = { base: .4, gain: 2.6 };
+export const HURT = { base: 1, gain: 2 };
+/* HURT in words, for the Still's card: the most it multiplies a hit by. */
+export const hurtWords = () => { const n = HURT.base + HURT.gain; return n === 2 ? 'Up to twice the damage' : 'Up to ' + n + ' times the damage'; };
 /* Poison eats armor (M6a, the Still late in the game): a raider carrying poison or rot from a Still of level
    EATS_ARMOR.from or more loses EATS_ARMOR.share of its armor against every hit, from every tower. The armor it would have shrugged off is the poison's doing, so the damage
    breakdown counts it for the Still. Before this the Still's job (getting past armor) faded as it rose: its poison grows

@@ -1,13 +1,13 @@
 // The second fork at level 20 (M6a, owner idea 2026-11-20): a Snake Oil Still picks Slow Rot or Last Call on top of its
-// level-5 path. Slow Rot's poison never wears off and is best at the start of the road; Last Call hits harder the
-// nearer the raider is to the vault. Auto-towers never makes the choice, and old saves load with no fork taken.
+// level-5 path. Slow Rot's poison never wears off; Last Call hits a hurt raider harder. Auto-towers never makes the
+// choice, old saves load with no fork taken, and a tower already past level 20 with no fork picks with its next level.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
-import { upgradeTower, towerStats, towerAt, roadOf, startWave, waveRun, forkNext, nearFactor, isPit } from '../src/core/defense.js';
+import { upgradeTower, towerStats, towerAt, roadOf, startWave, waveRun, forkNext, hurtFactor, isPit } from '../src/core/defense.js';
 import { nextTowerUp } from '../src/core/automation.js';
 import { pointAt, dist } from '../src/core/path.js';
-import { FORKS, FORK_LEVEL, NEAR, ROCKETS } from '../src/data/towers.js';
+import { FORKS, FORK_LEVEL, HURT, ROCKETS } from '../src/data/towers.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { options } from '../tools/balance.js';
@@ -51,32 +51,37 @@ test('Slow Rot trades its normal poison and some hit for a poison that never wea
   assert.ok(Math.abs(f.max - f.hp - 300) < 1, 'lost ' + (f.max - f.hp));
 });
 
-test('Last Call hits harder the nearer the raider is to the vault', () => {
-  const g = newGame('f3', 'gulch'), t = rich(g), r = roadOf(t);
-  assert.equal(nearFactor(r, 0), NEAR.base); assert.equal(nearFactor(r, r.length), NEAR.base + NEAR.gain);
-  assert.ok(nearFactor(r, r.length) / nearFactor(r, 0) > 5);
-  // the same Still hits a raider at the start and one at the end of the road: the late one takes more
-  const hit = s => {
-    const g2 = newGame('f3', 'gulch'), t2 = rich(g2), x = tower(t2, 0, 'still', 20, 'a', 'b'), p = t2.def.board.spots[0];
+test('Last Call hits a hurt raider harder, wherever it is on the road', () => {
+  assert.equal(hurtFactor({ hp: 10, max: 10 }), HURT.base); assert.equal(hurtFactor({ hp: 0, max: 10 }), HURT.base + HURT.gain);
+  assert.ok(Math.abs(hurtFactor({ hp: 5, max: 10 }) - (HURT.base + HURT.gain / 2)) < 1e-9);
+  assert.ok(HURT.base + HURT.gain >= 2.5, 'much harder when nearly down');
+  // the same Still at the same place hits a fresh raider and one with a tenth of its health left: the hurt one takes more
+  const at = (s, left, fork = 'b') => {
+    const g2 = newGame('f3', 'gulch'), t2 = rich(g2);
+    tower(t2, 0, 'still', 20, 'a', fork);
     t2.def = { ...t2.def, board: { ...t2.def.board, spots: t2.def.board.spots.map((q, i) => (i === 0 ? pointAt(roadOf(t2), s) : q)) } };
-    Object.assign(t2.waves, { phase: 'wave', queue: [], foes: [raider(1, s)] });
+    Object.assign(t2.waves, { phase: 'wave', queue: [], foes: [raider(1, s, { hp: 1e9 * left })] });
     g2.step(.25);
-    assert.ok(x && p);
-    return t2.waves.foes[0].max - t2.waves.foes[0].hp;
+    return 1e9 * left - t2.waves.foes[0].hp;
   };
-  const early = hit(2), late = hit(r.length - 2);
-  assert.ok(early > 0 && late > early * 3, early + ' then ' + late);
+  const fresh = at(4, 1), hurt = at(4, .1), plain = at(4, .1, null);
+  assert.ok(fresh > 0 && hurt > fresh * 2.5, fresh + ' then ' + hurt);
+  assert.ok(hurt > plain * 2, 'no fork ' + plain + ', Last Call ' + hurt);
+  // its place on the road gives nothing by itself: a fresh raider by the vault takes what one at the start takes
+  const r = roadOf(newGame('f3', 'gulch').town), a = at(2, 1), b = at(r.length - 2, 1);
+  assert.ok(Math.abs(a - b) <= a * 1e-6, a + ' and ' + b);
 });
 
-test('each fork is the best buy somewhere: Slow Rot by the entrance, Last Call by the vault', () => {
-  // a straight test road 40 long with one pad by its start and one by its end; brutes too tough to fall ride all of it
+test('each fork is the best buy somewhere: Slow Rot on fresh raiders with the road ahead, Last Call on hurt ones near the end', () => {
+  // a straight test road 40 long with one pad by its start and one by its end; brutes too tough to fall ride all of it,
+  // fresh at the start and with a tenth of their health left by the end (other towers hurt them on the way)
   const dealt = (spot, fork) => {
     const g = newGame('f4', 'gulch'), t = rich(g);
     t.def = { ...t.def, board: { ...t.def.board, road: [[0, 0], [40, 0]], vault: [41, 0], spots: [[3, 1.2], [38, 1.2]], pits: [], river: null } };
     t.vault = { hp: 1e15, max: 1e15 };
     tower(t, spot, 'still', 20, 'a', fork);
-    Object.assign(t.waves, { phase: 'wave', queue: [], foes: [0, 1, 2, 3, 4, 5].map(k => raider(k + 1, -k * 1.2, { frozenT: 0, s: 0 })) });
-    t.waves.foes.forEach((f, k) => { f.s = -k * 1.2; });
+    const s0 = spot ? 30 : 0, left = spot ? .1 : 1;
+    Object.assign(t.waves, { phase: 'wave', queue: [], foes: [0, 1, 2, 3, 4, 5].map(k => raider(k + 1, s0 - k * 1.2, { frozenT: 0, hp: 1e9 * left })) });
     for (let i = 0; i < 400 && t.waves.foes.length; i++) g.step(.25);
     return (g.dealt && g.dealt.gulch && g.dealt.gulch.still) || 0;
   };
@@ -101,6 +106,37 @@ test('save v22: old towers have taken no fork and no raider rots', () => {
   const m = migrate({ v: 21, at: 0, game: { towns: { gulch: { towers: [{ spot: 0, kind: 'still', level: 20, path: 'a' }], waves: { phase: 'wave', queue: [], foes: [{ id: 1 }] } } } } });
   assert.equal(m.game.towns.gulch.towers[0].fork, null);
   assert.equal(m.game.towns.gulch.waves.foes[0].rot, 0);
+});
+
+test('an old save: a Still at 25 and a Cannon at 22 with no fork pick one with their next level and keep their levels', () => {
+  // saves made before the forks shipped (v22 set fork: null on every tower, whatever its level)
+  const m = migrate({ v: 21, at: 0, game: { towns: { gulch: { towers: [{ spot: 0, kind: 'still', level: 25, path: 'a' }, { spot: 1, kind: 'cannon', level: 22, path: 'b' }], waves: { phase: 'break', queue: [], foes: [] } } } } });
+  const old = m.game.towns.gulch.towers;
+  assert.equal(old[0].fork, null); assert.equal(old[1].fork, null);
+  const g = newGame('f9', 'gulch'), t = rich(g); hold(t);
+  t.towers = old.map(x => ({ cd: 0, spent: 0, pulses: 0, ...x }));
+  const [s, c] = t.towers;
+  assert.ok(forkNext(s) && forkNext(c), 'both pick');
+  assert.equal(nextTowerUp(t).tower, null, 'Auto-towers waits for the player'); assert.equal(nextTowerUp(t).needPath, 2);
+  assert.equal(upgradeTower(g, t, 0), false, 'no fork named'); assert.equal(s.level, 25);
+  assert.ok(upgradeTower(g, t, 0, 'b')); assert.equal(s.level, 26); assert.equal(s.fork, 'b'); assert.equal(s.path, 'a');
+  assert.ok(upgradeTower(g, t, 1, 'a')); assert.equal(c.level, 23); assert.equal(c.fork, 'a');
+  assert.ok(!forkNext(s) && !forkNext(c), 'picked once');
+  assert.ok(upgradeTower(g, t, 0)); assert.equal(s.fork, 'b', 'the fork stays');
+  assert.ok(towerStats(t, s).hurt && towerStats(t, c).rockets === ROCKETS.count);
+  // a Still at 30 with no fork is found too (the coach card and the card's pick use forkNext), and the bots weigh both sides
+  t.towers.push({ spot: 2, kind: 'still', level: 30, path: 'b', fork: null, cd: 0, spent: 0, pulses: 0 });
+  assert.ok(forkNext(towerAt(t, 2)));
+  assert.deepEqual(options(t).filter(o => o.up && o.spot === 2).map(o => o.path).sort(), ['a', 'b']);
+});
+
+test('fork text says what it does in one short line, with no advice on where or when', () => {
+  for (const [kind, sides] of Object.entries(FORKS)) for (const P of Object.values(sides)) {
+    const words = P.about.split(/s+/).length;
+    assert.ok(words <= 10, kind + ' ' + P.name + ' has ' + words + ' words');
+    assert.ok(!/best|start of the road|end of the road|near the vault|reaches far/i.test(P.about), P.name + ': ' + P.about);
+  }
+  for (const e of EXPLAINERS.filter(x => x.covers.some(c => c.startsWith('fork')))) assert.ok(!/best|start of the road|near the vault/i.test(e.text), e.text);
 });
 
 test('a tower one level from its fork shows the explainer on it', () => {
