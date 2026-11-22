@@ -4,6 +4,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
+import { boomNow, sellMode, setSellMode } from '../core/market.js';
 import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords } from '../data/towers.js';
@@ -33,7 +34,7 @@ import { waveSheet, waveTimer, waveTitle } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, MODE_WORDS } from './format.js';
 import { heart } from './heart.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
@@ -153,6 +154,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     }
     if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) powerChip.classList.toggle('low', low); }
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
+    // a boom or bust (src/core/market.js): a small arrow in the chip's corner, so the chip keeps its size
+    const bm = boomNow(game), ev = bm ? (bm.f > 1 ? 'boom' : 'bust') : '';
+    for (const [g, n] of Object.entries(stripNums)) {
+      const c = n.parentNode, want = bm && bm.good === g ? ev : '';
+      if ((c.dataset.ev || '') === want) continue;
+      c.dataset.ev = want; c.classList.toggle('boom', want === 'boom'); c.classList.toggle('bust', want === 'bust');
+      c.title = GOODS[g].name + (want === 'boom' ? ', boom' : want === 'bust' ? ', bust' : '');
+    }
   };
   // tags over the plots
   const tags = el('div', 'tags'), tag = {};
@@ -287,10 +296,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const selling = town.sell[b.makes] !== false, sell = setSwitch(el('button', 'btn small'), 'Sell spare ' + g.name.toLowerCase(), selling ? 'On' : 'Off', selling); // one line, under Upgrade when both do not fit (.sellrow)
+    const mode = sellMode(town, b.makes), selling = mode !== 'off', sell = setSwitch(el('button', 'btn small'), 'Sell spare ' + g.name.toLowerCase(), MODE_WORDS[mode], selling); // one line, under Upgrade when both do not fit (.sellrow); the Goods sheet picks Skip busts or Booms only
     sell.id = 'sell';
     sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
-    sell.addEventListener('click', () => { if (selling) town.sell[b.makes] = false; else delete town.sell[b.makes]; paintCard(); });
+    sell.addEventListener('click', () => { setSellMode(town, b.makes, selling ? 'off' : 'always'); paintCard(); });
     bcost.append(row); card.append(bcost);
     // the Sell switch sits under the pinned bar, away from the price, so the price reads as Upgrade's alone (review of
     // 2026.11.19-13: "401 / 12 coins" sat above both Upgrade and Sell), with the tower reserve's switch beside it

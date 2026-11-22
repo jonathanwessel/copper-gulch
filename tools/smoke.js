@@ -597,13 +597,36 @@ async function run() {
       // the side buttons: Goods and Menu open their sheets, Graphics changes the drawing tier and is kept
       await page.evaluate(() => document.getElementById('goodsBtn').click()); await sleep(350);
       bad.push(...(await check(page)).map(b => 'goods sheet: ' + b));
-      const goods = await page.evaluate(() => {
-        const t = CG.game.town, b = document.querySelector('#sheet [data-good="timber"]');
-        if (!b || document.getElementById('sheet').hidden) return false;
-        const was = t.sell.timber !== false; b.click(); const now = t.sell.timber !== false; b.click();
-        return was !== now && (t.sell.timber !== false) === was;
+      // Sell spare opens the four sell modes under its row; each pick sets the mode and closes them (Market depth, part 1)
+      const goods = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
+        const b = document.querySelector('#sheet .option button[data-good="timber"]'), pick = document.querySelector('#sheet .sellpick[data-good="timber"]');
+        if (!b || !pick || document.getElementById('sheet').hidden) return { found: false };
+        const was = t.sell.timber;
+        for (const [mode, want] of [['skip', 'skip'], ['boom', 'boom'], ['off', false], ['always', undefined]]) {
+          b.click(); await wait(80);
+          const btns = [...pick.querySelectorAll('[data-mode]')], sheet = document.getElementById('sheet').getBoundingClientRect();
+          out.opens = (out.opens ?? true) && !pick.hidden && btns.length === 4;
+          out.fits = (out.fits ?? true) && btns.every(x => { const r = x.getBoundingClientRect(); return r.height >= 30 && r.left >= sheet.left - 1 && r.right <= sheet.right + 1 && x.scrollWidth <= x.clientWidth + 1; });
+          btns.find(x => x.dataset.mode === mode).click(); await wait(80);
+          out[mode] = t.sell.timber === want && pick.hidden && b.textContent.includes(({ always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' })[mode]);
+        }
+        if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
+        // a boom on timber: the strip chip gets its arrow and keeps its box, and the row says Boom with the time left
+        const m = CG.game.shared.market, keep = { boom: m.boom, event: m.event, wait: m.wait };
+        const chip = document.querySelector('#goodsStrip .goodchip[data-good="timber"]'), box = c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), Math.round(r.top), Math.round(r.height)].join(); };
+        const b0 = chip && box(chip);
+        m.boom = { good: 'timber', f: 1.6, left: 75 }; m.event = { timber: 1.6 }; m.wait = 200; await wait(450);
+        const row = document.querySelector('#sheet [data-why="timber"] .evword');
+        out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
+        out.row = !!row && !row.hidden && /^Boom \d:\d\d$/.test(row.textContent);
+        m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
+        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^Bust 0:\d\d$/.test(row.textContent);
+        Object.assign(m, keep); await wait(450);
+        out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden;
+        return out;
       });
-      if (!goods) bad.push('the Goods sheet did not switch selling');
+      for (const [k, v] of Object.entries(goods)) if (!v) bad.push('the Goods sheet sell modes: not ' + k);
       // the sheet's counts read as the strip's in every frame (review of 2026.11.19-7: 46 copper ore beside the strip's 45)
       const goodsDiff = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
@@ -813,6 +836,20 @@ async function run() {
       await sleep(300);
       if (!await waitFor(page, () => CG.game.active === 'gulch' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:gulch', 10000)) bad.push('the win card did not open Copper Gulch');
       await page.evaluate(() => CG.coach.skipAll());
+      // the first boom: its explainer shows once, with the spotlight on the good's chip (Market depth, part 1)
+      const boomCard = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip');
+        if (!chip) return 'no chip';
+        const g = chip.dataset.good, keep = { boom: m.boom, event: m.event, wait: m.wait };
+        delete CG.game.shared.seen.boom; m.boom = { good: g, f: 1.6, left: 80 }; m.event = { [g]: 1.6 }; m.wait = 300;
+        for (let i = 0; i < 40 && CG.coach.current !== 'boom'; i++) await wait(100);
+        if (CG.coach.current !== 'boom') return 'no card';
+        const hole = document.querySelector('#coach .hole').getBoundingClientRect(), c = chip.getBoundingClientRect(), text = document.querySelector('#coach .coachcard p').textContent;
+        const lit = !document.querySelector('#coach .hole').hidden && hole.left <= c.left && hole.right >= c.right && hole.top <= c.top && hole.bottom >= c.bottom;
+        CG.coach.dismiss(); Object.assign(m, keep);
+        return lit && text.includes(chip.title.split(',')[0]) ? '' : 'spotlight ' + lit + ' text ' + text;
+      });
+      if (boomCard) bad.push('the boom explainer: ' + boomCard);
       // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
       const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');

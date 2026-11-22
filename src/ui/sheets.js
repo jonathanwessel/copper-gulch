@@ -6,7 +6,7 @@
    Every word here follows the owner's writing rule (PLAN.md): plain, short, no colons or semicolons. */
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { saturation } from '../core/market.js';
+import { saturation, eventFactor, boomNow, sellMode, setSellMode, SELL_MODES } from '../core/market.js';
 import { explainPrice } from '../core/explain.js';
 import { explainBox } from './explain.js';
 import { encode } from '../core/save.js';
@@ -17,7 +17,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, boomWord } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -66,7 +66,7 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
-export const priceWord = s => (s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
+export const priceWord = s => (s > 1.05 ? 'Up ' + Math.min(99, Math.round((s - 1) * 100)) + '%' : s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
 export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESERVE.lots : 1) + ' upgrades'; // "Each tower keeps goods for · 2 upgrades", one sentence (review of 2026.11.20-14: "2 levels each" was unclear) // "Keep for towers · 2 levels each": for every tower (review of 2026.11.20-13: "Next 2 levels" did not say of what)
@@ -80,7 +80,7 @@ export const STOCK_CHOICES = [['normal', RESERVE.levels + ' upgrades'], ['lots',
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
   return body => {
-    const list = el('div', 'goods'), rows = {}, open = {}, whySig = {};
+    const list = el('div', 'goods'), rows = {}, open = {}, whySig = {}, picking = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
@@ -110,13 +110,17 @@ export function goodsSheet(game, town, focus = null) {
       for (const g of goods) {
         const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), line2 = el('span'), why = el('div');
         // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
-        const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'); barRow.append(plabel, level); // no bar: it had no label and said what the word says (review of 2026.11.20-15)
-        txt.append(name, line, line2, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
+        const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'), ev = el('small', 'evword'); ev.hidden = true; barRow.append(plabel, level); const head = el('div', 'gnamerow'); head.append(name, ev); // ev: a boom or bust and its time left, beside the name so the price row keeps its width on a phone // no bar: it had no label and said what the word says (review of 2026.11.20-15)
+        txt.append(head, line, line2, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
+        // Sell spare opens the four modes under the row (GDD.md, Market); a pick closes them
         const sw = btn('', 'btn small'); sw.dataset.good = g;
-        sw.addEventListener('click', () => { if (town.sell[g] !== false) town.sell[g] = false; else delete town.sell[g]; paint(); });
-        row.append(txt, sw); list.append(row);
-        rows[g] = { line, line2, sw, why, txt, level, plabel };
+        const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
+        const picks = SELL_MODES.map(k => { const b = btn(MODE_WORDS[k], 'btn small'); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        pick.append(...picks);
+        sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
+        row.append(txt, sw); list.append(row, pick);
+        rows[g] = { line, line2, sw, why, txt, level, plabel, ev, pick, picks };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -130,7 +134,7 @@ export function goodsSheet(game, town, focus = null) {
         if (r.good) { const t = fmtLive(Math.floor(town.goods[r.good] || 0)) + ' in stock · sent by ' + (TOWN_NAMES[GOODS[r.good].town] || 'another town'); if (r.line.textContent !== t) r.line.textContent = t; continue; }
         const kept = Math.ceil((town.keep || {})[g] || 0);
         const ex = explainPrice(game, town, g);
-        const selling = town.sell[g] !== false, have = town.goods[g] || 0;
+        const mode = sellMode(town, g), selling = mode !== 'off', have = town.goods[g] || 0;
         // every unit kept for towers: nothing is sold now, so no price (review 2026-11-18: "sells for 0 coins each" next to Sell On)
         const txt = goodsLine({ have, kept, selling, price: ex.value, open: !!open[g] });
         const cut = txt.indexOf(' · '), a = cut < 0 ? txt : txt.slice(0, cut), b2 = cut < 0 ? '' : txt.slice(cut + 3);
@@ -142,9 +146,16 @@ export function goodsSheet(game, town, focus = null) {
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
         const sat = saturation(game, g);
-        const pw = priceWord(sat); if (r.level.textContent !== pw) r.level.textContent = pw;
+        const pw = priceWord(sat * eventFactor(game, g)); if (r.level.textContent !== pw) r.level.textContent = pw; // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
         const pl = priceLabel(ex.value); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
-        setSwitch(r.sw, 'Sell spare', selling ? 'On' : 'Off', selling);
+        setSwitch(r.sw, 'Sell spare', MODE_WORDS[mode], selling);
+        r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
+        if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
+        for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
+        const bm = boomNow(game), ew = bm && bm.good === g ? boomWord(bm.f, bm.left) : '';
+        if (r.ev.textContent !== ew) r.ev.textContent = ew;
+        if (r.ev.hidden !== !ew) r.ev.hidden = !ew;
+        if (r.ev.classList.contains('bust') !== (!!bm && bm.good === g && bm.f < 1)) r.ev.classList.toggle('bust');
       }
     };
     build();

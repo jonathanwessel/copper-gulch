@@ -59,9 +59,16 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
    "Almost 0 coins each" (review of 2026.11.20-7: the label changed between "Price" and a price, and "Almost 0" sat where
    Top or High sit). The bar's end word is only ever how high it stands (priceWord). An open breakdown has no total row. */
 export const priceLabel = price => { const s = each(price); return s[0].toUpperCase() + s.slice(1); };
-/* The Goods sheet's switch for a good: one label, Sell · On or Sell · Off. */
-export function goodsSwitch({ selling = true }) {
-  return selling ? 'Sell spare · On' : 'Sell spare · Off'; // spare: what the towers do not keep (review of 2026.11.20-6)
+/* Each sell mode's word (src/core/market.js, SELL_MODES): on its Goods sheet button, its choice and its building card. */
+export const MODE_WORDS = { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' };
+/* The Goods sheet's button for a good: Sell spare, then its mode. selling false is Off (the old switch). */
+export function goodsSwitch({ selling = true, mode = selling ? 'always' : 'off' }) {
+  return 'Sell spare · ' + MODE_WORDS[mode]; // spare: what the towers do not keep (review of 2026.11.20-6)
+}
+/* A boom or bust on a good's price bar: "Boom 1:12", "Bust 0:45" (the time left, at most 4 characters). */
+export function boomWord(f, left) {
+  const s = Math.min(599, Math.max(0, Math.ceil(left || 0)));
+  return (f > 1 ? 'Boom ' : 'Bust ') + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a

@@ -9,6 +9,8 @@
      say(h): the text with what is on screen in it, such as a button's name (text stays the plain form the audit reads). */
 import { TOWNS } from './towns/index.js';
 import { ARMS } from './arms.js';
+import { GOODS } from './goods.js';
+import { BOOM } from '../core/market.js';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
@@ -326,6 +328,14 @@ export const EXPLAINERS = [
     title: 'Call to arms',
     text: 'Tap To arms when raiders are about to break through. Your workers fight on the road for ' + ARMS.seconds + ' sec, and the buildings make nothing until they come back. Then you wait ' + ARMS.cooldown / 60 + ' min to call them again.',
     when: h => !!h.tabs.arms && h.t > 2, at: () => ({ el: '#armsBtn' }),
+  },
+  {
+    // the first boom or bust on a good this town shows on its strip (src/core/market.js, GDD.md Market)
+    id: 'boom', covers: ['boom'],
+    title: 'Booms and busts',
+    text: 'One good sells for more right now. That is a boom. Sometimes a good sells for less instead, a bust. Each lasts ' + BOOM.last + ' sec. Tap the good below and then Sell spare to pick when it sells.',
+    say: h => { const g = GOODS[h.boom.good].name, up = h.boom.f > 1; return g + (up ? ' sells for more right now. That is a boom. Sometimes a good sells for less instead, a bust.' : ' sells for less right now. That is a bust. Sometimes a good sells for more instead, a boom.') + ' Each lasts ' + BOOM.last + ' sec. Tap ' + g + ' below and then Sell spare to pick when it sells.'; },
+    when: h => !!h.boom && h.boomChip && h.t > 2, at: h => ({ el: '#goodsStrip [data-good="' + h.boom.good + '"]' }),
   },
   {
     id: 'crowd', covers: ['crowd'],

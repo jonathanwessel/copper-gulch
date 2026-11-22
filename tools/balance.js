@@ -41,6 +41,9 @@ import { loadGame } from '../src/core/setup.js';
 const ARMS_BOT = !process.argv.includes('--noarms');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
+// the Iron Ridge strategy gate: a median over 6 seeds (2026.11.22-3: over 3 it moved about 10% with any change, and booms
+// and busts tipped economy's Ridge wave 10 from 12% to 30% behind; over 6 they read 12% and 15%)
+const RIDGE_SEEDS = arg('ridge-seeds', 6);
 let CALL = !process.argv.includes('--no-call');
 export const setCall = on => { CALL = on; };
 const SPACING = 1.1; // about how far apart raiders ride, in world units
@@ -956,7 +959,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   for (const r of gc.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...gc.misses);
   const emp = [];
-  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : EMPIRE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active', falls: k === 'active' }); e.strategy = k; emp.push(e); }
+  for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : RIDGE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active', falls: k === 'active' }); e.strategy = k; emp.push(e); }
   const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true);
   for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...lg.misses);
@@ -972,7 +975,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   for (const e of actives) if (e.tree) console.log(`${e.dc.seed} | ${e.tree.founded.map(([k, t]) => k + ' ' + (t / 60).toFixed(0)).join(', ')} | ${e.tree.nodes.length} | ${e.tree.gap == null ? '-' : (e.tree.gap / 60).toFixed(1)} | ${e.tree.nodes.map(([k, t]) => k + ' ' + (t / 60).toFixed(0)).join(', ')}`);
   misses.push(...capitalCheck(actives));
   const ec = empireCheck(emp);
-  console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${EMPIRE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);
+  console.log(`Iron Ridge by strategy (median; active over ${SEEDS} seeds, the others over ${RIDGE_SEEDS}): strategy | Ridge founded | waves held | Pine Hollow won | its towers, their level | Ridge wave 10 | Boiler Shop built | running`);
   for (const x of ec.rows) console.log(`  ${x.strategy} | ${mm(x.found)} | ${mm(x.held)} | ${mm(x.ph)} | ${x.phTowers ?? '-'}, ${x.phLevel == null ? '-' : x.phLevel.toFixed(1)} | ${mm(x.w10)} | ${mm(x.boiler)} | ${x.run == null ? '-' : Math.round(100 * x.run) + '%'}`);
   misses.push(...ec.misses);
   console.log('Silver Falls (active): seed | Ridge charter signed (play time), deeds, at wave | Falls founded (play time) | waves held to save | Sandy Bend won (from getting there), breaches | Falls wave 10 (from getting there), breaches | Falls best wave after ' + FALLS_PLAY + ' min | workshops built (minute) | Wire Mill on Gulch copper | grid share | levels raised elsewhere');

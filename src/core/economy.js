@@ -3,7 +3,7 @@
    Buildings are leveled with coins; reaching each milestone level doubles a building's output. */
 import { BUILDINGS, MILESTONES } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { sell } from './market.js';
+import { sell, sellMode, sellsNow, eventFactor } from './market.js';
 
 export const KEEP_SECONDS = 10; // a workshop's inputs are kept for this many seconds of its use, never sold
 
@@ -174,10 +174,10 @@ export function ship(game, from, dt) {
   }
 }
 
-/* Sell what the town does not need: every good set to sell (town.sell[good] !== false), above the workshops' buffer
-   and what the town keeps for its next tower (town.keep, set by the defense), after routes and the Capital's contract
-   have taken theirs. Imported goods are never sold. An outpost
-   out of play first feeds the towns and sells the rest. */
+/* Sell what the town does not need: every good not set to Off (town.sell[good] !== false), above the workshops'
+   buffer and what the town keeps for its next tower (town.keep, set by the defense), after routes and the Capital's
+   contract have taken theirs. Imported goods are never sold. An outpost out of play first feeds the towns and sells
+   the rest. A good on Skip busts or Booms only still feeds the towns; only its sale waits (src/core/market.js). */
 export function sellSurplus(game, town, dt) {
   ship(game, town, dt);
   for (const s of game.systems) if (s.claim) s.claim(game, town); // the Capital's running contract takes its goods next (src/core/capital.js)
@@ -189,7 +189,7 @@ export function sellSurplus(game, town, dt) {
   }
   for (const to of feedTowns(game, town)) feed(game, town, to, extra);
   const prices = feedTarget(game, town) || town;
-  for (const [g, n] of Object.entries(extra)) if (n > 1e-9) sell(game, town, g, n, dt, prices);
+  for (const [g, n] of Object.entries(extra)) if (n > 1e-9 && sellsNow(sellMode(town, g), eventFactor(game, g))) sell(game, town, g, n, dt, prices);
 }
 
 /* How long coins count as earned lately (town.recent): a fallen vault loses at most that much (src/core/defense.js). */

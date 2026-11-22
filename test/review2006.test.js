@@ -9,7 +9,7 @@ import { startResearch, queueResearch, researchLevel, researchBlock } from '../s
 import { migrate, SAVE_VERSION, encode, decode } from '../src/core/save.js';
 import { FOES } from '../src/data/foes.js';
 import { TOWERS } from '../src/data/towers.js';
-import { each, goodsLine, goodsSwitch, priceLabel } from '../src/ui/format.js';
+import { each, goodsLine, goodsSwitch, priceLabel, MODE_WORDS } from '../src/ui/format.js';
 import { textIssues } from '../tools/audit.js';
 
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -86,7 +86,7 @@ test('a price reads in whole coins from 1 up and sits on the price bar, not in t
   assert.equal(goodsLine({ have: 122, kept: 122, selling: true, price: 2 }), '122 in stock · 122 for towers · 0 spare');
   assert.equal(priceLabel(2), '2 coins each');
   assert.equal(priceLabel(.001), 'Under 1 coin each'); // since 2026.11.20-9 one form under 1 coin
-  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · On');
+  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · ' + MODE_WORDS.always);
   assert.match(read('src/ui/play.js'), /'Sell spare ' \+ g\.name\.toLowerCase\(\)/);
   for (const t of [goodsLine({ have: 40, kept: 5, selling: true, price: 2 }), priceLabel(3)]) assert.deepEqual(textIssues(t), []);
 });

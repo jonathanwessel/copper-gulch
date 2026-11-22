@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-3',
+    lines: [
+      'Once Iron Ridge is open, every few minutes one good sells for more, for 90 sec. This is a boom. Sometimes one sells for less, a bust.',
+      'A green arrow on a good at the bottom of the screen shows a boom. A red one shows a bust.',
+      'Tap Goods, then Sell spare on a good, to pick Always, Skip busts, Booms only or Off.',
+    ],
+  },
+  {
     v: '2026.11.22-2',
     lines: [
       'Turn on Fight the war wagon again in Auto. A town that loses then keeps playing.',

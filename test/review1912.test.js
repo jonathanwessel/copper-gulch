@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { newGame } from '../src/core/setup.js';
 import { oldWavesLabel } from '../src/core/explain.js';
-import { each, sellsFor, goodsLine, goodsSwitch, priceNote } from '../src/ui/format.js';
+import { each, sellsFor, goodsLine, goodsSwitch, priceNote, MODE_WORDS } from '../src/ui/format.js';
 import { stripFit, stripGoods } from '../src/core/reveal.js';
 import { crowdedBadges } from '../src/ui/map.js';
 import { GOALS } from '../src/data/goals.js';
@@ -32,9 +32,9 @@ test('under 1 coin a price says what 10 or 100 pay', () => {
 
 test('a good the towers keep all of says so, and its switch sells only the extra', () => {
   assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 for towers · 0 spare');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: true }), 'Sell spare · On');
-  assert.equal(goodsSwitch({ have: 40, kept: 19, selling: true }), 'Sell spare · On');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · Off');
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: true }), 'Sell spare · ' + MODE_WORDS.always);
+  assert.equal(goodsSwitch({ have: 40, kept: 19, selling: true }), 'Sell spare · ' + MODE_WORDS.always);
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · ' + MODE_WORDS.off);
   assert.match(read('src/ui/sheets.js'), /el\('small', 'plabel', 'Price'\)/); // the price bar has its label
 });
 

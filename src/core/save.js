@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 25;
+export const SAVE_VERSION = 26;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -188,6 +188,17 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const a of Object.values((g.shared && g.shared.auto) || {})) { if (!a) continue; if (a.fell === undefined) a.fell = 0; if (a.boss && a.boss.go === undefined) a.boss.go = false; }
     return { ...s, v: 25, game: g };
+  },
+  // v26: booms and busts (src/core/market.js): the market's boom clock starts as in a new game (8 minutes, counted once
+  // a second town is open), no boom on yet. Its own
+  // random stream is made from the game's seed when it loads (market.setup). Sell modes need nothing: town.sell keeps
+  // false for Off and gains 'skip' or 'boom'.
+  25: s => {
+    const g = s.game || {};
+    g.shared = g.shared || {};
+    const m = g.shared.market = g.shared.market || { rate: {}, event: {}, sold: {} };
+    if (m.wait === undefined) { m.wait = 480; m.boom = null; m.last = null; m.event = {}; }
+    return { ...s, v: 26, game: g };
   },
 };
 

@@ -78,6 +78,8 @@ const SCREENS = [
   // dots on Goods (a new good) and Research (nothing running, an item can be paid)
   ['dots', () => { CG.play.close(); const g = CG.game, t = g.town; (g.shared.seen ||= {}).goods = true; t.flags['open:research'] = true; t.coins = Math.max(t.coins, 5000); t.lab = null; for (const k of Object.keys(t.flags)) if (k.startsWith('listed:')) delete t.flags[k]; }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
+  // a boom on the first good of the strip, and its row's four sell modes open (Market depth, part 1)
+  ['goods-boom', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: 1.6, left: 72 }; m.event = { [g]: 1.6 }; m.wait = 999; CG.play.close(); CG.play.openGoods(g); await wait(300); const b = document.querySelector('#sheet .option button[data-good="' + g + '"]'); if (b) b.click(); }],
   ['menu', () => { CG.play.openMenu(); }],
   ['research', () => { const t = CG.game.town; t.flags['open:research'] = true; t.coins = 5000; t.research = { saws: 2 }; t.lab = { id: 'walls', left: 14, total: 20 }; CG.play.openResearch(); }],
   // the Perks sheet: a charter ready to sign, two deeds held, one pair picked and one open

@@ -56,6 +56,9 @@ export function helper(town, game = null) {
     record: town.record || 0, oldGround: town.wave <= (town.record || 0) && (town.record || 0) > 0,
     // a tower of each kind on the board: kind -> spot (the first one built)
     kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
+    // a boom or bust on now (src/core/market.js), and whether its good has a chip on this town's goods strip
+    boom: game && game.shared.market ? game.shared.market.boom || null : null,
+    boomChip: (() => { const b = game && game.shared.market && game.shared.market.boom; if (!b || typeof document === 'undefined') return false; const n = document.querySelector('#goodsStrip [data-good="' + b.good + '"]'); return !!n && n.offsetParent !== null; })(),
     stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
     // a tower one level from its second fork, by kind (each kind's card names its own two sides)

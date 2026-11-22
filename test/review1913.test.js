@@ -4,13 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
 import { explainTower, oldWavesLabel } from '../src/core/explain.js';
-import { goodsLine, goodsSwitch, fmtLive } from '../src/ui/format.js';
+import { goodsLine, goodsSwitch, fmtLive, MODE_WORDS } from '../src/ui/format.js';
 import { foremanLine, unitText, blastWord } from '../src/ui/explain.js';
 import fs from 'node:fs';
 
 test('the Goods sheet has one Sell label and one price pattern', () => {
-  for (const kept of [0, 5, 19]) assert.equal(goodsSwitch({ have: 19, kept, selling: true }), 'Sell spare · On');
-  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · Off');
+  for (const kept of [0, 5, 19]) assert.equal(goodsSwitch({ have: 19, kept, selling: true }), 'Sell spare · ' + MODE_WORDS.always);
+  assert.equal(goodsSwitch({ have: 19, kept: 19, selling: false }), 'Sell spare · ' + MODE_WORDS.off);
   assert.equal(goodsLine({ have: 19, kept: 19, selling: true, price: 2 }), '19 in stock · 19 for towers · 0 spare');
   assert.equal(goodsLine({ have: 40, kept: 5, selling: true, price: 13 }), '40 in stock · 5 for towers · 35 spare');
   assert.equal(goodsLine({ have: 40, selling: false, price: 1.5 }), '40 in stock · 0 for towers · 40 spare'); // every row has its second line (review of 2026.11.20-10)
