@@ -12,6 +12,7 @@ import { CameraRig } from './camera.js';
 import { makeGround, fbm, sstep, lerp } from './terrain.js';
 import { Kit, rng } from './kit.js';
 import { roadRibbon, riverRibbon, bridges, disposeTree, tierOf } from './board.js';
+import { waterCut, crossings } from './bridge-plan.js';
 import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/gulch.js';
 import { makeTower } from '../assets/models/units.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -22,7 +23,7 @@ import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
 import { rectDist, gateDist, polyDist, blockers, routeLine, mesaPlan, flavor, camp, routeKind, duneHeight } from './empire-plan.js';
-import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, engineGeometry, carGeometry, merged } from './empire-land.js';
+import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
 const S = DIORAMA, MAXWAGONS = 48, MAXTRAINS = 24, MAXCARS = 72, GAP = .36;
@@ -40,8 +41,9 @@ const RISE = .9; // seconds a newly founded institution takes to rise out of its
    changes. */
 function diorama(town) {
   const B = town.def.board, look = B.look, objs = [];
-  objs.push(roadRibbon(B.road, [new THREE.Color(look.dirt), new THREE.Color(look.rut), new THREE.Color('#a57a52')]));
-  if (B.river) { const r = B.river.path.concat([B.vault]), w = riverRibbon(r, look, B.river.width || 1.1); w.position.y = .05; objs.push(w, ...bridges(B.road, r)); }
+  const RIV = B.river ? B.river.path.concat([B.vault]) : null, RW = B.river ? B.river.width || 1.1 : 0;
+  objs.push(roadRibbon(B.road, [new THREE.Color(look.dirt), new THREE.Color(look.rut), new THREE.Color('#a57a52')], 1, .015, null, RIV ? waterCut(RIV, RW) : null)); // never on the water
+  if (RIV) { const w = riverRibbon(RIV, look, RW); w.position.y = .05; objs.push(w, ...bridges(B.road, RIV, { width: RW, waterY: .02 })); }
   objs.push(...entranceModels(B));
   for (const [id, [x, z]] of Object.entries(B.plots)) {
     const level = town.level(id);
@@ -235,8 +237,9 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       if (routes[l.key]) continue;
       const rev = l.from > l.to, path = paths[rev ? l.to + '|' + l.from : l.from + '|' + l.to];
       if (!path || path.pts.length < 2) continue;
-      const parts = flat(kind === 'rail' ? railModel(path.pts) : roadModel(path.pts));
-      if (river) parts.push(...routeBridges(path.pts, river));
+      const wet = river ? waterCut(river.pts, river.width) : null; // the route stops at the water, the bridge carries it over
+      const parts = flat(kind === 'rail' ? railModel(path.pts, wet) : roadModel(path.pts, wet));
+      if (river) parts.push(...routeBridges(path.pts, river, kind === 'rail'));
       const road = merged(parts, { cast: false }); road.name = kind === 'rail' ? 'rails' : 'road'; add(road);
       routes[l.key] = { ...path, rev, road, phase: (l.key.length * .137) % 1 };
     }
@@ -245,10 +248,12 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const wagons = fleet(wagonGeometry(), mats.solid, MAXWAGONS), engines = fleet(engineGeometry(), mats.solid, MAXTRAINS), cars = fleet(carGeometry(), mats.solid, MAXCARS);
   root.add(wagons, engines, cars);
   const pos = { x: 0, z: 0, yaw: 0 };
+  // a wagon or train over the river rides up onto the bridge's deck (routeBridges: its top stands at DECK_Y)
+  const onDeck = (x, z) => { if (!river) return 0; const d = polyDist(x, z, river.pts) - river.width / 2; return d > .18 ? 0 : (DECK_Y - .02) * Math.min(1, (.18 - d) / .12); };
   const put = (mesh, n, r, u, y, bob, t, i, scale = 1.5) => {
     r.at(r.rev ? 1 - u : u, pos); if (r.rev) pos.yaw += Math.PI;
     _e.set(0, pos.yaw, bob ? Math.sin(t * 9 + i * 2) * .03 : 0); _q.setFromEuler(_e);
-    _p.set(pos.x, y + (bob ? Math.abs(Math.sin(t * 6 + i)) * .015 : 0), pos.z); _s.setScalar(scale);
+    _p.set(pos.x, y + onDeck(pos.x, pos.z) + (bob ? Math.abs(Math.sin(t * 6 + i)) * .015 : 0), pos.z); _s.setScalar(scale);
     _m.compose(_p, _q, _s); mesh.setMatrixAt(n, _m);
   };
   const rollWagons = (dt, t) => {
@@ -292,6 +297,8 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     get frames() { return frames; },
     get dioramas() { return Object.keys(dio); },
     get routes() { return Object.keys(routes); },
+    // where each laid route crosses the river, for the bridge shots (tools/look-shots.js map)
+    get crossings() { if (!river) return []; const out = []; for (const r of Object.values(routes)) for (const run of crossings(r.pts, river.pts, river.width / 2 + .18, .05)) out.push(run[run.length >> 1]); return out; },
     get routeKind() { return kind; },
     get wagons() { return wagons.count; },
     get trains() { return engines.count; },

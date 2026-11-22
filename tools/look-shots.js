@@ -3,6 +3,8 @@
 // buildings show their later steps), and the steps: every plot at a level mark in turn (1, 10, 25, 50, 100). Faster than tools/shots.js, and only the board, so the look can be judged alone.
 // `map`: the empire map early (the Gulch, Dry Creek and Iron Ridge open, the rest surveyed land) and full (every town,
 // outpost and the Capital), each at the whole map and a few close views.
+// LOOK_VIEWS=home,bridge takes only the views whose names start with those words; a board with a river adds each
+// bridge close up (bridgeN-top, bridgeN-low).
 import fs from 'node:fs';
 import path from 'node:path';
 import { start } from './serve.js';
@@ -20,6 +22,18 @@ const VIEWS = [
   ['steps', () => { const t = CG.game.town, L = [1, 10, 25, 50, 100]; Object.keys(t.def.board.plots).forEach((id, i) => { t.buildings[id] = L[i % L.length]; }); CG.town.rig.reset(); }],
   ['steps-low', () => { const r = CG.town.rig, B = CG.game.town.def.board, v = { x: B.cols / 2 - 1, z: B.rows / 2, yaw: -.6, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); }],
 ];
+// every bridge close up, from above and from low across the water (owner, 2026-11-22: water must show under each deck);
+// only on a board with a river
+// (a string, since the page gets only the function's text, not the numbers it closes over)
+const bridgeView = (i, pitch, dist) => `(async () => {
+  const B = CG.game.town.def.board; if (!B.river) return false;
+  const { crossings } = await import('./src/render/bridge-plan.js'), run = crossings(B.road, B.river.path.concat([B.vault]))[${i}];
+  if (!run) return false;
+  const m = run[run.length >> 1], r = CG.town.rig, v = { x: m[0], z: m[1], yaw: .45, pitch: ${pitch}, dist: ${dist} };
+  Object.assign(r.t, v); Object.assign(r.c, v); return true;
+})()`;
+for (let i = 0; i < 4; i++) VIEWS.push(['bridge' + i + '-top', bridgeView(i, 1.15, 6.5)], ['bridge' + i + '-low', bridgeView(i, .38, 4.6)]);
+if (process.env.LOOK_VIEWS) { const keep = process.env.LOOK_VIEWS.split(','); for (let i = VIEWS.length - 1; i >= 0; i--) if (!keep.some(k => VIEWS[i][0].startsWith(k))) VIEWS.splice(i, 1); }
 
 // the empire map: an early empire (some land still surveyed) and a full one, routes carrying goods
 const MAPSTATES = {
@@ -47,10 +61,16 @@ const MAPSTATES = {
     const T = await import('./src/core/tree.js'); g.shared.purse.coins = 1e9; for (const id of ['market', 'bank', 'war', 'university', 'transport']) T.foundInstitution(g, id);
     g.addTown('falls'); op.grantOutpost(g, 'sandybend');
     for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 8, glassworks: 8 })) g.towns.falls.buildings[id] = n;
-    t.drawn = { ore: 20 }; r.shipped = { bricks: 9 }; r.drawn = { timber: 5 }; g.towns.falls.drawn = { sand: 4 }; t.shipped = { bricks: 5, tools: 3 };
+    // sand from Sandy Bend to Iron Ridge lays a route over the river (the bridge shots)
+    t.drawn = { ore: 20 }; r.shipped = { bricks: 9 }; r.drawn = { timber: 5, sand: 3 }; g.towns.falls.drawn = { sand: 4 }; t.shipped = { bricks: 5, tools: 3 };
   },
 };
 const MAPVIEWS = [
+  // the first route bridge over the river, from above and low across the water (owner, 2026-11-22)
+  ['bridge-top', () => { const c = CG.map.crossings[0]; if (!c) return false; const r = CG.map.rig, v = { x: c[0], z: c[1], yaw: .4, pitch: 1.1, dist: 6 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
+  // Silver Falls' own bridges at the map's scale (its board, shrunk into the map)
+  ['falls-bridges', () => { const f = CG.map.sites.find(x => x.id === 'falls'); if (!f || !CG.game.towns.falls) return false; const r = CG.map.rig, v = { x: f.at[0], z: f.at[1], yaw: .4, pitch: .75, dist: 7 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
+  ['bridge-low', () => { const c = CG.map.crossings[0]; if (!c) return false; const r = CG.map.rig, v = { x: c[0], z: c[1], yaw: .4, pitch: .4, dist: 4 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['home', () => { const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; }],
   ['low', () => { const r = CG.map.rig, v = { x: 0, z: 4, yaw: .4, pitch: .5, dist: 22 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['near', () => { const r = CG.map.rig, v = { x: -7, z: 12, yaw: -.3, pitch: .7, dist: 13 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
@@ -74,7 +94,7 @@ try {
     await p.evaluate(() => { for (const k of Object.keys(CG.meter.flow)) CG.meter.flow[k] = 4; });
     for (const [name, go] of MAPVIEWS) {
       if (state !== 'full' && name === 'north') continue;
-      await p.evaluate(go); await sleep(1500);
+      if ((await p.evaluate(go)) === false) continue; await sleep(1500);
       const f = path.join(dir, `map-${state}-${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
       // how much of each town its label covers, and any town's middle under a label (M6a, map labels on a phone)
       const cv = await p.evaluate(() => CG.mapui.cover()); console.log(`map-${state}-${name}-${size}`, JSON.stringify(cv.share), cv.mids.concat(cv.near).join(", "));
@@ -90,7 +110,7 @@ try {
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(CG.town && CG.town.frames > 2))); i++) await sleep(100);
     await p.evaluate(() => { CG.game.town.waves.hold = true; });
     for (const [name, go] of VIEWS) {
-      await p.evaluate(go); await sleep(name === 'home' ? 2500 : 1500);
+      if ((await p.evaluate(go)) === false) continue; await sleep(name === 'home' ? 2500 : 1500);
       const f = path.join(dir, `${town}-${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
     }
     await p.close();

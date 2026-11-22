@@ -57,7 +57,7 @@ export class Battle {
     this.board = board; this.town = board.town; this.game = game;
     this.group = new THREE.Group(); this.group.name = 'battle'; board.group.add(this.group);
     this.lanes = lanesOf(this.town);
-    this.river = this.town.def.board.river ? this.town.def.board.river.path.concat([this.town.def.board.vault]) : null; // raiders cross it on bridges
+    this.river = this.town.def.board.river ? this.town.def.board.river.path : null; // raiders cross it on bridges (its path only: the leg into the vault lifted raiders by the vault, 2026-11-22)
     const B0 = this.town.def.board;
     this.roadPts = [...B0.road, B0.vault]; // the road as points, for the steamer's stack (the lanes are path objects) // raiders stay hidden inside their lane's entrance
     this.hideS = [(B0.entrance && B0.entrance.hide) || 0, (B0.river && B0.river.entrance && B0.river.entrance.hide) || 0];

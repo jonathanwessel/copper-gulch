@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-7',
+    lines: [
+      'The river now runs under every bridge in Silver Falls and on the map. Trains ride across the top.',
+      'Tap Hold waves and the top of the screen says On hold right away, even during a fight.',
+    ],
+  },
+  {
     v: '2026.11.22-6',
     lines: [
       'A Still or Cannon you raised past level 20 now gets its level 20 choice. Tap it to pick.',

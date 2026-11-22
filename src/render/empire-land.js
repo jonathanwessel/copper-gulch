@@ -8,7 +8,8 @@ import { Kit, MAT, mergeStatic, rng } from './kit.js';
 import { roadRibbon, riverRibbon, disposeTree } from './board.js';
 import { PROPS } from '../assets/models/gulch.js';
 import { TOWNS } from '../data/towns/index.js';
-import { SQUASH, ENT_BOX, segDist } from './empire-plan.js';
+import { SQUASH, ENT_BOX } from './empire-plan.js';
+import { waterCut, crossings, bridgePlan } from './bridge-plan.js';
 
 /* --- cloud shadows --------------------------------------------------------------------------------------------------
    Soft shade that drifts across the whole map, worked out per vertex (cheap on every tier): every map material
@@ -242,19 +243,19 @@ export function surveyed(capital, c) {
 /* --- roads and rails ------------------------------------------------------------------------------------------------- */
 const DIRT = [new THREE.Color('#9a7550'), new THREE.Color('#7a5a3c'), new THREE.Color('#b38c62')];
 /* A dirt road: the ribbon with its ruts, and small stones along both edges. */
-export function roadModel(pts) {
-  const road = roadRibbon(pts, DIRT, .7); road.position.y = .01; road.material.userData.own = true;
+export function roadModel(pts, wet = null) {
+  const road = roadRibbon(pts, DIRT, .7, .015, null, wet); road.position.y = .01; road.material.userData.own = true;
   const k = new Kit({ ao: false }), R = rng(pts.length);
   for (let i = 1; i < pts.length - 1; i += 2) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / L, nz = (bx - ax) / L;
-    for (const s of [-1, 1]) if (R() < .55) k.dode(pts[i][0] + nx * s * (.5 + R() * .06), -.01, pts[i][1] + nz * s * (.5 + R() * .06), .035 + R() * .03, R() < .5 ? 'stone' : 'stoneD');
+    for (const s of [-1, 1]) if (R() < .55 && !(wet && wet(pts[i][0], pts[i][1]))) k.dode(pts[i][0] + nx * s * (.5 + R() * .06), -.01, pts[i][1] + nz * s * (.5 + R() * .06), .035 + R() * .03, R() < .5 ? 'stone' : 'stoneD');
   }
   return [road, k.build({ cast: false })];
 }
 /* Rails: a bed of gray ballast, wooden ties and two steel rails, with a telegraph pole now and then. */
-export function railModel(pts) {
+export function railModel(pts, wet = null) {
   const bed = roadRibbon(pts, [new THREE.Color('#8f877c'), new THREE.Color('#6e675e'), new THREE.Color('#a59c8e')], .62, .012,
-    [[-.66, new THREE.Color('#a59c8e')], [-.5, new THREE.Color('#8f877c')], [.5, new THREE.Color('#878075')], [.66, new THREE.Color('#a59c8e')]]);
+    [[-.66, new THREE.Color('#a59c8e')], [-.5, new THREE.Color('#8f877c')], [.5, new THREE.Color('#878075')], [.66, new THREE.Color('#a59c8e')]], wet);
   bed.material.userData.own = true; bed.name = 'rails';
   const k = new Kit({ ao: false });
   let run = 0;
@@ -262,29 +263,32 @@ export function railModel(pts) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i], L = Math.hypot(bx - ax, bz - az);
     if (L < 1e-4) continue;
     const ry = Math.atan2(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L, mx = (ax + bx) / 2, mz = (az + bz) / 2;
-    for (let t = 0; t < L; t += .17) k.box(ax + (bx - ax) * t / L, .01, az + (bz - az) * t / L, .4, .035, .08, '#3e2a1c', { ry });
+    for (let t = 0; t < L; t += .17) { const x = ax + (bx - ax) * t / L, z = az + (bz - az) * t / L; if (!(wet && wet(x, z))) k.box(x, .01, z, .4, .035, .08, '#3e2a1c', { ry }); } // no ties on the water
     for (const s of [-1, 1]) k.box(mx + nx * s * .1, .03, mz + nz * s * .1, .03, .03, L + .01, '#c9d2dc', { ry });
     run += L;
-    if (run > 2.4) { run = 0; k.box(ax + nx * .42, 0, az + nz * .42, .035, .55, .035, 'woodD'); k.box(ax + nx * .42, .5, az + nz * .42, .16, .025, .025, 'woodD', { ry }); }
+    if (run > 2.4 && !(wet && wet(ax + nx * .42, az + nz * .42))) { run = 0; k.box(ax + nx * .42, 0, az + nz * .42, .035, .55, .035, 'woodD'); k.box(ax + nx * .42, .5, az + nz * .42, .16, .025, .025, 'woodD', { ry }); }
   }
   return [bed, k.build({ cast: false })];
 }
-/* A plank bridge wherever a route crosses the river. */
-export function routeBridges(pts, river) {
-  const k = new Kit({ ao: false }), half = river.width * .5 + .25, runs = [];
-  let run = null;
-  for (const p of pts) {
-    let d = Infinity; for (let i = 0; i < river.pts.length - 1; i++) d = Math.min(d, segDist(p[0], p[1], river.pts[i], river.pts[i + 1]));
-    if (d < half) (run || (run = [])).push(p); else if (run) { runs.push(run); run = null; }
+/* A plank bridge wherever a route crosses the river: the route stops at the water's edge (waterCut), the deck spans the
+   water and a short bit of each bank, and its posts stand in the water, each with a pale ring (owner, 2026-11-22). */
+export const DECK_Y = .22; // the top of a route bridge's deck
+export function routeBridges(pts, river, rail = false) {
+  const k = new Kit({ ao: false }), wet = waterCut(river.pts, river.width, 0), half = .4;
+  // the deck stands DECK_Y over the water, so water shows under it from a low view (review of 2026.11.22-7: a deck
+  // laid nearly on the water hid the narrow map river); it reaches only a little past each bank
+  for (const run of crossings(pts, river.pts, river.width / 2 + .18, .05)) {
+    const P = bridgePlan(run, wet, { deckHalf: half, gap: .35 }), { a: [ax, az], len, ry, ux, uz } = P, L = len + .06, mx = ax + ux * len / 2, mz = az + uz * len / 2, y = DECK_Y;
+    k.box(mx, y - .05, mz, half * 2, .05, L, 'woodL', { ry }); k.box(mx, y - .065, mz, half * 2 - .1, .02, L, 'woodD', { ry });
+    for (let t = .05; t < L; t += .14) k.box(ax + ux * (t - .03), y, az + uz * (t - .03), half * 2 + .02, .008, .035, 'woodD', { ry }); // planks
+    for (const q of [-1, 1]) {
+      k.box(mx + P.sx * q * (half - .02), y + .08, mz + P.sz * q * (half - .02), .03, .03, L, 'wood', { ry }); // a rail each side
+      for (let t = 0; t <= L; t += L / 4) k.box(ax + ux * (t - .03) + P.sx * q * (half - .02), y, az + uz * (t - .03) + P.sz * q * (half - .02), .03, .09, .03, 'woodD');
+    }
+    if (rail) for (const q of [-1, 1]) k.box(mx + P.sx * q * .1, y, mz + P.sz * q * .1, .03, .03, L, '#c9d2dc', { ry });
+    for (const [px, pz] of P.posts) { k.box(px, -.06, pz, .06, y - .05 + .06, .06, 'woodD'); k.torus(px, .012, pz, .07, .012, '#cfe6ee', { rx: Math.PI / 2, ts: 12 }); }
   }
-  if (run) runs.push(run);
-  for (const r of runs) {
-    const a = r[0], b = r[r.length - 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) + .5, ry = Math.atan2(dx, dz), mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
-    const cx = Math.cos(ry), cz = -Math.sin(ry);
-    k.box(mx, .06, mz, .78, .05, L, 'woodL', { ry });
-    for (const s of [-1, 1]) { k.box(mx + cx * s * .36, .14, mz + cz * s * .36, .03, .03, L, 'wood', { ry }); for (const e of [-.5, 0, .5]) k.box(mx + cx * s * .36 + Math.sin(ry) * e * L * .8, -.1, mz + cz * s * .36 + Math.cos(ry) * e * L * .8, .05, .26, .05, 'woodD'); }
-  }
-  return runs.length ? [k.build({ cast: true })] : [];
+  return k.parts.solid.length ? [k.build({ cast: true })] : [];
 }
 
 /* A train's engine and a freight car: one geometry each, so every train on the map is two instanced draws. Both face +z. */

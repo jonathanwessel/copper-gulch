@@ -12,6 +12,7 @@ import { Entrance } from './entrance.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { groundDetail, tufts, edgeStones, rim, Blobs } from './dress.js';
 import { Life } from './life.js';
+import { waterCut, crossings, bridgePlan, RAMP } from './bridge-plan.js';
 import { Militia } from './militia.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
@@ -28,7 +29,7 @@ export class Board {
     this.group = new THREE.Group(); this.group.name = 'board:' + town.id;
     this.bld = {}; this.pickables = [];
     const B = this.def, look = B.look, RIV = B.river ? B.river.path.concat([B.vault]) : null;
-    const riverD = (x, z) => RIV ? polyDist(x, z, RIV).d : Infinity;
+    const riverD = (x, z) => RIV ? polyDist(x, z, RIV).d : Infinity, RW = B.river ? B.river.width || 1.1 : 0;
     const gates = [B.entrance, B.river && B.river.entrance].filter(Boolean);
     this.center = new THREE.Vector3(B.cols / 2, 0, B.rows / 2);
     const plots = Object.values(B.plots);
@@ -60,15 +61,16 @@ export class Board {
       if (onPlot(x, z)) c.lerp(pad, .7);
       c.lerp(packed, (1 - sstep(1.05, 1.7, edge)) * (1 - sstep(0, .75, 1.05 - pd)) * .85);
       const r = polyDist(x, z, B.road);
-      if (r.d < 1.1) c.lerp(dirt, (1 - sstep(.6, 1.1, r.d)) * .5); // trampled verges; the road itself is a ribbon
+      if (r.d < 1.1) c.lerp(dirt, (1 - sstep(.6, 1.1, r.d)) * .5 * (RIV ? sstep(RW / 2, RW / 2 + .45, riverD(x, z)) : 1)); // trampled verges, never on the water; the road itself is a ribbon
       if (RIV) { const rd = riverD(x, z); if (rd < 1.4) c.lerp(GREEN, (1 - sstep(.7, 1.4, rd)) * .55); } // reeds and grass on the banks
     };
     // sand ripples show on open sand, never on a yard, a pad, the road or a riverbank
     const rip = (x, z) => sstep(1.2, 1.9, plotD(x, z)) * sstep(.9, 1.6, polyDist(x, z, B.road).d) * sstep(1.2, 2, riverD(x, z))
       * (B.spots || []).reduce((k, [sx, sz]) => k * sstep(.55, 1, Math.hypot(x - sx, z - sz)), 1) * (.55 + fbm(x * .3 + 21, z * .3) * .9);
     this.ground = makeGround({ cx: B.cols / 2, cz: B.rows / 2, w: 64, d: 56, seg: lod === 'low' ? 72 : 112, height, color, rip, detail: groundDetail });
-    this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, sand.clone().lerp(dirt, .55)]));
-    if (RIV) this.group.add(riverRibbon(RIV, look, (B.river.width || 1.1))), this.group.add(...bridges(B.road, RIV));
+    // the road stops at the water's edge, so the river runs unbroken under each bridge (owner, 2026-11-22)
+    this.group.add(this.ground, roadRibbon(B.road, [dirt, rut, sand.clone().lerp(dirt, .55)], 1, .015, null, RIV ? waterCut(RIV, RW) : null));
+    if (RIV) this.group.add(riverRibbon(RIV, look, RW)), this.group.add(...bridges(B.road, RIV, { width: RW }));
     const cx = B.cols / 2, cz = B.rows / 2;
     const scenery = [makeMesas([[cx - 16, cz - 17, 4.5], [cx - 11, cz - 21, 6], [cx + 9, cz - 18, 5], [cx + 20, cz - 11, 4], [cx - 22, cz - 5, 3.5], [cx + 23, cz + 3, 3], [cx - 21, cz + 9, 3]], look.mesa)];
     // scenery outside the yard, never on the road or a plot
@@ -94,7 +96,7 @@ export class Board {
     // soft contact shadows under the pads, the vault and every building
     this.blobs = new Blobs(B); this.group.add(this.blobs.mesh);
     // townsfolk, a wagon, tumbleweeds and birds (src/render/life.js); never picked, so taps go through them
-    this.life = new Life(this, height, (x, z) => (RIV ? bridgeLift(polyDist(x, z, RIV).d) : 0), lod === 'low' ? 'low' : 'med');
+    this.life = new Life(this, height, (x, z) => (RIV ? bridgeLift(polyDist(x, z, B.river.path).d) : 0), lod === 'low' ? 'low' : 'med'); // its path only, as for raiders (src/render/battle.js)
     this.group.add(this.life.group);
     // Call to arms: the workers by the road while they fight (src/render/militia.js), on every tier
     this.militia = new Militia(this, height); this.group.add(this.militia.group);
@@ -218,36 +220,41 @@ export function riverRibbon(pts, look, w = 1.1) {
    and raiders on the road walk over it along the same curve (bridgeLift, used by src/render/battle.js). */
 export const BRIDGE = .55;
 /* How high the road stands at a point d from the river's middle: flat at BRIDGE over the water, easing down to the
-   ground 1 away. */
-export const bridgeLift = d => { const s = Math.min(1, Math.max(0, (1 - d) / .45)); return BRIDGE * s * s * (3 - 2 * s); };
-export function bridges(road, river) {
-  const out = [], step = .1, path = new THREE.CurvePath();
-  for (let i = 0; i < road.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(road[i][0], 0, road[i][1]), new THREE.Vector3(road[i + 1][0], 0, road[i + 1][1])));
-  const n = Math.ceil(path.getLength() / step), pts = path.getSpacedPoints(n);
-  let run = null;
-  const done = () => { if (run && run.length > 2) out.push(run); run = null; };
-  for (const p of pts) { if (polyDist(p.x, p.z, river).d < 1) (run || (run = [])).push(p); else done(); }
-  done();
-  const k = new Kit(), lift = (x, z) => bridgeLift(polyDist(x, z, river).d);
-  for (const r of out) {
-    const a = r[0], b = r[r.length - 1], len = Math.hypot(b.x - a.x, b.z - a.z), ry = Math.atan2(b.x - a.x, b.z - a.z);
-    const dx = Math.sin(ry), dz = Math.cos(ry), cx = Math.cos(ry), cz = -Math.sin(ry), segs = Math.max(4, Math.round(len / .16));
+   ground RAMP away. */
+export const bridgeLift = d => { const s = Math.min(1, Math.max(0, (RAMP - d) / (RAMP - .55))); return BRIDGE * s * s * (3 - 2 * s); };
+export function bridges(road, river, { width = 1.1, waterY = -.03 } = {}) {
+  const wet = waterCut(river, width, 0), k = new Kit(), lift = (x, z) => bridgeLift(polyDist(x, z, river).d);
+  for (const run of crossings(road, river)) {
+    const P = bridgePlan(run, wet, { deckHalf: DECK }), { a: [ax, az], len, ry, ux, uz, sx, sz } = P, segs = Math.max(4, Math.round(len / .16));
+    if (!P.wet) continue; // the road meets the river only where both end at the vault: no water to cross
     for (let i = 0; i < segs; i++) {
-      const t0 = i / segs * len, t1 = (i + 1) / segs * len, x0 = a.x + dx * t0, z0 = a.z + dz * t0, x1 = a.x + dx * t1, z1 = a.z + dz * t1;
+      const t0 = i / segs * len, t1 = (i + 1) / segs * len, x0 = ax + ux * t0, z0 = az + uz * t0, x1 = ax + ux * t1, z1 = az + uz * t1;
       const h0 = lift(x0, z0), h1 = lift(x1, z1), sl = t1 - t0, rx = -Math.atan2(h1 - h0, sl), l = Math.hypot(sl, h1 - h0) + .02, mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, mh = (h0 + h1) / 2;
-      k.box(mx, mh - .07, mz, 1.15, .07, l, 'woodL', { ry, rx });                                        // the deck
-      k.box(mx, mh, mz, 1.2, .015, .05, 'woodD', { ry, ao: false });                                     // a plank
-      for (const s of [-1, 1]) k.box(mx + cx * s * .56, mh + .17, mz + cz * s * .56, .04, .04, l, 'wood', { ry, rx }); // the rails
-      if (i % 2 === 0) for (const s of [-1, 1]) k.box(x0 + cx * s * .55, -.1, z0 + cz * s * .55, .08, h0 + .37, .08, 'woodD'); // the posts
+      k.box(mx, mh - .06, mz, DECK * 2, .06, l, 'woodL', { ry, rx });                                     // the deck, no wider than the road
+      k.box(mx, mh - .075, mz, DECK * 2 - .12, .02, l, 'woodD', { ry, rx, ao: false });                  // its dark underside
+      if (i % 2) k.box(mx, mh, mz, DECK * 2 + .02, .012, .045, 'woodD', { ry, ao: false });               // a plank
+      for (const q of [-1, 1]) k.box(mx + sx * q * (DECK - .03), mh + .15, mz + sz * q * (DECK - .03), .035, .035, l, 'wood', { ry, rx }); // the rails
+      if (i % 3 === 0) for (const q of [-1, 1]) k.box(x0 + sx * q * (DECK - .03), h0 - .01, z0 + sz * q * (DECK - .03), .035, .18, .035, 'woodD'); // a baluster
     }
-    for (const s of [-1, 1]) k.box(b.x + cx * s * .55, -.1, b.z + cz * s * .55, .08, lift(b.x, b.z) + .37, .08, 'woodD');
+    // the ends of the rails, then the posts: in the water only, each with a pale ring where the current meets it
+    for (const t of [0, len]) for (const q of [-1, 1]) k.box(ax + ux * t + sx * q * (DECK - .03), lift(ax + ux * t, az + uz * t) - .01, az + uz * t + sz * q * (DECK - .03), .05, .2, .05, 'woodD');
+    for (const [px, pz] of P.posts) {
+      const top = lift(px, pz) - .06;
+      k.box(px, waterY - .12, pz, .09, top - waterY + .12, .09, 'woodD');
+      k.torus(px, waterY + .008, pz, .085, .012, '#cfe6ee', { rx: Math.PI / 2, ts: 12, ao: false });
+    }
+    // a cross brace under the middle, between the posts of each pair
+    for (let i = 0; i + 1 < P.posts.length; i++) { if (P.posts[i][2] !== P.posts[i + 1][2]) continue; const [x0, z0] = P.posts[i], [x1, z1] = P.posts[i + 1], m = lift((x0 + x1) / 2, (z0 + z1) / 2); k.box((x0 + x1) / 2, m - .2, (z0 + z1) / 2, DECK * 2 - .1, .04, .04, 'woodD', { ry }); }
   }
-  return out.length ? [k.build()] : [];
+  return k.parts.solid.length ? [k.build()] : [];
 }
+/* The deck's half width: the road ribbon is 0.66 each side, the deck a little less, so the road leads onto it and
+   water shows past its rails. */
+const DECK = .5;
 
 /* The road: a flat ribbon of packed dirt along the polyline, with two dark wheel ruts and lighter edges; w scales
    its width (the empire map's routes are narrower). */
-export function roadRibbon(pts, [dirt, rut, edge], w = 1, y = .015, cross = null) {
+export function roadRibbon(pts, [dirt, rut, edge], w = 1, y = .015, cross = null, cut = null) {
   const path = new THREE.CurvePath();
   for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(pts[i][0], 0, pts[i][1]), new THREE.Vector3(pts[i + 1][0], 0, pts[i + 1][1])));
   const n = Math.ceil(path.getLength() / .2), samples = path.getSpacedPoints(n);
@@ -255,12 +262,15 @@ export function roadRibbon(pts, [dirt, rut, edge], w = 1, y = .015, cross = null
   for (let pass = 0; pass < 3; pass++) for (let i = 1; i < samples.length - 1; i++) samples[i].lerp(samples[i - 1].clone().add(samples[i + 1]).multiplyScalar(.5), .5);
   // bands across the road: [offset from center, color]
   const bands = cross || [[-.66, edge], [-.52, dirt], [-.3, dirt], [-.24, rut], [-.17, dirt], [.17, dirt], [.24, rut], [.3, dirt], [.52, dirt], [.66, edge]];
-  const pos = [], col = [], idx = [];
+  const pos = [], col = [], idx = [], gone = [];
   samples.forEach((p, i) => {
     const a = samples[Math.max(0, i - 1)], b = samples[Math.min(samples.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1;
     const nx = -dz / L, nz = dx / L, j = ((i * 7919) % 13) / 13 * .06;
-    for (const [o, c] of bands) { pos.push(p.x + nx * o * w, y, p.z + nz * o * w); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); }
-    if (i) { const w = bands.length, s0 = (i - 1) * w, s1 = i * w; for (let k = 0; k < w - 1; k++) idx.push(s0 + k, s0 + k + 1, s1 + k, s0 + k + 1, s1 + k + 1, s1 + k); } // counter-clockwise from above
+    for (const [o, c] of bands) { const x = p.x + nx * o * w, z = p.z + nz * o * w; pos.push(x, y, z); col.push(c.r * (1 - j), c.g * (1 - j), c.b * (1 - j)); gone.push(!!cut && cut(x, z)); }
+    if (i) {
+      const w = bands.length, s0 = (i - 1) * w, s1 = i * w, tri = (a, b, c) => { if (!gone[a] && !gone[b] && !gone[c]) idx.push(a, b, c); };
+      for (let k = 0; k < w - 1; k++) { tri(s0 + k, s0 + k + 1, s1 + k); tri(s0 + k + 1, s1 + k + 1, s1 + k); } // counter-clockwise from above
+    }
   });
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));

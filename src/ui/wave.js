@@ -16,7 +16,11 @@ const plural = (n, name) => n + ' ' + (n === 1 ? name : many(name));
    (owner, 2026-11-20: "Does Dry Creek waves keep going?"). */
 export const waveTitle = town => (town.won ? 'Raids' : 'Wave ' + town.wave);
 /* The wave bar's timer: what the next wave waits for, in a box of fixed width. */
-export const waveTimer = ws => (ws.phase !== 'break' ? 'Fighting' : ws.hold ? 'On hold' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
+/* The wave bar's word and the hold button come from one state, so the bar never says Fighting beside Resume waves
+   (owner, 2026-11-22): while waves are held the bar says On hold, even with raiders still on the road, and Resume
+   waves shows only then. */
+export const waveBar = ws => ({ hold: !!ws.hold, word: waveTimer(ws), button: ws.hold ? 'Resume waves' : 'Hold waves' });
+export const waveTimer = ws => (ws.hold ? 'On hold' : ws.phase !== 'break' ? 'Fighting' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
 
 /* The tower open in this town that hits a raider kind hardest (its best factor), or null when none does. */
 export function bestTower(town, kind) {

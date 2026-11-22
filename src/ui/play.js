@@ -31,7 +31,7 @@ const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (stri
 import { goalNow, goalContext, goalsOf, goalText, sendsAway } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
-import { waveSheet, waveTimer, waveTitle } from './wave.js';
+import { waveSheet, waveBar, waveTitle } from './wave.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -94,10 +94,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
   let ctlSig = '';
   const paintCtl = () => {
-    const p = viewApi.paused(), h = !!town.waves.hold, sig = p + ',' + h;
+    const p = viewApi.paused(), bar = waveBar(town.waves), h = bar.hold, sig = p + ',' + h;
     if (sig === ctlSig) return; ctlSig = sig;
     setText(pause, p ? 'Resume' : 'Pause'); pause.setAttribute('aria-pressed', String(p)); banner.hidden = !p;
-    setText(hold, h ? 'Resume waves' : 'Hold waves'); hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
+    setText(hold, bar.button); hold.setAttribute('aria-pressed', String(h)); hold.classList.toggle('on', h);
   };
   pause.addEventListener('click', () => { viewApi.pause(!viewApi.paused()); paintCtl(); });
   hold.addEventListener('click', () => { setHold(game, town, !town.waves.hold); paintCtl(); });
@@ -756,7 +756,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     setText(vault, vaultCount(town.vault)); const vlow = town.vault.hp < .5 * town.vault.max; if (vault.classList.contains('low') !== vlow) vault.classList.toggle('low', vlow);
     paintCtl();
     measure();
-    setText(waveInfo, waveTimer(ws)); // one fixed box: "in 28s", "On hold" or "Fighting"
+    setText(waveInfo, waveBar(ws).word); // one fixed box: "in 28s", "On hold" or "Fighting", from the same state as the hold button
     const away = ws.phase !== 'break'; if (call.classList.contains('away') !== away) call.classList.toggle('away', away); // kept in place, so the bar never changes width
     if (ui.classList.contains('fighting') !== away) ui.classList.toggle('fighting', away); // quiet tags fade while raiders are on the road (review of 2026.11.19-13: a tag covered raiders)
     const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
