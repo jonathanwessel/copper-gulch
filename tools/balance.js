@@ -24,7 +24,7 @@ import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
 import { TOWERS, PATHS, PATH_LEVEL, POISON_SECONDS, FORKS, FORK_LEVEL, EATS_ARMOR, HURT } from '../src/data/towers.js';
 import { itemsOf, researchBlock, researchCost, startResearch } from '../src/core/research.js';
-import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted } from '../src/core/foremen.js';
+import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, wanted, importShort } from '../src/core/foremen.js';
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
@@ -110,8 +110,33 @@ const ahead = (town, kind, w, poison, eat = 0, boss = 1) => { let a = 0; for (le
    real raiders ride apart, so a careful player counts each rocket as ROCKET_HITS of the raiders its small blast would
    find in that column (set from tools/fork-runs.js, so the guess picks the side the runs of the waves pick). */
 export let ROCKET_HITS = 1.3;
+/* Piercing Bolts (FORKS.crossbow.a): a bolt goes on through raiders in a row, and they ride in a row toward the tower
+   only where the road runs at it, so a careful player counts 1 + (PIERCE.count - 1) * PIERCE_LINE * the share of the
+   road in reach that runs toward or away from the pad (lineShare) raiders a bolt. */
+export let PIERCE_LINE = 1;
+/* Sharpshooter (FORKS.crossbow.b) aims at the toughest raider in reach: its hits land on brutes and the boss (the boss
+   SHARP_BOSS times its share of the wave), they lose the Crossbow's bonus on horsemen, and the more road it covers the
+   more raiders it picks the toughest from: SHARP_COVER more a road unit in reach over SHARP_FROM. All set from
+   tools/fork-runs.js (2026.11.22-8: with nothing that depends on the pad, the guess took one side for a whole town). */
+export let SHARP_BOSS = 2, SHARP_COVER = .03, SHARP_FROM = 6;
+const LINE = new WeakMap();
+export function lineShare(town, spot, hi) {
+  const b = town.def.board, key = spot + ':' + hi.toFixed(2);
+  if (!LINE.has(b)) LINE.set(b, new Map());
+  const m = LINE.get(b);
+  if (!m.has(key)) {
+    const r = lanesOf(town)[0], p = b.spots[spot]; let n = 0, line = 0;
+    for (let s = 0; s < r.length - .1; s += .1) {
+      const a = pointAt(r, s), c = pointAt(r, s + .1); if (dist(p, a) > hi) continue;
+      const dx = c[0] - a[0], dz = c[1] - a[1], tx = p[0] - a[0], tz = p[1] - a[1], L = Math.hypot(dx, dz) * Math.hypot(tx, tz) || 1;
+      n++; if (Math.abs(dx * tx + dz * tz) / L > .8) line++;
+    }
+    m.set(key, n ? line / n : 0);
+  }
+  return m.get(key);
+}
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
+export const tune = (k, v) => { if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
    below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
@@ -130,7 +155,7 @@ export function worth(town, t, support = true) {
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
   const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
   const at = st.hurt || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
-  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave, false, 0, st.boss) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
+  let dps = st.dmg * st.rate * (st.sharp ? ahead(town, 'sharp', town.wave, false, 0, SHARP_BOSS) : ahead(town, t.kind, town.wave, false, 0, st.boss)) * (st.pierce ? 1 + (st.pierce - 1) * Math.min(1, PIERCE_LINE * lineShare(town, t.spot, st.range)) : 1) * (st.sharp ? Math.max(.5, 1 + SHARP_COVER * (cover(town, t.spot, st.minRange, st.range) - SHARP_FROM)) : 1) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
   if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
@@ -153,8 +178,10 @@ export function worth(town, t, support = true) {
 /* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market
    price (a flooded good pays little), less the inputs they use at their price. A building not yet built gets a
    bonus for what it opens up, and a bigger one when it makes a good the town's towers are built with. */
+/* A careful player does not raise a workshop past what a shipped input can feed (importShort, src/core/foremen.js). */
 export function buildValue(game, town, id) {
   const b = BUILDINGS[id], L = town.level(id), now = output(town, id);
+  if (L && importShort(game, town, id)) return 0;
   town.buildings[id] = L + 1; const next = output(town, id); town.buildings[id] = L; if (!L) delete town.buildings[id];
   const mp = g => marketPrice(game, town, g);
   const net = mp(b.makes) - Object.keys(b.inputs).reduce((a, g) => a + uses(town, id, g) * mp(g), 0);
@@ -823,9 +850,11 @@ export function strategies(seeds = SEEDS) {
 /* The second fork (M6a, owner idea 2026-11-20): each side is the best buy somewhere. In the Ridge and the Falls as the
    active player has them at the end, a level-19 tower of each kind with a fork is put on every free pad (or in place of
    the tower there) in turn, and the careful player's pick (options, by worth) is counted per side. A side that wins
-   no pad is a miss. Also prints the forks the bots took on the way. */
+   no pad is a miss. Also prints the forks the bots took on the way. Each finish (a level-5 path with a fork, 4 per
+   kind) must also be the best pick on some pad over all the runs (owner, 2026-11-22, the Crossbow's fork: "each of the
+   4 Crossbow finishes is the best buy in some bot run"). */
 export function forkCheck(actives) {
-  const rows = [], misses = [];
+  const rows = [], misses = [], finish = {};
   for (const e of actives) for (const id of ['ridge', 'falls']) {
     const t = e.game && e.game.towns[id];
     if (!t) continue;
@@ -837,7 +866,7 @@ export function forkCheck(actives) {
         for (const path of Object.keys(PATHS[kind])) {
           t.towers = keep.filter(x => x.spot !== i).concat([{ spot: i, kind, level: FORK_LEVEL - 1, path, fork: null, cd: 0, spent: 0, pulses: 0 }]);
           const o = options(t).filter(o => o.up && o.spot === i).sort((a, b) => b.value - a.value)[0];
-          if (o) won[o.path]++;
+          if (o) { won[o.path]++; const f = kind + ' ' + PATHS[kind][path].name + ' + ' + FORKS[kind][o.path].name; finish[f] = (finish[f] || 0) + 1; }
         }
       }
       t.towers = keep;
@@ -845,7 +874,11 @@ export function forkCheck(actives) {
       for (const [k, n] of Object.entries(won)) if (!n) misses.push(`seed ${e.dc.seed}: ${FORKS[kind][k].name} is the best pick on no pad in ${id}`);
     }
   }
-  return { rows, misses };
+  for (const kind of Object.keys(FORKS)) for (const p of Object.values(PATHS[kind])) for (const k of Object.values(FORKS[kind])) {
+    const f = kind + ' ' + p.name + ' + ' + k.name;
+    if (!finish[f] && actives.some(e => ['ridge', 'falls'].some(id => e.game && e.game.towns[id] && towerOpen(e.game.towns[id], kind)))) misses.push(`${p.name} with ${k.name} is the best pick on no pad in any run`);
+  }
+  return { rows, misses, finish };
 }
 /* Tower balance (M2, fresh-eyes issue 2): no kind does more than SHARE_MAX of the damage for any strategy, and every
    kind does the most damage in some wave for at least one strategy. Returns the misses. `where` names the town for a
@@ -1038,6 +1071,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   const fk = forkCheck(actives);
   console.log('second fork (active, at the end): seed | town | tower | pads where each side is the best pick (a level-19 tower of each path) | forks the bots took in the Ridge and the Falls');
   for (const x of fk.rows) console.log(`  ${x.seed} | ${x.town} | ${x.kind} | ${Object.entries(x.won).map(([k, n]) => FORKS[x.kind][k].name + ' ' + n).join(', ')}`);
+  console.log('  finishes (pads won over every run): ' + Object.entries(fk.finish).map(([f, n]) => f + ' ' + n).join(', '));
   const took = {}; for (const e of actives) for (const r of [e.ridge, e.capSave, e.fSave, e.falls]) for (const [k, n] of Object.entries((r && r.forks) || {})) took[k] = (took[k] || 0) + n;
   console.log('  forks taken by the active bots: ' + (Object.entries(took).map(([k, n]) => k + ' ' + n).join(', ') || 'none'));
   misses.push(...fk.misses);

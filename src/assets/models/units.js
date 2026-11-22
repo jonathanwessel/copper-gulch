@@ -180,6 +180,9 @@ export function makeTower(type, br, lvl, fk = null) {
     for (const sz of [-1, 1]) k.box(.24, -.01, sz * .27, .05, .04, .05, 'woodD');
     k.box(.08, .03, 0, .44, .015, .015, 'ink');
     if (br === 'a') k.box(.02, .06, 0, .16, .12, .1, 'iron'); if (br === 'b') { k.box(-.12, 0, 0, .3, .05, .06, 'woodD'); k.cyl(.05, .07, 0, .025, .22, 'black', { rz: Math.PI / 2, seg: 6 }); }
+    // the level-20 fork: Piercing Bolts a long steel bolt laid in the groove with a rack of three more; Sharpshooter a brass scope on a long stock
+    if (fk === 'a') { k.box(.18, .05, 0, .5, .025, .025, 'steel', { mat: 'metal' }); k.cone(.45, .05, 0, .03, .08, 'steel', { rz: -Math.PI / 2, seg: 4, mat: 'metal' }); for (let i = 0; i < 3; i++) k.box(-.06, .1 + i * .045, -.08, .34, .02, .02, 'steel', { mat: 'metal' }); }
+    if (fk === 'b') { k.cyl(.02, .13, 0, .04, .3, 'gold', { rz: Math.PI / 2, seg: 8, mat: 'metal' }); k.cyl(.18, .13, 0, .05, .03, 'black', { rz: Math.PI / 2, seg: 8 }); k.box(-.06, .09, 0, .03, .05, .03, 'gold', { mat: 'metal' }); k.box(-.26, -.02, 0, .22, .08, .07, 'woodD'); }
   }));
   else if (type === 'cannon') bar.add(part(k => {
     k.box(0, -.12, 0, .3, .1, .26, 'woodD'); for (const sz of [-1, 1]) k.cyl(-.05, -.12, sz * .14, .08, .03, 'woodD', { rx: Math.PI / 2, seg: 8 });

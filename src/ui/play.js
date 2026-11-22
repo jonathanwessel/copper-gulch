@@ -426,6 +426,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (st.poison || st.rot) line('At level ' + EATS_ARMOR.from, 'Poison eats armor');
     if (st.hurt) line('Raiders low on health', hurtWords());
     if (st.rockets) line('Rockets', st.rockets + ' at once');
+    if (st.pierce) line('Each bolt hits', 'Up to ' + st.pierce + ' raiders');
+    if (st.sharp) line('Aims at', 'The toughest raider');
     if (st.boss > 1) { const b = bossWords('{boss}'); line('Against ' + b, st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', blastWord(st.splash), 'splash');

@@ -212,7 +212,7 @@ async function run() {
       bad.push(...(await uncovered(page)).map(b => 'building card: ' + b));
       await page.evaluate(() => CG.play.close());
       // the second fork at level 20 (M6a): a level-19 Still and a level-19 Cannon show both sides, and two taps on one takes it
-      for (const [kind, want, took] of [['still', 'Slow Rot,Last Call', 'Slow Rot'], ['cannon', 'Rocket Battery,Big Shell', 'Rocket Battery']]) {
+      for (const [kind, want, took] of [['still', 'Slow Rot,Last Call', 'Slow Rot'], ['cannon', 'Rocket Battery,Big Shell', 'Rocket Battery'], ['crossbow', 'Piercing Bolts,Sharpshooter', 'Piercing Bolts']]) {
       const fork = await page.evaluate(async kind => {
         const t = CG.game.town, keep = JSON.stringify(t.towers), goods = JSON.stringify(t.goods), coins = t.coins, wait = ms => new Promise(r => setTimeout(r, ms));
         t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]);
@@ -234,7 +234,7 @@ async function run() {
       const under = await page.evaluate(async () => {
         const t = CG.game.town, keep = JSON.stringify(t.towers), goods = JSON.stringify(t.goods), wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
         CG.town.pause('smoke', true);
-        for (const [kind, level, fork] of [['cannon', 20, 'b'], ['cannon', 20, 'a'], ['still', 20, 'a'], ['crossbow', 3, null]]) {
+        for (const [kind, level, fork] of [['cannon', 20, 'b'], ['cannon', 20, 'a'], ['still', 20, 'a'], ['crossbow', 20, 'b'], ['crossbow', 3, null]]) {
           t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level, path: level >= 5 ? 'a' : null, fork, cd: 0, spent: 5000, pulses: 0 }]);
           for (const g of Object.keys(t.goods)) t.goods[g] = 0;
           CG.play.close(); CG.play.openSpot(2); await wait(250);

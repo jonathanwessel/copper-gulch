@@ -253,7 +253,7 @@ html.flat .tag { position: static; transform: none !important; }
   .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
-.cardhead .lv { color: var(--muted); font-size: .85rem; }
+.cardhead .lv { color: var(--muted); font-size: .85rem; white-space: nowrap; flex: none; } /* "Level / 20" split in two beside a long name (review of 2026.11.22-8) */
 .stat { display: flex; justify-content: space-between; align-items: center; min-height: 36px; padding: 6px 10px; background: var(--panel-2); border: 2px solid var(--line); color: var(--ink); cursor: pointer; text-align: left; }
 .stat b { color: var(--gold); }
 .explain { display: grid; gap: 2px; padding: 6px 10px; background: var(--line); font-size: .85rem; }

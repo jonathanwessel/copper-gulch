@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-8',
+    lines: [
+      'A Crossbow that reaches level 20 picks Piercing Bolts or Sharpshooter.',
+      'Piercing Bolts go through up to 3 raiders in a row. Sharpshooter aims at the toughest raider and hits much harder.',
+      'A Crossbow already past level 20 gets the choice with its next upgrade.',
+      'A foreman now waits instead of raising a workshop that the goods shipped to it could not keep running.',
+    ],
+  },
+  {
     v: '2026.11.22-7',
     lines: [
       'The river now runs under every bridge in Silver Falls and on the map. Trains ride across the top.',

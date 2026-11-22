@@ -65,6 +65,7 @@ export function helper(town, game = null) {
     // a tower one level from its second fork, by kind (each kind's card names its own two sides)
     forkReady: (() => { const t = (town.towers || []).find(x => x.kind === 'still' && forkNext(x)); return t ? t.spot : null; })(),
     forkCannon: (() => { const t = (town.towers || []).find(x => x.kind === 'cannon' && forkNext(x)); return t ? t.spot : null; })(),
+    forkCrossbow: (() => { const t = (town.towers || []).find(x => x.kind === 'crossbow' && forkNext(x)); return t ? t.spot : null; })(),
   };
 }
 

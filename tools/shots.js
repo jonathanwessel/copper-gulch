@@ -51,6 +51,11 @@ const SCREENS = [
     const near = x => { const f = t.waves.foes.find(f => f.id === x.foe); return f && P.dist(at, P.pointAt(D.lanesOf(t)[f.lane || 0], f.s)) < 3.5; }; // a volley at raiders near the tower, so it shows by the card
     for (let i = 0; i < 400; i++) { await wait(100); for (const f of t.waves.foes) if (f.max < 1e9) f.hp = f.max = 1e9; /* a level-20 battery kills a wave-2 raider far out, so they ride on for the shot */ const sh = t.waves.shells || []; if (sh.filter(x => x.foe != null && x.t < .5 && x.t > .3 && near(x)).length >= 2) break; }
   }],
+  // the Crossbow's fork (owner, 2026-11-22): a level-19 Crossbow with Piercing Bolts and Sharpshooter on its card, then
+  // each side's card (the model shows which it took)
+  ['fork-crossbow', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 4); let spent = 0; for (let L = 0; L < 19; L++) spent += D.towerCost(t, 'crossbow', L).coins; t.towers.push({ spot: 4, kind: 'crossbow', level: 19, path: 'b', fork: null, cd: 0, spent, pulses: 0 }); CG.play.openSpot(4); }],
+  ['fork-pierce', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 4); if (tw) Object.assign(tw, { level: 20, fork: 'a' }); CG.play.close(); CG.play.openSpot(4); }],
+  ['fork-sharp', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 4); if (tw) Object.assign(tw, { level: 20, fork: 'b' }); CG.play.close(); CG.play.openSpot(4); }],
   // Call to arms (M6a): the To arms button and its sheet with what a call costs, then the workers out by the road in a
   // wave, with the button's fight time
   ['arms', async () => {

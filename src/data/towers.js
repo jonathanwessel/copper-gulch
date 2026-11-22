@@ -95,7 +95,19 @@ export const FORKS = {
     a: { name: 'Rocket Battery', about: 'Fires 4 rockets, each at its own raider.', bestText: 'Spread-out raiders', rockets: true, dmg: .65, rate: .55, range: 1.6, splash: .35 },
     b: { name: 'Big Shell', about: 'One huge shot. Hits {boss} twice as hard.', dmg: 2.2, rate: .5, splash: 1.25, boss: 2, bestText: 'Big groups' },
   },
+  /* The Crossbow (owner, 2026-11-22: "We need level 20 options for crossbow"), on top of Repeater or Longbow:
+       Piercing Bolts (pierce) each bolt goes on through up to PIERCE.count raiders in a line behind the first, each
+         hit softer (dmg). It wants raiders riding in a row toward it, such as a rush of horsemen.
+       Sharpshooter (sharp) always aims at the raider in reach with the most health left, and hits much harder but
+         slower. It wants brutes and the boss, and wastes nothing on a raider nearly down. */
+  crossbow: {
+    a: { name: 'Piercing Bolts', about: 'Each bolt goes through up to 3 raiders. Softer hits.', bestText: 'Raiders in a row', pierce: true, dmg: .7 },
+    b: { name: 'Sharpshooter', about: 'Aims at the toughest raider. Much harder, slower hits.', bestText: 'Brutes and {boss}', sharp: true, dmg: 3, rate: .45 },
+  },
 };
+/* Piercing Bolts: a bolt hits its raider and goes on along the same line, through the next raiders it meets within
+   PIERCE.width of that line and PIERCE.depth past the first, up to PIERCE.count raiders in all. */
+export const PIERCE = { count: 3, width: .45, depth: 2.4 };
 /* Rocket Battery's rockets: how many a volley fires and how long each flies. A rocket finds its raider wherever it has
    gone by then (it seeks), and its blast goes off there. */
 export const ROCKETS = { count: 4, flight: .6 };

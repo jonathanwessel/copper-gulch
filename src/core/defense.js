@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -68,7 +68,7 @@ export function towerStats(town, t) {
     splash: (d.splash || 0) * (p.splash || 1) * (k.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
-    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, hurt: !!k.hurt, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1,
+    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, hurt: !!k.hurt, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1, pierce: k.pierce ? PIERCE.count : 0, sharp: !!k.sharp,
     eat: d.poison && L >= EATS_ARMOR.from ? EATS_ARMOR.share : 0, // poison eats armor (EATS_ARMOR)
   };
   // Slow Rot: a share of its hit damage a second, in place of the normal poison
@@ -272,6 +272,20 @@ export const away = (game, town) => !!game.catching || (!!game.active && game.ac
    so a town just opened is never raided before it has had a look. A won outpost keeps its light raids whatever it has. */
 export const waitsAway = (game, town) => away(game, town) && !town.towers.length && !town.won;
 
+/* Piercing Bolts (PIERCE): the raiders one bolt hits, the first and then those within PIERCE.width of the line from
+   the tower through it, at most PIERCE.depth past it, nearest first, up to count in all. */
+export function pierced(foes, pos, at, first, count) {
+  const p0 = pos.get(first), dx = p0[0] - at[0], dz = p0[1] - at[1], L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L, next = [];
+  for (const f of foes) {
+    if (f === first || f.hp <= 0) continue;
+    const p = pos.get(f), ax = p[0] - p0[0], az = p[1] - p0[1], u = ax * ux + az * uz;
+    if (u <= 0 || u > PIERCE.depth || Math.abs(ax * uz - az * ux) > PIERCE.width) continue;
+    next.push([u, f]);
+  }
+  next.sort((a, b) => a[0] - b[0]);
+  return [first, ...next.slice(0, count - 1).map(x => x[1])];
+}
+
 /* One step of the battle. */
 export function fight(game, town, dt) {
   const ws = town.waves, lanes = lanesOf(town), laneOf = f => lanes[f.lane || 0];
@@ -336,7 +350,8 @@ export function fight(game, town, dt) {
         }
         continue;
       }
-      const target = inReach.reduce((a, b) => (b.s > a.s ? b : a)); // the one closest to the vault
+      // the one closest to the vault; Sharpshooter the one with the most health left (the closest to the vault of equals)
+      const target = st.sharp ? inReach.reduce((a, b) => (b.hp > a.hp + 1e-9 || (Math.abs(b.hp - a.hp) <= 1e-9 && b.s > a.s) ? b : a)) : inReach.reduce((a, b) => (b.s > a.s ? b : a));
       let to = pos.get(target);
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
         const lead = FOES[target.kind].speed * wavesOf(town).speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
@@ -363,6 +378,11 @@ export function fight(game, town, dt) {
           else { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; }
           f.spread = f.spread || st.spread;
         }
+      } else if (st.pierce) { // Piercing Bolts: the bolt goes on through the raiders in line behind the first
+        const line = pierced(ws.foes, pos, at, target, st.pierce);
+        for (const f of line) hurt(game, town, f, st.dmg, false, t.kind);
+        game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to: pos.get(line[line.length - 1]), pierce: line.length });
+        continue;
       } else hurt(game, town, target, st.dmg, false, t.kind);
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
     }

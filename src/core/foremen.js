@@ -8,6 +8,7 @@
    town.foremen[building] is true (working) or false (hired, switched off); a building missing from it has none.
    Events: 'foreman:hire' { town, id, cost }. Foremen keep working while the game catches up time away. */
 import { BUILDINGS } from '../data/buildings.js';
+import { GOODS } from '../data/goods.js';
 import { build, cost, unlocked, buildingsOf, output, uses, importers, isOutpost, isGrid, gridOf, onGrid } from './economy.js';
 import { marginal, saturation } from './market.js';
 
@@ -58,8 +59,29 @@ export function nextGain(game, town, id) {
   const net = marginal(game, town, b.makes) - Object.keys(b.inputs).reduce((a, g) => a + uses(town, id, g) * marginal(game, town, g), 0);
   return (next - now) * net;
 }
+/* A shipped input that the next level would outrun: the good, or null. The level is too many when the town's workshops
+   would then use more than IMPORT_SLACK times what the town that makes the good makes of it a second. The slack lets
+   them run a little short, which shows on the map and tells the player to raise the maker.
+   2026.11.22-8: the Falls' Telegraph Office was short of wire during a wire boom, so the Wire Mill's foreman raised it
+   from level 13 to 28 in three minutes, past what Gulch copper could feed by about 17 levels, and the mill sat starved
+   for the rest of the hour. */
+export const IMPORT_SLACK = 1.25;
+export function importShort(game, town, id) {
+  if (!game || !game.towns) return null;
+  for (const good of Object.keys(BUILDINGS[id].inputs)) {
+    if (!((town.def && town.def.imports) || []).includes(good)) continue;
+    const src = game.towns[GOODS[good].town], mk = src && src.def.buildings.find(b => BUILDINGS[b].makes === good);
+    if (!mk || !src.level(mk)) continue;
+    const L = town.level(id); town.buildings[id] = L + 1;
+    const need = town.def.buildings.reduce((a, u) => a + (town.level(u) && BUILDINGS[u].inputs[good] ? uses(town, u, good) * output(town, u) : 0), 0);
+    town.buildings[id] = L; if (!L) delete town.buildings[id];
+    if (need > IMPORT_SLACK * output(src, mk) + 1e-9) return good;
+  }
+  return null;
+}
 /* Why a foreman waits on its building's next level, or null when the level is worth buying:
-     { why: 'short', good }    the building ran short of this input, so another level would make nothing more
+     { why: 'short', good }    the building ran short of this input, so another level would make nothing more, or
+                               the next level would use more of a shipped input than reaches it (importShort)
      { why: 'flooded', good }  its good sells for under FLOODED of its price and nobody is short of it
      { why: 'slow', good }     the next level would take longer than PAYBACK to earn back its price */
 export function foremanWait(game, town, id) {
@@ -69,6 +91,8 @@ export function foremanWait(game, town, id) {
     const g = Object.keys(b.inputs).find(k => isGrid(k) ? gridOf(town).share < 1 : (town.goods[k] || 0) < output(town, id) * uses(town, id, k)) || Object.keys(b.inputs)[0];
     if (g) return { why: 'short', good: g };
   }
+  const far = importShort(game, town, id);
+  if (far) return { why: 'short', good: far };
   if (wanted(game, town, b.makes)) return null;
   if (nextGain(game, town, id) * PAYBACK >= cost(town, id)) return null;
   return { why: saturation(game, b.makes) < FLOODED ? 'flooded' : 'slow', good: b.makes };

@@ -127,7 +127,7 @@ export class Battle {
       const m = this.add('mark', { life: e.flight + .1, mark: e.splash || 1.3 }); m.mesh.position.set(tx, .04, tz);
       return;
     }
-    if (e.kind === 'crossbow') this.add('bolt', { from, to, life: .18, arc: 0, aim: true });
+    if (e.kind === 'crossbow') this.add('bolt', { from, to, life: e.pierce > 1 ? .24 : .18, arc: 0, aim: true });
     else if (e.kind === 'cannon') this.add('ball', { from, to, life: .45, arc: .9, then: 'boom' });
     else if (e.kind === 'still') this.add('flask', { from, to, life: .5, arc: 1.1, then: 'cloud' });
     else if (e.kind === 'frost') { const f = this.add('ring', { life: .5, ring: 2.1 }); f.mesh.position.set(fx, .12, fz); }

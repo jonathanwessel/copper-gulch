@@ -201,6 +201,12 @@ export const EXPLAINERS = [
     when: h => h.forkCannon != null, at: h => ({ tower: h.forkCannon }),
   },
   {
+    id: 'fork-crossbow', covers: ['fork:crossbow'],
+    title: 'One more choice',
+    text: 'At level 20 you pick one more upgrade for this Crossbow. Piercing Bolts go through up to 3 raiders. Sharpshooter aims at the toughest raider and hits much harder. Tap the Crossbow to pick.',
+    when: h => h.forkCrossbow != null, at: h => ({ tower: h.forkCrossbow }),
+  },
+  {
     id: 'boss', town: 'gulch', covers: ['boss'],
     title: 'The war wagon',
     text: 'Every 10th wave brings the war wagon. It\'s slow and heavily armored. If it reaches the vault, it does a lot of damage.',
