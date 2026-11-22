@@ -82,9 +82,9 @@ export const ROT_LIVES = 1;
 /* The share of a tower kind's hit that lands on the coming wave: armor shrugs some off (poison gets past it) and the
    kind's best raiders take more (bestFactor), weighted by health and averaged over the wave kinds open at wave w. A
    boss wave adds its boss: the town's own wagon, in a wave of about count(w) raiders. */
-export function hitShare(town, kind, w, poison = false, eat = 0) {
+export function hitShare(town, kind, w, poison = false, eat = 0, boss = 1) {
   const kinds = Object.values(WAVE_TYPES).filter(T => w >= T.from);
-  const f = k => (poison ? 1 : 1 - FOES[k].armor * (1 - eat)) * (poison || kind !== 'still' ? bestFactor(kind, k) : 1);
+  const f = k => (poison ? 1 : 1 - FOES[k].armor * (1 - eat)) * (poison || kind !== 'still' ? bestFactor(kind, k) : 1) * (FOES[k].boss ? boss : 1);
   let hp = 0, a = 0;
   for (const T of kinds) { let h = 0, x = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { h += n * FOES[k].hp; x += n * FOES[k].hp * f(k); } if (h) { hp += 1; a += x / h; } }
   let share = hp ? a / hp : 1;
@@ -93,7 +93,13 @@ export function hitShare(town, kind, w, poison = false, eat = 0) {
 }
 /* A careful player buys for the next few waves, not just the coming one, so the boss is seen coming (HORIZON waves). */
 export const HORIZON = 5;
-const ahead = (town, kind, w, poison, eat = 0) => { let a = 0; for (let k = 0; k < HORIZON; k++) a += hitShare(town, kind, w + k, poison, eat); return a / HORIZON; };
+const ahead = (town, kind, w, poison, eat = 0, boss = 1) => { let a = 0; for (let k = 0; k < HORIZON; k++) a += hitShare(town, kind, w + k, poison, eat, boss); return a / HORIZON; };
+/* Rocket Battery (FORKS.cannon.a): worth counts raiders as a dense column, where one shell's blast finds several, but
+   real raiders ride apart, so a careful player counts each rocket as ROCKET_HITS of the raiders its small blast would
+   find in that column (set from tools/fork-runs.js, so the guess picks the side the runs of the waves pick). */
+export let ROCKET_HITS = 1.3;
+/* For tools/fork-runs.js --sets: try a worth number without editing this file. */
+export const tune = (k, v) => { if (k === 'hits') ROCKET_HITS = v; };
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
    below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
@@ -109,10 +115,11 @@ export function worth(town, t, support = true) {
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
   const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
   const at = st.near || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
-  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave) * (st.near ? nearFactor({ length: 1 }, at.mid) : 1);
+  let dps = st.dmg * st.rate * ahead(town, t.kind, town.wave, false, 0, st.boss) * (st.near ? nearFactor({ length: 1 }, at.mid) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
   if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
   if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
+  else if (st.rockets) dps *= st.rockets * targets(st.splash) * ROCKET_HITS;
   else if (st.splash) dps *= targets(st.splash);
   if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
   if (st.slow) dps *= 1 + st.slow * 2 / share; // slowed raiders take longer to pass every tower

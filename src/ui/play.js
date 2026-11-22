@@ -407,11 +407,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (st.eat) line('Poisoned raiders', eatWords(st.eat));
     else if (st.poison || st.rot) line('At level ' + EATS_ARMOR.from, 'Poison eats armor');
     if (st.near) line('Near the vault', 'Up to 3 times the damage');
+    if (st.rockets) line('Rockets', st.rockets + ' at once');
+    if (st.boss > 1) { const b = bossWords('{boss}'); line(b[0].toUpperCase() + b.slice(1), st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', blastWord(st.splash), 'splash');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
-    if (d.bestText) line('Best against', bossWords(d.bestText));
+    if ((fk && fk.bestText) || d.bestText) line('Best against', bossWords((fk && fk.bestText) || d.bestText)); // a fork can change the job
     if (fk && p) line('Path', p.name); // the card's name is the fork now, so the level-5 path still shows
     card.append(stats);
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
@@ -437,7 +439,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const pw = el('div', 'pathcost'); pw.append(el('small', null, forkUp ? 'Either one costs' : 'Either path costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
       ph.append(pt, pw); bar.append(ph);
       for (const [key, P] of Object.entries(choices)) {
-        const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, P.about));
+        const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, bossWords(P.about)));
         const sure = armed && armed.spot === i && armed.path === key && Date.now() - armed.at < 4000;
         const go = el('button', 'btn small build', sure ? 'Tap again to choose' : 'Choose'); go.dataset.path = key; go.disabled = !canPay(town, c);
         go.addEventListener('click', () => {

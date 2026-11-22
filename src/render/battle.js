@@ -32,6 +32,8 @@ const FX = {
   frost: new THREE.MeshBasicMaterial({ color: '#b8ecff', transparent: true, depthWrite: false, side: THREE.DoubleSide }),
   flask: new THREE.MeshStandardMaterial({ color: '#7ad36a', emissive: '#1e4a10' }),
   cloud: new THREE.MeshBasicMaterial({ color: '#8fd57a', transparent: true, depthWrite: false }),
+  rocket: new THREE.MeshBasicMaterial({ color: '#d9573c' }),
+  trail: new THREE.MeshBasicMaterial({ color: '#e8dcc8', transparent: true, depthWrite: false }),
   mark: new THREE.MeshBasicMaterial({ color: '#2a1408', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false }),
   fire: new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, fog: false }),
 };
@@ -39,14 +41,16 @@ const FX = {
 const KINDS = {
   bolt: ['bolt', 'bolt', false], ball: ['ball', 'ball', false], flask: ['flask', 'flask', false],
   ring: ['ring', 'frost', true], boom: ['boom', 'boom', true], cloud: ['cloud', 'cloud', true],
-  shell: ['shell', 'ball', false], mark: ['mark', 'mark', true],
+  shell: ['shell', 'ball', false], mark: ['mark', 'mark', true], rocket: ['rocket', 'rocket', false], trail: ['cloud', 'trail', true],
 };
 const GEO = {
   bolt: new THREE.BoxGeometry(.32, .03, .03), ball: new THREE.IcosahedronGeometry(.08, 1), boom: new THREE.IcosahedronGeometry(1, 1),
   ring: new THREE.RingGeometry(.9, 1, 32).rotateX(-Math.PI / 2), flask: new THREE.IcosahedronGeometry(.07, 0), cloud: new THREE.IcosahedronGeometry(1, 1),
   shell: new THREE.IcosahedronGeometry(.19, 1), mark: new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), // a dark spot that grows as the shell falls, like its shadow (review of 2026.11.20-15: a red ring had no explainer and cut the Mortar's ring)
   fire: new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2),
+  rocket: new THREE.ConeGeometry(.06, .3, 6).rotateX(Math.PI / 2), // nose along +z, so lookAt points it where it flies
 };
+const _ra = new THREE.Vector3();
 
 export class Battle {
   constructor(board, game) {
@@ -106,6 +110,11 @@ export class Battle {
     const u = this.foes.get(e.foe), y0 = e.kind === 'still' ? .9 : e.kind === 'cannon' ? .5 : .7;
     const from = new THREE.Vector3(fx, y0, fz), to = u ? new THREE.Vector3(u.obj.position.x, .35, u.obj.position.z) : new THREE.Vector3(tx, .35, tz);
     if (this.fx.length > 120) return;
+    if (e.rocket != null) { // Rocket Battery: each rocket leaves the rack on its own arc and follows its raider (it seeks)
+      const muzzle = new THREE.Vector3(fx, .62 + (e.rocket >> 1) * .1, fz), r = this.add('rocket', { from: muzzle, to, life: e.flight, arc: .7 + e.rocket * .22, then: 'boom', foe: e.foe, nose: true, puff: 0 });
+      r.mesh.position.copy(muzzle);
+      return;
+    }
     if (e.flight) { // a lobbed shell: a high arc to where it will land, and its shadow growing on the ground there
       const land = new THREE.Vector3(tx, .05, tz), muzzle = new THREE.Vector3(fx, .75, fz);
       this.add('shell', { from: muzzle, to: land, life: e.flight + .1, arc: 3.2, then: 'bigboom', splash: e.splash || 1.3 });
@@ -190,8 +199,13 @@ export class Battle {
     this.fx = this.fx.filter(f => {
       f.age += dt; const k = Math.min(1, f.age / f.life);
       if (f.from) {
+        if (f.foe != null) { const u = this.foes.get(f.foe); if (u) f.to.set(u.obj.position.x, .35, u.obj.position.z); } // a rocket follows its raider
         f.mesh.position.lerpVectors(f.from, f.to, k); f.mesh.position.y += Math.sin(k * Math.PI) * f.arc;
         if (f.aim) f.mesh.rotation.y = Math.atan2(-(f.to.z - f.from.z), f.to.x - f.from.x);
+        if (f.nose) { // point along its path, and leave a puff of smoke now and then
+          const k2 = Math.min(1, k + .03); _ra.lerpVectors(f.from, f.to, k2); _ra.y += Math.sin(k2 * Math.PI) * f.arc; if (k2 > k) f.mesh.lookAt(_ra);
+          if ((f.puff += dt) > .07 && this.fx.length < 110) { f.puff = 0; const p = this.add('trail', { life: .45, grow: .12, op: .55 }, after); p.mesh.position.copy(f.mesh.position); }
+        }
       } else if (f.ring) { const s = .3 + k * f.ring; f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .7 * (1 - k); }
       else if (f.mark) { const s = f.mark * (.35 + k * .65); f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .12 + .38 * k; }
       else if (f.grow) { const s = f.grow * (.4 + k * .6); f.mesh.scale.set(s, f.flat ? s * .5 : s, s); f.mesh.material.opacity = f.op * (1 - k); }

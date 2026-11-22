@@ -7,7 +7,7 @@ import { newGame } from '../src/core/setup.js';
 import { upgradeTower, towerStats, towerAt, roadOf, startWave, waveRun, forkNext, nearFactor, isPit } from '../src/core/defense.js';
 import { nextTowerUp } from '../src/core/automation.js';
 import { pointAt, dist } from '../src/core/path.js';
-import { FORKS, FORK_LEVEL, NEAR } from '../src/data/towers.js';
+import { FORKS, FORK_LEVEL, NEAR, ROCKETS } from '../src/data/towers.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { options } from '../tools/balance.js';
@@ -109,4 +109,86 @@ test('a tower one level from its fork shows the explainer on it', () => {
   assert.equal(e.when({ forkReady: null }), false);
   assert.deepEqual(e.at({ forkReady: 4 }), { tower: 4 });
   assert.ok(!/[;:]/.test(e.text) && e.text.includes('Slow Rot') && e.text.includes('Last Call'));
+});
+
+// --- part 2: the Cannon's fork (Rocket Battery or Big Shell) -------------------------------------------------------
+test('a Cannon at level 19 picks Rocket Battery or Big Shell, and each changes its stats', () => {
+  const g = newGame('c1', 'gulch'), t = rich(g); hold(t);
+  const x = tower(t, 0, 'cannon', 19, 'a');
+  assert.ok(forkNext(x));
+  assert.equal(upgradeTower(g, t, 0), false);
+  assert.ok(upgradeTower(g, t, 0, 'b')); assert.equal(x.fork, 'b');
+  const none = towerStats(t, tower(t, 0, 'cannon', 20, 'a', null)), rk = towerStats(t, tower(t, 0, 'cannon', 20, 'a', 'a')), big = towerStats(t, tower(t, 0, 'cannon', 20, 'a', 'b'));
+  const R = FORKS.cannon.a, B = FORKS.cannon.b;
+  assert.equal(rk.rockets, ROCKETS.count); assert.equal(none.rockets, 0); assert.equal(big.rockets, 0);
+  for (const [s, F] of [[rk, R], [big, B]]) for (const k of ['dmg', 'rate', 'range', 'splash']) assert.ok(Math.abs(s[k] - none[k] * (F[k] || 1)) < 1e-9, k);
+  assert.ok(rk.range > none.range && rk.rate < none.rate, 'rockets reach farther and reload slower');
+  assert.equal(big.boss, B.boss); assert.equal(none.boss, 1);
+});
+
+test('a volley sends each rocket at its own raider, nearest the vault first, and a rocket follows its raider', () => {
+  const g = newGame('c2', 'gulch'), t = rich(g), r = roadOf(t);
+  t.vault = { hp: 1e15, max: 1e15 };
+  t.def = { ...t.def, board: { ...t.def.board, spots: [pointAt(r, 8)], pits: [] } };
+  tower(t, 0, 'cannon', 20, 'a', 'a');
+  const shots = [];
+  g.bus.on('shot', e => shots.push(e));
+  Object.assign(t.waves, { phase: 'wave', queue: [], foes: [5, 6, 7, 8, 9, 10].map((s, k) => raider(k + 1, s, { frozenT: 0, kind: 'raider' })) });
+  g.step(.25);
+  const v = shots.filter(e => e.rocket != null);
+  assert.equal(v.length, ROCKETS.count);
+  assert.deepEqual(v.map(e => e.foe).sort(), [3, 4, 5, 6], 'the four nearest the vault: ' + v.map(e => e.foe));
+  assert.equal(t.waves.shells.length, ROCKETS.count);
+  // the raiders keep riding while the rockets fly; each rocket still lands on its own raider
+  const before = t.waves.foes.map(f => f.max - f.hp);
+  for (let i = 0; i < 4; i++) g.step(.25);
+  const hit = t.waves.foes.map((f, k) => f.max - f.hp - before[k]);
+  for (const id of [3, 4, 5, 6]) assert.ok(hit[id - 1] > 0, 'raider ' + id + ' was hit: ' + hit);
+});
+
+test('Big Shell hits a boss twice as hard as the same shot hits a raider', () => {
+  const g = newGame('c3', 'gulch'), t = rich(g), r = roadOf(t);
+  t.def = { ...t.def, board: { ...t.def.board, spots: [pointAt(r, 8)], pits: [] } };
+  const st = towerStats(t, tower(t, 0, 'cannon', 20, 'a', 'b'));
+  Object.assign(t.waves, { phase: 'wave', queue: [], foes: [raider(1, 9, { kind: 'wagon' })] });
+  g.step(.25);
+  const f = t.waves.foes[0], armor = 0.35;
+  assert.ok(Math.abs((f.max - f.hp) - st.dmg * FORKS.cannon.b.boss * (1 - armor)) < 1e-6, 'took ' + (f.max - f.hp));
+});
+
+test('each Cannon fork is the best buy somewhere: rockets on raiders far apart, Big Shell on a packed group and the boss', () => {
+  // a straight test road 60 long, one pad by its middle; a run of raiders too tough to fall
+  const dealt = (fork, gap, kind) => {
+    const g = newGame('c4', 'gulch'), t = rich(g);
+    t.def = { ...t.def, board: { ...t.def.board, road: [[0, 0], [60, 0]], vault: [61, 0], spots: [[30, 1.3]], pits: [], river: null } };
+    t.vault = { hp: 1e15, max: 1e15 };
+    tower(t, 0, 'cannon', 20, 'a', fork);
+    Object.assign(t.waves, { phase: 'wave', queue: [], foes: Array.from({ length: 12 }, (_, k) => raider(k + 1, -k * gap, { frozenT: 0, kind })) });
+    t.waves.foes.forEach((f, k) => { f.s = 14 - k * gap; });
+    for (let i = 0; i < 600 && t.waves.foes.length; i++) g.step(.25);
+    return (g.dealt && g.dealt.gulch && g.dealt.gulch.cannon) || 0;
+  };
+  const spreadA = dealt('a', 2.5, 'raider'), spreadB = dealt('b', 2.5, 'raider');
+  const packedA = dealt('a', .4, 'raider'), packedB = dealt('b', .4, 'raider');
+  const bossA = dealt('a', 3, 'wagon'), bossB = dealt('b', 3, 'wagon');
+  assert.ok(spreadA > spreadB, 'raiders far apart: rockets ' + spreadA + ', Big Shell ' + spreadB);
+  assert.ok(packedB > packedA, 'a packed group: Big Shell ' + packedB + ', rockets ' + packedA);
+  assert.ok(bossB > bossA, 'wagons: Big Shell ' + bossB + ', rockets ' + bossA);
+});
+
+test('a Cannon one level from its fork shows its own explainer', () => {
+  const e = EXPLAINERS.find(x => x.covers.includes('fork:cannon'));
+  assert.ok(e);
+  assert.equal(e.when({ forkCannon: null }), false);
+  assert.deepEqual(e.at({ forkCannon: 3 }), { tower: 3 });
+  assert.ok(!/[;:]/.test(e.text) && e.text.includes('Rocket Battery') && e.text.includes('Big Shell'));
+});
+
+test('the bots weigh both Cannon forks, and Auto-towers leaves that choice to the player too', () => {
+  const g = newGame('c6', 'gulch'), t = rich(g); hold(t);
+  t.towers = []; tower(t, 0, 'cannon', 19);
+  const ups = options(t).filter(o => o.up && o.spot === 0);
+  assert.deepEqual(ups.map(o => o.path).sort(), ['a', 'b']);
+  assert.ok(ups.every(o => o.value > 0 && Number.isFinite(o.value)));
+  assert.equal(nextTowerUp(t).tower, null);
 });

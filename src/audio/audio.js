@@ -193,7 +193,7 @@ export function soundsFor(game, audio) {
   const here = e => e && e.town === game.active && !game.catching;
   const SHOT = { crossbow: 'crossbow', cannon: 'cannon', frost: 'frost', still: 'still', mortar: 'mortar' };
   const offs = [
-    game.bus.on('shot', e => { if (here(e)) audio.play(SHOT[e.kind] || 'crossbow'); }),
+    game.bus.on('shot', e => { if (here(e) && !(e.rocket > 0)) audio.play(e.rocket === 0 ? 'mortar' : SHOT[e.kind] || 'crossbow'); }), // a rocket volley is one launch
     game.bus.on('land', e => { if (here(e)) audio.play('boom'); }),
     game.bus.on('kill', e => { if (here(e) && e.coins) audio.play('coin'); }),
     game.bus.on('build', e => { if (here(e)) audio.play('build'); }),

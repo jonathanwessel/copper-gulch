@@ -82,7 +82,21 @@ export const FORKS = {
     a: { name: 'Slow Rot', about: 'Softer hits and weak poison that lasts until the raider falls. Best at the start of the road.', dmg: .7, rot: .07 },
     b: { name: 'Last Call', about: 'Hits much harder near the vault. Best at the end of the road.', near: true },
   },
+  /* The Cannon (part 2, 2026-11-21: the bots raise one Cannon to level 20 in Iron Ridge on every seed, while their
+     Mortars stop at 15-17). The trade-off is against what:
+       Rocket Battery (rockets) fires a volley of ROCKETS.count rockets, each at its own raider in reach (the ones
+         nearest the vault first), each with a small blast, on a slow reload but a long reach. It wants raiders
+         spread along the road, where one shell's blast finds one raider.
+       Big Shell (boss) one huge, slow shot with a wider blast that hits a boss boss times as hard. It wants bunched
+         raiders and the boss waves. */
+  cannon: {
+    a: { name: 'Rocket Battery', about: 'Fires 4 rockets at once, each at its own raider. Reaches far, reloads slowly.', bestText: 'Spread-out raiders', rockets: true, dmg: .65, rate: .55, range: 1.6, splash: .35 },
+    b: { name: 'Big Shell', about: 'One huge shot with a wide blast. Reloads slowly. Hits {boss} twice as hard.', dmg: 2.2, rate: .5, splash: 1.25, boss: 2, bestText: 'Big groups' },
+  },
 };
+/* Rocket Battery's rockets: how many a volley fires and how long each flies. A rocket finds its raider wherever it has
+   gone by then (it seeks), and its blast goes off there. */
+export const ROCKETS = { count: 4, flight: .6 };
 export const NEAR = { base: .4, gain: 2.6 };
 /* Poison eats armor (M6a, the Still late in the game): a raider carrying poison or rot from a Still of level
    EATS_ARMOR.from or more loses EATS_ARMOR.share of its armor against every hit, from every tower. The armor it would have shrugged off is the poison's doing, so the damage

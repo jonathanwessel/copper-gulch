@@ -58,7 +58,9 @@ export function helper(town, game = null) {
     kinds: Object.fromEntries([...(town.towers || [])].reverse().map(t => [t.kind, t.spot])),
     stockOpen: typeof document !== 'undefined' && !!document.getElementById('stockTowers') && !!document.getElementById('stockTowers').offsetParent, // the Goods sheet shows its Keep for towers · Normal / Lots switch
     towerAtLevel: L => { const t = (town.towers || []).find(x => x.level === L); return t ? t.spot : null; },
-    forkReady: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && FORKS[x.kind]); return t ? t.spot : null; })(), // a tower one level from its second fork
+    // a tower one level from its second fork, by kind (each kind's card names its own two sides)
+    forkReady: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && x.kind === 'still' && FORKS[x.kind]); return t ? t.spot : null; })(),
+    forkCannon: (() => { const t = (town.towers || []).find(x => x.level + 1 === FORK_LEVEL && x.kind === 'cannon' && FORKS[x.kind]); return t ? t.spot : null; })(),
   };
 }
 

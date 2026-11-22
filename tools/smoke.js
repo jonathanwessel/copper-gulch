@@ -211,19 +211,24 @@ async function run() {
       await page.evaluate(async () => { CG.play.close(); CG.play.open('camp'); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card .stat'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });
       bad.push(...(await uncovered(page)).map(b => 'building card: ' + b));
       await page.evaluate(() => CG.play.close());
-      // the second fork at level 20 (M6a): a level-19 Still shows both sides, and two taps on one takes it
-      const fork = await page.evaluate(async () => {
+      // the second fork at level 20 (M6a): a level-19 Still and a level-19 Cannon show both sides, and two taps on one takes it
+      for (const [kind, want, took] of [['still', 'Slow Rot,Last Call', 'Slow Rot'], ['cannon', 'Rocket Battery,Big Shell', 'Rocket Battery']]) {
+      const fork = await page.evaluate(async kind => {
         const t = CG.game.town, keep = JSON.stringify(t.towers), goods = JSON.stringify(t.goods), coins = t.coins, wait = ms => new Promise(r => setTimeout(r, ms));
-        t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind: 'still', level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]);
+        t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]);
         CG.town.pause('smoke', true); t.coins = 1e15; for (const g of ['ore', 'planks', 'timber', 'copper', 'bricks', 'clay', 'tools']) t.goods[g] = Math.max(t.goods[g] || 0, 1e9); // paused, so the yard's cap does not trim them before the tap
         CG.play.close(); CG.play.openSpot(2); await wait(200);
         const opts = [...document.querySelectorAll('#card .option')].map(o => o.querySelector('b').textContent);
         const go = document.querySelector('#card [data-path="a"]'); if (go) { go.click(); await wait(100); const again = document.querySelector('#card [data-path="a"]'); if (again) again.click(); await wait(200); }
         const tw = t.towers.find(x => x.spot === 2), took = tw && tw.fork, name = (document.querySelector('#card h2') || {}).textContent;
+        // on a short landscape screen both Choose buttons show without scrolling (review of 2026.11.21-8, fork-land)
+        CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]); CG.play.openSpot(2); await wait(150);
+        const c2 = document.querySelector('#card'), r2 = c2 && c2.getBoundingClientRect(), hidden = [...document.querySelectorAll('#card .option .btn')].filter(b => { const r = b.getBoundingClientRect(); return r.bottom > r2.bottom + 1 || r.top < r2.top - 1 || r.bottom > innerHeight; }).length;
         CG.play.close(); t.towers = JSON.parse(keep); const was = JSON.parse(goods); for (const g of Object.keys(t.goods)) t.goods[g] = was[g] || 0; t.coins = coins; CG.town.pause('smoke', false);
-        return { opts, took, name };
-      });
-      if (fork.opts.join() !== 'Slow Rot,Last Call' || fork.took !== 'a' || fork.name !== 'Slow Rot') bad.push('the level-20 fork card: ' + JSON.stringify(fork));
+        return { opts, took, name, hidden };
+      }, kind);
+      if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
+      }
       // Call now is never locked (owner rule): with the whole wait still ahead it is lit and starts the wave, paying for the wait
       const callGate = await page.evaluate(async () => {
         const t = CG.game.town, ws = t.waves, keep = JSON.stringify(ws), bw = t.bestWave, b = document.getElementById('callWave');

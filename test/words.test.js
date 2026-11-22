@@ -37,3 +37,10 @@ test('the Still card says what its poison does to armor', () => {
   assert.equal(eatWords(.3), 'Lose 30% of their armor');
   for (const s of ['Poisoned raiders', eatWords(EATS_ARMOR.share)]) assert.deepEqual(textIssues(s), [], s);
 });
+
+test('shots just under one a second never read "One every 1 seconds"', async () => {
+  const { shotsWord } = await import('../src/ui/explain.js');
+  assert.equal(shotsWord(.96), 'About 1 a second');
+  assert.equal(shotsWord(.5), 'One every 2 seconds');
+  assert.ok(!/every 1 seconds/.test(shotsWord(.7)));
+});

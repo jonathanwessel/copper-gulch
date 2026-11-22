@@ -60,7 +60,7 @@ test('plainer words for the old-wave bonus, the foreman, the hold goal and the s
 
 test('towers name the town\'s own boss, and the Rail Office names the outposts', () => {
   for (const k of ['mortar', 'still']) assert.ok((TOWERS[k].about + TOWERS[k].bestText).includes('{boss}'), k);
-  assert.ok(read('src/ui/play.js').includes("bossWords(d.bestText)"));
+  assert.match(read('src/ui/play.js'), /bossWords\([^;]*bestText/, 'Best against goes through bossWords (a fork can bring its own, 2026.11.21-9)');
   assert.equal(outpostWords(INSTITUTION.transport.nodes[0].about, ['Dry Creek']), 'Dry Creek make 25% more goods.'.replace('make', 'make'));
   assert.equal(outpostWords('{outposts} make 25% more goods.', ['Dry Creek', 'Pine Hollow', 'Sandy Bend']), 'Dry Creek, Pine Hollow and Sandy Bend make 25% more goods.');
   assert.match(boughtText(INSTITUTION.transport, 1), /^\{outposts\} make/);

@@ -42,13 +42,15 @@ function connect(url) {
    cg-cdp- or the older gulch-cdp-). One left from 2026-11-16 kept about four cores busy for five days and put every
    perf reading 3-8 ms up, so the Silver Falls gate looked like a coin toss (2026.11.21-4). Also, at any age, one whose
    driver is gone (its parent process no longer runs): a smoke run stopped by `timeout` left its browser behind
-   (2026.11.21-6). */
+   (2026.11.21-6). A browser whose folder names its driver (cg-cdp-p<pid>-) is stopped only when that driver is gone: the
+   parent test took a live screenshot run's browser for an orphan, since Edge's main process can outlive its launcher,
+   and that run hung for half an hour (2026.11.21-9). */
 let swept = false;
 /* A driver stopped from outside (Ctrl+C, `timeout`) still closes its browsers: Node runs no 'exit' handlers on a signal. */
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(sig, () => process.exit(130));
 function sweepStale() {
   if (swept || process.platform !== 'win32') return; swept = true;
-  const ps = "$cut = (Get-Date).AddHours(-3); Get-CimInstance Win32_Process -Filter \"Name='msedge.exe' OR Name='chrome.exe'\" | Where-Object { $_.CommandLine -match '(cg|gulch)-cdp-' -and ($_.CreationDate -lt $cut -or ($_.CommandLine -notmatch '--type=' -and -not (Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue))) } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; 'stopped ' + $_.ProcessId } catch {} }";
+  const ps = "$cut = (Get-Date).AddHours(-3); Get-CimInstance Win32_Process -Filter \"Name='msedge.exe' OR Name='chrome.exe'\" | Where-Object { $_.CommandLine -match '(cg|gulch)-cdp-' -and $(if ($_.CommandLine -match 'cg-cdp-p([0-9]+)-') { -not (Get-Process -Id ([int]$Matches[1]) -ErrorAction SilentlyContinue) } else { $_.CreationDate -lt $cut -or ($_.CommandLine -notmatch '--type=' -and -not (Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue)) }) } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; 'stopped ' + $_.ProcessId } catch {} }";
   try {
     const out = execFileSync('powershell.exe', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 20000 }).trim();
     if (out) console.log('cdp: stopped ' + out.split('\n').length + ' headless browser processes left over from an earlier run');
@@ -59,7 +61,7 @@ async function launch(opts = {}) {
   sweepStale();
   const exe = findBrowser();
   if (!exe) throw new Error('No Edge or Chrome found. Install one, or set CHROME_PATH to its executable.');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-p' + process.pid + '-')); // the driver's id, so a sweep never takes a live run's browser
   const proc = spawn(exe, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + dir, '--no-first-run', '--no-default-browser-check',
     '--enable-unsafe-swiftshader', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-extensions', ...(opts.args || []), 'about:blank'], { stdio: 'ignore' }); // swiftshader: WebGL even without a GPU
   const onExit = () => { try { proc.kill(); } catch (e) {} };

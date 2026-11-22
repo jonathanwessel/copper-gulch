@@ -119,7 +119,7 @@ export function requiredFeatures() {
   for (const t of TOWN_ORDER) f.add('welcome:' + t);                                  // every town says hello
   for (const x of Object.values(FOES)) if (x.boss) f.add(x === FOES.wagon ? 'boss' : 'boss:' + Object.keys(FOES).find(k => FOES[k] === x));
   if (Object.keys(PATHS).length) f.add('path');
-  if (Object.keys(FORKS).length) f.add('fork'); // the second fork at level 20
+  for (const k of Object.keys(FORKS)) f.add(k === 'still' ? 'fork' : 'fork:' + k); // the second fork at level 20, one card per kind
   if (Object.values(FOES).some(x => x.boss)) f.add('boss');
   return [...f];
 }

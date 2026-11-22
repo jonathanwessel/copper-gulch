@@ -39,6 +39,18 @@ const SCREENS = [
   ['fork', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2); let spent = 0; for (let L = 0; L < 19; L++) spent += D.towerCost(t, 'still', L).coins; t.towers.push({ spot: 2, kind: 'still', level: 19, path: 'a', fork: null, cd: 0, spent, pulses: 0 }); CG.play.openSpot(2); }],
   ['fork-rot', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 2); if (tw) Object.assign(tw, { level: 20, fork: 'a' }); CG.play.close(); CG.play.openSpot(2); }],
   ['fork-last', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 2); if (tw) Object.assign(tw, { level: 20, fork: 'b' }); CG.play.close(); CG.play.openSpot(2); }],
+  // part 2: a level-19 Cannon with Rocket Battery and Big Shell on its card, a Big Shell's card, then a Rocket Battery
+  // selected with a volley in flight
+  ['fork-cannon', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 3); let spent = 0; for (let L = 0; L < 19; L++) spent += D.towerCost(t, 'cannon', L).coins; t.towers.push({ spot: 3, kind: 'cannon', level: 19, path: 'a', fork: null, cd: 0, spent, pulses: 0 }); CG.play.openSpot(3); }],
+  ['fork-big', async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); if (tw) Object.assign(tw, { level: 20, fork: 'b' }); CG.play.close(); CG.play.openSpot(3); }],
+  ['rockets', async () => {
+    const t = CG.game.town, tw = t.towers.find(x => x.spot === 3), wait = ms => new Promise(r => setTimeout(r, ms));
+    if (tw) Object.assign(tw, { level: 20, fork: 'a', cd: 0 }); CG.play.close(); CG.play.openSpot(3);
+    Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] });
+    const D = await import(new URL('src/core/defense.js', location.href).href), P = await import(new URL('src/core/path.js', location.href).href), at = t.def.board.spots[3];
+    const near = x => { const f = t.waves.foes.find(f => f.id === x.foe); return f && P.dist(at, P.pointAt(D.lanesOf(t)[f.lane || 0], f.s)) < 3.5; }; // a volley at raiders near the tower, so it shows by the card
+    for (let i = 0; i < 400; i++) { await wait(100); for (const f of t.waves.foes) if (f.max < 1e9) f.hp = f.max = 1e9; /* a level-20 battery kills a wave-2 raider far out, so they ride on for the shot */ const sh = t.waves.shells || []; if (sh.filter(x => x.foe != null && x.t < .5 && x.t > .3 && near(x)).length >= 2) break; }
+  }],
   // the wave bar (owner, 2026-11-19): the raiders card from the wave number, then the bar twice a few seconds apart, to
   // show it keeps its width while the timer runs, and the quiet building tags
   ['wave-card', () => { CG.play.close(); CG.play.sheets.close(); CG.play.openWave(); }],
@@ -236,7 +248,7 @@ try {
     await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
-      await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
+      await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'rockets' ? 30 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
       const f = path.join(dir, `${name}-${size}.png`); await shot(p, f, size);
     }
     await p.close();

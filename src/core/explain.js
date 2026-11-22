@@ -100,12 +100,12 @@ export function explainTower(town, t) {
   };
   const out = {
     dmg: part('towerDmg', d.dmg, (d.grow || PER_LEVEL.dmg) ** (L - 1), p && p.dmg, 'dmg', 'Base damage', (k && k.dmg) || 1),
-    rate: part('towerRate', d.rate, PER_LEVEL.rate ** (L - 1), p && p.rate, 'shots', 'Base shots'),
-    range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range'),
+    rate: part('towerRate', d.rate, PER_LEVEL.rate ** (L - 1), p && p.rate, 'shots', 'Base shots', (k && k.rate) || 1),
+    range: part('towerRange', d.range, (d.range + PER_LEVEL.range * (L - 1)) / d.range, p && p.range, 'reach', 'Base range', (k && k.range) || 1),
   };
   if (d.poison && !(k && k.rot)) out.poison = part('towerDmg', d.poison, PER_LEVEL.poison ** (L - 1), p && p.poison, 'dmg', 'Base poison');
   // the blast opens like Damage, Shots and Range (review of 2026.11.20-1: Blast had no ">")
-  if (d.splash) out.splash = part('blast', d.splash, 1, p && p.splash, 'blast', 'Base blast');
+  if (d.splash) out.splash = part('blast', d.splash, 1, p && p.splash, 'blast', 'Base blast', (k && k.splash) || 1);
   const st = towerStats(town, t); // the same numbers the battle uses
   out.dmg.value = st.dmg; out.rate.value = st.rate; out.range.value = st.range;
   // Slow Rot: its poison is a share of its damage a second (src/core/defense.js, towerStats)

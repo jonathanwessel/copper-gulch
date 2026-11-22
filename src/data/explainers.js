@@ -188,8 +188,14 @@ export const EXPLAINERS = [
   {
     id: 'fork', covers: ['fork'],
     title: 'One more choice',
-    text: 'At level 20 this Still picks one more upgrade. Slow Rot poisons raiders until they fall, so it is best near the start of the road. Last Call hits hardest near the vault. Tap the Still to pick.',
+    text: 'At level 20 you pick one more upgrade for this Still. Slow Rot poisons raiders until they fall, so it is best near the start of the road. Last Call hits hardest near the vault. Tap the Still to pick.',
     when: h => h.forkReady !== null, at: h => ({ tower: h.forkReady }),
+  },
+  {
+    id: 'fork-cannon', covers: ['fork:cannon'],
+    title: 'One more choice',
+    text: 'At level 20 you pick one more upgrade for this Cannon. Rocket Battery fires 4 rockets at once and reaches far. Big Shell fires one huge shot. Tap the Cannon to pick.',
+    when: h => h.forkCannon != null, at: h => ({ tower: h.forkCannon }),
   },
   {
     id: 'boss', town: 'gulch', covers: ['boss'],

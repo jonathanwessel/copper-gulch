@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.21-9',
+    lines: [
+      'Tap a level 19 Cannon to pick Rocket Battery or Big Shell.',
+      'Rocket Battery fires 4 rockets at once, each at its own raider. It reaches far.',
+      'Big Shell fires one huge shot. It hits the war wagon and other bosses twice as hard.',
+      'On a sideways phone, both Choose buttons now fit on the card.',
+    ],
+  },
+  {
     v: '2026.11.21-8',
     lines: [
       'From level 10, Snake Oil Still poison eats half of the armor on brutes and bosses.',

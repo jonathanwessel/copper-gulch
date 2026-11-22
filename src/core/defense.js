@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, NEAR, ROCKETS, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -60,12 +60,12 @@ export function towerStats(town, t) {
   const d = TOWERS[t.kind], L = t.level, p = t.path ? PATHS[t.kind][t.path] : {}, k = forkOf(t);
   const s = {
     dmg: d.dmg * (d.grow || PER_LEVEL.dmg) ** (L - 1) * (p.dmg || 1) * (k.dmg || 1) * town.mods.factor('towerDmg'),
-    rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * town.mods.factor('towerRate'),
-    range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * town.mods.factor('towerRange'),
-    splash: (d.splash || 0) * (p.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
+    rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * (k.rate || 1) * town.mods.factor('towerRate'),
+    range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * (k.range || 1) * town.mods.factor('towerRange'),
+    splash: (d.splash || 0) * (p.splash || 1) * (k.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
-    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, near: !!k.near, rot: 0,
+    minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, near: !!k.near, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1,
     eat: d.poison && L >= EATS_ARMOR.from ? EATS_ARMOR.share : 0, // poison eats armor (EATS_ARMOR)
   };
   // Slow Rot: a share of its hit damage a second, in place of the normal poison
@@ -282,6 +282,7 @@ export function fight(game, town, dt) {
   for (const sh of shells) {
     sh.t -= dt;
     if (sh.t > 1e-9) continue;
+    if (sh.foe != null) { const to = ws.foes.find(f => f.id === sh.foe && f.hp > 0); if (to) sh.at = pos.get(to); } // a rocket finds its raider
     for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg, false, sh.by || 'mortar');
     if (sh.fire) fires.push({ at: sh.at, r: sh.splash, t: FIRE.seconds, dps: sh.dmg * FIRE.dps });
     game.bus.emit('land', { town: town.id, spot: sh.spot, at: sh.at, splash: sh.splash, fire: !!sh.fire });
@@ -303,6 +304,15 @@ export function fight(game, town, dt) {
       const inReach = ws.foes.filter(f => { if (f.hp <= 0 || (st.lob && FOES[f.kind].air)) return false; const d = dist(at, pos.get(f)); return d <= st.range && d >= st.minRange; });
       if (!inReach.length) { t.cd = 0; break; }
       t.cd += 1 / st.rate;
+      if (st.rockets) { // Rocket Battery: a volley, each rocket at its own raider, the ones nearest the vault first
+        const aim = inReach.slice().sort((a, b) => b.s - a.s).slice(0, st.rockets);
+        for (let r = 0; r < st.rockets; r++) {
+          const f = aim[r % aim.length];
+          ws.shells.push({ spot: t.spot, by: t.kind, foe: f.id, at: pos.get(f), t: ROCKETS.flight, dmg: st.dmg, splash: st.splash, fire: false });
+          game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: f.id, from: at, to: pos.get(f), flight: ROCKETS.flight, rocket: r });
+        }
+        continue;
+      }
       const target = inReach.reduce((a, b) => (b.s > a.s ? b : a)); // the one closest to the vault
       let to = pos.get(target);
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
@@ -320,8 +330,8 @@ export function fight(game, town, dt) {
           f.slow = Math.max(f.slowT > 0 ? f.slow : 0, st.slow); f.slowT = SLOW_SECONDS; f.brittle = Math.max(f.brittle, st.brittle);
           if (st.freeze && t.pulses % 3 === 0 && !FOES[f.kind].boss && !(f.thawT > 0)) { f.frozenT = FREEZE.seconds; f.thawT = FREEZE.seconds + FREEZE.again; }
         }
-      } else if (st.splash) {
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg, false, t.kind);
+      } else if (st.splash) { // Big Shell hits a boss st.boss times as hard
+        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg * (FOES[f.kind].boss ? st.boss : 1), false, t.kind);
       } else if (st.poison || st.rot) {
         hurt(game, town, target, st.dmg * (st.near ? nearFactor(laneOf(target), target.s) : 1), false, t.kind);
         for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) {

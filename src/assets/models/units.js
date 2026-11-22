@@ -183,9 +183,14 @@ export function makeTower(type, br, lvl, fk = null) {
   }));
   else if (type === 'cannon') bar.add(part(k => {
     k.box(0, -.12, 0, .3, .1, .26, 'woodD'); for (const sz of [-1, 1]) k.cyl(-.05, -.12, sz * .14, .08, .03, 'woodD', { rx: Math.PI / 2, seg: 8 });
-    if (br === 'a') { k.cyl(0, -.04, 0, .14, .3, 'black', { rz: -.6, seg: 10, mat: 'metal' }); }
+    // the level-20 fork: Rocket Battery a rack of four tubes tipped up, red rockets in them; Big Shell a fat, long barrel
+    if (fk === 'a') {
+      k.box(-.02, -.05, 0, .26, .05, .3, 'iron', { mat: 'metal' });
+      for (let i = 0; i < 4; i++) { const y = -.01 + (i >> 1) * .11, z = i & 1 ? .075 : -.075; k.cyl(-.12, y, z, .05, .4, 'ironL', { rz: -Math.PI / 2 + .45, seg: 8, mat: 'metal' }); k.cone(.17, y + .15, z, .042, .1, 'paintR', { rz: -Math.PI / 2 + .45, seg: 8 }); }
+    } else if (fk === 'b') { k.cyl(-.14, .02, 0, .15, .62, 'black', { rz: -Math.PI / 2, r2: .18, seg: 12, mat: 'metal' }); k.ball(-.18, .02, 0, .15, 'black', { mat: 'metal' }); k.cyl(.36, .02, 0, .2, .06, 'iron', { rz: -Math.PI / 2, seg: 12, mat: 'metal' }); }
+    else if (br === 'a') { k.cyl(0, -.04, 0, .14, .3, 'black', { rz: -.6, seg: 10, mat: 'metal' }); }
     else { k.cyl(-.08, 0, 0, .1, .5, 'black', { rz: -Math.PI / 2, r2: br === 'b' ? .13 : .07, seg: 10, mat: 'metal' }); k.ball(-.12, 0, 0, .1, 'black', { mat: 'metal' }); }
-    if (gold) k.cyl(.2, 0, 0, .085, .03, 'gold', { rz: -Math.PI / 2, seg: 10, mat: 'metal' });
+    if (gold && !fk) k.cyl(.2, 0, 0, .085, .03, 'gold', { rz: -Math.PI / 2, seg: 10, mat: 'metal' });
   }));
   else if (type === 'mortar') bar.add(part(k => { // a short, wide barrel tipped steeply up
     const r = br === 'a' ? .17 : .14; k.cyl(0, 0, 0, r, .42, 'black', { r2: r * 1.1, rz: -.5, seg: 12, mat: 'metal' }); k.cyl(0, 0, 0, r * 1.25, .06, 'iron', { rz: -.5, seg: 12, mat: 'metal' });

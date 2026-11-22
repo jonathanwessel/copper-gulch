@@ -13,7 +13,8 @@ export const reachWord = (range, minRange = 0) => (minRange ? 'Long, not up clos
 /* Blast in words, Small or Wide (the circles on the map show the rest). */
 export const blastWord = r => (r < 1.2 ? 'Small' : 'Wide');
 /* Shots in words: "1.3 a second", "One every 3 seconds". */
-export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : 'One every ' + Math.round(1 / r) + ' seconds');
+// just under one a second rounds to one, never "One every 1 seconds" (screenshot of 2026.11.21-9: a level 19 Cannon)
+export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : Math.round(1 / r) <= 1 ? 'About 1 a second' : 'One every ' + Math.round(1 / r) + ' seconds');
 
 /* A working foreman that is not buying, beside its "Foreman · On" switch: what it is doing and why, as a status, not a
    story (review of 2026.11.19-9: "The foreman waits. Timber sells low..." read as a narrator). */

@@ -329,6 +329,14 @@ html.flat .tag { position: static; transform: none !important; }
   .card > .pathbar > .pathhead { grid-column: 1 / -1; }
   .card > .pathbar > .option { flex-direction: column; align-items: stretch; gap: 4px; }
   .card > .pathbar > .option > .btn { min-height: 32px; }
+  /* Choose sits beside the name, the words under both, and Can't be undone beside Pick an upgrade, so both Choose
+     buttons show without scrolling on a short screen (review of 2026.11.21-8, fork-land: Choose was under the fold) */
+  .card > .pathbar > .option { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 6px; row-gap: 2px; }
+  .card > .pathbar > .option > div { display: contents; }
+  .card > .pathbar > .option > div > b { grid-column: 1; grid-row: 1; }
+  .card > .pathbar > .option > div > span { grid-column: 1 / -1; grid-row: 2; font-size: .8rem; line-height: 1.2; }
+  .card > .pathbar > .option > .btn { grid-column: 2; grid-row: 1; min-height: 30px; padding-inline: 8px; }
+  .card > .pathbar > .pathhead > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
 }
 .option small.short { color: var(--bad); }
 .option small.soon, .soon { color: var(--ink); }
