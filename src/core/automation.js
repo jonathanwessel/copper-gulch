@@ -13,20 +13,24 @@
    { wave, power, at, tries } (power: the town's tower levels when it lost); it survives a charter (the switches are the
    player's settings). It keeps working out of play and while time away is caught up.
    Events: 'auto:set' { town, kind, on }, 'auto:tower' { town, spot, level }, 'auto:research' { town, id, level },
-   'auto:retry' { town, wave, tries }. */
+   'auto:retry' { town, wave, tries }.
+   - Call to arms (opened with it by the War Office, src/core/arms.js): calls the workers out when the boss is on the
+     road or the vault is low (armsWanted). Off by default, like every switch. */
 import { AUTO } from '../data/automation.js';
 import { PATH_LEVEL } from '../data/towers.js';
 import { founded } from './tree.js';
-import { forkNext, towerCost, canPay, upgradeTower, setHold, bossWave, wavesOf } from './defense.js';
+import { forkNext, towerCost, canPay, upgradeTower, setHold, bossWave, wavesOf, lanesOf } from './defense.js';
 import { itemsOf, researchLevel, researchBlock, researchCost, startResearch } from './research.js';
 import { hasForeman, foremanOn, setForeman } from './foremen.js';
+import { armsOpen, armsBlock, callToArms } from './arms.js';
+import { FOES } from '../data/foes.js';
 
-export const KINDS = ['towers', 'research', 'retry'];
+export const KINDS = ['towers', 'research', 'retry', 'arms'];
 export const autoOf = (game, town) => {
   const all = game.shared.auto || (game.shared.auto = {});
   return all[town.id] || (all[town.id] = { towers: false, research: false, retry: false, wait: 0, last: null, boss: null });
 };
-export const autoOpen = (game, kind) => !!game.shared.tree && founded(game, AUTO.opens[kind]);
+export const autoOpen = (game, kind) => kind === 'arms' ? armsOpen(game) : !!game.shared.tree && founded(game, AUTO.opens[kind]);
 export const autoOn = (game, town, kind) => autoOpen(game, kind) && !!autoOf(game, town)[kind];
 export const anyAuto = game => KINDS.some(k => autoOpen(game, k));
 /* Seconds between two Auto-towers upgrades: shorter with each War Office upgrade. */
@@ -116,6 +120,18 @@ function retry(game, town, a) {
   } else if (a.boss && (town.bestWave >= a.boss.wave || town.wave < a.boss.wave - wavesOf(town).breachBack)) a.boss = null; // beaten, or fell further back (a charter, a vault)
 }
 
+/* A wave the militia could save: one is on the road with its boss out, or the vault is low. */
+/* A wave the militia could save: the boss is past AUTO.armsBoss.along of its road with more than AUTO.armsBoss.hp of
+   its health left (the towers are not winning on their own), or the vault is low. At every boss wave it would stop
+   the buildings for waves the towers win anyway (the idle bot's growth fell under its gate, 2026.11.21-10). */
+export const armsWanted = town => {
+  const ws = town.waves;
+  if (!ws || ws.phase !== 'wave') return false;
+  if (town.vault.hp < AUTO.armsVault * town.vault.max) return true;
+  const lanes = lanesOf(town);
+  return ws.foes.some(f => FOES[f.kind].boss && f.hp > AUTO.armsBoss.hp * f.max && f.s > AUTO.armsBoss.along * (lanes[f.lane || 0] || lanes[0]).length);
+};
+
 /* Foremen: the town's hired ones, and how many work. setForemen switches every one. */
 export const foremenOf = town => Object.keys(town.foremen || {}).filter(id => hasForeman(town, id));
 export const foremenWorking = town => foremenOf(town).filter(id => foremanOn(town, id)).length;
@@ -135,6 +151,9 @@ function work(game, town, dt) {
       }
     }
   }
+  // Call to arms only with its own switch on (owner idea, 2026-11-20), and only when it can save the wave: the boss is
+  // on the road, or the vault is down to AUTO.armsVault of its strength
+  if (autoOn(game, town, 'arms') && armsWanted(town) && !armsBlock(game, town)) callToArms(game, town);
   if (autoOn(game, town, 'retry')) retry(game, town, a);
   else if (a.boss) a.boss = null;
   if (autoOn(game, town, 'research') && !town.lab && !town.labNext) { // a lined-up item is the player's pick

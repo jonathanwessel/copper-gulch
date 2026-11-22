@@ -57,7 +57,8 @@ export const INSTITUTIONS = [
     nodes: [
       { id: 'drill', name: 'Drill Sergeants', about: 'Towers hit 10% harder.', effects: [{ stat: 'towerDmg', mul: 1.1 }] },
       { id: 'forts', name: 'Fort Engineers', about: 'Your vault takes 25% more hits.', effects: [{ stat: 'vault', mul: 1.25 }] },
-      { id: 'armory', name: 'Armory', about: 'Towers hit 15% harder.', effects: [{ stat: 'towerDmg', mul: 1.15 }] },
+      // the third War Office upgrade also opens Call to arms in every town (src/data/arms.js, ARMS.opens)
+      { id: 'armory', name: 'Armory', about: 'Towers hit 15% harder. Every town can call its workers to arms.', opens: 'arms', effects: [{ stat: 'towerDmg', mul: 1.15 }] },
       { id: 'marshals', name: 'Marshals', about: 'Raiders drop 25% more coins.', effects: [{ stat: 'bounty', mul: 1.25 }] },
       { id: 'staff', name: 'General Staff', about: 'Towers shoot 10% faster.', effects: [{ stat: 'towerRate', mul: 1.1 }] },
     ],
@@ -83,7 +84,8 @@ const SAYS = {
 export function boughtText(inst, n) {
   const all = new Map();
   for (const node of inst.nodes.slice(0, n)) for (const e of node.effects) { const k = e.stat + (e.where ? ':' + e.where : ''); all.set(k, (all.get(k) || 1) * e.mul); }
-  return [...all].map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))).join(' ');
+  const opens = inst.nodes.slice(0, n).some(x => x.opens === 'arms') ? ['Every town can call its workers to arms.'] : [];
+  return [...[...all].map(([k, m]) => SAYS[k](Math.round(Math.abs(m - 1) * 100))), ...opens].join(' ');
 }
 for (const i of INSTITUTIONS) i.about = boughtText(i, 1); // shown under a small First upgrade label (src/ui/capital.js)
 export const INSTITUTION = Object.fromEntries(INSTITUTIONS.map(i => [i.id, i]));

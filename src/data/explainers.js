@@ -8,6 +8,7 @@
      town: show it only while this town is in play.   go, button: a second button that takes the player to that town.
      say(h): the text with what is on screen in it, such as a button's name (text stays the plain form the audit reads). */
 import { TOWNS } from './towns/index.js';
+import { ARMS } from './arms.js';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
@@ -319,6 +320,12 @@ export const EXPLAINERS = [
     title: 'Automation',
     text: 'Tap Auto. This town can upgrade its towers and run its research on its own. It only buys what you bought before, and it never spends more than half your coins.',
     when: h => !!h.tabs.auto && h.t > 2, at: () => ({ el: '#autoBtn' }),
+  },
+  {
+    id: 'arms', covers: ['system:arms'],
+    title: 'Call to arms',
+    text: 'Tap To arms when raiders are about to break through. Your workers fight on the road for ' + ARMS.seconds + ' sec, and the buildings make nothing until they come back. Then you wait ' + ARMS.cooldown / 60 + ' min to call them again.',
+    when: h => !!h.tabs.arms && h.t > 2, at: () => ({ el: '#armsBtn' }),
   },
   {
     id: 'crowd', covers: ['crowd'],

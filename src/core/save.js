@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -174,6 +174,12 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) for (const f of (t && t.waves && t.waves.foes) || []) if (f.eat === undefined) f.eat = 0;
     return { ...s, v: 23, game: g };
+  },
+  // v24: Call to arms (src/core/arms.js): no town has called its workers out yet
+  23: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t && !t.arms) t.arms = { t: 0, cd: 0, clock: 0 };
+    return { ...s, v: 24, game: g };
   },
 };
 

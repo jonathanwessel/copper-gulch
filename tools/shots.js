@@ -51,6 +51,25 @@ const SCREENS = [
     const near = x => { const f = t.waves.foes.find(f => f.id === x.foe); return f && P.dist(at, P.pointAt(D.lanesOf(t)[f.lane || 0], f.s)) < 3.5; }; // a volley at raiders near the tower, so it shows by the card
     for (let i = 0; i < 400; i++) { await wait(100); for (const f of t.waves.foes) if (f.max < 1e9) f.hp = f.max = 1e9; /* a level-20 battery kills a wave-2 raider far out, so they ride on for the shot */ const sh = t.waves.shells || []; if (sh.filter(x => x.foe != null && x.t < .5 && x.t > .3 && near(x)).length >= 2) break; }
   }],
+  // Call to arms (M6a): the To arms button and its sheet with what a call costs, then the workers out by the road in a
+  // wave, with the button's fight time
+  ['arms', async () => {
+    const g = CG.game, t = g.town, wait = ms => new Promise(r => setTimeout(r, ms));
+    CG.play.close(); t.bestWave = Math.max(t.bestWave, 20);
+    const E = await import(new URL('src/core/empire.js', location.href).href), C = await import(new URL('src/core/capital.js', location.href).href), T = await import(new URL('src/core/tree.js', location.href).href);
+    if (!g.towns.ridge) E.foundTown(g, 'ridge'); g.towns.ridge.bestWave = 30; g.towns.ridge.waves.hold = true; g.shared.purse.coins = Math.max(g.shared.purse.coins, 1e9);
+    C.foundCapital(g); g.shared.purse.coins = Math.max(g.shared.purse.coins, 1e9); T.foundInstitution(g, 'war'); C.capitalOf(g).influence = 1e4;
+    for (let i = 0; i < 3; i++) T.buyNode(g, 'war');
+    for (const id of t.def.buildings) t.buildings[id] = Math.max(t.buildings[id] || 0, 12);
+    await wait(400); document.getElementById('armsBtn').click();
+  }],
+  ['arms-out', async () => {
+    const t = CG.game.town, wait = ms => new Promise(r => setTimeout(r, ms));
+    CG.play.sheets.close(); Object.assign(t.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [] });
+    for (let i = 0; i < 40 && t.waves.phase !== 'wave'; i++) await wait(100);
+    document.getElementById('armsBtn').click(); await wait(300); document.getElementById('callArms').click(); await wait(200); CG.play.sheets.close();
+    for (let i = 0; i < 60 && !t.waves.foes.some(f => f.s > 6); i++) await wait(100);
+  }],
   // the wave bar (owner, 2026-11-19): the raiders card from the wave number, then the bar twice a few seconds apart, to
   // show it keeps its width while the timer runs, and the quiet building tags
   ['wave-card', () => { CG.play.close(); CG.play.sheets.close(); CG.play.openWave(); }],
@@ -249,6 +268,7 @@ try {
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
       await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'rockets' ? 30 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
+      if (process.env.SHOT_NAMES && !process.env.SHOT_NAMES.split(',').includes(name)) continue; // a quick look at a few screens (the others still run, in order)
       const f = path.join(dir, `${name}-${size}.png`); await shot(p, f, size);
     }
     await p.close();

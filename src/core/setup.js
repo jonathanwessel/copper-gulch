@@ -3,6 +3,7 @@ import { Game } from './game.js';
 import { market } from './market.js';
 import { economy } from './economy.js';
 import { defense } from './defense.js';
+import { arms } from './arms.js';
 import { research } from './research.js';
 import { foremen } from './foremen.js';
 import { charter } from './charter.js';
@@ -13,7 +14,7 @@ import { tree } from './tree.js';
 import { automation } from './automation.js';
 import { TOWNS } from '../data/towns/index.js';
 
-export const SYSTEMS = [market, economy, defense, research, foremen, charter, outpost, goals, capital, tree, automation];
+export const SYSTEMS = [market, economy, defense, arms, research, foremen, charter, outpost, goals, capital, tree, automation];
 
 /* A new game starts in Dry Creek Outpost. `start` opens another town alone instead (the Gulch-only bots and tests). */
 export function newGame(seed = 'cg', start = 'drycreek') {

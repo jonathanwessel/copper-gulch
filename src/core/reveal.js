@@ -12,6 +12,7 @@ import { GOODS } from '../data/goods.js';
 import { TOWERS } from '../data/towers.js';
 import { towerOpen, towerIn } from './defense.js';
 import { anyAuto } from './automation.js';
+import { armsOpen, armsHere } from './arms.js';
 
 /* The goods the Goods list shows: what this town's built buildings make (power is not a good: the Water Wheel's card
    shows it). */
@@ -60,6 +61,7 @@ export function tabs(game, town) {
     chip: Object.keys(game.towns).length + nextTowns(game).length > 1,
     strip: stripGoods(town).length > 0,
     auto: anyAuto(game), // once the War Office or the University stands at the Capital
+    arms: armsOpen(game) && armsHere(town), // Call to arms: the War Office's Armory, in a place with workers
   };
 }
 

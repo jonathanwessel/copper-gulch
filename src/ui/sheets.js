@@ -29,6 +29,8 @@ import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowe
 import { PATH_LEVEL, TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
+import { ARMS } from '../data/arms.js';
+import { armsBlock, armsLoss, callToArms, militia, armsWait } from '../core/arms.js';
 import { bossName } from './lost.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -318,6 +320,8 @@ export function autoSheet(game, town, openResearch = null) {
     add('towers', 'Auto-towers', 'Upgrades one tower every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
     add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town fights it again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Keeps researching the next level of what you picked before.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
+    // Call to arms by Auto: only at a boss or a low vault, with its own switch (owner idea, 2026-11-20)
+    add('arms', 'Call to arms', 'Calls your workers out when the boss is on the road or the vault is low.').sw.addEventListener('click', () => { setAuto(game, town, 'arms', !autoOf(game, town).arms); paint(); });
     // its line opens Research, so what it runs is one tap away (owner, 2026-11-20)
     if (openResearch) { const see = btn('See research', 'btn small'); see.id = 'autoSeeResearch'; see.addEventListener('click', () => openResearch()); rows.research.row.querySelector('div').append(see); rows.research.see = see; }
     const set = (x, open, on, line) => {
@@ -355,6 +359,7 @@ export function autoSheet(game, town, openResearch = null) {
         : r ? 'Starting ' + RESEARCH[r.id].name
         : 'Waiting for coins, or research something by hand first';
       set(rows.research, autoOpen(game, 'research'), !!a.research && autoOpen(game, 'research'), rLine === 'Off' ? '' : rLine);
+      { const open = autoOpen(game, 'arms'), line = armsLine(game, town); set(rows.arms, open, !!a.arms && open, !open || a.arms || line !== 'Ready' ? line : ''); }
       if (rows.research.see) { const h = !autoOpen(game, 'research'); if (rows.research.see.hidden !== h) rows.research.see.hidden = h; }
     };
     paint();
@@ -362,6 +367,41 @@ export function autoSheet(game, town, openResearch = null) {
     return dt => { if ((acc += dt) < .25) return; acc = 0; paint(); };
   };
 }
+
+/* A fixed-width clock for a short wait: "0:32", "4:59" (never more than 4 characters under 10 minutes). */
+export const clock = s => { const n = Math.max(0, Math.ceil(s - 1e-9)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0'); };
+/* Where Call to arms stands, in words for its sheet and the Auto sheet. */
+export function armsLine(game, town) {
+  const b = armsBlock(game, town), a = town.arms || { t: 0 };
+  return b === 'closed' ? 'Buy the Armory at the War Office first.'
+    : b === 'none' ? 'Build a building first. Its workers are the ones who fight.'
+    : b === 'fighting' ? 'Your workers are fighting. ' + span(a.t) + ' left.'
+    : b === 'wait' ? 'Ready again in ' + span(armsWait(town)) + '.'
+    : 'Ready';
+}
+/* Call to arms (owner idea, 2026-11-20): what a call does and what it costs, before the tap, then its time. */
+export function armsSheet(game, town) {
+  return body => {
+    const what = el('div', 'explain'), row = (a, b) => { const r = el('div'), v = el('b', null, b); r.append(el('span', null, a), v); what.append(r); return v; };
+    body.append(el('p', 'note', 'Your workers leave the buildings and fight raiders on the road. The buildings make nothing until they come back.'), what);
+    const workers = row('Workers from', ''), lost = row('Goods lost', '');
+    row('They fight for', span(ARMS.seconds)); row('Call again after', span(ARMS.cooldown));
+    const go = btn('Call to arms', 'btn primary buy', 'callArms'), state = el('p', 'uses');
+    go.addEventListener('click', () => { callToArms(game, town); paint(); });
+    body.append(state, go);
+    const paint = () => {
+      const n = militia(town).length, l = armsLoss(game, town), b = armsBlock(game, town);
+      setText(workers, n === 1 ? '1 building' : n + ' buildings');
+      setText(lost, 'About ' + fmt(l.coins) + ' coins');
+      go.disabled = !!b;
+      setText(state, b ? armsLine(game, town) : ''); state.hidden = !b;
+    };
+    paint();
+    let acc = 0;
+    return dt => { if ((acc += dt) < .25) return; acc = 0; paint(); };
+  };
+}
+const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
 
 /* Two taps to do something that cannot be undone: the first changes the label, the second does it. */
 function confirmTap(b, ask, go) {

@@ -12,6 +12,7 @@ import { Entrance } from './entrance.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { groundDetail, tufts, edgeStones, rim, Blobs } from './dress.js';
 import { Life } from './life.js';
+import { Militia } from './militia.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
 
@@ -95,6 +96,8 @@ export class Board {
     // townsfolk, a wagon, tumbleweeds and birds (src/render/life.js); never picked, so taps go through them
     this.life = new Life(this, height, (x, z) => (RIV ? bridgeLift(polyDist(x, z, RIV).d) : 0), lod === 'low' ? 'low' : 'med');
     this.group.add(this.life.group);
+    // Call to arms: the workers by the road while they fight (src/render/militia.js), on every tier
+    this.militia = new Militia(this, height); this.group.add(this.militia.group);
     this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
     this.entrances = gates.map(e => new Entrance(this, e));
@@ -168,6 +171,7 @@ export class Board {
   /* Animate: t is seconds; working(id) says whether a building is producing right now; fighting: a wave is on. */
   update(dt, t, working = () => true, view = null, fighting = false) {
     if (this.lod !== 'low') this.life.update(dt, t, fighting);
+    this.militia.update(dt, t);
     for (const e of this.entrances) e.update(dt, view);
     if (view) this.rim.update(view.yaw, dt);
     for (const [id, b] of Object.entries(this.bld)) {

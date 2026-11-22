@@ -33,10 +33,12 @@ import { canFound, foundTown } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, capitalOf, takeContract } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
 import { foundCost, foundBlock, foundInstitution, nodeBlock, nodeCost, buyNode, founded } from '../src/core/tree.js';
+import { armsBlock, callToArms, armsOpen } from '../src/core/arms.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
 import { encode, decode } from '../src/core/save.js';
 import { loadGame } from '../src/core/setup.js';
 
+const ARMS_BOT = !process.argv.includes('--noarms');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
 let CALL = !process.argv.includes('--no-call');
@@ -283,6 +285,10 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     else for (const [k, n] of Object.entries(d)) r.late[k] = (r.late[k] || 0) + n; // after the town's first hour
   });
   on('breach', e => { if (mine(e)) { r.breaches.push(e.wave); (r.why ||= []).push(e.why); } });
+  // Call to arms at boss gates (M6a): what came of each wave it was called on
+  r.arms = { calls: 0, won: 0, lost: 0 };
+  on('wave:clear', e => { if (mine(e) && r.armsWave === e.wave && bossWave(t, e.wave)) { r.arms.won++; r.armsWave = null; } });
+  on('breach', e => { if (mine(e) && r.armsWave === e.wave) { r.arms.lost++; r.armsWave = null; } });
   on('research:new', e => { if (mine(e) && !r.signed) r.news.push(t.t); });
   on('charter:offer', e => { if (mine(e)) r.offer = t.t; });
   // the defense buys while it is short of the strategy's towers or levels for the coming wave (the economy player
@@ -378,6 +384,8 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     g.step(.25);
     if (until && until(t)) { r.until = t.t; break; }
     if (CALL && !r.savingNow && ahead() && callEarly(g, t) >= 0) r.calls++;
+    // the active player calls the workers to arms once a boss is on the road (ARMS_BOT; --noarms for an A/B run)
+    if (ARMS_BOT && t.waves.phase === 'wave' && t.waves.foes.some(f => FOES[f.kind].boss) && !armsBlock(g, t) && callToArms(g, t)) { r.arms.calls++; r.armsWave = t.wave; }
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
     if (watch && s % 240 === 0) watch(g, t, r);
     if (s % 4) continue;
@@ -854,6 +862,29 @@ export function towerBalance(rows, where = '', lead = true) {
    hour, through the Capital and the save for the Falls, and the Falls after its own first hour) and holds it to the same
    SHARE_MAX, with a close line. Before the Still's poison ate armor, the Frost Lens did 38-44% of the active bot's late
    Falls damage. Returns { rows: [{ town, dealt }], misses }. */
+/* Call to arms (M6a): the active bots call the workers out when a boss is on the road, once the War Office's Armory
+   is bought. It must help without replacing towers: every seed that opens it calls it, and the militia does at most
+   ARMS_SHARE_MAX of a town's damage after its first hour (the towers do the rest). A town can never hold with the
+   militia alone (test/arms.test.js). Returns { rows, misses }. */
+export const ARMS_SHARE_MAX = .12;
+export function armsCheck(actives) {
+  const towns = { ridge: e => [e.ridge, e.capSave, e.fSave], falls: e => [e.falls] }, rows = [], misses = [];
+  for (const e of actives) {
+    const g = e.game, row = { seed: e.dc.seed, open: armsOpen(g), towns: {} };
+    for (const [id, recs] of Object.entries(towns)) {
+      const rs = recs(e).filter(Boolean), mil = ((g.armsDealt || {})[id] || {}).militia || 0;
+      const tw = rs.reduce((a, r) => a + Object.values(r.late || {}).reduce((x, y) => x + y, 0), 0);
+      const a = rs.reduce((o, r) => ({ calls: o.calls + ((r.arms && r.arms.calls) || 0), won: o.won + ((r.arms && r.arms.won) || 0), lost: o.lost + ((r.arms && r.arms.lost) || 0) }), { calls: 0, won: 0, lost: 0 });
+      const share = mil + tw > 0 ? mil / (mil + tw) : 0;
+      row.towns[id] = { ...a, share };
+      nearMax(`seed ${row.seed}, ${id}: the militia does ${(100 * share).toFixed(1)}% of the late damage (limit ${Math.round(100 * ARMS_SHARE_MAX)}%)`, share, ARMS_SHARE_MAX);
+      if (share > ARMS_SHARE_MAX) misses.push(`seed ${row.seed}, ${id}: the militia does ${Math.round(100 * share)}% of the late damage (want at most ${Math.round(100 * ARMS_SHARE_MAX)}%)`);
+    }
+    if (ARMS_BOT && row.open && !Object.values(row.towns).some(x => x.calls > 0)) misses.push(`seed ${row.seed}: Call to arms is open but the bot never called it at a boss`);
+    rows.push(row);
+  }
+  return { rows, misses };
+}
 export function lateShares(actives) {
   const towns = { 'Iron Ridge': e => [e.ridge, e.capSave, e.fSave], 'Silver Falls': e => [e.falls] }, rows = [], misses = [];
   for (const [town, recs] of Object.entries(towns)) {
@@ -965,6 +996,10 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   const ls = lateShares(actives);
   console.log('late damage (active, every seed, after the first hour of each town): ' + ls.rows.map(x => { const tot = Object.values(x.dealt).reduce((a, b) => a + b, 0) || 1; return x.town + ' ' + Object.entries(x.dealt).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + Math.round(100 * n / tot) + '%').join(', '); }).join(' | '));
   misses.push(...ls.misses);
+  const ac = armsCheck(actives);
+  console.log('Call to arms (active, at boss waves): seed | open at the end | per town: calls, boss waves won and lost with it, militia share of the late damage');
+  for (const x of ac.rows) console.log(`  ${x.seed} | ${x.open ? 'open' : 'not open'} | ` + Object.entries(x.towns).map(([k, v]) => `${k} ${v.calls} calls, ${v.won} won, ${v.lost} lost, ${(100 * v.share).toFixed(1)}%`).join(' | '));
+  misses.push(...ac.misses);
   console.log('charter (offered, signed at best wave and coins, deeds, back to that wave after): ' + runs.map(r => 'seed ' + r.seed + ' ' + m(r.offer) + (r.signed ? ', signed ' + m(r.signed.at) + ' at wave ' + r.signed.wave + ' and ' + Math.round(r.signed.coins / 1000) + 'K for ' + r.signed.deeds + ', back in ' + m(r.regain) + (r.regain !== null ? ' (' + Math.round(100 * r.regain / r.reach[r.signed.wave]) + '% of the first climb)' : '') : ', not signed')).join(' | '));
   console.log('research levels (first started at): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.firstResearch === null ? 'never' : (r.firstResearch / 60).toFixed(1) + ' min') + ' ' + Object.entries(r.research).map(([k, n]) => k + ' ' + n).join(', ')).join(' | '));
   console.log('foremen hired (building, minute): ' + runs.map(r => 'seed ' + r.seed + ' ' + (r.foremen.join(', ') || 'none')).join(' | '));

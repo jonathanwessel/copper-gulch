@@ -192,8 +192,10 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
 export function soundsFor(game, audio) {
   const here = e => e && e.town === game.active && !game.catching;
   const SHOT = { crossbow: 'crossbow', cannon: 'cannon', frost: 'frost', still: 'still', mortar: 'mortar' };
+  let milStep = -1;
   const offs = [
-    game.bus.on('shot', e => { if (here(e) && !(e.rocket > 0)) audio.play(e.rocket === 0 ? 'mortar' : SHOT[e.kind] || 'crossbow'); }), // a rocket volley is one launch
+    game.bus.on('shot', e => { if (here(e) && !(e.rocket > 0) && !(e.kind === 'militia' && game.stats.steps === milStep)) { if (e.kind === 'militia') milStep = game.stats.steps; audio.play(e.rocket === 0 ? 'mortar' : SHOT[e.kind] || 'crossbow'); } }), // a rocket volley is one launch, and so is the militia's (all its shots come in one step)
+    game.bus.on('arms:call', e => { if (here(e)) audio.play('boss'); }),
     game.bus.on('land', e => { if (here(e)) audio.play('boom'); }),
     game.bus.on('kill', e => { if (here(e) && e.coins) audio.play('coin'); }),
     game.bus.on('build', e => { if (here(e)) audio.play('build'); }),

@@ -13,7 +13,7 @@ import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, mapCalls } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, leftWord, STOCK_LABEL } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, STOCK_LABEL } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen, labsRunning } from '../core/research.js';
 import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
@@ -118,7 +118,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const labLeft = el('small', 'btime'); labLeft.hidden = true; labBtn.append(labLeft);
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
   const autoBtn = el('button', 'btn small', 'Auto'); autoBtn.id = 'autoBtn'; autoBtn.hidden = true;
-  side.append(goodsBtn, labBtn, perksBtn, autoBtn, menuBtn);
+  // Call to arms: its fight or its wait on a small fixed-width second line, like Research's time
+  const armsBtn = el('button', 'btn small', 'To arms'); armsBtn.id = 'armsBtn'; armsBtn.hidden = true;
+  const armsLeft = el('small', 'btime'); armsLeft.hidden = true; armsBtn.append(armsLeft);
+  side.append(goodsBtn, labBtn, perksBtn, autoBtn, armsBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
   // the goods strip along the bottom (owner rule: you can always see how much of each good you have); tap one for Goods
@@ -167,6 +170,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openMenu = () => sheets.open('menu', 'Menu', menuSheet(menuCtx));
   const openResearch = () => sheets.open('research', 'Research', researchSheet(game, town));
   const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', 'Automation', autoSheet(game, town, () => openResearch())); };
+  const openArms = () => sheets.open('arms', 'To arms', armsSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', 'Perks', perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Coins a second', incomeSheet(income));
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
@@ -177,7 +181,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   vaultBtn.addEventListener('click', openVault);
   const openWave = () => sheets.open('wave', waveTitle(town), waveSheet(town));
   waveBtn.addEventListener('click', openWave);
-  goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); perksBtn.addEventListener('click', openPerks);
+  goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); armsBtn.addEventListener('click', openArms); perksBtn.addEventListener('click', openPerks);
 
   let openId = null, why = false, whyStat = null; // the number tapped on the open card, explained under it
   let showWhy = false; // set by a tap that opens a breakdown: the card scrolls it into view once, above the pinned row
@@ -385,8 +389,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       return;
     }
     const d = TOWERS[t.kind], st = towerStats(town, t), p = t.path ? PATHS[t.kind][t.path] : null, fk = t.fork && FORKS[t.kind] ? FORKS[t.kind][t.fork] : null;
-    // on a short landscape screen Sell sits in the head, since a row above the pinned price was cut under it (review of
-    // 2026.11.20-15: short-land, mortar-land); CSS shows one of the two, so a turn of the phone needs no repaint
+    // Sell sits in the card's head at every size: a Sell row over the pinned price was cut under it, in landscape
+    // (review of 2026.11.20-15) and then on a phone for a level-20 tower (reviews of 2026.11.21-8 and -9)
     const sellHead = el('button', 'btn small sellhead', 'Sell '); sellHead.id = 'sellTowerHead'; // the coin square is the unit (review of 2026.11.21-2: "Sell 60" had none)
     sellHead.append(el('span', 'coin'), fmt(Math.floor(t.spent * SELL_BACK)));
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
@@ -408,13 +412,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (st.poison || st.rot) line('At level ' + EATS_ARMOR.from, 'Poison eats armor');
     if (st.near) line('Near the vault', 'Up to 3 times the damage');
     if (st.rockets) line('Rockets', st.rockets + ' at once');
-    if (st.boss > 1) { const b = bossWords('{boss}'); line(b[0].toUpperCase() + b.slice(1), st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
+    if (st.boss > 1) { const b = bossWords('{boss}'); line('Against ' + b, st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');
     if (st.splash) line('Blast', blastWord(st.splash), 'splash');
     if (st.slow) line('Slows raiders', Math.round(st.slow * 100) + '%');
     if (st.fire) line('Burning ground', 'slows and hurts');
     if ((fk && fk.bestText) || d.bestText) line('Best against', bossWords((fk && fk.bestText) || d.bestText)); // a fork can change the job
-    if (fk && p) line('Path', p.name); // the card's name is the fork now, so the level-5 path still shows
+    // no Path row after the fork: "Path · Heavy Cannon" was flagged in two reviews (2026.11.21-9, 2026.11.22-1); the model shows it
     card.append(stats);
     if (whyStat === 'dmg') { whyBox.push(explainBox(ex.dmg)); if (ex.poison) whyBox.push(explainBox(ex.poison, { total: 'Poison a second' })); }
     else if (whyStat) whyBox.push(explainBox(ex[whyStat], { extra: { minRange: st.minRange } }));
@@ -456,18 +460,23 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       bar.append(costRow(c));
       row.append(up);
     }
+    // what the buy is short of sits in the card over the pinned bar, never in it, so the bar stays one price and one
+    // button and covers no stat (reviews of 2026.11.21-7 to -9: in landscape the bar took half the card)
     const sh = shortText(c); pathNext = path;
-    const lines = path ? card : bar;
-    if (sh.length) for (const s of sh) lines.append(el('p', soon(s) ? 'uses soon' : 'warn short', s));
+    const lines = card;
+    // the first sentence (how long) and the rest (which building to upgrade) apart: a short landscape screen shows only
+    // the first, so the note stays whole over the pinned price (2026.11.21-10)
+    if (sh.length) for (const s of sh) { const p = el('p', soon(s) ? 'uses soon' : 'warn short'), k = s.indexOf('. ') + 1; if (k > 0) p.append(s.slice(0, k), el('span', 'more', s.slice(k))); else p.textContent = s; lines.append(p); }
     // the kept goods line sits over the pinned bar, not in it, so the bar stays short and the stats stay in view (review
     // of 2026.11.19-9: in landscape the Cannon card's Blast row was cut by its cost row)
     // only while the buy is still short of something: once it can be paid the line says nothing (screenshot review of 2026.11.20-3)
     else if (!canPay(town, c) && keepText(c)) card.append(el('p', 'uses', keepText(c)));
-    const sell = el('button', 'btn small', 'Sell for ' + fmt(Math.floor(t.spent * SELL_BACK)) + ' coins'); sell.id = 'sellTower';
-    sell.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    // Sell sits above the pinned bar, never beside Upgrade under its price (review of 2026.11.19-13)
-    const sr = el('div', 'row sellrow2'); sr.append(sell);
-    if (path) card.append(sr); else { card.append(sr); bar.append(row); card.append(bar); }
+    if (!path) {
+      bar.append(row); card.append(bar);
+      // on a short landscape screen a note that would sit half under the pinned price is left out: the red have in the
+      // price says what is short (smoke: nothing half under the price bar, 2026.11.21-10)
+      if (shortLand()) for (const p of card.querySelectorAll(':scope > p')) { const b = bar.getBoundingClientRect(), r = p.getBoundingClientRect(); if (r.height && r.bottom > b.top + 1) p.hidden = true; }
+    }
   }
 
   // news from the road
@@ -475,6 +484,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
+    game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
     game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
     game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
     game.bus.on('breach', e => {
@@ -740,13 +750,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
     autoBtn.hidden = !T.auto; autoBtn.classList.toggle('dot', D.auto);
     autoBtn.classList.toggle('on', autoOn(game, town, 'towers') || autoOn(game, town, 'research'));
+    armsBtn.hidden = !T.arms;
+    if (T.arms) { const a = town.arms || { t: 0, cd: 0 }, s = a.t > 0 ? clock(a.t) : a.cd > 0 ? clock(a.cd) : ''; setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s; if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0); }
     paintPlace();
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { if (ro) ro.disconnect(); for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
+  return { frame, open, openSpot, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

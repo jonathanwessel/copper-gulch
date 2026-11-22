@@ -80,6 +80,8 @@ export function audit() {
     const mail = s.match(/[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z.]{2,}/i);
     if (mail) problems.push(f + ': an email address');
     if (/\b(192\.168|10\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01]))\.\d{1,3}\b/.test(s)) problems.push(f + ': a LAN address');
+    // LF line endings only: a patch script that wrote CRLF broke source tests in ways that looked like code bugs (2026.11.21-10)
+    if (s.includes('\r')) problems.push(f + ': CRLF line endings (write with newline "\\n")');
   }
 
   // 6. release plumbing: one version everywhere, a cache list with no missing files, icons that exist

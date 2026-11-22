@@ -24,6 +24,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { Town } from './town.js';
 import { STEP } from './clock.js';
 import { isPitSpot } from '../data/towns/index.js';
+import { ARMS } from '../data/arms.js';
 
 /* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
 const WAVES = new WeakMap();
@@ -215,7 +216,8 @@ function spawn(town, kind) {
    do the work. */
 function tally(game, town, by, n) {
   if (!by || !(n > 0)) return;
-  const d = game.dealt || (game.dealt = {}), t = d[town.id] || (d[town.id] = {});
+  // the militia is not a tower: its damage is kept apart (game.armsDealt), so the towers' shares stay the towers'
+  const d = by === 'militia' ? game.armsDealt || (game.armsDealt = {}) : game.dealt || (game.dealt = {}), t = d[town.id] || (d[town.id] = {});
   t[by] = (t[by] || 0) + n;
 }
 /* How much harder a tower kind hits this raider kind (TOWERS[kind].best): by raider kind, then 'boss', then 'armored'. */
@@ -241,6 +243,24 @@ function kill(game, town, f) {
   const coins = wavesOf(town).bounty(town.wave) * FOES[f.kind].bounty * town.mods.factor('income') * town.mods.factor('bounty');
   town.earn(coins, false, 'bounty');
   game.bus.emit('kill', { town: town.id, foe: f.id, kind: f.kind, coins });
+}
+
+/* Where each building's workers stand when the town calls to arms: by the road (lane 0), on the side toward their
+   plot, at the road point nearest it. [{ id, s, at }] for every plot of the board, built or not. */
+const POSTS = new WeakMap();
+export function armsPosts(town) {
+  const b = town.def && town.def.board;
+  if (!b || !b.road) return [];
+  if (POSTS.has(b)) return POSTS.get(b);
+  const road = lanesOf(town)[0], out = [];
+  for (const [id, xz] of Object.entries(b.plots || {})) {
+    let best = 0, bd = Infinity;
+    for (let s = 0; s <= road.length; s += .05) { const d = dist(pointAt(road, s), xz); if (d < bd) { bd = d; best = s; } }
+    const p = pointAt(road, best), k = bd > 1e-6 ? Math.min(ARMS.side, bd * .5) / bd : 0;
+    out.push({ id, s: best, at: [p[0] + (xz[0] - p[0]) * k, p[1] + (xz[1] - p[1]) * k] });
+  }
+  POSTS.set(b, out);
+  return out;
 }
 
 /* Is the town away from the player? Out of play, or any town while time away is caught up. */
@@ -344,6 +364,20 @@ export function fight(game, town, dt) {
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
     }
   }
+  // Call to arms (src/core/arms.js): every built building's workers shoot the raider nearest the vault in their reach
+  if (town.arms && town.arms.t > 1e-9) {
+    const a = town.arms; a.clock = (a.clock || 0) + dt;
+    const base = wavesOf(town).hp(Math.max(1, town.wave)) * town.mods.factor('foeHp');
+    for (; a.clock >= 1 / ARMS.rate; a.clock -= 1 / ARMS.rate) for (const p of armsPosts(town)) {
+      const L = town.level(p.id); if (!(L > 0)) continue;
+      let target = null;
+      // a boss in reach first (they gang up on the war wagon), else the raider nearest the vault
+      for (const f of ws.foes) if (f.hp > 0 && !FOES[f.kind].air && dist(p.at, pos.get(f)) <= ARMS.reach && (!target || (!!FOES[f.kind].boss - !!FOES[target.kind].boss || f.s - target.s) > 0)) target = f;
+      if (!target) continue;
+      hurt(game, town, target, base * ARMS.hit * Math.min(ARMS.most, (L / 10) ** ARMS.grow), false, 'militia');
+      game.bus.emit('shot', { town: town.id, spot: -1, kind: 'militia', post: p.id, foe: target.id, from: p.at, to: pos.get(target) });
+    }
+  }
   // the fallen pay their bounty (a fever-carrier passes its poison on)
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);
@@ -411,6 +445,7 @@ export function waveRun(town) {
   if (runs.has(key)) return runs.get(key);
   const c = Town.fromJSON(town.toJSON(), town.def);
   c.vault = { hp: 1e15, max: 1e15 };
+  c.arms = { t: 0, cd: 0, clock: 0 }; // a run is kept and replayed for this wave's towers: the militia never counts in it
   Object.assign(c.waves, { foes: [], shells: [], fires: [], age: 0, timer: 0, bossLeaked: false });
   for (const t of c.towers) t.cd = 0;
   const run = { ev: [], age: 0, dealt: {} };

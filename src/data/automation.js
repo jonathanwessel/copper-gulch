@@ -9,5 +9,7 @@ export const AUTO = {
   share: .5,
   towerEvery: 180,
   faster: .85,
-  opens: { towers: 'war', research: 'university', retry: 'war' },
+  opens: { towers: 'war', research: 'university', retry: 'war', arms: 'war' }, // arms needs the War Office's Armory too (src/data/arms.js)
+  armsVault: .5, // Call to arms by Auto comes out when the vault is below this share of its strength,
+  armsBoss: { along: .4, hp: .3 }, // or when the boss is past this share of its road with more than this share of its health
 };

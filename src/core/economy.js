@@ -98,6 +98,8 @@ export const WORKSHOP = { spare: true };
 export function produce(town, dt) {
   town.starved = {};
   const ran = town.ran ||= {}, k = 1 - Math.exp(-dt / RAN_SECONDS);
+  // the workers are out fighting (Call to arms, src/core/arms.js): nothing is made
+  if (town.arms && town.arms.t > 1e-9) { for (const id of Object.keys(ran)) ran[id] -= ran[id] * k; return; }
   const grid = buildingsOf(town).some(onGrid) ? gridOf(town).share : 1, keep = WORKSHOP.spare ? town.keepUse || {} : {};
   for (const id of buildingsOf(town)) {
     const b = BUILDINGS[id], want = output(town, id) * dt;

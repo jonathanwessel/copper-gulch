@@ -46,7 +46,9 @@ export const ceiling = game => Object.entries(GOODS).reduce((a, [, x]) => {
 /* The idle player sets the switches once: every open one on in every town, every foreman working, and Resume waves
    where a town holds (a town that lost its boss is left to Keep trying the boss). Returns the switches it turned on. */
 export function leave(game) {
-  const on = KINDS.filter(k => autoOpen(game, k));
+  // Auto Call to arms trades goods for boss waves, not an income tool, so the income run leaves it Off (--arms turns it on;
+  // 2026.11.21-10: on seed 1 it won 38 boss waves against 32 and lost none, and earned 1.8% less over the 12 hours)
+  const on = KINDS.filter(k => autoOpen(game, k) && (k !== 'arms' || process.argv.includes('--arms')));
   for (const t of Object.values(game.towns)) {
     for (const k of on) setAuto(game, t, k, true);
     setForemen(t, true);

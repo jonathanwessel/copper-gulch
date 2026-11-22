@@ -61,7 +61,7 @@ test('only one side button has a dot at a time', () => {
 
 test('the price on a card sits over Upgrade alone', () => {
   const play = read('src/ui/play.js');
-  assert.match(play, /card\.append\(sr\); bar\.append\(row\); card\.append\(bar\)/); // the tower's Sell leaves the pinned bar
+  assert.match(play, /if \(!path\) \{\s*bar\.append\(row\); card\.append\(bar\);/); // the pinned bar is one price and Upgrade: Sell is in the card's head (2026.11.21-10), and smoke checks nothing sits under the bar
   assert.match(play, /kr\.append\(sell\)/); // the building's Sell switch sits under it, beside Keep for towers
   assert.ok(!play.includes("'Either path'"), 'the path price has its own row (review of 2026.11.20-13)');
   assert.match(read('src/render/scene.js'), /sky\.position\.set\(cam\.position\.x, 0, cam\.position\.z\)/);

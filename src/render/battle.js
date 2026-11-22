@@ -103,6 +103,12 @@ export class Battle {
   unpick(obj) { const s = new Set(); obj.traverse(o => s.add(o)); this.board.pickables = this.board.pickables.filter(o => !s.has(o)); }
 
   shot(e) {
+    if (e.kind === 'militia') { // a worker's rifle: a quick tracer from beside the road
+      if (this.fx.length > 120) return;
+      const u = this.foes.get(e.foe), to = u ? new THREE.Vector3(u.obj.position.x, .35, u.obj.position.z) : new THREE.Vector3(e.to[0], .35, e.to[1]);
+      this.add('bolt', { from: new THREE.Vector3(e.from[0], .32, e.from[1]), to, life: .12, arc: 0, aim: true });
+      return;
+    }
     const tw = this.towers.get(e.spot); if (!tw) return;
     const [fx, fz] = e.from, [tx, tz] = e.to;
     tw.aim = Math.atan2(-(tz - fz), tx - fx);

@@ -240,17 +240,15 @@ html.flat .tag { position: static; transform: none !important; }
 @media (orientation: portrait), (min-height: 501px) {
   .play .card { max-height: calc(100% - var(--hudtop, 10px) - 130px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
 }
-.cardhead > .sellhead { display: none; }
+.cardhead > .sellhead { display: inline-flex; white-space: nowrap; flex: none; }
 .sellhead { align-items: center; }
 .sellhead .coin { width: 10px; height: 10px; margin: 0 5px 0 6px; }
-@media (orientation: landscape) and (max-height: 500px) { .cardhead > .sellhead { display: inline-flex; white-space: nowrap; } }
 .cardhead { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -12px 0; padding: 12px 12px 4px; background: var(--panel); z-index: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
   .hudleft > .goal { grid-column: 1 / -1; }
-  .card .sellrow2 { display: none; } /* Sell is in the card's head here */
   .hudleft > .place { grid-column: 1 / -1; } /* its own row, so the names never squeeze the wave chip */
   .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }
@@ -276,6 +274,7 @@ html.flat .tag { position: static; transform: none !important; }
 .vaultbtn { display: inline-flex; flex-direction: row; justify-content: center; align-items: center; gap: 4px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
+.card > p.uses, .card > p.warn { font-size: .85rem; line-height: 1.3; } /* a tower card's short-of-goods note stays whole over the pinned price (2026.11.21-10: three lines on a Rocket Battery card ran under it) */
 .card .row { justify-content: stretch; }
 /* the Build or Upgrade row never scrolls out of view: it sticks to the card's bottom edge while the card scrolls */
 /* its top edge shows it is pinned over the lines that scroll under it (review of 2026.11.19-8: the card's last line looked cut) */
@@ -304,7 +303,7 @@ html.flat .tag { position: static; transform: none !important; }
   .card .explain .statrow { min-height: 30px; }
   /* a tower's tappable stats two to a row, the name small over the value, so the Sell button under them shows above
      the pinned Upgrade bar (review of 2026.11.20-11: Sell was a sliver under the cost bar) */
-  .card > .explain:not(.why) { grid-template-columns: 1fr 1fr; column-gap: 8px; }
+  .card > .explain:not(.why) { grid-template-columns: auto auto auto; justify-content: space-between; column-gap: 6px; } /* three stats to a row, each column as wide as its words need, so the stats sit over the pinned price (2026.11.21-10) */
   .card > .explain:not(.why) > div { grid-column: 1 / -1; }
   .card > .explain:not(.why) .statrow { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 34px; margin: 0; padding: 1px 4px; }
   .card > .explain:not(.why) .statrow > span { font-size: .72rem; color: var(--muted); line-height: 1.1; }
@@ -321,10 +320,12 @@ html.flat .tag { position: static; transform: none !important; }
   .card .row > .buy { min-height: 38px; padding-block: 4px; font-size: 1.1rem; }
   .card .row > .btn.small { min-height: 34px; }
   .card > p.uses { font-size: .82rem; line-height: 1.25; }
+  .card > p > .more { display: none; } /* only how long, not which building: the red have in the price bar says what is short */
+  .card > p:is(.short, .soon) ~ p:is(.short, .soon) { display: none; } /* and only the first good that is short, for the same reason */
   /* a wider card for the path choice, the two paths side by side, so both show without scrolling (review of
      2026.11.20-3: Shrapnel was below the fold while most of the screen was map). Every other card keeps to 46%, so the
      map stays the bigger half (review of 2026.11.20-12: landscape cards covered the right half) */
-  .card:has(> .pathbar) { width: min(54%, 480px); }
+  .card:has(> .pathbar), .card:has(> .cardhead > .sellhead) { width: min(54%, 480px); } /* a tower card too: its name and three stats a row fit on one line each (2026.11.21-10) */
   .card > .pathbar { grid-template-columns: 1fr 1fr; }
   .card > .pathbar > .pathhead { grid-column: 1 / -1; }
   .card > .pathbar > .option { flex-direction: column; align-items: stretch; gap: 4px; }

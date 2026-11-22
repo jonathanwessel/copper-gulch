@@ -34,7 +34,7 @@ export async function uncovered(page) {
     const buy = document.querySelector('#card #buy'), card = document.getElementById('card');
     // a card at the bottom opens above the goods strip, so the counts stay in view (review of 2026.11.19-4)
     const strip = document.getElementById('goodsStrip');
-    if (vis(card) && vis(strip) && hit(R(card), R(strip))) bad.push('the card covers the goods strip');
+    if (vis(card) && vis(strip) && hit(R(card), R(strip))) { const c = R(card), g = R(strip), u = document.querySelector('.play'); bad.push('the card covers the goods strip (card ' + Math.round(c.top) + '-' + Math.round(c.bottom) + ', strip ' + Math.round(g.top) + '-' + Math.round(g.bottom) + ', --striph ' + (u ? getComputedStyle(u).getPropertyValue('--striph') : '?') + ', chips ' + strip.children.length + ', ' + document.querySelector('#card h2').textContent + ')'); }
     for (const p of panes) if (p.id !== 'card' && vis(strip) && hit(R(p), R(strip))) bad.push('a sheet covers the goods strip'); // (review of 2026.11.19-7)
     // no level tag shows cut by a card, a sheet, the strip or the top bar
     { const boxes = [...panes, strip, ...document.querySelectorAll('.hud .hudleft, .hud .hudright')].filter(vis).map(R);
@@ -229,6 +229,26 @@ async function run() {
       }, kind);
       if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
       }
+      // nothing half under a tower card's price bar (reviews of 2026.11.21-7 to -9): Sell is in the head and whole, and
+      // every stat row sits above the pinned bar, on level-20 cards short of goods (the tallest) and a plain one
+      const under = await page.evaluate(async () => {
+        const t = CG.game.town, keep = JSON.stringify(t.towers), goods = JSON.stringify(t.goods), wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
+        CG.town.pause('smoke', true);
+        for (const [kind, level, fork] of [['cannon', 20, 'b'], ['cannon', 20, 'a'], ['still', 20, 'a'], ['crossbow', 3, null]]) {
+          t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level, path: level >= 5 ? 'a' : null, fork, cd: 0, spent: 5000, pulses: 0 }]);
+          for (const g of Object.keys(t.goods)) t.goods[g] = 0;
+          CG.play.close(); CG.play.openSpot(2); await wait(250);
+          const card = document.getElementById('card'), bar = card.querySelector(':scope > .buybar:not(.pathbar)'); card.scrollTop = 0; await wait(50);
+          if (!bar) { out.push(kind + level + ': no price bar'); continue; }
+          const b = bar.getBoundingClientRect(), sell = document.getElementById('sellTowerHead'), sr = sell && sell.getBoundingClientRect();
+          if (!sr || !sr.width || sr.bottom > b.top || sr.top < card.getBoundingClientRect().top - 1) out.push(kind + level + ': Sell not whole in the head');
+          for (const e of card.querySelectorAll('.statrow, .statline')) { const r = e.getBoundingClientRect(); if (r.height && r.bottom > b.top + 1) out.push(kind + level + ': "' + e.textContent.slice(0, 24) + '" under the price bar'); }
+          for (const e of card.querySelectorAll(':scope > p')) { const r = e.getBoundingClientRect(); if (r.height && r.top < b.top - 1 && r.bottom > b.top + 1) out.push(kind + level + ': "' + e.textContent.slice(0, 24) + '" half under the price bar'); }
+        }
+        CG.play.close(); t.towers = JSON.parse(keep); const was = JSON.parse(goods); for (const g of Object.keys(t.goods)) t.goods[g] = was[g] || 0; CG.town.pause('smoke', false);
+        return out;
+      });
+      bad.push(...under);
       // Call now is never locked (owner rule): with the whole wait still ahead it is lit and starts the wave, paying for the wait
       const callGate = await page.evaluate(async () => {
         const t = CG.game.town, ws = t.waves, keep = JSON.stringify(ws), bw = t.bestWave, b = document.getElementById('callWave');
@@ -1187,7 +1207,7 @@ async function run() {
       if (!await waitFor(page, () => { const b = document.getElementById('autoBtn'); return b && !b.hidden && b.classList.contains('dot'); }, 3000)) bad.push('Auto did not come out with a dot');
       await page.evaluate(() => document.getElementById('autoBtn').click()); await sleep(500);
       const sh = await page.evaluate(() => ({ rows: [...document.querySelectorAll('[data-auto]')].map(b => b.dataset.auto + (b.disabled ? '-' : '+')).join(), text: (document.querySelector('.sheet') || document.body).textContent, dot: document.getElementById('autoBtn').classList.contains('dot') }));
-      if (sh.rows !== 'foremen-,towers+,retry+,research-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
+      if (sh.rows !== 'foremen-,towers+,retry+,research-,arms-' || sh.dot || !/Build the University at the Capital first/.test(sh.text)) bad.push('the Automation sheet is wrong (' + JSON.stringify({ ...sh, text: sh.text.slice(0, 200) }) + ')');
       bad.push(...(await check(page)).map(b => 'automation: ' + b));
       bad.push(...(await uncovered(page)).map(b => 'automation: ' + b));
       const before = await page.evaluate(() => CG.game.town.towers[0].level);
@@ -1200,6 +1220,33 @@ async function run() {
       await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
       if (!await waitFor(page, () => /On hold until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
       bad.push(...(await check(page)).map(b => 'retry: ' + b));
+      // Call to arms (M6a): the War Office's Armory brings out To arms; its sheet says what a call costs; a call sends the
+      // workers out (drawn on the board), stops the buildings, and the button shows the time in a fixed-width cell
+      if (await page.evaluate(() => !document.getElementById('armsBtn').hidden)) bad.push('To arms showed before the Armory');
+      const arms = await page.evaluate(async () => {
+        const g = CG.game, t = g.town, wait = ms => new Promise(r => setTimeout(r, ms)), T = await import('./src/core/tree.js'), C = await import('./src/core/capital.js');
+        CG.play.sheets.close(); C.capitalOf(g).influence = 1e4; for (let i = 0; i < 3; i++) T.buyNode(g, 'war');
+        Object.assign(t.waves, { hold: false, autoHold: false, phase: 'break', timer: 0 }); t.lost = null; t.vault.hp = t.vault.max;
+        for (let i = 0; i < 30 && document.getElementById('armsBtn').hidden; i++) await wait(100);
+        const btn = document.getElementById('armsBtn'), out = { shown: !btn.hidden };
+        if (!out.shown) return out;
+        const w0 = btn.getBoundingClientRect().width;
+        btn.click(); await wait(400);
+        const sh = document.getElementById('sheet'); out.sheet = !sh.hidden && sh.dataset.id === 'arms' && /Workers from/.test(sh.textContent) && /Goods lost/.test(sh.textContent) && /About [0-9.]+[KMB]? coins/.test(sh.textContent);
+        for (let i = 0; i < 40 && t.waves.phase !== 'wave'; i++) await wait(100);
+        const go = document.getElementById('callArms'); out.lit = !!go && !go.disabled; if (go) go.click(); await wait(600);
+        out.out = t.arms.t > 0 && /fighting/.test(sh.textContent) && go.disabled;
+        out.drawn = CG.town.board.militia.out > 0 && CG.town.board.militia.out === 2 * Object.keys(t.def.board.plots).filter(id => t.level(id) > 0).length;
+        out.pick = !CG.town.board.pickables.some(o => o.parent && o.parent.name === 'militia');
+        CG.play.sheets.close(); await wait(400);
+        const left = btn.querySelector('.btime'); out.timer = !!left && !left.hidden && /^[0-9]:[0-5][0-9]$/.test(left.textContent);
+        out.width = Math.abs(btn.getBoundingClientRect().width - w0) < 1;
+        const made = JSON.stringify(t.made); await wait(600); out.stopped = JSON.stringify(t.made) === made;
+        return out;
+      });
+      for (const [k, v] of Object.entries(arms)) if (!v) bad.push('Call to arms: not ' + k + ' ' + JSON.stringify(arms));
+      bad.push(...(await check(page)).map(b => 'arms: ' + b));
+      bad.push(...(await uncovered(page)).map(b => 'arms: ' + b));
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

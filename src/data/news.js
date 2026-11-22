@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-1',
+    lines: [
+      'Buy the Armory at the War Office and every town gets a To arms button.',
+      'Tap it to send your workers out to fight on the road for 40 sec. Their buildings make nothing while they fight.',
+      'Your workers shoot the boss first. You can call them again 5 min after.',
+      'Sell is now at the top of each tower card.',
+    ],
+  },
+  {
     v: '2026.11.21-9',
     lines: [
       'Tap a level 19 Cannon to pick Rocket Battery or Big Shell.',
