@@ -243,7 +243,7 @@ export const GOAL_SAVE_MINUTES = 6;
 export function play(seed, minutes = MINUTES, strategy = 'active', watch = null, { game = null, until = null, save = null, sign = true, signAt = SIGN_AT, tick = null, goals = false } = {}) {
   const S = STRATEGIES[strategy], g = game || newGame('balance-' + seed, 'gulch'), t = g.town, mine = e => e.town === t.id, offs = [];
   const on = (name, fn) => offs.push(g.bus.on(name, fn));
-  const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, leakAt: -99, bump: 0, reach: {}, news: [] };
+  const r = { seed, strategy, offer: null, signed: null, regain: null, life: {}, foremen: [], research: {}, firstResearch: null, firstTower: null, wave10: null, wave20: null, breaches: [], waveAt: {}, bought: {}, firstBuy: {}, top: [], dealt: {}, late: {}, leakAt: -99, bump: 0, reach: {}, news: [] };
   on('wave:start', e => { if (mine(e)) g.dealt = {}; });
   // how long the last wave lasted, as a share of the wave pace (Call now skips what is left of it)
   r.lastAge = 1; r.calls = 0;
@@ -258,6 +258,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     if (!r.signed) r.reach[e.wave] ??= t.t; // the first climb, to compare the charter's regain with
     const d = (g.dealt || {})[t.id] || {}, best = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
     if (best && t.t <= 3600) { r.top.push([e.wave, best[0], Object.keys(d).length]); for (const [k, n] of Object.entries(d)) r.dealt[k] = (r.dealt[k] || 0) + n; }
+    else for (const [k, n] of Object.entries(d)) r.late[k] = (r.late[k] || 0) + n; // after the town's first hour
   });
   on('breach', e => { if (mine(e)) { r.breaches.push(e.wave); (r.why ||= []).push(e.why); } });
   on('research:new', e => { if (mine(e) && !r.signed) r.news.push(t.t); });
