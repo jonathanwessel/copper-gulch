@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-5',
+    lines: [
+      'Iron Ridge has three new research items. Telescope Sights shows up at wave 27, Steam Hammers at wave 32 and Bounty Office at wave 37.',
+      'Each one has a good side and a bad side.',
+    ],
+  },
+  {
     v: '2026.11.23-4',
     lines: [
       'The Capital now costs 60K coins, not 150K.',

@@ -49,6 +49,7 @@ export function record(seed = SEED, minutes = MINUTES) {
       ev('town:found', e => 'founded ' + e.town); ev('research:open', e => 'research opens' + (e.town ? ' in ' + e.town : ''));
       ev('orders:open', e => 'orders open' + (e.town ? ' in ' + e.town : '')); ev('institution:found', e => 'institution ' + e.id);
       ev('capital:found', () => 'Capital founded'); ev('outpost:won', e => 'outpost won ' + (e.town || ''));
+      ev('research:new', e => 'new research ' + (e.id || '') + (e.town ? ' in ' + e.town : '')); // its toast names it (clarity fix 3b)
       ev('charter:offer', () => 'charter offered'); ev('first:sale', () => 'first sale'); ev('route:open', e => 'route ' + (e.from || '') + '-' + (e.to || ''));
       g.bus.on('goal:done', () => { lastNew = Math.max(lastNew, g.stats.steps * .25); });
       g.bus.on('wave:start', e => { if (e.boss && !bossSeen.has(e.town) && e.town === g.active) { bossSeen.add(e.town); queue.push(['boss wave ' + e.wave + ' in ' + e.town, 'boss']); } });

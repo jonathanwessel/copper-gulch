@@ -102,7 +102,7 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 - **Iron Ridge** (set 2026-11-17, tuned by the Ridge bots)
   - Buildings: Quarry (stone, built at the start), Iron Mine (Quarry 3), Coal Pit (Quarry 5), Blast Furnace (Iron Mine 5 and Coal Pit 3), Steel Mill (Blast Furnace 3, 1200 coins), Boiler Shop (Steel Mill 3, 4000 coins), Rolling Mill (Steel Mill 5), Rolling Mill 3000 coins (was 12K), Locomotive Works (Rolling Mill 5, Boiler Shop 5, 15K coins; was Rolling Mill 10 and 80K, and the bots never reached it in 2.5 hours). The Ridge's goal strip leads through the chain to the Locomotive Works and sends the player to the Gulch for a Toolsmith. The Boiler Shop comes early so the bricks route from the Gulch matters in the Ridge's first hour (it was Steel Mill 5 and 15K, and the bots never reached it).
   - Towers pay with Ridge goods: Crossbow stone, Cannon iron ore, Frost Lens coal and stone, Still iron ore and coal, Mortar pig iron and stone.
-  - Research: Steam Drills, Hot Blast, Iron Plating, Rifled Barrels, Railroad Rewards, Freight Depot, and Bessemer Converter (Steel Mill +60%, one more coal per steel: the trade-off). It opens with the Blast Furnace.
+  - Research: Steam Drills, Hot Blast, Iron Plating, Rifled Barrels, Railroad Rewards, Freight Depot, and Bessemer Converter (Steel Mill +60%, one more coal per steel: the trade-off). It opens with the Blast Furnace. Three more show up as the Ridge climbs toward the Capital, each with a price: Telescope Sights at wave 27 (towers reach 10% farther, fire 15% slower, 2 levels), Steam Hammers at wave 32 (buildings work 15% faster, each level costs 15% more, 3 levels) and Bounty Office at wave 37 (raiders drop 40% more coins and have 10% more health, 2 levels). The numbers come from runs with each item on and off: at 15% farther and 10% slower the Sights let the bots open Silver Falls 0.6-1.2 h sooner, under its window; at these numbers they change nothing in the Falls time, so the item is a trade, not a free gain. Bounty Office first cost 10% of sale prices, which Auto-research then kept raising in an idle empire (idle sales fell to 89% of the first hour). They fill the hour the bots spent with nothing new between the Ridge's routes and the Capital (clarity fix 3b part 1).
   - Raw: iron ore, coal, stone.
   - Intermediate: pig iron (2 iron + coal), steel (pig iron + coal).
   - Finished: rails (2 steel), boilers (steel + 2 bricks <- Gulch), locomotives (boiler + 2 rails + tools <- Gulch).
@@ -190,12 +190,12 @@ Goods go from raw to intermediate to finished. "<-" marks a good shipped in from
 ## Progression: three layers
 | Layer | Currency | Buys | Reset by |
 |---|---|---|---|
-| Town | the shared purse (one for the empire) | buildings, towers, town research (6 to 8 items per town), foremen | that town's charter, which pays deeds |
+| Town | the shared purse (one for the empire) | buildings, towers, town research (6 to 8 items per town, plus up to 3 that show up later), foremen | that town's charter, which pays deeds |
 | Empire | Influence, plus coins from the one purse (the treasury and its tithe were dropped with the purse, 2026-11-18) | founding each institution once with coins; its levels are nodes in one Empire tree; laws in pairs, locked until the Convention | the Convention, which pays Legacy |
 | Perks | deeds and Legacy | deed perks and Legacy perks, on one Perks screen | never |
 
 ### Town research
-- Each town has 6 to 8 research items. Each has levels, a coin price that triples per level, and a wait that doubles per level (from 20 s). One item runs at a time. Research keeps going while you are away.
+- Each town has 6 to 8 research items from the start, plus up to 3 that show up when its best wave reaches a mark (the Gulch's Powder Kegs at 26, the Ridge's three from 27 to 37), so something new opens in the middle of a long climb; a save already past the mark gets them at once. Each has levels, a coin price that triples per level, and a wait that doubles per level (from 20 s). One item runs at a time. Research keeps going while you are away.
 - Research opens in Copper Gulch when the Sawmill is built (about 4 minutes in), with a Research button beside Goods.
 - Every bonus is a named source on a stat, so the explain view lists it ("Sharp Saws research").
 - Copper Gulch:

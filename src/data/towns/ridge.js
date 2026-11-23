@@ -20,7 +20,7 @@ export const RIDGE = {
   // 2026-11-18, when Deep Freeze stopped holding raiders for good and a seed reached wave 10 in 6.6 min)
   waves: { pace: 66, rushMore: 4 },
   boss: 'train',                  // wave 10, 20... bring the armored train
-  research: ['drills', 'hotblast', 'plating', 'rifling', 'rewards', 'depot', 'bessemer'], // src/data/research.js
+  research: ['drills', 'hotblast', 'plating', 'rifling', 'rewards', 'depot', 'bessemer', 'sights', 'hammers', 'bounties'], // src/data/research.js
   researchOpens: 'furnace',
   // founding it (src/core/empire.js): the Gulch's best wave and the coins the Gulch pays
   found: { from: 'gulch', wave: 20, coins: 15000, shows: 15 },

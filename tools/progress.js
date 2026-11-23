@@ -64,7 +64,7 @@ function rec(g) {
   let r = REC.get(g);
   if (r) return r;
   const now = () => g.stats.steps * .25;
-  r = { hours: [], unlocks: [], charters: [], stall: { longest: 0 }, best: {}, reach: {}, openAt: {}, deeds: {}, lastNews: 0, lastCan: 0, lastClimb: 0, lastDeed: -1e9, tabs: '', wait: { from: 0 } };
+  r = { hours: [], waves: [], unlocks: [], charters: [], stall: { longest: 0 }, best: {}, reach: {}, openAt: {}, deeds: {}, lastNews: 0, lastCan: 0, lastClimb: 0, lastDeed: -1e9, tabs: '', wait: { from: 0 } };
   REC.set(g, r);
   for (const ev of UNLOCKS) g.bus.on(ev, e => { r.unlocks.push([Math.round(now()), ev + (e && (e.town || e.id || e.kind) ? ' ' + (e.town || e.id || e.kind) + (e.kind && e.town ? ' ' + e.kind : '') : '')]); r.lastNews = now(); if (ev === 'town:open' && e.town) r.openAt[e.town] ??= now(); });
   for (const ev of NEWS) g.bus.on(ev, () => { r.lastNews = now(); });
@@ -87,6 +87,7 @@ function watch(g) {
   }
   for (const c of r.charters) if (c.back === null && g.towns[c.town] && (g.towns[c.town].bestWave || 0) >= c.wave) c.back = at - c.at;
   if (climbed) r.lastClimb = at;
+  if (at % 300 === 0) r.waves.push([at, Object.fromEntries(Object.values(g.towns).filter(x => !isOutpost(x)).map(x => [x.id, x.bestWave || 0]))]);
   const tc = townCan(g, t), ec = empireCan(g), pick = perksToPick(g) > 0, pc = pick || at - r.lastDeed < 600;
   H.n++; if (tc) H.town++; if (ec) H.empire++; if (pc) H.perks++;
   if (tc || ec || pick) r.lastCan = at;
@@ -116,9 +117,17 @@ async function runOne(who, seed) {
     g = empire(seed, who, { capital: true, falls: true }).game;
   }
   const r = rec(g);
-  return { who, seed, end: g.stats.steps * .25, hours: r.hours, unlocks: r.unlocks, charters: r.charters, stall: r.stall, towns: Object.fromEntries(Object.values(g.towns).map(x => [x.id, { best: x.bestWave, record: x.record || 0, won: !!x.won }])), capital: capitalOpen(g) };
+  return { who, seed, end: g.stats.steps * .25, hours: r.hours, waves: r.waves, unlocks: r.unlocks, charters: r.charters, stall: r.stall, towns: Object.fromEntries(Object.values(g.towns).map(x => [x.id, { best: x.bestWave, record: x.record || 0, won: !!x.won }])), capital: capitalOpen(g) };
 }
 
+/* The longest gap between unlocks up to the Capital's founding (before = true) or after it (the gate of clarity fix
+   3b: 45 minutes). */
+export function stretch(r, before) {
+  const cap = (r.unlocks.find(x => x[1] === 'capital:found') || [Infinity])[0];
+  let p = 0, w = 0;
+  for (const [t] of r.unlocks) { if (before ? t <= cap : p >= cap) w = Math.max(w, t - p); p = t; }
+  return before || cap < Infinity ? w : null;
+}
 const mm = s => s == null ? '-' : s >= 3600 ? (s / 3600).toFixed(1) + ' h' : (s / 60).toFixed(1) + ' min';
 const med = a => { const b = a.filter(x => x != null && Number.isFinite(x)).sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : null; };
 export function report(runs) {
@@ -132,12 +141,12 @@ export function report(runs) {
     lines.push('| ' + w + ' | ' + Array.from({ length: maxH }, (_, h) => { const v = rs.map(r => r.hours[h] && r.hours[h].n > 60 ? r.hours[h].wait : null); const m = med(v), x = Math.max(...v.filter(y => y != null)); return m == null ? '' : mm(m) + (x > m ? ' (' + mm(x) + ')' : ''); }).join(' | ') + ' |');
   }
   lines.push('', '## Time between unlocks (median gap, longest gap and where it ended)');
-  lines.push('| bot | seed | unlocks | median gap | longest gap | ended by |');
-  lines.push('|---|---|---|---|---|---|');
+  lines.push('| bot | seed | unlocks | median gap | longest gap | ended by | longest to the Capital | longest after it |');
+  lines.push('|---|---|---|---|---|---|---|---|');
   for (const r of runs) {
     const u = r.unlocks, gaps = u.map((x, i) => [x[0] - (i ? u[i - 1][0] : 0), x]);
     const long = gaps.slice().sort((a, b) => b[0] - a[0])[0] || [null, ['-', '-']];
-    lines.push(`| ${r.who} | ${r.seed} | ${u.length} | ${mm(med(gaps.map(x => x[0])))} | ${mm(long[0])} from ${mm(long[1][0] - long[0])} | ${long[1][1]} |`);
+    lines.push(`| ${r.who} | ${r.seed} | ${u.length} | ${mm(med(gaps.map(x => x[0])))} | ${mm(long[0])} from ${mm(long[1][0] - long[0])} | ${long[1][1]} | ${mm(stretch(r, true))} | ${mm(stretch(r, false))} |`);
   }
   lines.push('', '## Where each bot stalls (no best wave climbs and nothing unlocks)');
   lines.push('| bot | seed | longest stall | from | in | best waves then | end of run |');

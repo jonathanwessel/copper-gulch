@@ -152,8 +152,14 @@ export function explainerRules() {
   for (const f of requiredFeatures()) if (!covered.has(f)) p.push('feature ' + f + ' has no explainer (src/data/explainers.js)');
   for (const [k, t] of Object.entries(TOWERS)) for (const x of [t.name, t.about, ...Object.values(PATHS[k] || {}).flatMap(q => [q.name, q.about])]) if (/[:;]/.test(x || '')) p.push('tower text for ' + k + ' uses a colon or semicolon (writing rule)');
   for (const [k, r] of Object.entries(RESEARCH)) for (const x of [r.name, r.about, r.worse]) if (/[:;]/.test(x || '')) p.push('research text for ' + k + ' uses a colon or semicolon (writing rule)');
-  // every town's research items exist, and each town lists 6 to 8 of them (GDD.md, Town research)
-  for (const id of TOWN_ORDER.filter(id => TOWNS[id].kind !== 'outpost')) { const list = TOWNS[id].research || []; if (list.length < 6 || list.length > 8) p.push(id + ' has ' + list.length + ' research items (want 6 to 8)'); for (const r of list) if (!RESEARCH[r]) p.push(id + ' lists unknown research ' + r); }
+  // every town's research items exist, and each town lists 6 to 8 from the start plus at most 3 that show up at a best
+  // wave (GDD.md, Town research; the late ones came with clarity fix 3b part 1)
+  for (const id of TOWN_ORDER.filter(id => TOWNS[id].kind !== 'outpost')) {
+    const list = TOWNS[id].research || [], late = list.filter(r => RESEARCH[r] && RESEARCH[r].opens), first = list.length - late.length;
+    if (first < 6 || first > 8) p.push(id + ' has ' + first + ' research items from the start (want 6 to 8)');
+    if (late.length > 3) p.push(id + ' has ' + late.length + ' research items that show up later (want at most 3)');
+    for (const r of list) if (!RESEARCH[r]) p.push(id + ' lists unknown research ' + r);
+  }
   return p;
 }
 

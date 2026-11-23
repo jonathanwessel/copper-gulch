@@ -85,6 +85,29 @@ export const RESEARCH = {
     effects: [{ stat: 'prod:steelmill', per: .6 }],
     downside: [{ stat: 'use:steelmill:coal', per: 1 }],
   },
+  // Iron Ridge, late: they show up as the Ridge climbs toward the Capital (clarity fix 3b part 1, PLAN.md M6a: the
+  // careful bots went 54-73 minutes with nothing new between the Ridge's routes and the Capital, at waves 21-39)
+  sights: {
+    name: 'Telescope Sights', town: 'ridge', max: 2, cost: 6000, opens: 27,
+    about: 'Every tower reaches 10% farther.',
+    worse: 'They fire 15% slower.',
+    effects: [{ stat: 'towerRange', per: .1 }],
+    downside: [{ stat: 'towerRate', per: -.15 }],
+  },
+  hammers: {
+    name: 'Steam Hammers', town: 'ridge', max: 3, cost: 10000, opens: 32,
+    about: 'Every building here works 15% faster.',
+    worse: 'Each building level costs 15% more.',
+    effects: [{ stat: 'prod', per: .15 }],
+    downside: [{ stat: 'cost:build', per: .15 }],
+  },
+  bounties: {
+    name: 'Bounty Office', town: 'ridge', max: 2, cost: 15000, opens: 37,
+    about: 'Raiders drop 40% more coins.',
+    worse: 'Raiders have 10% more health.',
+    effects: [{ stat: 'bounty', per: .4 }],
+    downside: [{ stat: 'foeHp', per: .1 }],
+  },
   // Silver Falls
   sieves: {
     name: 'Sand Sieves', town: 'falls', max: 5, cost: 1500,

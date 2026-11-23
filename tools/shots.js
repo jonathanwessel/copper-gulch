@@ -239,7 +239,9 @@ const RIDGE = [
   ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
   ['ridge-income', () => { CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
   // the Capital's save on the strip once the Ridge has beaten wave 30, ahead of the Ridge's own goals (clarity fix 3)
-  ['capital-save', () => { CG.play.sheets.close(); const R = CG.game.towns.ridge; window.__rb = R.bestWave; R.bestWave = Math.max(R.bestWave, 30); CG.game.town.coins = 21500; }],
+  // the Ridge's late research, shown as it climbs toward the Capital (clarity fix 3b part 1); its best wave goes back after
+  ['ridge-research', () => { CG.play.sheets.close(); const t = CG.game.town; window.__lr = t.bestWave; t.bestWave = Math.max(t.bestWave, 37); t.flags['open:research'] = true; t.coins = Math.max(t.coins, 20000); t.lab = null; setTimeout(() => { CG.play.openResearch(); setTimeout(() => { const b = document.querySelector('[data-research="sights"]'); if (b) b.scrollIntoView({ block: 'start' }); }, 200); }, 400); }],
+  ['capital-save', () => { CG.play.sheets.close(); const R = CG.game.towns.ridge; if (window.__lr != null) { R.bestWave = window.__lr; window.__lr = null; } window.__rb = R.bestWave; R.bestWave = Math.max(R.bestWave, 30); CG.game.town.coins = 21500; }],
   ['pinehollow', async () => { CG.play.sheets.close(); const R = CG.game.towns.ridge; if (window.__rb != null) R.bestWave = window.__rb; CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
   // Research from an outpost (owner, 2026-11-20): the button is there and the sheet shows what the Gulch is researching
   ['outpost-research', async () => { const G = CG.game.towns.gulch; G.flags['open:research'] = true; G.lab = { id: 'saws', left: 42, total: 80 }; await new Promise(r => setTimeout(r, 400)); CG.play.openResearch(); }],
