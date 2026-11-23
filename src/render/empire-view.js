@@ -96,7 +96,7 @@ function fleet(geo, mat, max) {
 }
 
 export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () => {}, from = null, meter = null } = {}) {
-  const q = startQuality(), v = createScene(canvas, { tier: q.tier, fov: 36 });
+  const q = startQuality(), v = createScene(canvas, { tier: q.tier, ratio: q.ratio, fov: 36 });
   if (!v) return null;
   const step = autoStep(v, q);
   v.scene.fog.near = 60; v.scene.fog.far = 150; v.cam.far = 260; v.cam.updateProjectionMatrix();

@@ -767,6 +767,9 @@ async function run() {
       bad.push(...(await check(page)).map(b => 'menu sheet: ' + b));
       const gfx = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+        // the drawing buffer follows the view's pixel ratio (sharper models, 2026-11-22: med draws at 1.5 with FXAA)
+        const V = CG.town.view, cv = V.canvas, want = Math.round(cv.clientWidth * Math.min(V.ratio, devicePixelRatio || 1) * (V.tier === 'low' ? .85 : 1));
+        out.sharp = Math.abs(cv.width - want) <= 1 && (V.tier !== 'med' || V.ratio >= 1.5);
         document.querySelector('#sheet [data-q="low"]').click(); await wait(300);
         out.low = CG.town.view.tier === 'low' && JSON.parse(localStorage.getItem('cg-gfx')).auto === false;
         out.drawing = CG.town.frames > 0;

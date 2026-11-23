@@ -45,6 +45,33 @@ const GradeShader = {
       gl_FragColor = vec4(clamp(c, 0., 1.), 1.); }`,
 };
 
+/* Edge smoothing for the med tier (FXAA, after Timothy Lottes' fast approximate antialiasing): the scene is drawn into
+   an 8-bit target already tone mapped and in screen colors (the target says it is an XR target, which is the one case
+   where three.js does that), then one full-screen triangle blurs only across edges: four corner reads find the edge's
+   direction, flat areas stop there, and edges take two or four reads along it. On the software GPU in tools/perf.js
+   multisampling ran the fragment shader for every sample and cost a third of the frame; this is one cheap pass. */
+const FxaaShader = {
+  uniforms: { tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 0., 1.); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uPx; varying vec2 vUv;
+    const vec3 L = vec3(.299, .587, .114);
+    void main(){
+      vec3 nw = texture2D(tDiffuse, vUv + vec2(-1., -1.) * uPx).rgb, ne = texture2D(tDiffuse, vUv + vec2(1., -1.) * uPx).rgb;
+      vec3 sw = texture2D(tDiffuse, vUv + vec2(-1., 1.) * uPx).rgb, se = texture2D(tDiffuse, vUv + vec2(1., 1.) * uPx).rgb;
+      vec3 m = texture2D(tDiffuse, vUv).rgb;
+      float lnw = dot(nw, L), lne = dot(ne, L), lsw = dot(sw, L), lse = dot(se, L), lm = dot(m, L);
+      float lo = min(lm, min(min(lnw, lne), min(lsw, lse))), hi = max(lm, max(max(lnw, lne), max(lsw, lse)));
+      if (hi - lo < max(.0833, hi * .166)) { gl_FragColor = vec4(m, 1.); return; }
+      vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));
+      float red = max((lnw + lne + lsw + lse) * .03125, 1. / 128.), rcp = 1. / (min(abs(dir.x), abs(dir.y)) + red);
+      dir = clamp(dir * rcp, -8., 8.) * uPx;
+      vec3 a = .5 * (texture2D(tDiffuse, vUv - dir / 6.).rgb + texture2D(tDiffuse, vUv + dir / 6.).rgb);
+      vec3 b = a * .5 + .25 * (texture2D(tDiffuse, vUv - dir * .5).rgb + texture2D(tDiffuse, vUv + dir * .5).rgb);
+      float lb = dot(b, L);
+      gl_FragColor = vec4(lb < lo || lb > hi ? a : b, 1.);
+    }`,
+};
+
 /* A sky dome: a gradient from the ground haze to the zenith. */
 export function makeSky(top = '#5f93c8', mid = '#f0c99a', bot = '#c9905e') {
   const mat = new THREE.ShaderMaterial({
@@ -58,10 +85,11 @@ export function makeSky(top = '#5f93c8', mid = '#f0c99a', bot = '#c9905e') {
   return m;
 }
 
-/* createScene(canvas, { tier, lamps }): tier is a key of TIERS (src/render/quality.js); lamps: this view uses point
-   lights (only drawn on tiers that allow them; an idle light still costs every pixel). */
+/* createScene(canvas, { tier, ratio, lamps }): tier is a key of TIERS (src/render/quality.js), ratio its pixel ratio (the
+   tier's own when left out; Auto raises it on a fast device); lamps: this view uses point lights (only drawn on tiers
+   that allow them; an idle light still costs every pixel). */
 export function createScene(canvas, opt = {}) {
-  let tier = TIERS[opt.tier] ? opt.tier : 'med', T = TIERS[tier];
+  let tier = TIERS[opt.tier] ? opt.tier : 'med', T = TIERS[tier], ratio = opt.ratio || T.ratio;
   let r;
   try { r = new THREE.WebGLRenderer({ canvas, antialias: T.aa, powerPreference: 'high-performance', stencil: false }); }
   catch (e) { console.warn('3D view unavailable:', e.message); return null; }
@@ -78,15 +106,22 @@ export function createScene(canvas, opt = {}) {
   sun.shadow.bias = -.0006; sun.shadow.normalBias = .02; sun.shadow.radius = 3;
   let lamps = [];
 
-  let composer = null, W = 0, H = 0, CW = 0, CH = 0;
+  let composer = null, W = 0, H = 0, CW = 0, CH = 0, aa = null;
+  /* The FXAA pass: a target the size of the drawing buffer and one triangle that covers the screen. */
+  const fxaaMat = new THREE.ShaderMaterial({ ...FxaaShader, uniforms: THREE.UniformsUtils.clone(FxaaShader.uniforms), depthTest: false, depthWrite: false });
+  const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+  const fxaaQuad = new THREE.Mesh(tri, fxaaMat); fxaaQuad.frustumCulled = false;
+  const fxaaScene = new THREE.Scene(); fxaaScene.add(fxaaQuad);
+  const fxaaCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const view = {
     renderer: r, scene, cam, sky, hemi, sun, canvas,
-    get tier() { return tier; }, get lamps() { return lamps; },
-    /* Change the quality tier (shadows, lamps, post-processing, pixel ratio). Antialiasing stays as created. */
-    setQuality(next) {
+    get tier() { return tier; }, get ratio() { return ratio; }, get lamps() { return lamps; },
+    /* Change the quality tier (shadows, lamps, post-processing) and the pixel ratio (the tier's own when left out).
+       Multisampling stays as created. */
+    setQuality(next, nextRatio) {
       if (!TIERS[next]) return;
       const shadowWas = r.shadowMap.enabled, lampsWas = lamps.length;
-      tier = next; T = TIERS[next];
+      tier = next; T = TIERS[next]; ratio = nextRatio || T.ratio;
       r.shadowMap.enabled = T.shadow > 0; sun.castShadow = T.shadow > 0;
       r.shadowMap.type = T.shadow >= 2048 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
       if (T.shadow && sun.shadow.mapSize.x !== T.shadow) { sun.shadow.mapSize.set(T.shadow, T.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
@@ -106,13 +141,21 @@ export function createScene(canvas, opt = {}) {
     },
     resize(w, h) {
       CW = w; CH = h;
-      const dpr = Math.min(T.ratio, window.devicePixelRatio || 1) * T.scale;
+      const dpr = Math.min(ratio, window.devicePixelRatio || 1) * T.scale;
       const pw = Math.max(1, Math.round(w * dpr)), ph = Math.max(1, Math.round(h * dpr));
       if (pw === W && ph === H) return; W = pw; H = ph;
       // the CSS keeps the canvas at 100% of the screen; pinning a pixel size here froze it at the first size, so turning the phone left half the screen blank
       r.setPixelRatio(1); r.setSize(pw, ph, false); canvas.style.width = '100%'; canvas.style.height = '100%';
       cam.aspect = w / h; cam.updateProjectionMatrix();
       if (composer) { composer.dispose(); composer = null; }
+      if (aa) { aa.dispose(); aa = null; }
+      if (T.fxaa && !T.post) {
+        aa = new THREE.WebGLRenderTarget(pw, ph, { depthBuffer: true, stencilBuffer: false });
+        aa.isXRRenderTarget = true; // three.js tone maps and converts to screen colors only for the screen or an XR target
+        aa.texture.colorSpace = THREE.SRGBColorSpace; aa.texture.internalFormat = 'RGBA8'; // the shader writes screen colors; RGBA8 so the GPU does not convert them again
+        aa.texture.generateMipmaps = false;
+        fxaaMat.uniforms.tDiffuse.value = aa.texture; fxaaMat.uniforms.uPx.value.set(1 / pw, 1 / ph);
+      }
       if (!T.post) return;
       composer = new EffectComposer(r, new THREE.WebGLRenderTarget(pw, ph, { type: THREE.HalfFloatType, samples: 4 }));
       composer.setPixelRatio(1); composer.setSize(pw, ph);
@@ -126,12 +169,14 @@ export function createScene(canvas, opt = {}) {
       // the sky dome rides with the camera, so its far side is never past the far plane (review of 2026.11.19-13: with a
       // card open the map's camera pulled back and a black wedge showed at the top of the screen)
       sky.position.set(cam.position.x, 0, cam.position.z);
-      if (composer) composer.render(); else r.render(scene, cam);
-      view.stats = { calls: r.info.render.calls, triangles: r.info.render.triangles, w: W, h: H, tier };
+      if (composer) composer.render();
+      else if (aa) { r.setRenderTarget(aa); r.render(scene, cam); r.setRenderTarget(null); r.render(fxaaScene, fxaaCam); }
+      else r.render(scene, cam);
+      view.stats = { calls: r.info.render.calls, triangles: r.info.render.triangles, w: W, h: H, tier, ratio };
     },
-    dispose() { if (composer) composer.dispose(); r.dispose(); },
+    dispose() { if (composer) composer.dispose(); if (aa) aa.dispose(); fxaaMat.dispose(); tri.dispose(); r.dispose(); },
   };
-  view.setQuality(tier);
+  view.setQuality(tier, ratio);
   canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); view.lost = true; });
   return view;
 }

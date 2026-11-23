@@ -56,7 +56,7 @@ const LAYOUT = [ // [id, x, z, rotation]
 ];
 
 export function startTitleScene(canvas) {
-  const q = startQuality(), v = createScene(canvas, { tier: q.tier, lamps: true });
+  const q = startQuality(), v = createScene(canvas, { tier: q.tier, ratio: q.ratio, lamps: true });
   if (!v) return null;
   const step = autoStep(v, q);
   const { scene, cam } = v;

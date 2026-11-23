@@ -57,6 +57,15 @@ function sweepStale() {
   } catch (e) { /* best effort */ }
 }
 
+/* Stop every browser process that uses this profile folder. On Windows the Edge process spawn() starts hands the browser
+   to a second main process and exits, so killing proc.pid stopped nothing: a smoke run's browser outlived it and used a
+   core through the next perf runs, and the Silver Falls gate read 33.1 ms against 29.0 once it was gone (2026.11.22-12). */
+function killDir(dir) {
+  if (process.platform !== 'win32') return;
+  const ps = "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe' OR Name='chrome.exe'\" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('" + dir.replace(/'/g, "''") + "') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+  try { execFileSync('powershell.exe', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch (e) { /* best effort */ }
+}
+
 async function launch(opts = {}) {
   sweepStale();
   const exe = findBrowser();
@@ -64,7 +73,7 @@ async function launch(opts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-cdp-p' + process.pid + '-')); // the driver's id, so a sweep never takes a live run's browser
   const proc = spawn(exe, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + dir, '--no-first-run', '--no-default-browser-check',
     '--enable-unsafe-swiftshader', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--disable-extensions', ...(opts.args || []), 'about:blank'], { stdio: 'ignore' }); // swiftshader: WebGL even without a GPU
-  const onExit = () => { try { proc.kill(); } catch (e) {} };
+  const onExit = () => { try { proc.kill(); } catch (e) {} killDir(dir); };
   process.on("exit", onExit); // never leave a headless browser behind (removed on close, so many launches do not pile up listeners)
   let port, wsPath;
   for (let i = 0; i < 150 && !port; i++) {
@@ -121,6 +130,7 @@ async function launch(opts = {}) {
       bws.close();
       for (let i = 0; i < 30 && proc.exitCode === null; i++) await sleep(100);
       if (proc.exitCode === null) { try { process.platform === 'win32' ? spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' }) : proc.kill('SIGKILL'); } catch (e) {} await sleep(300); }
+      killDir(dir); // the browser Edge handed itself to, whatever became of the process spawn() started
       for (let i = 0; i < 10; i++) { try { fs.rmSync(dir, { recursive: true, force: true }); break; } catch (e) { await sleep(200); } }
     },
   };

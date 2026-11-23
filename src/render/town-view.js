@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { createScene } from './scene.js';
 import { startQuality, autoStep } from './autoquality.js';
-import { saveQuality, deviceTier } from './quality.js';
+import { saveQuality, autoQuality } from './quality.js';
 import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
@@ -13,7 +13,7 @@ import { pickTarget, pickFoe, pickWorker, hitPx, project } from './pick.js';
 const _a = new THREE.Vector3();
 /* onZoomOut: the player zoomed out past the farthest view (opens the empire map); flyIn: dive in from above. */
 export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => {}, onZoomOut = null, flyIn = false } = {}) {
-  const q = startQuality(), v = createScene(canvas, { tier: q.tier });
+  const q = startQuality(), v = createScene(canvas, { tier: q.tier, ratio: q.ratio });
   if (!v) return null;
   const step = autoStep(v, q);
   const town = game.town, board = new Board(town);
@@ -65,8 +65,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     /* The Graphics setting: 'auto' (the device's tier, stepping down when slow) or a tier kept as picked. */
     get quality() { return q.auto ? 'auto' : q.tier; },
     setQuality(choice) {
-      if (choice === 'auto') { q.auto = true; q.tier = deviceTier(); } else { q.auto = false; q.tier = choice; }
-      saveQuality({ tier: q.tier, auto: q.auto }); v.setQuality(q.tier);
+      Object.assign(q, choice === 'auto' ? autoQuality() : { auto: false, tier: choice, ratio: 0 });
+      saveQuality(q); v.setQuality(q.tier, q.ratio);
     },
     project: id => project(v.cam, canvas, board.anchor(id, _a), size),
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),

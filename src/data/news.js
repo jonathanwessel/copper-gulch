@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-12',
+    lines: [
+      'Towns look sharper on phones, with smoother edges on buildings, towers and people.',
+      'When Graphics in the Menu is set to Auto, the picture gets sharper if your phone keeps up, and softer if the game slows down.',
+    ],
+  },
+  {
     v: '2026.11.22-11',
     lines: [
       'After To arms, tap a pair of workers by the road to see how long until they go back to work and what their building is not making.',
