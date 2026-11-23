@@ -40,7 +40,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-boss', town: 'drycreek', covers: ['boss:bandits'],
     title: 'The bandit wagon',
-    text: 'Wave 10 brings the bandit wagon. It is tougher than other raiders. Stop it and Dry Creek is yours.',
+    text: 'Wave 10 brings the bandit wagon. It is tougher than other raiders. At half health two horsemen ride off it. Stop the wagon and Dry Creek is yours.',
     when: h => h.wave >= 9 && !h.won, at: () => ({ el: '#wave' }),
   },
   {
@@ -55,6 +55,13 @@ export const EXPLAINERS = [
     title: 'Tap a raider',
     text: 'Tap any raider on the road to see its health and armor, and what your towers did to it, like poison or frost.',
     when: h => !!h.foeOut && (h.foeOut.fx || h.wave >= 4), at: h => (h.foeOut ? { foe: h.foeOut.id } : null),
+  },
+  // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
+  {
+    id: 'boss-bar', covers: ['bossbar'],
+    title: 'The boss bar',
+    text: 'Bosses change when they get badly hurt, and this bar says how. Tap the bar to see the boss.',
+    when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch
   {
@@ -216,7 +223,7 @@ export const EXPLAINERS = [
   {
     id: 'boss', town: 'gulch', covers: ['boss'],
     title: 'The war wagon',
-    text: 'Every 10th wave brings the war wagon. It\'s slow and heavily armored. If it reaches the vault, it does a lot of damage.',
+    text: 'Every 10th wave brings the war wagon. It is slow and heavily armored. At half health its crew jumps off and runs for the vault. If the wagon gets there, the wave is lost.',
     when: h => h.wave % 10 === 0 && h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {
@@ -392,7 +399,7 @@ export const EXPLAINERS = [
   {
     id: 'ridge-boss', town: 'ridge', covers: ['boss:train'],
     title: 'The armored train',
-    text: 'Wave 10 brings the armored train. Its plates stop part of every hit. Mortars and the Still hurt it most.',
+    text: 'Wave 10 brings the armored train. Its plates stop part of every hit. At half health they fall off and the train goes faster. Mortars and the Still hurt it most.',
     when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
   },
   {
@@ -423,7 +430,7 @@ export const EXPLAINERS = [
   {
     id: 'falls-boss', town: 'falls', covers: ['boss:steamer'],
     title: 'The ironclad steamer',
-    text: 'Wave 10 brings an ironclad steamer down the river. Its plates stop part of every hit. Mortars and the Still hurt it most.',
+    text: 'Wave 10 brings an ironclad steamer down the river. Its plates stop part of every hit. When it is nearly beaten it lets off steam and goes faster. Mortars and the Still hurt it most.',
     when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
   },
   {

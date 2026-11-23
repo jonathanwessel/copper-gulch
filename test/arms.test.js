@@ -143,7 +143,8 @@ test('at a boss gate the militia, called when the boss is on the road, can turn 
     const off = run(false), on = run('boss');
     if (off.bossLeaked && !on.bossLeaked) turned++;
     assert.ok(!(on.bossLeaked && !off.bossLeaked), 'the militia never makes it worse (raiders x' + m + ')');
-    assert.ok(on.leaked <= off.leaked);
+    // on a wave lost anyway the count can rise: a militia that hurts the wagon more brings its crew off sooner (boss stages)
+    if (!on.bossLeaked) assert.ok(on.leaked <= off.leaked);
   }
   assert.ok(turned >= 2, 'the militia stops a war wagon that got through without it');
 });

@@ -3,17 +3,32 @@
    from: the first wave it rides in. The boss of every 10th wave is the town's own (town.def.boss; the Gulch: the war
    wagon, Iron Ridge: the armored train, Silver Falls: the ironclad steamer, the outposts: the smaller bandit wagon).
    water: it rides the river (lane 1) in a town that has one; a town with a river sends every waves.boatEvery-th raider
-   by boat. */
+   by boat.
+   stages: a boss changes as it is hurt (owner, 2026-11-22: "the stage the boss was in, for example when the crew got
+   off the war wagon"). Each stage starts once its health falls to `at` of its most: it drops `n` raiders of kind
+   `drop` beside it (their health from the wave's, like any raider), its pace becomes `speed` times its own, and its
+   armor becomes `armor` when given. The boss bar names the stage (STAGE_WORDS) and the model shows it. Tuned so a
+   boss stays a gate, not a wall (2026.11.22-10: a train at 1.35 times its pace and a steamer at 1.5 put the economy
+   bot's Ridge wave 10 at 11-13 min on three seeds, against 7-9 with no stages, tools/boom-probe.js with STAGES=off; a
+   steamer at 1.25 still won Silver Falls wave 10 on seed 1, 11.5 min against 8.3 at 1.1).
+   only: a raider that only rides off a boss (the war wagon's crew), never in a wave's own mix. */
 export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
   runner: { name: 'Horseman', many: 'Horsemen', hp: .55, speed: 2, bounty: 1, leak: 1, armor: 0, from: 3 },
   brute:  { name: 'Brute', hp: 3.2, speed: .7, bounty: 3, leak: 2, armor: .25, from: 6 },
-  wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true },
-  bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true },
-  train:  { name: 'Armored train', hp: 19, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true },
+  crew:   { name: 'Wagon crew', many: 'Wagon crew', hp: .5, speed: 1.6, bounty: 1, leak: 1, armor: 0, from: 10, only: true },
+  wagon:  { name: 'War wagon', hp: 12, speed: .7, bounty: 25, leak: 8, armor: .35, from: 10, boss: true,
+    stages: [{ at: .5, key: 'crew', drop: 'crew', n: 3, speed: .6 }] },
+  bandits: { name: 'Bandit wagon', hp: 8, speed: .75, bounty: 12, leak: 6, armor: .2, from: 10, boss: true,
+    stages: [{ at: .5, key: 'horsemen', drop: 'runner', n: 2, speed: .6 }] },
+  train:  { name: 'Armored train', hp: 19, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true,
+    stages: [{ at: .5, key: 'plates', speed: 1.15, armor: .15 }] },
   boat:   { name: 'Riverboat', hp: 2.2, speed: .85, bounty: 2, leak: 2, armor: .2, from: 1, water: true },
-  steamer: { name: 'Ironclad steamer', hp: 18, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true },
+  steamer: { name: 'Ironclad steamer', hp: 18, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true,
+    stages: [{ at: 1 / 3, key: 'steam', speed: 1.1 }] },
 };
+/* What the boss bar says once a boss reaches each stage: a few words. */
+export const STAGE_WORDS = { crew: 'Crew jumped off', horsemen: 'Horsemen rode off', plates: 'Plates fell off', steam: 'Full steam' };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */
 export const WAVE_TYPES = {

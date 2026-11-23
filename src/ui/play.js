@@ -33,6 +33,7 @@ import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
 import { waveSheet, waveBar, waveTitle } from './wave.js';
 import { foeCard } from './foe.js';
+import { bossBar } from './boss.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -110,7 +111,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   goal.append(goalTag, goalWords);
   const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
   goal.addEventListener('click', () => { mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping'); });
-  const left = el('div', 'hudleft'); left.append(place, wave, ctl, goal); paintPlace();
+  // the boss bar (src/ui/boss.js) at the foot of the column, so showing it moves nothing above it; a tap opens the boss's card
+  const boss = bossBar(town, { store, onTap: id => openFoe(id) });
+  const left = el('div', 'hudleft'); left.append(place, wave, ctl, goal, boss.el); paintPlace();
   // side buttons under the coins: Goods and Menu open slide-up sheets
   const side = el('div', 'side');
   const goodsBtn = el('button', 'btn small', 'Goods'); goodsBtn.id = 'goodsBtn'; goodsBtn.hidden = true;
@@ -696,11 +699,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     for (const e of es) if (e.target === strip) { const sh = strip.hidden ? 0 : Math.round(e.target.getBoundingClientRect().height + 4); if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); } }
   }) : null;
   if (ro) { ro.observe(card); ro.observe(strip); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
-  let foeAcc = 0;
+  let foeAcc = 0, bossAcc = 0;
   function frame(dt) {
     acc += dt; cardAcc += dt;
     // a raider's card keeps up with it ten times a second (the simulation steps four times a second)
     if (foeUi && (foeAcc += dt) > .1) { foeAcc = 0; if (!foeUi.update()) close(); }
+    if ((bossAcc += dt) > .1) { boss.update(bossAcc); bossAcc = 0; } // the boss bar, ten times a second
     viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
     if (reMeasure) { reMeasure = false; measure(); }
     sheets.frame(dt);

@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
 import { part, mergeStatic } from './kit.js';
-import { lanesOf } from '../core/defense.js';
+import { lanesOf, speedOf } from '../core/defense.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { polyDist } from './terrain.js';
 import { bridgeLift } from './board.js';
@@ -80,9 +80,12 @@ export class Battle {
     });
     this.group.add(mergeStatic(pads, { cast: false })); pads.forEach(disposeTree);
     this.fires = []; // pooled discs for burning ground
+    this.staged = []; // bosses that reached a stage since the last frame
     this.off = [
       game.bus.on('shot', e => { if (e.town === this.town.id) this.shot(e); }),
       game.bus.on('leak', e => { if (e.town === this.town.id) this.shake = .4; }),
+      // a boss reaches a stage (src/data/foes.js, stages): a puff of dust where its crew jumps off or its plates fall
+      game.bus.on('stage', e => { if (e.town === this.town.id) this.staged.push(e.foe); }),
     ];
   }
   sync() {
@@ -173,13 +176,26 @@ export class Battle {
       // the steamer folds its stack back to pass under a bridge
       if (u.obj.userData.stack) { const want = f.lane && polyDist(x, z, this.roadPts).d < 1.3 ? -1.35 : 0, st = u.obj.userData.stack; st.rotation.x += (want - st.rotation.x) * Math.min(1, dt * 5); }
       const walk = f.frozenT > 0 ? 0 : (f.slowT > 0 ? .5 : 1), d = u.obj.userData;
-      u.phase += dt * 9 * walk * FOES[f.kind].speed;
+      u.phase += dt * 9 * walk * speedOf(f);
+      // a boss shows its stage: the crew gone from the wagon, the plates off the train, steam from the steamer's stack
+      const staged = (f.stage || 0) > 0;
+      if (d.crew && d.crew.visible === staged) d.crew.visible = !staged;
+      if (d.plates && d.plates.visible === staged) d.plates.visible = !staged;
+      if (staged && d.stack && u.obj.visible && (u.puff = (u.puff || 0) + dt) > .12 && this.fx.length < 110) {
+        u.puff = 0; d.stack.getWorldPosition(_ra); _ra.y += .5 * u.obj.scale.y;
+        const p = this.add('trail', { life: .9, grow: .3, op: .7 }); p.mesh.position.copy(_ra);
+      }
       if (d.legs) d.legs.forEach((l, i) => { l.rotation.x = Math.sin(u.phase + i * Math.PI) * .6 * walk; });
       if (d.wheels) for (const w of d.wheels) w.children[0].rotation.z -= dt * 4 * walk;
       const r = Math.max(0, f.hp / f.max); u.fill.scale.x = u.w * r; u.fill.position.x = -u.w * (1 - r) / 2;
       u.bar.quaternion.copy(cam.quaternion).premultiply(_q.copy(u.obj.quaternion).invert());
       u.bar.visible = r < .999;
     }
+    for (const id of this.staged) { // a burst of dust at the boss as its stage starts
+      const u = this.foes.get(id); if (!u || this.fx.length > 110) continue;
+      const p = this.add('trail', { life: .8, grow: 1.1, op: .8 }); p.mesh.position.set(u.obj.position.x, .3, u.obj.position.z);
+    }
+    this.staged.length = 0;
     for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); disposeTree(u.obj); this.foes.delete(id); }
     // a soft round shadow under every raider in sight, in one draw call, so raiders need no sun shadow (that redrew the
     // shadow map every frame of a wave: Room on the Silver Falls script gate, 2026.11.21-4)

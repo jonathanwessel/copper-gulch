@@ -4,6 +4,7 @@
    id) and `button` gets a second button that takes the player there. startCoach returns
    { frame(dt), current, dismiss(), skipAll(), destroy() }. */
 import { EXPLAINERS } from '../data/explainers.js';
+import { FOES } from '../data/foes.js';
 import { lostBoss, autoOpen, autoOf } from '../core/automation.js';
 import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -42,6 +43,8 @@ export function helper(town, game = null) {
       const fx = out.find(f => foeStatus(town, f).effects.length);
       return { id: (fx || out[0]).id, fx: !!fx };
     })(),
+    // a boss on the road, with its bar showing, for the boss bar's explainer
+    bossUp: (ws.foes || []).some(f => FOES[f.kind] && FOES[f.kind].boss && f.hp > 0) && (typeof document === 'undefined' || !!(document.getElementById('bossBar') && !document.getElementById('bossBar').hidden)),
     autoResearch: !!game && autoOpen(game, 'research'), // the University stands: Auto-research is open in every town (owner, 2026-11-20)
     bossLost: !!game && lostBoss(town) && autoOpen(game, 'retry') && !autoOf(game, town).retry,
     // another town (not a won outpost) with towers keeps fighting out of sight

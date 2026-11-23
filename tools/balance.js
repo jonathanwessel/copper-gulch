@@ -685,6 +685,7 @@ export function tendTowns(game, here, log = []) {
 /* A careful player raises the Gulch's makers when the Ridge runs short of what they ship: for each import a Ridge
    workshop is starved of, one level of the Gulch building that makes it, or of the building that feeds that one when it
    is itself short, if the Gulch can pay. */
+const TEND_BUFFER = process.env.TEND_BUFFER !== undefined ? +process.env.TEND_BUFFER : 30;
 export function tendImports(game, town, imp) {
   for (const good of town.def.imports || []) {
     // a workshop that uses the good is built, or everything that opens it is: the town that makes the good gets its
@@ -698,7 +699,11 @@ export function tendImports(game, town, imp) {
       continue;
     }
     const users = town.def.buildings.filter(id => town.level(id) && BUILDINGS[id].inputs[good]);
-    if (!users.some(id => town.starved[id]) || (town.goods[good] || 0) >= 1) continue;
+    // a careful player tops up before a workshop runs dry: less than TEND_BUFFER seconds of what its users take on hand
+    // (2026.11.22-10: acting only once it held under 1 left seed 2's Boiler Shop at 89.6% of the time running, against
+    // 90, on a path any boss stage moved by a few points)
+    const need = users.reduce((n, id) => n + uses(town, id, good) * output(town, id), 0);
+    if (!users.length || (town.goods[good] || 0) >= Math.max(1, TEND_BUFFER * need)) continue;
     const from = game.towns[GOODS[good].town];
     if (!from) continue;
     let id = from.def.buildings.find(b => BUILDINGS[b].makes === good);

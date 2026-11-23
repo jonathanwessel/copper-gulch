@@ -156,6 +156,26 @@ html.no3d body { background: var(--bg); }
 .wave .call { min-height: 30px; padding: 2px 8px; white-space: nowrap; flex: none; }
 .wave .vaultbtn { flex: none; } /* only the countdown gives way on a narrow screen, never Call now */
 .wave .call.away { visibility: hidden; } /* during a wave Call now keeps its place, so the bar keeps one width */
+/* the boss bar (src/ui/boss.js): one width, its numbers in fixed cells, at the foot of the left column */
+.bossbar {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; width: min(100%, 300px); min-height: 40px; padding: 3px 8px 3px 4px;
+  background: var(--line); color: var(--ink); border: 2px solid var(--bad); box-shadow: 3px 3px 0 rgba(22, 15, 11, .5); font: inherit; font-size: .8rem; line-height: 1.15; text-align: left; cursor: pointer;
+}
+.bossbar[hidden] { display: none; }
+.bossbar .foepic { display: block; width: 28px; height: 28px; image-rendering: pixelated; }
+.bossbar .btext { display: grid; gap: 3px; min-width: 0; }
+.bossbar .brow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bossbar .bname { flex: 1 1 auto; min-width: 0; color: var(--copper-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bossbar .bstage { flex: none; width: 9.5em; text-align: right; color: var(--gold); white-space: nowrap; overflow: hidden; }
+.bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
+.bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
+.bossbar .bnum { flex: none; width: 11ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: 5ch; font-variant-numeric: tabular-nums; color: #c8ccd4; }
+.bossbar .shield { display: block; width: 8px; height: 10px; background: #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); flex: none; }
+.bossbar.gone { border-color: var(--good); }
+.bossbar.gone .bname { color: var(--good); }
+.bossbar.gone .bstage, .bossbar.gone .fbar, .bossbar.gone .bnum, .bossbar.gone .barmor { visibility: hidden; } /* only its name line, "War wagon down!", which takes the row */
+.bossbar.gone .bstage { display: none; }
 /* the goal strip and its spotlight (src/core/goals.js) */
 .goal {
   display: flex; align-items: center; gap: 8px; width: min(100%, 340px); min-height: 34px; padding: 3px 10px 3px 3px; text-align: left; cursor: pointer;
@@ -215,7 +235,7 @@ html.no3d body { background: var(--bg); }
 .fxmark { flex: none; display: block; width: 14px; height: 14px; }
 .fxmark svg { display: block; width: 100%; height: 100%; }
 .fx-frozen { fill: #b8ecff; } .fx-poison { fill: #8fd57a; } .fx-rot { fill: #c8d88a; } .fx-spread { fill: #a6e07a; }
-.fx-fire { fill: #ff8a2a; } .fx-slow { fill: #9cc4ff; } .fx-brittle { fill: #e8dcc8; }
+.fx-fire { fill: #ff8a2a; } .fx-slow { fill: #9cc4ff; } .fx-brittle { fill: #e8dcc8; } .fx-stage { fill: #e8c050; }
 .card > p.gone { color: var(--gold); font-size: .85rem; line-height: 1.3; } /* in place of the coins line, the same height */
 .foecard.gonefoe .foestat, .foecard.gonefoe .foefx { opacity: .55; }
 .foes { gap: 4px; }
@@ -270,7 +290,7 @@ html.flat .tag { position: static; transform: none !important; }
   .card { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); transform: none; width: min(46%, 400px); animation-name: rise; max-height: calc(100% - var(--cardtop, 10px) - max(10px, env(safe-area-inset-bottom))); }
   /* a short screen: the town name, the wave and Pause share one row, the goal goes under them, so the town gets the height */
   .hudleft { grid-template-columns: auto auto auto 1fr; align-items: center; }
-  .hudleft > .goal { grid-column: 1 / -1; }
+  .hudleft > .goal, .hudleft > .bossbar { grid-column: 1 / -1; }
   .hudleft > .place { grid-column: 1 / -1; } /* its own row, so the names never squeeze the wave chip */
   .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }

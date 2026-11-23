@@ -208,11 +208,33 @@ export function callEarly(game, town) {
 
 /* A boss's base health at wave w: it grows slower than the wave's (WAVE.bossGrowth), from the wave-10 health. */
 export const bossHp = (W, w) => w <= 10 ? W.hp(w) : W.hp(10) * (W.hp(w) / W.hp(10)) ** (W.bossGrowth ?? 1);
-function spawn(town, kind) {
+function spawn(town, kind, s = 0, lane = laneFor(town, kind)) {
   const ws = town.waves, f = FOES[kind], T = WAVE_TYPES[ws.type] || WAVE_TYPES.mixed;
   const W = wavesOf(town), base = f.boss ? bossHp(W, town.wave) : W.hp(town.wave);
   const hp = base * f.hp * T.hp * town.mods.factor('foeHp');
-  ws.foes.push({ id: ws.nextId++, kind, lane: laneFor(town, kind), hp, max: hp, s: 0, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 });
+  const foe = { id: ws.nextId++, kind, lane, hp, max: hp, s, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 };
+  ws.foes.push(foe);
+  return foe;
+}
+/* A raider's pace and armor now: its kind's, changed by the boss stages it has reached (FOES[kind].stages). */
+export const speedOf = f => FOES[f.kind].speed * (f.pace || 1);
+export const armorOf = f => (f.armor ?? FOES[f.kind].armor) || 0;
+/* The stage a boss is in: the last of its kind's stages it has reached, or null before the first. */
+export const stageOf = f => { const S = FOES[f.kind].stages; return S && f.stage > 0 ? S[f.stage - 1] : null; };
+/* A boss whose health fell past its next stage moves on to it: its pace and armor change and it drops its riders
+   beside it, a little behind on the road, each a raider of the wave that counts toward it. One stage a step at most. */
+function stages(game, town) {
+  const ws = town.waves;
+  for (const f of ws.foes.slice()) {
+    const S = FOES[f.kind].stages, i = f.stage || 0;
+    if (!S || i >= S.length || f.hp <= 0 || f.leaked || f.hp > S[i].at * f.max) continue;
+    const st = S[i]; f.stage = i + 1;
+    if (st.speed) f.pace = st.speed;
+    if (st.armor !== undefined) f.armor = st.armor;
+    for (let k = 0; k < (st.n || 0); k++) spawn(town, st.drop, Math.max(0, f.s - .25 * (k + 1)), f.lane || 0);
+    ws.size = (ws.size || 0) + (st.n || 0);
+    game.bus.emit('stage', { town: town.id, foe: f.id, kind: f.kind, stage: st.key });
+  }
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
@@ -242,7 +264,7 @@ export const eaten = f => (f.poisonT > 0 || f.rot > 0 ? f.eat || 0 : 0);
    fire (it stands in Shrapnel's burning ground), slow and brittle (it takes more from each hit while slowed). Nothing
    here gives other raiders anything yet; a raider that does adds its own effect here. */
 export function foeStatus(town, f) {
-  const F = FOES[f.kind], ws = town.waves || {}, full = F.armor || 0, fx = [];
+  const F = FOES[f.kind], ws = town.waves || {}, full = armorOf(f), fx = [], stage = stageOf(f);
   const gone = f.leaked ? 'through' : f.hp <= 0 ? 'down' : null, eat = full > 0 && !gone ? eaten(f) : 0;
   if (!gone) {
     if (f.frozenT > 0) fx.push({ key: 'frozen', left: f.frozenT });
@@ -258,10 +280,10 @@ export function foeStatus(town, f) {
     if (f.slowT > 0 && f.slow > 0) fx.push({ key: 'slow', left: f.slowT });
     if (f.slowT > 0 && f.brittle > 0) fx.push({ key: 'brittle', left: f.slowT });
   }
-  return { id: f.id, kind: f.kind, boss: !!F.boss, hp: Math.max(0, f.hp), max: f.max, armor: full * (1 - eat), armorFull: full, eaten: eat, effects: fx, worth: bountyOf(town, f.kind), gone };
+  return { id: f.id, kind: f.kind, boss: !!F.boss, hp: Math.max(0, f.hp), max: f.max, armor: full * (1 - eat), armorFull: full, eaten: eat, effects: fx, worth: bountyOf(town, f.kind), gone, stage: stage ? stage.key : null };
 }
 function hurt(game, town, f, dmg, pierce = false, by = null) {
-  const full = pierce ? 0 : FOES[f.kind].armor, armor = full * (1 - eaten(f));
+  const full = pierce ? 0 : armorOf(f), armor = full * (1 - eaten(f));
   const k = dmg * (1 + (f.slowT > 0 ? f.brittle : 0)) * (by && by !== 'still' ? bestFactor(by, f.kind) : 1), n = k * (1 - armor), left = Math.max(0, f.hp);
   // the hit as armor would have left it is the tower's; what the poison ate off the armor adds is the Still's
   const own = Math.min(left, k * (1 - full));
@@ -334,7 +356,7 @@ export function fight(game, town, dt) {
     if (f.thawT > 0) f.thawT -= dt;
     if (f.frozenT > 0) { f.frozenT -= dt; continue; }
     const slow = f.slowT > 0 ? f.slow : 0; f.slowT -= dt;
-    f.s += FOES[f.kind].speed * wavesOf(town).speed * (1 - slow) * dt;
+    f.s += speedOf(f) * wavesOf(town).speed * (1 - slow) * dt;
     if (f.s >= laneOf(f).length && f.hp > 0) {
       const hp = FOES[f.kind].leak;
       town.vault.hp -= hp; f.hp = 0; f.leaked = true;
@@ -383,7 +405,7 @@ export function fight(game, town, dt) {
       const target = st.sharp ? inReach.reduce((a, b) => (b.hp > a.hp + 1e-9 || (Math.abs(b.hp - a.hp) <= 1e-9 && b.s > a.s) ? b : a)) : inReach.reduce((a, b) => (b.s > a.s ? b : a));
       let to = pos.get(target);
       if (st.flight) { // a lobbed shell: aim where the target will be when it comes down, and hit on landing
-        const lead = FOES[target.kind].speed * wavesOf(town).speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
+        const lead = speedOf(target) * wavesOf(town).speed * (1 - (target.slowT > 0 ? target.slow : 0)) * st.flight;
         const lane = laneOf(target);
         to = pointAt(lane, Math.min(lane.length, target.s + (target.frozenT > 0 ? 0 : lead)));
         ws.shells.push({ spot: t.spot, by: t.kind, at: to, t: st.flight, dmg: st.dmg, splash: st.splash, fire: st.fire });
@@ -430,6 +452,7 @@ export function fight(game, town, dt) {
       game.bus.emit('shot', { town: town.id, spot: -1, kind: 'militia', post: p.id, foe: target.id, from: p.at, to: pos.get(target) });
     }
   }
+  stages(game, town); // a boss hurt past a stage changes (and its crew jumps off) before the fallen are counted
   // the fallen pay their bounty (a fever-carrier passes its poison on)
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);

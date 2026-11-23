@@ -79,7 +79,7 @@ test('the Boiler Shop comes early in the Ridge: Steel Mill at Blast Furnace 3, B
   assert.ok(BUILDINGS.boilershop.needs.steelmill < BUILDINGS.rolling.needs.steelmill, 'it opens before the Rolling Mill');
 });
 
-test('tendImports raises the Gulch\'s Kiln, or the Clay Pit that feeds it, when the Boiler Shop runs short of bricks', () => {
+test('tendImports raises the Gulch\'s Kiln, or the Clay Pit that feeds it, when the Boiler Shop runs low on bricks', () => {
   const g = gulch('rb3', 20, 2e5); foundTown(g, 'ridge'); g.go('ridge');
   const G = g.towns.gulch, r = g.towns.ridge, imp = { raised: [] };
   Object.assign(G.buildings, { camp: 10, pit: 5, kiln: 1 });
@@ -92,9 +92,14 @@ test('tendImports raises the Gulch\'s Kiln, or the Clay Pit that feeds it, when 
   tendImports(g, r, imp);
   assert.equal(G.level('pit'), 6, 'the Kiln is short of clay, so the Clay Pit goes up');
   assert.equal(imp.raised.length, 2);
+  // it tops up before the shop runs dry (2026.11.22-10): a few bricks, under half a minute of what the shop takes, still
+  // raise the Kiln; a stock of more than that raises nothing
   r.goods.bricks = 5; G.starved = {};
   tendImports(g, r, imp);
-  assert.equal(imp.raised.length, 2, 'nothing while the Ridge has bricks');
+  assert.equal(imp.raised.length, 3, 'a few bricks are not enough to wait on');
+  r.goods.bricks = 1e6;
+  tendImports(g, r, imp);
+  assert.equal(imp.raised.length, 3, 'nothing while the Ridge has bricks to spare');
 });
 
 test('saving: the careful player holds the waves, switches foremen off and keeps its coins, then lets go', () => {

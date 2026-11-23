@@ -231,6 +231,38 @@ async function run() {
       });
       if (!foeTap.none && (foeTap.wide || !foeTap.open || !foeTap.want || foeTap.name !== foeTap.want || !/^\S{1,4} \/ \S{1,4}$/.test(foeTap.hp) || !foeTap.follows || !foeTap.runs)) bad.push('tapping a raider: ' + JSON.stringify(foeTap));
       if (foeTap.none) bad.push('tapping a raider: no raider came into view to tap');
+      // the boss bar (owner, 2026-11-22): a boss on the road shows a bar with its name, health and stage; it keeps one
+      // width as its health falls and its stage starts, nothing else on the top bar moves, a tap opens the boss's
+      // card, and once the boss falls it says so for a moment and goes
+      const bossBar = await page.evaluate(async () => {
+        const t = CG.game.town, ws = t.waves, wait = ms => new Promise(r => setTimeout(r, ms)), { FOES, STAGE_WORDS } = await import('./src/data/foes.js');
+        const kind = t.def.boss || 'wagon', F = FOES[kind], bar = document.getElementById('bossBar');
+        CG.play.close();
+        const box = n => { if (!n || n.hidden) return null; const r = n.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(','); };
+        // laid-out places (offsets, not screen boxes), so a goal sliding in on its own never reads as the bar moving it
+        const lay = n => (!n || n.hidden ? null : [n.offsetLeft, n.offsetTop, n.offsetWidth, n.offsetHeight].join(','));
+        const others = () => ['#placeBar', '#wave', '.hudleft > .hudrow', '#goal', '.hudright'].map(s => lay(document.querySelector(s))).join('|');
+        const before = others(), hiddenFirst = bar.hidden;
+        if (ws.phase === 'break') document.getElementById('callWave').click();
+        const lane = 0, s = Math.min(6, (ws.foes[0] && ws.foes[0].s) || 4), max = 1e9;
+        const f = { id: ws.nextId++, kind, lane, hp: max, max, s, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 };
+        ws.foes.push(f); await wait(400);
+        const shown = !bar.hidden, name = (bar.querySelector('.bname') || {}).textContent, w0 = box(bar), mid = others();
+        const widths = new Set([w0]);
+        for (const k of [.9, .7, .55]) { f.hp = max * k; await wait(250); widths.add(box(bar)); }
+        f.hp = max * (F.stages[0].at - .05); await wait(500); widths.add(box(bar));
+        const stage = (bar.querySelector('.bstage') || {}).textContent, after = others();
+        bar.click(); await wait(250);
+        const card = document.getElementById('card'), cardName = (card.querySelector('h2') || {}).textContent, opened = !card.hidden && card.classList.contains('foecard');
+        CG.play.close();
+        f.hp = -1; await wait(400);
+        const down = (bar.querySelector('.bname') || {}).textContent; widths.add(box(bar));
+        await wait(2200);
+        const gone = bar.hidden;
+        ws.foes = ws.foes.filter(x => x.kind === F.stages[0].drop ? false : true);
+        return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone };
+      });
+      if (!bossBar.hiddenFirst || !bossBar.shown || bossBar.name !== bossBar.want || bossBar.widths.length !== 1 || bossBar.stage !== bossBar.wantStage || !bossBar.same || !bossBar.opened || bossBar.cardName !== bossBar.want || bossBar.down !== bossBar.want + ' down!' || !bossBar.gone) bad.push('the boss bar: ' + JSON.stringify(bossBar));
       if (shade.cast || shade.auto || shade.rate > .5 || !shade.redrawn) bad.push('raiders cast a sun shadow, the shadow map is drawn every frame, or not after a level up: ' + JSON.stringify(shade));
       // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins
       await page.evaluate(async () => { const t = CG.game.town, tw = t.towers.find(x => x.spot === 3); tw.level = 3; for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 4321); CG.play.close(); CG.play.openSpot(3); await new Promise(r => setTimeout(r, 150)); const b = document.querySelector('#card [data-why="dmg"]'); if (b) b.click(); await new Promise(r => setTimeout(r, 400)); });

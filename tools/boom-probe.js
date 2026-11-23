@@ -1,11 +1,15 @@
 // node tools/boom-probe.js <gulch|ridge> <on|off> [seeds]: the strategy bots' gates with booms and busts on or off
+// (STAGES=off also turns the boss stages off)
 // (src/core/market.js, BOOM), one line per strategy and seed, for an A/B run in about 5-10 minutes. Gulch: Dry Creek
 // won, wave 10 and wave 20 (strategies); Ridge: Iron Ridge wave 10 after getting there (empire).
 import { BOOM } from '../src/core/market.js';
 import { campaign, empire, STRATEGIES, STRATEGY_MINUTES } from './balance.js';
+import { FOES } from '../src/data/foes.js';
 
 const [part = 'gulch', mode = 'on', n = '6', only = ''] = process.argv.slice(2), seeds = +n;
 if (mode === 'off') BOOM.first = BOOM.gap[0] = BOOM.gap[1] = 1e12;
+// STAGES=off: bosses never change as they are hurt (src/data/foes.js, stages), for an A/B of the boss stages
+if (process.env.STAGES === 'off') for (const f of Object.values(FOES)) delete f.stages;
 // try a minmax number without editing balance.js: MM_PREP=2 (levels before a boss), MM_NOGUARD=1 (no guard after a leak)
 if (process.env.MM_PREP) STRATEGIES.minmax.prep = +process.env.MM_PREP;
 if (process.env.MM_NOGUARD) STRATEGIES.minmax.level = w => 2 + w / 2;

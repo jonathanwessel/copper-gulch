@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-10',
+    lines: [
+      'When a boss is on the road, a bar under the top bar shows its health, its armor and what it is doing. Tap the bar to see its card.',
+      'Bosses change when they are badly hurt. The war wagon crew jumps off and runs, the bandit wagon horsemen ride off, the armored train drops its plates and the steamer goes full steam.',
+    ],
+  },
+  {
     v: '2026.11.22-9',
     lines: [
       'Tap a raider on the road to see its health, its armor and what is on it, like poison, frost or fire.',

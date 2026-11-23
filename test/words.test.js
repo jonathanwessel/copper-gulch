@@ -10,6 +10,7 @@ import { textIssues } from '../tools/audit.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
 import { EFFECT_WORDS, fxLeft } from '../src/ui/foe.js';
+import { STAGE_WORDS } from '../src/data/foes.js';
 
 test('the words on screen today', () => {
   assert.equal(oldWavesLabel(), 'Won last time');
@@ -24,6 +25,8 @@ test('the words on screen today', () => {
   assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Brittle' });
   assert.equal(fxLeft(null), 'No end'); assert.equal(fxLeft(3.2), '4s');
   for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
+  // the boss bar's stages (owner, 2026-11-22)
+  assert.deepEqual(STAGE_WORDS, { crew: 'Crew jumped off', horsemen: 'Horsemen rode off', plates: 'Plates fell off', steam: 'Full steam' });
   for (const s of ['Won last time', 'Save for towers', 'Line up', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
 });
 

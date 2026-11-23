@@ -32,6 +32,8 @@ export function person(o) {
 const gun = k => { k.box(.17, .2, .09, .03, .05, .14, 'iron', { ao: false }); };
 const FOE = {
   raider: () => person({ shirt: 'paintR', pants: 'cloth', hat: 'cowboy', hatC: 'bark', mask: 'paintR', extra: gun }),
+  // the war wagon's crew: they jump off at its first stage and run on (src/data/foes.js, stages)
+  crew: () => person({ shirt: 'cloth', vest: 'black', pants: 'black', hat: 'cap', hatC: 'iron', extra: gun }),
   brute: () => person({ shirt: 'paintP', pants: 'black', hat: 'bandana', hatC: 'ink', wide: 1.35, skin: 'skinD', extra: k => { k.cyl(.22, .1, .1, .04, .4, 'woodD', { r2: .07, rx: .5, seg: 6, ao: false }); } }),
 };
 function horse(k, c = 'woodD') {
@@ -60,6 +62,13 @@ FOE.wagon = () => {
     for (const sx of [-1, 1]) { const off = sx * .12; k.box(off, .3, .5, .14, .16, .36, 'black', { ao: false }); k.box(off, .4, .7, .08, .16, .1, 'black', { rx: -.5, ao: false }); k.box(off, .31, .5, .15, .1, .3, 'steel', { mat: 'metal', ao: false }); }
   }));
   wheels(root, [[-.27, .16, -.4], [.27, .16, -.4], [-.27, .16, .1], [.27, .16, .1]], .16);
+  // the crew: a driver up front and two gunners behind the cannon; they jump off at half health (crewStage)
+  const crew = part(k => {
+    for (const [x, z, c] of [[0, .3, 'cloth'], [-.14, -.38, 'cloth'], [.14, -.38, 'cloth']]) {
+      k.box(x, .7, z, .12, .14, .1, c, { ao: false }); k.box(x, .83, z, .09, .09, .09, 'skin', { ao: false }); k.box(x, .89, z, .11, .03, .1, 'iron', { ao: false });
+    }
+  }, { ao: false });
+  root.add(crew); root.userData.crew = crew;
   const hl = [[-.12, .36], [.12, .36], [-.12, .64], [.12, .64]].map(([x, z]) => { const l = part(k => k.box(0, -.3, 0, .045, .3, .045, 'black', { ao: false }), { ao: false }); l.position.set(x, .32, z); root.add(l); return l; });
   root.userData.legs = hl; root.userData.gallop = 1; return root;
 };
@@ -73,12 +82,17 @@ FOE.bandits = () => {
     k.box(.19, .4, -.25, .01, .09, .1, 'paintR'); k.box(-.19, .44, -.05, .01, .08, .09, 'cloth'); // patches
     barrelBits(k);
     k.box(0, .3, .2, .3, .05, .12, 'wood'); // the driver's bench
-    k.box(0, .42, .2, .14, .2, .1, 'cloth'); k.box(0, .58, .2, .1, .1, .1, 'skin'); k.box(0, .56, .26, .11, .05, .02, 'paintR');
-    k.cyl(0, .64, .2, .12, .02, 'bark', { seg: 8 }); k.cyl(0, .66, .2, .055, .06, 'bark', { seg: 8 });
     k.box(0, .3, .58, .14, .15, .32, 'woodD', { ao: false }); k.box(0, .4, .76, .08, .16, .1, 'woodD', { rx: -.5, ao: false }); k.box(0, .49, .84, .07, .07, .14, 'woodD', { ao: false });
     for (const sx of [-1, 1]) k.box(sx * .05, .3, .32, .02, .02, .3, 'woodL', { ao: false }); // the shafts
   }));
   wheels(root, [[-.23, .13, -.35], [.23, .13, -.35], [-.23, .13, .08], [.23, .13, .08]], .13, 'wood');
+  // its crew, on the bench and on the back: they ride off at half health
+  const crew = part(k => {
+    k.box(0, .42, .2, .14, .2, .1, 'cloth'); k.box(0, .58, .2, .1, .1, .1, 'skin'); k.box(0, .56, .26, .11, .05, .02, 'paintR');
+    k.cyl(0, .64, .2, .12, .02, 'bark', { seg: 8 }); k.cyl(0, .66, .2, .055, .06, 'bark', { seg: 8 });
+    k.box(.1, .62, -.62, .12, .14, .1, 'paintY', { ao: false }); k.box(.1, .75, -.62, .09, .09, .09, 'skin', { ao: false }); k.cyl(.1, .81, -.62, .1, .02, 'bark', { seg: 8, ao: false });
+  }, { ao: false });
+  root.add(crew); root.userData.crew = crew;
   const hl = [[-.05, .47], [.05, .47], [-.05, .69], [.05, .69]].map(([x, z]) => { const l = part(k => k.box(0, -.3, 0, .04, .3, .04, 'woodD', { ao: false }), { ao: false }); l.position.set(x, .32, z); root.add(l); return l; });
   root.userData.legs = hl; root.userData.gallop = 1; return root;
 };
@@ -88,7 +102,6 @@ FOE.train = () => {
   root.add(part(k => {
     k.box(0, .12, -.1, .42, .06, 1.1, 'ink');                                                          // the frame
     k.box(0, .18, .12, .36, .3, .6, 'iron', { mat: 'metal' });                                         // the plated boiler
-    for (const z of [-.12, .12, .36]) k.box(0, .18, z, .38, .3, .025, 'ironL', { mat: 'metal' });      // armor bands
     k.cyl(0, .48, .32, .06, .2, 'black', { r2: .09, seg: 8 });                                         // the stack
     k.box(0, .18, -.3, .4, .42, .3, 'iron', { mat: 'metal' }); k.box(0, .52, -.3, .42, .05, .33, 'ironL', { mat: 'metal' }); // the cab
     k.box(0, .38, -.15, .3, .06, .02, 'black'); k.box(.15, .3, -.3, .01, .06, .18, 'black');          // slits
@@ -99,6 +112,12 @@ FOE.train = () => {
     k.box(.21, .26, -.05, .01, .1, .2, 'paintR');
   }));
   wheels(root, [[-.21, .1, .3], [.21, .1, .3], [-.21, .1, .05], [.21, .1, .05], [-.21, .1, -.3], [.21, .1, -.3], [-.21, .1, -.56], [.21, .1, -.56]], .1, 'iron');
+  // the armor: bands round the boiler and skirts over the wheels; they fall off at half health
+  const plates = part(k => {
+    for (const z of [-.12, .12, .36]) k.box(0, .18, z, .38, .3, .025, 'ironL', { mat: 'metal' });
+    for (const sx of [-1, 1]) k.box(sx * .235, .13, -.13, .03, .14, .98, 'ironL', { mat: 'metal' });
+  });
+  root.add(plates); root.userData.plates = plates;
   return root;
 };
 FOE.boat = () => {

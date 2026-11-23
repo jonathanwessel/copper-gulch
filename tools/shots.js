@@ -35,6 +35,22 @@ const SCREENS = [
     await wait(400);
   }],
   ['raider-down', async () => { const t = CG.game.town, id = +(CG.play.current() || '').slice(4), f = t.waves.foes.find(f => f.id === id); if (f) f.hp = -1; for (let i = 0; i < 40 && !document.querySelector('#card.gonefoe'); i++) await new Promise(r => setTimeout(r, 30)); }], // the shot as soon as it says so (a slow capture outlasted its moment)
+  // the boss bar (owner, 2026-11-22): the war wagon on the road with its bar under the top bar, then at its stage with
+  // its crew off and running, then its card from a tap on the bar
+  ['boss', async () => {
+    const t = CG.game.town, v = CG.town, ws = t.waves, wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view');
+    CG.play.close();
+    if (ws.phase === 'break') document.getElementById('callWave').click();
+    let at = null;
+    for (let i = 0; i < 150 && !at; i++) { const f = ws.foes.find(f => { const p = v.projectFoe(f.id); return p && f.hp > 0 && p.x > 40 && p.x < cv.clientWidth - 40 && p.y > 140 && p.y < cv.clientHeight - 120; }); if (f) at = f; else await wait(100); }
+    // the wave may have ended while looking (landscape, 2026.11.22-10: the wagon sat still on the road in a break)
+    for (let i = 0; i < 30 && ws.phase !== 'wave'; i++) { const c = document.getElementById('callWave'); if (c && !c.disabled) c.click(); await wait(100); }
+    const max = 48000, w = { id: ws.nextId++, kind: 'wagon', lane: 0, hp: max * .62, max, s: at ? at.s + .3 : 6, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 };
+    ws.foes.push(w); window.__boss = w; await wait(700);
+  }],
+  ['boss-stage', async () => { const w = window.__boss; if (w) w.hp = w.max * .44; await new Promise(r => setTimeout(r, 900)); }],
+  ['boss-card', async () => { const b = document.getElementById('bossBar'); if (b && !b.hidden) b.click(); await new Promise(r => setTimeout(r, 300)); }],
+  ['boss-down', async () => { CG.play.close(); const w = window.__boss; if (w) w.hp = -1; for (let i = 0; i < 40 && !document.querySelector('#bossBar.gone'); i++) await new Promise(r => setTimeout(r, 30)); }],
   // a tower card short of a good: how much there is, about how long, and which building to upgrade
   ['strip', () => { const t = CG.game.town; CG.play.close(); t.goods.timber = 124; t.goods.planks = 18; t.goods.ore = 6; t.goods.clay = 40; }],
   ['short', () => { const t = CG.game.town; t.goods.ore = 2; t.buildings.mine = Math.max(5, t.level('mine')); CG.play.close(); CG.play.openSpot(3); }],
@@ -149,7 +165,10 @@ const OUTPOST = [
     let f = null;
     for (let i = 0; i < 300; i++) { f = t.waves.foes.find(x => x.kind === 'bandits'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.6) break; } await w(50); }
   }],
-  ['won', () => { delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
+  // the bandit wagon at its stage, its two horsemen off, and the boss bar's card the first time a boss is on the road
+  ['bandits-stage', async () => { const f = CG.game.town.waves.foes.find(x => x.kind === 'bandits'); if (f) f.hp = f.max * .45; await new Promise(r => setTimeout(r, 900)); }],
+  ['boss-bar-intro', async () => { delete CG.game.shared.seen['boss-bar']; for (let i = 0; i < 60 && CG.coach.current !== 'boss-bar'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['won', () => { CG.coach.dismiss(); delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
   // the back button's card, the first time there is somewhere to go back to
   ['back-card', async () => { delete CG.game.shared.seen.back; for (let i = 0; i < 60 && CG.coach.current !== 'back'; i++) await new Promise(r => setTimeout(r, 100)); }],
