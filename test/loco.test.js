@@ -57,7 +57,7 @@ test('the Ridge goal strip walks the chain to the Locomotive Works', () => {
   assert.ok(unlocked(r, 'loco'));
   assert.equal(next().id, 'r-loco');
   build(r, { loco: 1 });
-  assert.equal(next(), null);
+  assert.equal(next().next, 'capital', 'every goal of the Ridge is done: the strip shows the way to the Capital');
   assert.ok(g.shared.goals.done['g-tools'], 'the Gulch line for the Toolsmith is done too');
 });
 
@@ -66,6 +66,9 @@ test('in Copper Gulch the strip asks for the Toolsmith once the Ridge has its Ro
   g.go('gulch'); g.step(.25);
   assert.notEqual((goalNow(g) || {}).id, 'g-tools');
   g.towns.ridge.buildings.rolling = 1; g.step(.25);
+  // the Toolsmith lot is still locked (Sawmill 10, Smelter 5): the strip asks for the level that opens it
+  assert.ok(goalNow(g).id.startsWith('g-tools>'));
+  Object.assign(g.town.buildings, { saw: 10, smelter: 5 });
   const x = goalNow(g);
   assert.equal(x.id, 'g-tools');
   assert.deepEqual(x.at(), { plot: 'toolsmith' });

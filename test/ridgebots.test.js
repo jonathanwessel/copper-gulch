@@ -25,7 +25,7 @@ function gulch(seed, wave, coins) {
 
 test('the goal strip says to hold the waves and save for Iron Ridge, then to tap it, once wave 20 is beaten', () => {
   let g = gulch('rb1', 19, 0);
-  assert.equal(goalNow(g), null, 'nothing before wave 20');
+  assert.equal(goalNow(g).id, 'next:ridge:wave', 'before wave 20 the strip counts the waves to Iron Ridge');
   g = gulch('rb1', 20, 500);
   const hold = goalNow(g);
   assert.equal(hold.id, 'g-hold');
@@ -45,7 +45,7 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   assert.deepEqual(go.at({ back: 'drycreek' }), { el: '#mapBtn', go: 'ridge' });
   foundTown(g, 'ridge'); g.step(.25);
   assert.ok(g.shared.goals.done['g-save'] && g.shared.goals.done['g-found'], 'both done once the Ridge is founded');
-  assert.equal(goalNow(g), null);
+  assert.equal(goalNow(g).next, 'capital', 'then the strip counts the waves to the Capital');
 });
 
 test('the newcomer follows those lines: it taps Hold waves, then founds the Ridge and goes there', () => {

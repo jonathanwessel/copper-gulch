@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-2',
+    lines: [
+      'The Goal at the top always shows a next step. With no goals left in a town, it shows how to open the next town or the Capital.',
+      'A goal to build a new lot shows your coins and its price. A goal for a locked lot names the building to upgrade first.',
+      'The Mortar goal asks for a Kiln first. The Mortar needs bricks.',
+      'In Goods, each Sell spare choice says what it does.',
+    ],
+  },
+  {
     v: '2026.11.23-1',
     lines: [
       'Tip cards have a speaker button at the top right. Tap it to hear the card read out loud. Tap it again to stop.',

@@ -4,12 +4,15 @@
    goalNow(game) is the goal the strip shows: the first goal of the town in play that is not done and is ready.
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
-import { unlocked } from './economy.js';
+import { unlocked, missing, cost } from './economy.js';
 import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
 import { GOODS } from '../data/goods.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { CAPITAL_DEF } from '../data/capital.js';
 import { researchOpen } from './research.js';
-import { canFound, nextTowns } from './empire.js';
-import { TOWNS } from '../data/towns/index.js';
+import { canFound, nextTowns, deedsOf } from './empire.js';
+import { capitalOpen } from './capital.js';
+import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 
 /* What a goal reads: a small view of one town. */
 export function goalContext(game, town) {
@@ -79,9 +82,68 @@ export function goalNow(game, held = true) {
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;
     c = c || goalContext(game, town);
-    if (!g.ready || g.ready(c)) return g;
+    if (!g.ready || g.ready(c)) return stepFor(game, town, g);
   }
-  return null;
+  return nextStep(game);
+}
+
+/* The clarity pass (PLAN.md M6a, 2026.11.23-2): a newcomer's play showed goals the player could not act on for 15-25
+   minutes (a Smelter with no count of the 500 coins it takes, a Mortar whose bricks no building made, a Toolsmith lot
+   still locked) and a blank strip from about an hour in. So a goal names the step that can be taken now:
+     - a goal to build a new lot carries its price as need (the strip adds have / need); an upgrade goal does not,
+     since its level and one level's price side by side read as one count (review of 2026.11.23-2: "level 3 · 172 / 12");
+     - a locked lot asks for the level that opens it ("Tap the Sawmill and upgrade it to level 10 to open the Toolsmith");
+     - a tower goal whose goods no building here makes yet asks for that building first.
+   A derived step keeps the goal's done and gets its own id, so the strip changes as each step is taken. */
+const bname = id => (BUILDINGS[id] && BUILDINGS[id].name) || id;
+function stepFor(game, town, g, depth = 0) {
+  if (depth > 4 || !g.at || g.away || g.there || g.resume) return g;
+  const c = goalContext(game, town);
+  let at = null; try { at = g.at(c) || {}; } catch (e) { return g; }
+  if (at.plot && BUILDINGS[at.plot]) {
+    const m = missing(town, at.plot)[0];
+    if (m) {
+      const text = (town.level(m.id) > 0 ? 'Tap the ' + bname(m.id) + ' and upgrade it to level ' + m.level : 'Tap the ' + bname(m.id) + ' lot, then tap Build') + ' to open the ' + bname(at.plot);
+      return stepFor(game, town, { id: g.id + '>' + m.id, town: g.town, text, done: g.done, step: true, at: () => ({ plot: m.id }) }, depth + 1);
+    }
+    return g.need || town.level(at.plot) > 0 ? g : { ...g, need: cost(town, at.plot) };
+  }
+  if (g.kind && at.spot != null) {
+    const tc = towerCost(town, g.kind, 0);
+    for (const [good, n] of Object.entries(tc.goods || {})) {
+      if ((town.goods[good] || 0) >= n || ((town.def && town.def.imports) || []).includes(good)) continue;
+      const makers = ((town.def && town.def.buildings) || []).filter(id => BUILDINGS[id] && BUILDINGS[id].makes === good);
+      if (!makers.length || makers.some(id => town.level(id) > 0)) continue;
+      return stepFor(game, town, { id: g.id + '>' + makers[0], town: g.town, text: 'Tap the ' + bname(makers[0]) + ' lot, then tap Build', done: g.done, step: true, at: () => ({ plot: makers[0] }) }, depth + 1);
+    }
+  }
+  return g;
+}
+
+/* When the town in play has no goal left, the strip shows the empire's next step: the next town or the Capital, the
+   one that takes the lowest wave, with what it still needs (a wave, deeds, coins) counted as have / need by meter(game).
+   These are never marked done; they change as each need is met. */
+/* The strip's count for a goal with a meter: "wave 9 / 30", "2 / 5 deeds". */
+/* A wave count shows only in the town that must climb, beside its own wave bar: in another town "9 / 30" and then
+   "wave 9 / 30" were both read as that town's wave (two reviews of 2026.11.23-2), so there the line alone says it. */
+export const meterWords = (g, game) => { if (g.meterTown && g.meterTown !== game.active) return ''; const [a, b] = g.meter(game); return (g.pre || '') + Math.floor(a) + ' / ' + b + (g.post || ''); };
+export function nextStep(game) {
+  const out = [];
+  for (const id of TOWN_ORDER) {
+    const f = TOWNS[id] && TOWNS[id].found;
+    if (!f || game.towns[id] || !game.towns[f.from]) continue;
+    out.push({ id, name: TOWNS[id].name, f });
+  }
+  const cf = CAPITAL_DEF.found;
+  if (!capitalOpen(game) && game.towns[cf.from]) out.push({ id: 'capital', name: 'the ' + CAPITAL_DEF.name, f: cf });
+  if (!out.length) return null;
+  const s = out.sort((a, b) => a.f.wave - b.f.wave)[0], from = game.towns[s.f.from], fromName = TOWNS[s.f.from].name;
+  const best = () => (game.towns[s.f.from] || from).bestWave || 0;
+  // the count names what it counts ("wave 9 / 30"): a bare "9 / 30" in another town read as that town's wave (review of 2026.11.23-2)
+  if (best() < s.f.wave) return { id: 'next:' + s.id + ':wave', next: s.id, text: 'Reach wave ' + s.f.wave + ' in ' + fromName + ' to open ' + s.name, meter: () => [best(), s.f.wave], pre: 'wave ', meterTown: s.f.from, done: () => false };
+  if (s.f.deeds && deedsOf(game) < s.f.deeds) return { id: 'next:' + s.id + ':deeds', next: s.id, text: 'Sign a charter in Perks for the deeds to open ' + s.name, meter: g2 => [deedsOf(g2), s.f.deeds], post: ' deeds', done: () => false };
+  if (from.coins + 1e-9 < s.f.coins) return { id: 'next:' + s.id + ':coins', next: s.id, text: 'Save coins to open ' + s.name, need: s.f.coins, at: () => ({ el: '#coins' }), done: () => false };
+  return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + ' to start it', at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 
 /* The words the strip shows for a goal: its text, or, for a goal with wait: kind while that tower can't be paid yet,

@@ -943,7 +943,8 @@ async function run() {
         // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Copper Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
-        out.goalNext = gt() === 'Tap the Copper Camp lot, then tap Build' && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        // with the lot's price as have / need (clarity pass)
+        out.goalNext = /^Tap the Copper Camp lot, then tap Build · \d+ \/ \d+$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;

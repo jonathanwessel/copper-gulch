@@ -52,14 +52,19 @@ test('winning Dry Creek asks for Copper Gulch, and going there finishes Dry Cree
   assert.ok(g.shared.goals.done['dc-go']);
   assert.equal(goalNow(g).id, 'g-tower');
   g.go('drycreek');
-  assert.equal(goalNow(g), null, 'every Dry Creek goal is done');
+  assert.ok(goalNow(g).next, 'every Dry Creek goal is done: the strip shows the next step for the empire');
 });
 
 test('the Mortar goal waits until the Mortar opens, and points at a free Mortar pit', () => {
   const g = newGame('goal4', 'gulch'), t = g.town;
   for (const x of goalsOf('gulch')) if (x.id !== 'g-mortar') g.shared.goals.done[x.id] = true;
-  assert.equal(goalNow(g), null);
+  assert.ok(goalNow(g).next, 'no goal of its own: the next step for the empire');
   t.flags['open:mortar'] = true;
+  // no copper and no bricks, and nothing here makes them yet: the strip asks for the first step that does (clarity pass)
+  assert.equal(goalNow(g).id, 'g-mortar>smelter>mine>camp');
+  t.goods.copper = 50;
+  assert.equal(goalNow(g).id, 'g-mortar>kiln>pit>camp', 'copper in, bricks next: the Kiln, whose lot opens with the Clay Pit, which opens with the Lumber Camp');
+  t.goods.bricks = 50;
   assert.equal(goalNow(g).id, 'g-mortar');
   assert.deepEqual(goalNow(g).at(goalContext(g, t)), { spot: t.def.board.far });
 });

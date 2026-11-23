@@ -107,7 +107,10 @@ export function audit() {
    scene (2026.11.21-4). */
 export function swallowRules() {
   const out = [], code = /\/\/[^'"`]*; *(this\.|const |let |if \(|for \(|return\b|[a-zA-Z_]+\.[a-zA-Z_]+ *(=|\())/;
-  for (const f of walk('src').filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line, i) => { if (code.test(line) && !/https?:/.test(line)) out.push(f + ':' + (i + 1) + ' has code after a // comment, so it never runs'); });
+  // also a condition left after the comment ("// why !!a.b && ..."), and in tools and test too (2026.11.23-2: a smoke
+  // check's comment swallowed the rest of its condition, and only the parse test saw it; the fifth time this was written)
+  const cond = /\/\/ [^`]*(?:&&|\|\|) *(?:!!|!?[a-zA-Z_]+\.[a-zA-Z_]+\b)/;
+  for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line0, i) => { const line = line0.replace(/\\\//g, ''); /* an escaped slash in a regex is not a comment */ if (!/^\s*(\/\*|\*)/.test(line) && (code.test(line) || cond.test(line)) && !/https?:/.test(line)) out.push(f + ':' + (i + 1) + ' has code after a // comment, so it never runs'); });
   // a patch script that writes "\b" inside a template string puts a raw backspace in the file, and the regex it was
   // meant for never matches (2026-11-22: test/fork.test.js's /\bbest\b/ had checked nothing since it was written)
   for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /\.(js|mjs)$/.test(f))) read(f).split('\n').forEach((line, i) => { if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(line)) out.push(f + ':' + (i + 1) + ' has a control character (a raw backspace from a patch script?)'); });

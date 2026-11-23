@@ -84,7 +84,9 @@ export function goalTap(game, town, rng) {
 }
 
 /* One newcomer's first session: a new game in Dry Creek, then the Gulch once it opens, for `minutes` of play. */
-export function newcomer(seed, minutes = MINUTES) {
+/* hook(game, seconds, r), when given, runs after every step; it returns true to end the run early (tools/playthrough.js
+   records the moments a newcomer meets this way). */
+export function newcomer(seed, minutes = MINUTES, hook = null) {
   const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
   const heldFrom = {};
   const r = { held2: { longest: 0, town: null, at: 0 }, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
@@ -100,6 +102,7 @@ export function newcomer(seed, minutes = MINUTES) {
   for (let s = 0; s < minutes * 240; s++) {
     g.step(.25);
     const t = g.town, at = now();
+    if (hook && hook(g, at, r)) break;
     // a lost boss holds the waves: the newcomer reads the card, builds a while, then taps Resume waves
     if (t.waves.autoHold && s % 4 === 0) { r.heldAt ??= at; if (at - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; } }
     if (r.dcWon === null && g.towns.drycreek.won) { r.dcWon = at; news(); }

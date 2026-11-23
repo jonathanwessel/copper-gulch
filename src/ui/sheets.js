@@ -17,7 +17,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, boomWord } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, boomWord } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -178,7 +178,7 @@ export function goodsSheet(game, town, focus = null) {
         // Sell spare opens the four modes under the row (GDD.md, Market); a pick closes them
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
-        const picks = SELL_MODES.map(k => { const b = btn(MODE_WORDS[k], 'btn small'); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
         row.append(txt, sw); list.append(row, pick);
@@ -204,7 +204,7 @@ export function goodsSheet(game, town, focus = null) {
         if (r.line2.textContent !== b2) r.line2.textContent = b2;
         if (r.line2.hidden !== !b2) r.line2.hidden = !b2;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
-        const note = open[g] ? priceNote({ have, kept, price: ex.value }) : null; // none to sell, or a price of almost 0: words, not rows
+        const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1 }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
         const sat = saturation(game, g);
@@ -558,11 +558,13 @@ export function menuSheet(ctx) {
 
     // Save slots
     const slots = el('div', 'slots'), mine = activeSlot();
+    let liveLine = null, liveText = null; // the playing slot's line follows the purse while the Menu is open (review of 2026.11.23-1)
     for (let n = 1; n <= SLOTS; n++) {
       // the slot in play shows the game as it is now, not its last save (review of 2026.11.19-8: 999K beside the top bar's 9.99M)
       const live = n === mine && game && game.town, s = live ? { n, town: game.active, wave: game.town.wave, coins: game.town.coins } : slotSummary(n), row = el('div', 'option slot'), txt = el('div');
       txt.append(el('b', null, 'Slot ' + n + (n === mine ? ' · playing' : '')),
-        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins' + (live ? '' : ' · ' + ago(Date.now() - s.at))));
+        el('span', null, s.empty ? 'Empty' : s.damaged ? 'This save is damaged' : slotWords(s, live)));
+      if (live) { liveLine = txt.lastChild; liveText = () => slotWords({ n, town: game.active, wave: game.town.wave, coins: game.town.coins }, true); }
       row.append(txt);
       if (n !== mine) {
         const go = btn(s.empty ? 'New game' : 'Play'); go.dataset.slot = n; go.classList.add('slotgo');
@@ -615,8 +617,13 @@ export function menuSheet(ctx) {
     const home = btn('Title screen', 'btn small', 'toTitle'); home.addEventListener('click', () => leave('title'));
     const r3 = el('div', 'row'); r3.append(installButton(), upd, help, home);
     sec('More', r3, el('p', 'ver', 'Version ' + GAME_VERSION + ' · Free, no ads'));
+    // repainted with the top bar (sync), so the two coin counts always match
+    const tick = () => {}; tick.sync = () => { if (!liveLine) return; const t = liveText(); if (liveLine.textContent !== t) liveLine.textContent = t; };
+    return tick;
   };
 }
+/* A save slot's line on the Menu: its place, wave and coins, and how long ago it was saved (not for the slot in play). */
+export const slotWords = (s, live) => (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins' + (live ? '' : ' · ' + ago(Date.now() - s.at));
 
 /* The Perks sheet. ctx: { game, town, leave } where leave('charter') saves and reloads into the new charter. */
 export function perksSheet(ctx) {

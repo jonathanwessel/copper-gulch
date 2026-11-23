@@ -124,6 +124,8 @@ const SCREENS = [
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
   // a boom on the first good of the strip, and its row's four sell modes open (Market depth, part 1)
   ['goods-boom', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: 1.6, left: 72 }; m.event = { [g]: 1.6 }; m.wait = 999; CG.play.close(); CG.play.openGoods(g); await wait(300); const b = document.querySelector('#sheet .option button[data-good="' + g + '"]'); if (b) b.click(); }],
+  // a bust on the same good, its row opened to say why the price is low (review of 2026.11.23-1: the words in a boom and a bust)
+  ['goods-bust', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: .45, left: 48 }; m.event = { [g]: .45 }; m.wait = 999; CG.play.sheets.close(); CG.play.openGoods(g); await wait(300); }],
   // town orders on the Goods sheet (Market depth, part 2): a board with a rush offer, then one order running
   ['orders', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, o = g.shared.orders; const m = g.shared.market; m.boom = null; m.event = {}; o.wait = 0;
     o.towns[t.id] = { rep: 64, offers: [{ id: 1, good: 'timber', need: 330, got: 0, coins: 412, minutes: 5.5, time: 660, left: 660, rush: false, age: 0 }, { id: 2, good: 'planks', need: 60, got: 0, coins: 318, minutes: 2.5, time: 210, left: 210, rush: true, age: 0 }], active: null, n: 3, wait: 999, filled: 7, missed: 1 };

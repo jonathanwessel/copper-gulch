@@ -61,6 +61,9 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
 export const priceLabel = price => { const s = each(price); return s[0].toUpperCase() + s.slice(1); };
 /* Each sell mode's word (src/core/market.js, SELL_MODES): on its Goods sheet button, its choice and its building card. */
 export const MODE_WORDS = { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' };
+/* What each mode does, one short line under its name in the Goods sheet's picker (review of 2026.11.23-1: "Skip busts"
+   and "Booms only" were flagged twice, so the picker says what each does instead of a third wording). */
+export const MODE_LINES = { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' };
 /* The Goods sheet's button for a good: Sell spare, then its mode. selling false is Off (the old switch). */
 export function goodsSwitch({ selling = true, mode = selling ? 'always' : 'off' }) {
   return 'Sell spare · ' + MODE_WORDS[mode]; // spare: what the towers do not keep (review of 2026.11.20-6)
@@ -75,8 +78,11 @@ export function boomWord(f, left) {
    good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */
 /* One reason at a time (review of 2026.11.19-11: "towers need it all" beside "You sold a lot of it lately"). The sheet
    no longer has a header line, so the note says the price comes back. */
-export function priceNote({ have, kept = 0, price = 0 }) {
+export function priceNote({ have, kept = 0, price = 0, boom = false }) {
   const none = have - kept < 1;
+  // in a boom the price is up from where it was, so "comes back" read as a drop (review of 2026.11.23-1)
+  // the price row already says under 1 coin, so only the reason (words check of 2026.11.23-2: the boom line repeated it)
+  if (price < .0095 && boom) return 'You sold a lot of it lately.';
   if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;

@@ -580,13 +580,12 @@ html.flat .tag { position: static; transform: none !important; }
 .orders .depth > .mark { position: absolute; top: -3px; bottom: -3px; height: auto; width: 2px; background: var(--gold); } /* where rush orders start */
 .orders > .goods { margin-bottom: 10px; }
 .option .gnamerow .evword[hidden] { display: none; }
-.sellpick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px 8px 6px; margin-top: -6px; background: var(--panel-2); border: 2px solid var(--line); border-top: 0; }
+.sellpick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 4px 8px 6px; margin-top: -6px; background: var(--panel-2); border: 2px solid var(--line); border-top: 0; }
 .sellpick[hidden] { display: none; }
 .goods > .option > .btn.switch { flex: none; display: grid; justify-items: center; gap: 3px; width: 7.6em; padding-left: 4px; padding-right: 4px; white-space: nowrap; } /* Sell spare over its mode, one width for every mode, so the row never grows past the sheet */
 .goods > .option > .btn.switch .pip { width: 100%; box-sizing: border-box; }
-.goods > .option > .btn.switch[aria-expanded="true"] .pip { visibility: hidden; }
-.sellpick > .btn { white-space: nowrap; min-height: 32px; padding-left: 2px; padding-right: 2px; }
-@media (max-width: 460px) { .sellpick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sellpick > .btn { display: grid; justify-items: start; gap: 2px; text-align: left; white-space: normal; min-height: 36px; padding: 5px 8px; } /* each mode's name over what it does (review of 2026.11.23-1) */
+.sellpick > .btn small { font-weight: normal; opacity: .85; }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */

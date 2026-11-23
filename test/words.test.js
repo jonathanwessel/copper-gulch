@@ -67,3 +67,13 @@ test('shots just under one a second never read "One every 1 seconds"', async () 
   assert.equal(shotsWord(.5), 'One every 2 seconds');
   assert.ok(!/every 1 seconds/.test(shotsWord(.7)));
 });
+
+test('the sell modes say what each does, and a boom never reads as a drop (review of 2026.11.23-1)', async () => {
+  const { MODE_LINES, priceNote } = await import('../src/ui/format.js');
+  const { slotWords } = await import('../src/ui/sheets.js');
+  assert.deepEqual(MODE_LINES, { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' });
+  for (const k of Object.keys(MODE_WORDS)) { assert.ok(MODE_LINES[k], k); assert.deepEqual(textIssues(MODE_LINES[k]), [], k); assert.ok(MODE_LINES[k].split(' ').length <= 8, k); }
+  assert.equal(priceNote({ have: 50, price: .00005, boom: true }), 'You sold a lot of it lately.', 'the price row already says under 1 coin');
+  assert.ok(!/comes back/.test(priceNote({ have: 0, price: .00005, boom: true })));
+  assert.equal(slotWords({ town: 'gulch', wave: 12, coins: 4321 }, true), 'Copper Gulch · Wave 12 · 4.32K coins');
+});
