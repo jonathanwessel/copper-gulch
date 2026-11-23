@@ -38,7 +38,7 @@ export function bestTower(town, kind) {
    (review of 2026.11.20-3: the Bandit row looked empty). A label, not a sentence (review of 2026.11.22-12: "Snake Oil
    Still works best" read as "still works best", and as advice). */
 export const BEST_LABEL = 'Best tower'; // review of 2026.11.22-13: "Hits it hardest" could read as what the raider hits
-export const bestView = (town, kind) => { const b = bestTower(town, kind); return b ? { label: BEST_LABEL, tower: TOWERS[b].name } : { label: null, tower: null, any: 'Any tower works.' }; };
+export const bestView = (town, kind) => { const b = bestTower(town, kind); return b ? { label: BEST_LABEL, tower: TOWERS[b].name } : { label: BEST_LABEL, tower: 'Any', any: BEST_LABEL + ' · Any' }; }; // the same row as a named tower (review of 2026.11.23-6: "Any tower works." read as advice)
 export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : v.any; };
 
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a

@@ -38,7 +38,7 @@ export const RESEARCH = {
   furnaces: {
     name: 'Hot Furnaces', town: 'gulch', max: 2, cost: 1500,
     about: 'The Smelter and the Kiln work 60% faster.',
-    worse: 'They burn one more timber for each thing they make.',
+    worse: 'They use 1 more timber for each copper or brick.',
     effects: [{ stat: 'prod:smelter', per: .6 }, { stat: 'prod:kiln', per: .6 }],
     downside: [{ stat: 'use:smelter:timber', per: 1 }, { stat: 'use:kiln:timber', per: 1 }],
   },

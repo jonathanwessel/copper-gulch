@@ -443,7 +443,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const sellHead = el('button', 'btn small sellhead', 'Sell '); sellHead.id = 'sellTowerHead'; // the coin square is the unit (review of 2026.11.21-2: "Sell 60" had none)
     sellHead.append(el('span', 'coin'), fmt(Math.floor(t.spent * SELL_BACK)));
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    head.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level), sellHead, x); card.append(head);
+    const nm = el('div', 'namecol'); nm.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level)); // the level drops under a long name (review of 2026.11.23-6: the Sharpshooter card scrolled sideways on a phone)
+    head.append(nm, sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
     const line = (a, b, key) => {
@@ -533,13 +534,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // news from the road
   const offs = [
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
-    game.bus.on('charter:offer', e => { if (e.town === town.id) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000); }),
+    game.bus.on('charter:offer', e => { if (e.town === town.id && !isOutpost(town)) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000, { kind: 'here' }); }), // only where Perks shows (review of 2026.11.23-6: in Pine Hollow)
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
     game.bus.on('order:done', e => { if (!game.catching) toast(orderDone(e, e.town === town.id), 4000); }),
     game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
-    game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000); }),
-    game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000); }),
+    game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000, { kind: 'here' }); }),
+    game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000, { kind: 'here' }); }),
     game.bus.on('breach', e => {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
@@ -570,7 +571,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // a coin goal also says how soon it is ready if you save, at the empire's income over the last minute (clarity fix 2)
   const earnHist = []; let earnPer = 0;
   const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ' · ' + w : ''; };
-  const goalWordsOf = g => goalText(game, town, g) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + readyOf(g) : ''); // whole coins (review of 2026.11.23-2: "2.9 / 30")
+  /* A place's name never breaks across lines on the strip (review of 2026.11.23-6: "Save coins to open Iron / Ridge"). */
+  const NAMES = Object.values(TOWNS).map(t => t.name).filter(n => n.includes(' ')).concat(['the Capital']);
+  const keepNames = s => NAMES.reduce((a, n) => a.split(n).join(n.replace(/ /g, '\u00a0')), s);
+  const goalWordsOf = g => keepNames(goalText(game, town, g)) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need && town.coins < g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + readyOf(g) : ''); // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
@@ -582,7 +586,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
       doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.doneText || goalCur.text); goalId = null; goalCur = null;
-      if ((!now || now.next) && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000);
+      // only with no next goal at all (reviews of 2026.11.23-6 and -7: beside "Reach wave 30 in Iron Ridge" and the Capital's first building)
+      if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000, { kind: 'here' });
       return;
     }
     goalId = now ? now.id : null; goalCur = now;
@@ -594,11 +599,28 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
-  let cardTop = 0, hudTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1;
+  let cardTop = 0, hudTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1, foldSig = '';
+  /* A short landscape screen: the side buttons sit in one row beside Pause and Hold waves until that row would run over
+     them, then fold into 3 columns, then 2, and last Pause and Hold waves drop under the wave bar (review of
+     2026.11.23-6: at 860x400 six side buttons covered Hold waves, so "Resume waves" read "Resu"). Tried only when what
+     sets the widths changes: the screen, which buttons show, and the words on Pause and Hold waves. */
+  const FOLDS = [[], ['c3'], ['c2'], ['c2', 'low']];
+  const fold = () => {
+    const sig = innerWidth + 'x' + innerHeight + ':' + [...side.children].map(n => n.hidden ? '-' : n.firstChild.textContent).join() + ':' + pause.textContent + hold.textContent;
+    if (sig === foldSig) return; foldSig = sig;
+    const set = f => { for (const c of ['c3', 'c2']) side.classList.toggle(c, f.includes(c)); left.classList.toggle('ctllow', f.includes('low')); };
+    if (!shortLand()) { set([]); return; }
+    for (const f of FOLDS) {
+      set(f);
+      const r = right.getBoundingClientRect(), a = ctl.getBoundingClientRect(), w = wave.getBoundingClientRect();
+      if (Math.max(a.right, w.right) + 6 <= r.left) return;
+    }
+  };
   let markAt = null; // the goal's tag's point this frame (frame), for the mark around it (placeMark)
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
   const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
+    fold(); // first, since the card's top and the sheet's room below read the side buttons' height
     // a card at the bottom opens above the goods strip, so the counts stay in view (owner rule: you can always see what
     // you have; review of 2026.11.19-4: the mortar pit card cut off the timber count)
     const sh = strip.hidden ? 0 : Math.round(strip.getBoundingClientRect().height + 4);
@@ -827,7 +849,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */
-  const destroy = () => { if (ro) ro.disconnect(); for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
+  // a toast about this town's own things goes with it, so it never shows in the next place (review of 2026.11.23-6: Iron
+  // Ridge's "New research" toast in Pine Hollow, over its Research sheet)
+  const destroy = () => { dropToasts('here'); if (ro) ro.disconnect(); for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
   return { frame, open, openSpot, openFoe, openWorker, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
 }
 
@@ -887,7 +911,7 @@ export function clearOfCards(t) {
    and no town label, or null when there is none. Exported for the smoke test. */
 export function clearOfBadges(t, labels = true) {
   if (!t.isConnected) return null;
-  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip' + (labels ? ', .mapbadge, .mapkeep' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
+  const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip, .lostcard' + (labels ? ', .mapbadge, .mapkeep' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
   const a = t.getBoundingClientRect(), from = underHud() ?? a.top;
   const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
   for (let y = Math.ceil(from); y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) return y;

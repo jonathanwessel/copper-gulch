@@ -17,7 +17,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, boomWord } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, MODE_SELLS, boomClock } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -25,13 +25,14 @@ import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/c
 import { TOWNS } from '../data/towns/index.js';
 import { canFound, foundTown, nextTowns, deedsOf } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
-import { autoOpen, autoOf, setAuto, retryState, againWave, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
+import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
 import { PATH_LEVEL, TOWERS } from '../data/towers.js';
 import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
 import { ARMS } from '../data/arms.js';
 import { armsBlock, armsLoss, callToArms, militia, armsWait } from '../core/arms.js';
-import { bossName } from './lost.js';
+import { bossName, stayAt } from './lost.js';
+const upFirst = s => s[0].toUpperCase() + s.slice(1);
 import { ordersOf, takeOrder, giveUpOrder } from '../core/orders.js';
 import { ORDERS } from '../data/orders.js';
 
@@ -100,7 +101,7 @@ export function ordersPanel(game, town) {
   live.push(() => {
     setText(repN, 'Reputation ' + Math.round(st.rep) + ' of ' + ORDERS.max);
     const w = Math.round(100 * st.rep / ORDERS.max) + '%'; if (fill.style.width !== w) fill.style.width = w;
-    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders are open' : 'Rush orders come at ' + ORDERS.rushAt);
+    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders come now and pay more' : 'Rush orders come at ' + ORDERS.rushAt); // what a rush order is (review of 2026.11.23-6: "Rush orders are open")
   });
   const a = st.active;
   if (a) {
@@ -178,7 +179,8 @@ export function goodsSheet(game, town, focus = null) {
         // Sell spare opens the four modes under the row (GDD.md, Market); a pick closes them
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
-        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        // each mode with a picture of the price, lit where the mode sells (review of 2026.11.23-6)
+        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'), pic = el('span', 'modepic'); pic.setAttribute('aria-hidden', 'true'); pic.append(...MODE_SELLS[k].map((on, i) => el('i', (on ? 'on ' : '') + ['low', 'mid', 'high'][i]))); b.replaceChildren(pic, el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
         row.append(txt, sw); list.append(row, pick);
@@ -215,7 +217,8 @@ export function goodsSheet(game, town, focus = null) {
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
-        const bm = boomNow(game), ew = bm && bm.good === g ? boomWord(bm.f, bm.left) : '';
+        const bm = boomNow(game), ew = bm && bm.good === g ? boomClock(bm.left) : ''; // an arrow up or down and its time (the stylesheet draws the arrow)
+        { const al = bm && bm.good === g ? (bm.f > 1 ? 'Price up for ' : 'Price down for ') + ew : ''; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.textContent !== ew) r.ev.textContent = ew;
         if (r.ev.hidden !== !ew) r.ev.hidden = !ew;
         if (r.ev.classList.contains('bust') !== (!!bm && bm.good === g && bm.f < 1)) r.ev.classList.toggle('bust');
@@ -444,8 +447,8 @@ export function autoSheet(game, town, openResearch = null) {
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
-        : rs === 'again' ? 'Stays at wave ' + againWave(a.boss || { wave: bw }) + ' until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
-        : rs === 'stuck' ? (a.towers ? 'Stays at wave ' + againWave(a.boss || { wave: bw }) + ' until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
+        : rs === 'again' ? upFirst(stayAt(town, bw || (a.boss || {}).wave)) + ' until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
+        : rs === 'stuck' ? (a.towers ? upFirst(stayAt(town, bw || (a.boss || {}).wave)) + ' until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
@@ -482,7 +485,10 @@ export function armsSheet(game, town) {
     const what = el('div', 'explain'), row = (a, b) => { const r = el('div'), v = el('b', null, b); r.append(el('span', null, a), v); what.append(r); return v; };
     body.append(el('p', 'note', 'Your workers leave the buildings and fight raiders on the road. The buildings make nothing until they come back.'), what);
     const workers = row('Workers from', ''), lost = row('Goods lost', '');
-    row('They fight for', span(ARMS.seconds)); row('Call again after', span(ARMS.cooldown));
+    row('They fight for', span(ARMS.seconds));
+    // the rest after a call, which counts down in its own row while it runs, so the sheet never shows two times for one wait
+    // (review of 2026.11.23-6: "Call again after 5 min" beside "Ready again in 4 min")
+    const restName = row('Rest after a call', '').previousSibling, rest = restName.nextSibling;
     const go = btn('Call to arms', 'btn primary buy', 'callArms'), state = el('p', 'uses');
     go.addEventListener('click', () => { callToArms(game, town); paint(); });
     body.append(state, go);
@@ -491,7 +497,9 @@ export function armsSheet(game, town) {
       setText(workers, n === 1 ? '1 building' : n + ' buildings');
       setText(lost, 'About ' + fmt(l.coins) + ' coins');
       go.disabled = !!b;
-      setText(state, b ? armsLine(game, town) : ''); state.hidden = !b;
+      const waiting = b === 'wait';
+      setText(restName, waiting ? 'Ready again in' : 'Rest after a call'); setText(rest, waiting ? clock(armsWait(town)) : span(ARMS.cooldown)); // the same clock as the To arms button (review of 2026.11.23-7)
+      setText(state, b && !waiting ? armsLine(game, town) : ''); state.hidden = !b || waiting;
     };
     paint();
     let acc = 0;

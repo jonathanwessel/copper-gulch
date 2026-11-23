@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-7',
+    lines: [
+      'Pause and Hold waves now fit on a phone turned sideways.',
+      'Goods shows when a price is way up or way down.',
+      'A tip about one town no longer shows up after you move to another place.',
+      'The Goal shows your coins only while you still need more.',
+    ],
+  },
+  {
     v: '2026.11.23-6',
     lines: [
       'The Capital now costs 25K coins. The Goal asks you to hold the waves while you save for it.',

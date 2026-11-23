@@ -67,7 +67,7 @@ export const EXPLAINERS = [
   {
     id: 'boss-bar', covers: ['bossbar'],
     title: 'The boss bar',
-    text: 'Bosses change when they get badly hurt, and this bar says how. Tap the bar to see the boss.',
+    text: 'A boss changes when it is badly hurt. Tap this bar to see it.',
     when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch

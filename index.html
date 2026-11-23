@@ -170,7 +170,7 @@ html.no3d body { background: var(--bg); }
 .bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
 .bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .bossbar .bnum { flex: none; width: 11ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: 5ch; font-variant-numeric: tabular-nums; color: #c8ccd4; }
+.bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; color: #c8ccd4; }
 .bossbar .shield { display: block; width: 8px; height: 10px; background: #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); flex: none; }
 .bossbar.gone { border-color: var(--good); }
 .bossbar.gone .bname { color: var(--good); }
@@ -299,6 +299,8 @@ html.flat .tag { position: static; transform: none !important; }
   .hudleft > .wave { min-width: min-content; } /* the place bar gives way before the wave chip shrinks under Pause */
 }
 .cardhead h2 { margin: 0; font-size: 1.15rem; color: var(--copper-hi); flex: 1; }
+.cardhead .namecol { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.cardhead .namecol h2 { flex: none; }
 .cardhead .lv { color: var(--muted); font-size: .85rem; white-space: nowrap; flex: none; } /* "Level / 20" split in two beside a long name (review of 2026.11.22-8) */
 .stat { display: flex; justify-content: space-between; align-items: center; min-height: 36px; padding: 6px 10px; background: var(--panel-2); border: 2px solid var(--line); color: var(--ink); cursor: pointer; text-align: left; }
 .stat b { color: var(--gold); }
@@ -573,6 +575,12 @@ html.flat .tag { position: static; transform: none !important; }
 .option .gnamerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
 .option .gnamerow .evword { flex: none; width: 6em; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
 .option .gnamerow .evword.bust { color: #e0503a; }
+.option .gnamerow .evword::before { content: ""; display: inline-block; width: 0; height: 0; margin-right: 5px; vertical-align: 1px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid currentColor; } /* up: the price is high (the strip's arrow, review of 2026.11.23-6) */
+.option .gnamerow .evword.bust::before { border-bottom: 0; border-top: 8px solid currentColor; }
+.modepic { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; } /* a sell mode's picture: low, normal and high price, lit where it sells */
+.modepic i { display: block; width: 12px; background: #3a2a20; border: 1px solid #000; }
+.modepic i.low { height: 6px; } .modepic i.mid { height: 10px; } .modepic i.high { height: 14px; }
+.modepic i.on.low { background: #e0503a; } .modepic i.on.mid { background: var(--copper); } .modepic i.on.high { background: #5fd36a; }
 .option .gnamerow .oleft { flex: none; width: 6.5em; text-align: right; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; } /* an order's time left, in a fixed cell */
 .orders h3 { margin: 4px 0 6px; }
 .sheetbody .orders { scroll-snap-align: start; scroll-margin-top: 54px; } /* the sheet opens on the Orders heading, not snapped to the first offer under it */
@@ -584,8 +592,9 @@ html.flat .tag { position: static; transform: none !important; }
 .sellpick[hidden] { display: none; }
 .goods > .option > .btn.switch { flex: none; display: grid; justify-items: center; gap: 3px; width: 7.6em; padding-left: 4px; padding-right: 4px; white-space: nowrap; } /* Sell spare over its mode, one width for every mode, so the row never grows past the sheet */
 .goods > .option > .btn.switch .pip { width: 100%; box-sizing: border-box; }
-.sellpick > .btn { display: grid; justify-items: start; gap: 2px; text-align: left; white-space: normal; min-height: 36px; padding: 5px 8px; } /* each mode's name over what it does (review of 2026.11.23-1) */
-.sellpick > .btn small { font-weight: normal; opacity: .85; }
+.sellpick > .btn { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; justify-items: start; gap: 2px; text-align: left; white-space: normal; min-height: 36px; padding: 5px 8px; } /* each mode's name over what it does (review of 2026.11.23-1) */
+.sellpick > .btn small { font-weight: normal; opacity: .85; grid-column: 2; }
+.sellpick > .btn .modepic { grid-row: 1 / span 2; }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */
@@ -632,6 +641,10 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
   .sheet { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: 0; transform: none; width: min(56%, 460px); max-height: calc(100% - var(--cardtop, 8px)); animation-name: rise; }
   .side { grid-auto-flow: column; }
   .side .btn { min-width: 0; padding: 4px 9px; } /* a short screen: the side row stays narrow, so the wave keeps its countdown */
+  /* and folds when one row would run over Pause and Hold waves (src/ui/play.js, fold; review of 2026.11.23-6) */
+  .side.c3 { grid-auto-flow: row; grid-template-columns: repeat(3, auto); }
+  .side.c2 { grid-auto-flow: row; grid-template-columns: repeat(2, auto); }
+  .hudleft.ctllow > .hudrow { grid-column: 1 / -1; }
 }
 @keyframes fade { from { opacity: 0; } }
 

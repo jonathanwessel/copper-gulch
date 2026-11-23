@@ -241,6 +241,13 @@ export function goalText(game, town, g) {
    button agree (review of 2026.11.20-11: "Tap Map, Copper Gulch, then build a Smelter" beside a lit ◂ Copper Gulch).
    The back button plays there at once, so "then Play Copper Gulch" drops out. */
 function viaBack(game, town, g) {
+  // "Tap Map, then tap Pine Hollow": the map card's Play button is the last step, so the strip never repeats it
+  // (review of 2026.11.23-6: "then Play Pine Hollow" above a card with Play)
+  const short = /^Tap Map, then tap ([^,]+)$/.exec(g.text || '');
+  if (short && typeof g.at === 'function') {
+    const at = g.at(goalContext(game, town)), t = at && TOWNS[at.go];
+    return at && at.el === '#backBtn' ? 'Tap ◂ ' + ((t && (t.short || t.name)) || short[1]) : g.text;
+  }
   const m = /^Tap Map, ([^,]+), then (.+)$/.exec(g.text || '');
   if (!m || typeof g.at !== 'function') return g.text;
   const at = g.at(goalContext(game, town));

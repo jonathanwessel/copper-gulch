@@ -5,6 +5,7 @@
 // building, tower kind and raider has its own model. It grows with the game.
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { root } from './serve.js';
 import { shellFiles } from './bump-version.js';
 import { GOODS } from '../src/data/goods.js';
@@ -114,6 +115,17 @@ export function swallowRules() {
   // a patch script that writes "\b" inside a template string puts a raw backspace in the file, and the regex it was
   // meant for never matches (2026-11-22: test/fork.test.js's /\bbest\b/ had checked nothing since it was written)
   for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /\.(js|mjs)$/.test(f))) read(f).split('\n').forEach((line, i) => { if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(line)) out.push(f + ':' + (i + 1) + ' has a control character (a raw backspace from a patch script?)'); });
+  // and every file parses (2026.11.23-7: a comment swallowed half a line in src/ui/sheets.js, so the page would not load,
+  // and no test imports that file; the rules above catch the usual shapes, this catches any syntax error)
+  out.push(...parseRules());
+  return out;
+}
+export function parseRules() {
+  const out = [];
+  for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /\.(js|mjs)$/.test(f))) {
+    const r = spawnSync(process.execPath, ['--check', path.join(root, f)], { encoding: 'utf8' });
+    if (r.status !== 0) out.push(f + ' does not parse: ' + ((r.stderr || '').split('\n').find(l => /Error/.test(l)) || 'error'));
+  }
   return out;
 }
 

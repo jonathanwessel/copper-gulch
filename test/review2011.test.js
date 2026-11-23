@@ -32,6 +32,8 @@ test('a goal that goes where the back button goes names that button', () => {
   const away = { text: 'Tap Map, Copper Gulch, then build a Smelter', at: () => ({ el: '#backBtn', go: 'gulch' }) };
   assert.equal(goalText(g, t, away), 'Tap ◂ Copper Gulch, then build a Smelter');
   assert.equal(goalText(g, t, { ...away, text: 'Tap Map, Copper Gulch, then Play Copper Gulch' }), 'Tap ◂ Copper Gulch');
+  assert.equal(goalText(g, t, { ...away, text: 'Tap Map, then tap Copper Gulch' }), 'Tap ◂ Copper Gulch');
+  assert.equal(goalText(g, t, { ...away, text: 'Tap Map, then tap Copper Gulch', at: () => ({ el: '#mapBtn', go: 'gulch' }) }), 'Tap Map, then tap Copper Gulch');
   assert.equal(goalText(g, t, { ...away, at: () => ({ el: '#mapBtn', go: 'gulch' }) }), away.text, 'through the map: unchanged');
 });
 

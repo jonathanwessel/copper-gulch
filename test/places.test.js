@@ -63,7 +63,7 @@ test('a town raided while you were elsewhere shows on its map badge until you go
 test('a goal that sends you to another place spotlights the back button when it goes there, else Map', () => {
   const g = opened();
   const go = GOALS.find(x => x.id === 'dc-go');
-  assert.equal(go.text, 'Tap Map, Copper Gulch, then Play Copper Gulch');
+  assert.equal(go.text, 'Tap Map, then tap Copper Gulch');
   assert.deepEqual(go.at(goalContext(g, g.town)), { el: '#mapBtn', go: 'gulch' });
   g.go('gulch'); g.go('drycreek');
   assert.deepEqual(go.at(goalContext(g, g.town)), { el: '#backBtn', go: 'gulch' });

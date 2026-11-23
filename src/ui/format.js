@@ -73,6 +73,11 @@ export function boomWord(f, left) {
   const s = Math.min(599, Math.max(0, Math.ceil(left || 0)));
   return (f > 1 ? 'Boom ' : 'Bust ') + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
+/* The same, as a time alone for the Goods sheet, where an arrow says up or down (review of 2026.11.23-6: "Bust",
+   "Skip busts" and "Booms only" were flagged twice, so the Goods sheet shows a picture, not a third wording). */
+export function boomClock(left) { const s = Math.min(599, Math.max(0, Math.ceil(left || 0))); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+/* Where on the price each sell mode sells: a low (crashed) price, a normal one, a high (boom) one. */
+export const MODE_SELLS = { always: [1, 1, 1], skip: [0, 1, 1], boom: [0, 0, 1], off: [0, 0, 0] };
 /* What an open good on the Goods sheet says in place of its price rows, or null to show the rows. A price that reads
    "almost 0 coins" says why in words, and a good with none to sell says what it would pay (review of 2026.11.19-9: a
    good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */

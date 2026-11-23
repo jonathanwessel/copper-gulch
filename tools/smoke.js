@@ -59,8 +59,21 @@ export async function check(page) {
       if (r.width && (r.width < 30 || r.height < 30)) bad.push('small target: ' + (b.id || b.textContent.trim().slice(0, 20)) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
       if (r.width && (r.right > vw + 1 || r.left < -1)) bad.push('off screen: ' + (b.id || b.textContent.trim().slice(0, 20)));
     }
+    // a control another one covers, not only one the screen cuts (review of 2026.11.23-6: in landscape six side buttons
+    // ran over Hold waves, which read "Resu"): at three points across each top bar button, the top element is that button
+    const nm = n => n.id || n.textContent.trim().slice(0, 20);
+    for (const b of document.querySelectorAll('.hud button')) {
+      const r = b.getBoundingClientRect(); if (!r.width || getComputedStyle(b).visibility === 'hidden' || getComputedStyle(b).pointerEvents === 'none') continue;
+      for (const fx of [.12, .5, .88]) {
+        const x = r.left + r.width * fx, y = r.top + r.height / 2; if (x < 0 || y < 0 || x > vw || y > innerHeight) continue;
+        const top = document.elementFromPoint(x, y);
+        if (top && !b.contains(top) && top.closest('.hud')) { bad.push('covered: ' + nm(b) + ' under ' + nm(top.closest('button') || top)); break; }
+      }
+    }
     const card = document.getElementById('card');
     if (card && !card.hidden) { const r = card.getBoundingClientRect(); if (r.top < -1 || r.bottom > innerHeight + 1) bad.push('card taller than the screen'); }
+    // a card or sheet never scrolls sideways (review of 2026.11.23-6: the Sharpshooter's name, level, Sell and Close)
+    for (const p of document.querySelectorAll('#card, .sheet .sheetbody, .sheet')) if (p.getClientRects().length && !p.closest('[hidden]') && p.scrollWidth > p.clientWidth + 1) bad.push('sideways scroll in ' + (p.id || p.className) + ' (' + p.scrollWidth + ' > ' + p.clientWidth + ')');
     if (!window.CG) return [...bad, 'no game'];
     if (CG.town) { if (CG.town.frames < 3) bad.push('town not drawing'); }
     else if (CG.map) { if (CG.map.frames < 3) bad.push('map not drawing'); }
@@ -700,16 +713,17 @@ async function run() {
           out[mode] = t.sell.timber === want && pick.hidden && b.textContent.includes(({ always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' })[mode]);
         }
         if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
-        // a boom on timber: the strip chip gets its arrow and keeps its box, and the row says Boom with the time left
+        // a boom on timber: the strip chip gets its arrow and keeps its box
         const m = CG.game.shared.market, keep = { boom: m.boom, event: m.event, wait: m.wait };
         const chip = document.querySelector('#goodsStrip .goodchip[data-good="timber"]'), box = c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), Math.round(r.top), Math.round(r.height)].join(); };
         const b0 = chip && box(chip);
         m.boom = { good: 'timber', f: 1.6, left: 75 }; m.event = { timber: 1.6 }; m.wait = 200; await wait(450);
         const row = document.querySelector('#sheet [data-why="timber"] .evword');
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
-        out.row = !!row && !row.hidden && /^Boom \d:\d\d$/.test(row.textContent);
+        // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
+        out.row = !!row && !row.hidden && /^\d:\d\d$/.test(row.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
-        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^Bust 0:\d\d$/.test(row.textContent);
+        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^0:\d\d$/.test(row.textContent) && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
         Object.assign(m, keep); await wait(450);
         out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden;
         return out;
@@ -850,7 +864,7 @@ async function run() {
         w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
         w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Line up';
         out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
-        out.tradeoff = /burn one more timber/.test(sheet.textContent);
+        out.tradeoff = /1 more timber for each copper or brick/.test(sheet.textContent);
         return out;
       });
       for (const [k, v] of Object.entries(lab)) if (!v) bad.push('Research: not ' + k);
@@ -944,7 +958,7 @@ async function run() {
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
         // with the lot's price as have / need (clarity pass)
-        out.goalNext = /^Tap the Copper Camp lot, then tap Build · \d+ \/ \d+$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        out.goalNext = /^Tap the Copper Camp lot, then tap Build( · \d+ \/ \d+)?$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
@@ -1401,7 +1415,7 @@ async function run() {
       await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());
       if (!await waitFor(page, () => document.querySelector('[data-auto="retry"]').textContent === 'Turn off' && /Ready if a boss gets through/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('Keep trying the boss did not switch on');
       await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
-      if (!await waitFor(page, () => /Stays at wave 19 until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent) && !CG.game.town.waves.hold, 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
+      if (!await waitFor(page, () => /Stays at wave 19 until|Goes back up to wave 19 and stays there until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent) && !CG.game.town.waves.hold, 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
       bad.push(...(await check(page)).map(b => 'retry: ' + b));
       // Call to arms (M6a): the War Office's Armory brings out To arms; its sheet says what a call costs; a call sends the
       // workers out (drawn on the board), stops the buildings, and the button shows the time in a fixed-width cell
@@ -1430,6 +1444,18 @@ async function run() {
       for (const [k, v] of Object.entries(arms)) if (!v) bad.push('Call to arms: not ' + k + ' ' + JSON.stringify(arms));
       bad.push(...(await check(page)).map(b => 'arms: ' + b));
       bad.push(...(await uncovered(page)).map(b => 'arms: ' + b));
+      // every side button out, waves on hold (the widest words on Hold waves): nothing in the top bar covers another
+      // control, at this size and, turned sideways, on three phones' landscape screens (review of 2026.11.23-6)
+      await page.evaluate(() => { const g = CG.game, t = g.town; CG.play.sheets.close(); g.shared.charter.offered = true; t.flags['open:research'] = true; g.shared.seen = { ...(g.shared.seen || {}), goods: true }; t.waves.hold = true; });
+      const crowdOut = await waitFor(page, () => ['goodsBtn', 'researchBtn', 'perksBtn', 'autoBtn', 'armsBtn', 'menuBtn'].every(id => !document.getElementById(id).hidden) && /Resume/.test(document.getElementById('holdWaves').textContent), 3000);
+      if (!crowdOut) bad.push('crowded: the six side buttons did not all come out');
+      for (const vp2 of name === 'land' ? [[860, 400], [844, 390], [667, 375], [932, 430]] : [vp]) {
+        await page.setViewportSize({ width: vp2[0], height: vp2[1] }); await sleep(500);
+        bad.push(...(await check(page)).map(b => 'crowded ' + vp2.join('x') + ': ' + b));
+        await page.evaluate(() => CG.play.openSpot(3)); await sleep(400);
+        bad.push(...(await uncovered(page)).map(b => 'crowded card ' + vp2.join('x') + ': ' + b));
+        await page.evaluate(() => CG.play.close());
+      }
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

@@ -8,7 +8,13 @@ import { bossWave } from '../core/defense.js';
 
 /* Keep trying the boss never holds: it climbs back to the wave before the one lost and stays there until a tower goes
    up a level ("stays at", not "plays again": review of 2026.11.22-2, the screen said Fighting wave 18 beside "plays wave 19 again"). */
-const AGAIN = l => 'Your waves stay at wave ' + againWave({ wave: l.wave || 1 }) + ' until a tower goes up a level.';
+const AGAIN = (l, town) => 'Your waves ' + stayAt(town, l.wave, 'go', 'stay') + ' until a tower goes up a level.';
+/* "stays at wave 19", or "goes back up to wave 19 and stays there" while the town is below it, so the line never names
+   a wave the top bar does not show (review of 2026.11.23-6: "stays at wave 19" beside "Wave 18"). go, stay: the verbs. */
+export function stayAt(town, lost, go = 'goes', stay = 'stays') {
+  const a = againWave({ wave: lost || 1 });
+  return town && town.wave < a ? go + ' back up to wave ' + a + ' and ' + stay + ' there' : stay + ' at wave ' + a;
+}
 
 export const bossName = town => ((FOES[town.def.boss || 'wagon'] || FOES.wagon).name).toLowerCase();
 const storeOf = town => town.def.store || 'vault';
@@ -17,7 +23,7 @@ const storeOf = town => town.def.store || 'vault';
    Keep trying the boss on says it tries again by itself. */
 export function lostToast(town, here = false, game = null, onMap = false) {
   const l = town.lost || { why: 'vault', back: town.wave };
-  if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' ' + AGAIN(l);
+  if (game && willRetry(game, town)) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through in ' + town.def.name + '.' : 'The ' + storeOf(town) + ' in ' + town.def.name + ' fell.') + ' ' + AGAIN(l, town);
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
   // which town and where to go, not what happened: the map card says that (review of 2026.11.20-15: one loss told three ways)
@@ -32,7 +38,7 @@ export function lostCard(town, game = null) {
   return {
     title: 'Wave ' + l.wave + ' lost',
     lines: ['The ' + bossName(town) + ' got through. You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
-      again ? AGAIN(l) + ' Then the ' + bossName(town) + ' comes back.' : 'Your waves are on hold. Build more towers, then tap Resume waves.'],
+      again ? AGAIN(l, town) + ' Then the ' + bossName(town) + ' comes back.' : 'Your waves are on hold. Build more towers, then tap Resume waves.'],
   };
 }
 /* The line on the town's map card while it tries its boss again (Keep trying the boss): playing the last wave it beat
@@ -43,7 +49,7 @@ export function retryLine(game, town) {
   if (st === 'climb') return here + (what.startsWith('wave') ? ' fights ' + what + ' again.' : ' fights ' + what + ' again at wave ' + w + '.');
   if (st === 'stuck') return 'Play ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
   // the loss and what it does now (review of 2026.11.20-18: the line never said the town lost)
-  return here + ' lost wave ' + w + '. It stays at wave ' + againWave({ wave: w || 1 }) + ' until a tower goes up a level.';
+  return here + ' lost wave ' + w + '. It ' + stayAt(town, w) + ' until a tower goes up a level.';
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */

@@ -23,7 +23,7 @@ test('the Ridge sends the player to Pine Hollow after its first workshop, until 
   r.buildings.furnace = 1; g.step(.25);
   const x = goalNow(g);
   assert.equal(x.id, 'r-pine');
-  assert.equal(goalText(g, g.town, x), 'Tap Map, Pine Hollow, then Play Pine Hollow');
+  assert.equal(goalText(g, g.town, x), 'Tap Map, then tap Pine Hollow'); // the map card's Play does the rest (review of 2026.11.23-6)
   g.go('pinehollow'); g.step(.25); g.go('ridge'); g.step(.25);
   assert.equal(goalNow(g).id, 'r-pine', 'a visit alone is not enough, the strip asks until it is won');
   g.towns.pinehollow.won = true; g.step(.25);

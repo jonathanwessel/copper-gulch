@@ -55,7 +55,8 @@ export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
     if (kind !== v.kind) { kind = v.kind; const c = drawFoe(v.kind); c.className = 'foepic'; pic.replaceChildren(c); }
     set(name, v.name); set(stage, v.stage); set(num, v.health.text);
     const w = (100 * (v.gone ? 0 : v.health.share)).toFixed(1) + '%'; if (fill.style.width !== w) fill.style.width = w;
-    set(apct, v.armor); const vis = v.armor ? '' : 'hidden'; if (armor.style.visibility !== vis) armor.style.visibility = vis; // kept in place, so the bar never changes
+    // the word with the percent (review of 2026.11.23-6: a shield and a percent with no word)
+    set(apct, v.armor ? 'Armor ' + v.armor : ''); const vis = v.armor ? '' : 'hidden'; if (armor.style.visibility !== vis) armor.style.visibility = vis; // kept in place, so the bar never changes
     const label = [v.name, 'Health ' + v.health.text, v.armor && 'Armor ' + v.armor, v.stage].filter(Boolean).join('. ');
     if (bar.getAttribute('aria-label') !== label) bar.setAttribute('aria-label', label);
     if (bar.hidden) bar.hidden = false;
