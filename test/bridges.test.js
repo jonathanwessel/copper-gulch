@@ -62,6 +62,7 @@ test('the wave bar says On hold exactly when the button says Resume waves', () =
     assert.equal(bar.word === 'On hold', hold, phase + ' ' + hold);
     assert.equal(bar.button === 'Resume waves', hold);
     assert.equal(bar.word, waveTimer(ws));
+    assert.equal(bar.call, !hold && phase === 'break', 'Call now shows only in a break that is not held'); // review of 2026.11.23-7
   }
   assert.equal(waveBar({ phase: 'wave', hold: false }).word, 'Fighting');
   assert.equal(waveBar({ phase: 'wave', hold: true }).word, 'On hold'); // raiders still on the road, the next wave held

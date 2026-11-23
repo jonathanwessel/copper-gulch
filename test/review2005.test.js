@@ -22,7 +22,7 @@ test('a price of almost 0 is said once, by the price bar', () => {
 
 test('no dot stands where a colon would go, and raider names are lowercase in a sentence', () => {
   const g = newGame(1), t = g.towns.gulch || g.town;
-  assert.equal(bestLine(t, 'raider'), 'Best tower · Any');
+  assert.equal(bestLine(t, 'raider'), '');
   for (const i of INSTITUTIONS) assert.doesNotMatch(i.about, /·/, i.name);
   const cap = read('src/ui/capital.js');
   assert.doesNotMatch(cap, /'(Now|Next) · '/);

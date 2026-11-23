@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-9',
+    lines: [
+      'While waves are on hold, only Resume waves shows. Call now comes back once they run.',
+      'Goals for several towers count them, like 2 of 5.',
+      'Boss bar lines say what changed, like Crew off, slower.',
+      'Building cards fit on a phone turned sideways, foreman and all.',
+    ],
+  },
+  {
     v: '2026.11.23-8',
     lines: [
       'When Iron Ridge beats wave 30, a message says what the Capital costs.',

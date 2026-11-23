@@ -66,9 +66,9 @@ test('tower damage, shots and reach come from the kind, its level, its path and 
     if (st.poison) assert.ok(near(product(ex.poison), st.poison), 'poison');
   }
   const lb = explainTower(t, { kind: 'crossbow', level: 7, path: 'b' });
-  assert.deepEqual(lb.dmg.rows.map(r => r.label), ['Base damage', 'Level 7', 'Longbow path', 'Fort Town perk', 'Gunsmith research']);
-  assert.deepEqual(lb.range.rows.map(r => r.label), ['Base range', 'Level 7', 'Longbow path']);
-  assert.deepEqual(explainTower(t, { kind: 'crossbow', level: 1 }).rate.rows.map(r => r.label), ['Base shots']);
+  assert.deepEqual(lb.dmg.rows.map(r => r.label), ['New Crossbow', 'Level 7', 'Longbow', 'Fort Town perk', 'Gunsmith research']);
+  assert.deepEqual(lb.range.rows.map(r => r.label), ['New Crossbow', 'Level 7', 'Longbow']);
+  assert.deepEqual(explainTower(t, { kind: 'crossbow', level: 1 }).rate.rows.map(r => r.label), ['New Crossbow']);
 });
 
 test('the vault: its strength in hits, each bonus, hits left and what each raider takes', () => {

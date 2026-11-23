@@ -12,7 +12,7 @@ import { researchClosedLine, elsewhereLines, otherLabs } from '../src/ui/sheets.
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { textIssues, requiredFeatures } from '../tools/audit.js';
 
-const sp = s => s.replace(/ /g, ' '); // place names keep a no-break space
+const sp = s => s.replace(/\u00a0/g, ' '); // place names keep a no-break space
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const empire = () => {
   const g = newGame('ra1');

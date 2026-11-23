@@ -166,7 +166,7 @@ html.no3d body { background: var(--bg); }
 .bossbar .btext { display: grid; gap: 3px; min-width: 0; }
 .bossbar .brow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .bossbar .bname { flex: 1 1 auto; min-width: 0; color: var(--copper-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bossbar .bstage { flex: none; width: 9.5em; text-align: right; color: var(--gold); white-space: nowrap; overflow: hidden; }
+.bossbar .bstage { flex: none; width: 11em; text-align: right; color: var(--gold); white-space: nowrap; overflow: hidden; }
 .bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
 .bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .bossbar .bnum { flex: none; width: 11ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -195,6 +195,10 @@ html.no3d body { background: var(--bg); }
 .goalmark.ontag { border: 0; box-shadow: none; }
 .goalmark.onel { border-width: 2px; box-shadow: 0 0 0 1px var(--line); } /* on a button: snug, its pulse stays within 3px, so the next button and its dot stay clear */
 .goalmark.onel::after { inset: -2px; animation: markPulseEl 1.1s ease-out infinite; }
+/* on a button the mark is white and dashed, never the gold of a switch that is on (review of 2026.11.23-8: the gold
+   border round Hold waves read as the button switched on) */
+.goalmark.onel { border-color: #fff8e6; border-style: dashed; }
+.goalmark.onel::after { border-color: #fff8e6; }
 @keyframes markPulseEl { from { inset: -2px; opacity: .9; } to { inset: -5px; opacity: 0; } }
 .goalmark.onpad, .goalmark.onpad::after { border-radius: 50%; } /* on a stone pad: a ring lying on it as the camera sees it (review of 2026.11.20-7) */
 .goalmark.ontag::after { display: none; } /* on a tag the tag itself pulses: a ring round it read as an extra box (review of 2026.11.20-4) */
@@ -317,6 +321,11 @@ html.flat .tag { position: static; transform: none !important; }
 .explain .statrow.on { background: #1f150f; }
 .explain .statrow b::after, .stat b::after { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 2px 1px 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); }
 .explain .statrow.on b::after, .stat[aria-expanded="true"] b::after { transform: rotate(45deg); margin-bottom: 3px; }
+/* a stat's chevron rides at the end of its value and never wraps onto a line of its own (review of 2026.11.23-7:
+   "One every 2 seconds" then a lone chevron) */
+.explain .statrow b { position: relative; padding-right: 14px; }
+.explain .statrow b::after { position: absolute; right: 2px; bottom: .45em; margin: 0; }
+.explain .statrow.on b::after { bottom: .3em; margin: 0; }
 .tapwhy { cursor: pointer; }
 .coins { cursor: pointer; }
 .vaultbtn { display: inline-flex; flex-direction: row; justify-content: center; align-items: center; gap: 4px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
@@ -370,6 +379,35 @@ html.flat .tag { position: static; transform: none !important; }
   .card > p.uses { font-size: .82rem; line-height: 1.25; }
   .card > p > .more { display: none; } /* only how long, not which building: the red have in the price bar says what is short */
   .card > p:is(.short, .soon) ~ p:is(.short, .soon) { display: none; } /* and only the first good that is short, for the same reason */
+  /* a building's switches side by side, each label free to take two lines, and the foreman's line small beside its
+     switch, so a level-10 card fits over the pinned price (review of 2026.11.23-7: the foreman row sat under it at 860x400) */
+  .card .switchrow { flex-wrap: nowrap; gap: 6px; }
+  .card .switchrow > .btn.switch, .card .keeprow > .btn.switch { flex: 1 1 0; min-width: 0; white-space: normal; text-align: left; justify-content: space-between; gap: 6px; line-height: 1.15; min-height: 34px; padding-block: 2px; }
+  .card .keeprow > .btn.switch:only-child { flex: 0 1 auto; }
+  .card .keeprow > .uses { flex: 1.3 1 0; font-size: .76rem; line-height: 1.2; }
+  .card .keeprow > .uses:empty { display: none; }
+  .card .switchrow .pip, .card .keeprow .pip { flex: none; }
+  /* a building card with switches as wide as a tower card, so each switch's label takes at most two lines */
+  @media (min-width: 760px) { .card:has(> .switchrow) { width: min(54%, 480px); } } /* under 760 it would cover the goal */
+  @media (max-height: 390px) {
+    .card .stat { min-height: 30px; padding-block: 2px; }
+    .card .switchrow > .btn.switch, .card .keeprow > .btn.switch { min-height: 30px; font-size: .78rem; padding-inline: 6px; }
+    .card .keeprow:has(> .btn.switch) > .uses { display: none; } /* the foreman's switch stays, its status line goes */
+    .card > p.uses:has(+ .keeprow > #hireForeman) { display: none; } /* and Hire foreman with its price, without its line */
+    .card .keeprow > .btn.small { min-height: 30px; }
+    .cardhead { padding-bottom: 2px; }
+  }
+  /* the price sits beside Upgrade, not over it, so the pinned bar takes one row (2026.11.23-9: at 667x375 and 932x430
+     a level-10 building card's rows sat under a two-row bar) */
+  .card > .buybar:not(.pathbar) { grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; }
+  .card > .buybar:not(.pathbar) > .costrow { margin: 0; }
+  .card > .buybar:not(.pathbar) > :not(.costrow) { grid-column: 2; grid-row: 1; }
+  .card > .buybar:not(.pathbar) > .costrow ~ :not(.row) { grid-column: 1 / -1; grid-row: auto; }
+  /* a breakdown opened on a card takes two columns, so its last rows stay over the pinned price (review of
+     2026.11.23-7: the why-tower card's bar covered its last rows); the total spans both */
+  .card .explain.why { grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 0; padding-block: 3px; }
+  .card .explain.why > div { min-height: 0; line-height: 1.3; font-size: .86rem; }
+  .card .explain.why > .total { grid-column: 1 / -1; }
   /* a wider card for the path choice, the two paths side by side, so both show without scrolling (review of
      2026.11.20-3: Shrapnel was below the fold while most of the screen was map). Every other card keeps to 46%, so the
      map stays the bigger half (review of 2026.11.20-12: landscape cards covered the right half) */
@@ -569,11 +607,11 @@ html.flat .tag { position: static; transform: none !important; }
 .goodchip { position: relative; }
 .goodstrip .goodchip.boom, .goodstrip .goodchip.bust { outline: 2px solid var(--evc); outline-offset: -2px; } /* the whole chip ringed in green or red (review of 2026.11.22-3: the arrow alone was easy to miss) */
 .goodchip.boom { --evc: #5fd36a; } .goodchip.bust { --evc: #e0503a; }
-.goodchip.boom::after, .goodchip.bust::after { content: ""; position: absolute; top: 3px; right: 3px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; pointer-events: none; } /* a boom or bust: a corner arrow, so the chip keeps its size */
+.goodchip.boom::after, .goodchip.bust::after { content: ""; position: absolute; bottom: 5px; right: 4px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; pointer-events: none; } /* a boom or bust: a corner arrow, so the chip keeps its size, low beside the name and clear of the count (review of 2026.11.23-7: it sat over "10.0K") */
 .goodchip.boom::after { border-bottom: 7px solid var(--evc); }
 .goodchip.bust::after { border-top: 7px solid var(--evc); }
 .option .gnamerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
-.option .gnamerow .evword { flex: none; width: 6em; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.option .gnamerow .evword { flex: none; width: 7.5em; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
 .option .gnamerow .evword.bust { color: #e0503a; }
 .option .gnamerow .evword::before { content: ""; display: inline-block; width: 0; height: 0; margin-right: 5px; vertical-align: 1px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid currentColor; } /* up: the price is high (the strip's arrow, review of 2026.11.23-6) */
 .option .gnamerow .evword.bust::before { border-bottom: 0; border-top: 8px solid currentColor; }

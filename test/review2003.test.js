@@ -31,9 +31,9 @@ test('the old-waves row says what it is in a few words', () => {
   assert.deepEqual(textIssues(s), []);
 });
 
-test('a raider no tower beats has Any as its best tower', () => {
+test('a raider no tower beats has no best tower row', () => {
   const g = newGame(1), t = g.towns.gulch || g.town;
-  assert.equal(bestLine(t, 'raider'), 'Best tower · Any');
+  assert.equal(bestLine(t, 'raider'), ''); // review of 2026.11.23-7: the row shows only when one tower is best
 });
 
 test('switches light a small box, not the whole button, and say what they do', () => {

@@ -52,7 +52,7 @@ test('the words the review flagged', () => {
   assert.ok(cap.includes("el('button', 'btn small', 'Give up'); drop.id = 'contractDrop';") && !cap.includes("'Drop'"));
   assert.ok(stateWord({ state: 'hold', needs: true }) === 'On hold' && !map.includes("' · Waiting'"));
   assert.ok(map.includes('That town starts over at wave 1 and you get deeds.'));
-  for (const s of ['Won last time', 'Save for towers', '2 upgrades', 'Line up', 'Give up', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.']) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', 'Save for towers', '2 upgrades', 'Up next', 'Give up', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.']) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('short landscape keeps the strip to one row beside a card when its goods fit, and rings clear of it', () => {

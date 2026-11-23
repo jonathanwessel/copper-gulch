@@ -19,7 +19,9 @@ export const waveTitle = town => (town.won ? 'Raids' : 'Wave ' + town.wave);
 /* The wave bar's word and the hold button come from one state, so the bar never says Fighting beside Resume waves
    (owner, 2026-11-22): while waves are held the bar says On hold, even with raiders still on the road, and Resume
    waves shows only then. */
-export const waveBar = ws => ({ hold: !!ws.hold, word: waveTimer(ws), button: ws.hold ? 'Resume waves' : 'Hold waves' });
+/* call: Call now shows only in a break that is not held, so a held town shows one control, Resume waves (review of
+   2026.11.23-7: Call now beside Resume waves). It keeps its place while hidden, so the bar keeps one width. */
+export const waveBar = ws => ({ hold: !!ws.hold, word: waveTimer(ws), button: ws.hold ? 'Resume waves' : 'Hold waves', call: !ws.hold && ws.phase === 'break' });
 export const waveTimer = ws => (ws.hold ? 'On hold' : ws.phase !== 'break' ? 'Fighting' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
 
 /* The tower open in this town that hits a raider kind hardest (its best factor), or null when none does. */
@@ -38,8 +40,10 @@ export function bestTower(town, kind) {
    (review of 2026.11.20-3: the Bandit row looked empty). A label, not a sentence (review of 2026.11.22-12: "Snake Oil
    Still works best" read as "still works best", and as advice). */
 export const BEST_LABEL = 'Best tower'; // review of 2026.11.22-13: "Hits it hardest" could read as what the raider hits
-export const bestView = (town, kind) => { const b = bestTower(town, kind); return b ? { label: BEST_LABEL, tower: TOWERS[b].name } : { label: BEST_LABEL, tower: 'Any', any: BEST_LABEL + ' · Any' }; }; // the same row as a named tower (review of 2026.11.23-6: "Any tower works." read as advice)
-export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : v.any; };
+/* tower null when no tower hits it harder, and then the row is left out (review of 2026.11.23-7: "Best tower · Any" was
+   flagged both as an empty row in 2026.11.20-3 and as filler, so by the twice-flagged rule it goes). */
+export const bestView = (town, kind) => { const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null }; };
+export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : ''; };
 
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
@@ -89,8 +93,7 @@ export function waveSheet(town) {
         pic.className = 'foepic'; row.dataset.foe = kind;
         txt.append(el('b', null, n === null ? FOES[kind].name : plural(n, FOES[kind].name)));
         const bv = bestView(town, kind), line = el('span', 'uses');
-        if (bv.tower) line.append(el('span', 'flabel', bv.label + ' '), el('b', 'besttower', bv.tower)); else line.textContent = bv.any;
-        txt.append(line);
+        if (bv.tower) { line.append(el('span', 'flabel', bv.label + ' '), el('b', 'besttower', bv.tower)); txt.append(line); }
         row.append(pic, txt); out.push(row);
       }
       box.replaceChildren(...out);

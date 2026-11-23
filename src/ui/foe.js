@@ -13,7 +13,7 @@ import { fmt, fmtLive } from './format.js';
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
 /* The word for each effect, in the order foeStatus lists them. */
-export const EFFECT_WORDS = { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Brittle' };
+export const EFFECT_WORDS = { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Extra damage' };
 const pct = x => Math.round(x * 100) + '%';
 /* Seconds left, at most 3 characters ("4s", "12s"), or "No end" for an effect that lasts until the raider falls. */
 export const fxLeft = s => (s === null || s === undefined ? 'No end' : Math.min(99, Math.max(1, Math.ceil(s - 1e-9))) + 's');
@@ -43,7 +43,7 @@ export function foeLines(town, f, store) {
   if (v.armor) out.push('Armor', v.armor.text);
   for (const e of v.effects) out.push(e.word, e.left);
   if (!v.effects.length) out.push(v.none);
-  if (v.best.tower) out.push(v.best.label, v.best.tower); else out.push(v.best.any);
+  if (v.best.tower) out.push(v.best.label, v.best.tower);
   out.push(v.worth);
   if (v.gone) out.push(v.gone);
   return out.filter(Boolean);
@@ -86,10 +86,10 @@ export function foeCard(card, town, f, { store = 'vault', onClose = () => {} } =
   const fx = el('div', 'foefx'), worth = el('p', 'uses', v0.worth);
   // the tower that hits it hardest, as a labeled row like Health and Armor (review of 2026.11.22-12)
   const best = el('div', 'foestat best');
-  best.append(el('span', 'flabel', BEST_LABEL), el('b', null, v0.best.tower || 'Any tower'));
+  best.append(el('span', 'flabel', BEST_LABEL), el('b', null, v0.best.tower || ''));
   card.append(head, hp.row);
   if (ar) card.append(ar.row);
-  card.append(fx, best, worth);
+  card.append(fx, ...(v0.best.tower ? [best] : []), worth); // no row when no tower hits it harder
   let sig = '', goneFor = 0, last = performance.now();
   const set = (n, s) => { if (n.textContent !== s) n.textContent = s; };
   const update = () => {

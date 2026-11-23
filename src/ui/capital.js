@@ -88,6 +88,8 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
     });
   } else box.append(el('p', 'uses', 'No contract running.')); // a state, not a how-to in warning red (review of 2026.11.19-10)
   box.append(el('h3', '', 'Offers')); // not Contracts again under the Contracts tab (review of 2026.11.20-7)
+  // what Switch costs, before the tap (review of 2026.11.23-8: the button did not say the goods sent stay unpaid)
+  if (a) box.append(el('p', 'uses', 'Taking one ends your contract. Goods sent so far stay at the Capital, unpaid.'));
   const list = el('div', 'goods research');
   if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build new kinds of buildings in your towns.'));
   for (const o of c.offers) {

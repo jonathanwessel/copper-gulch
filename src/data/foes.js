@@ -28,7 +28,8 @@ export const FOES = {
     stages: [{ at: 1 / 3, key: 'steam', speed: 1.1 }] },
 };
 /* What the boss bar says once a boss reaches each stage: a few words. */
-export const STAGE_WORDS = { crew: 'Crew jumped off', horsemen: 'Horsemen rode off', plates: 'Plates fell off', steam: 'Full steam' };
+/* What happened and what it changed, in three words (review of 2026.11.23-7: the lines named only what happened). */
+export const STAGE_WORDS = { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */
 export const WAVE_TYPES = {

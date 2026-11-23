@@ -27,7 +27,7 @@ export function mountTitle(root, { onPlay = () => {}, slot = null, slotNo = 1 } 
   row.append(installButton(), check);
   sign.append(play, saved, row);
   const foot = el('p', 'foot'); foot.id = 'version';
-  const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status.replace(/\.$/, '') : '') + ' · Free, no\u00a0ads'; }; // "ads" never alone on a line (review of 2026.11.23-6)
+  const paint = () => { foot.textContent = 'Version ' + GAME_VERSION + (APP.status ? ' · ' + APP.status.replace(/\.$/, '') : '') + ' · Free,\u00a0no\u00a0ads'; }; // "ads" never alone on a line (review of 2026.11.23-6)
   APP.onChange = paint; paint();
   const head = el('div', 'head'); head.append(logo, tag);
   t.append(head, sign, foot);

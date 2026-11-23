@@ -110,8 +110,8 @@ test('the words while it plays a wave again', () => {
   run(g, 4 * 60);
   assert.equal(breaches(ev).length, 1);
   // the town dropped below wave 9, so the line never names a wave the bar does not show (review of 2026.11.23-6)
-  assert.match(toastLine, /Your waves go back up to wave 9 and stay there until a tower goes up a level/);
-  assert.match(card.lines[1], /^Your waves go back up to wave 9 and stay there until a tower goes up a level\. Then the war wagon comes back\.$/);
+  assert.match(toastLine, /It tries again after a tower goes up a level\.$/); // no wave number (review of 2026.11.23-7)
+  assert.equal(card.lines[1], 'The war wagon comes back after a tower goes up a level.');
   assert.equal(retryState(g, G), 'again', 'Auto-towers will raise one');
   assert.equal(siteInfo(g, 'gulch').alert, 'retry', 'no call for the player: it is handling it');
 });
@@ -195,9 +195,7 @@ test('On, a vault that fell on a plain wave while away plays the wave before it 
   G.towers[0].level--;
   G.towers[1].path = 'a'; G.towers[1].level = 5; autoOf(g, G).boss.power = towerPower(G); setAuto(g, G, 'towers', true);
   assert.equal(retryState(g, G), 'again');
-  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14. It goes back up to wave 13 and stays there until a tower goes up a level.');
-  G.wave = 13; // back at the wave it stays at: the line says so, as the bar does
-  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14. It stays at wave 13 until a tower goes up a level.');
+  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14. It keeps fighting and tries again after a tower goes up a level.');
 });
 
 test('On, a vault that fell in play moves the try down, so a wave it cannot beat is not played in a loop', async () => {

@@ -25,11 +25,11 @@ test('the words on screen today', () => {
   assert.deepEqual(MODE_WORDS, { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' });
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Always');
   // the raider card (owner, 2026-11-22)
-  assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Brittle' });
+  assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Extra damage' });
   assert.equal(fxLeft(null), 'No end'); assert.equal(fxLeft(3.2), '4s');
   for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
   // the boss bar's stages (owner, 2026-11-22)
-  assert.deepEqual(STAGE_WORDS, { crew: 'Crew jumped off', horsemen: 'Horsemen rode off', plates: 'Plates fell off', steam: 'Full steam' });
+  assert.deepEqual(STAGE_WORDS, { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' });
   // the review of 2026.11.22-12: the tower that hits a raider hardest is a labeled row, a crashed price says it once
   assert.equal(BEST_LABEL, 'Best tower');
   assert.deepEqual(priceRow(.02, .01), ['Under 1 coin each', '']);
@@ -37,7 +37,7 @@ test('the words on screen today', () => {
   assert.deepEqual(priceRow(.5, 1.3), ['Under 1 coin each', 'Up 30%']);
   // the speaker button reads the card's own words (owner, 2026-11-22)
   assert.equal(sayable('Big Shell', 'Hits x2 · slower'), 'Big Shell. Hits 2 times, slower.');
-  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Line up', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Up next', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('the explainers name the controls by their words on screen', async () => {
@@ -73,7 +73,7 @@ test('the sell modes say what each does, and a boom never reads as a drop (revie
   const { slotWords } = await import('../src/ui/sheets.js');
   assert.deepEqual(MODE_LINES, { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' });
   for (const k of Object.keys(MODE_WORDS)) { assert.ok(MODE_LINES[k], k); assert.deepEqual(textIssues(MODE_LINES[k]), [], k); assert.ok(MODE_LINES[k].split(' ').length <= 8, k); }
-  assert.equal(priceNote({ have: 50, price: .00005, boom: true }), 'You sold a lot of it lately.', 'the price row already says under 1 coin');
+  assert.equal(priceNote({ have: 50, price: .00005, boom: true }), 'The boom lifts it, but you sold a lot of it lately.', 'the price row already says under 1 coin');
   assert.ok(!/comes back/.test(priceNote({ have: 0, price: .00005, boom: true })));
   assert.equal(slotWords({ town: 'gulch', wave: 12, coins: 4321 }, true), 'Copper Gulch · Wave 12 · 4.32K coins');
 });

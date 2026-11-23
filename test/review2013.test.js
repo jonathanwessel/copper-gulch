@@ -40,12 +40,12 @@ test('the words the review flagged', () => {
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   const sheets = read('src/ui/sheets.js'), play = read('src/ui/play.js');
   // the Keep trying the boss line gives its reason (since 2026.11.22-2 the town plays a wave again instead of holding)
-  assert.ok(sheets.includes("' until a tower goes up a level'") && sheets.includes("' until Auto-towers can upgrade'"));
+  assert.ok(sheets.includes("'Tries again after a tower goes up a level'") && sheets.includes("'Tries again once Auto-towers can upgrade'"));
   assert.ok(!sheets.includes("'On hold for now'"));
   assert.ok(sheets.includes("plural(d, 'deed') + ' · '"), '"2 deeds · 50% more coins"');
   assert.ok(!play.includes("'Either path'"));
   assert.ok(play.includes("{ kind: 'tomap' }") && read('src/main.js').includes("dropToasts('tomap')"));
-  for (const s of ['Won last time', '2 upgrades', 'Stays at wave 46 until a tower goes up a level', 'Stays at wave 46 until Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', '2 upgrades', 'Tries again after a tower goes up a level', 'Tries again once Auto-towers can upgrade', '2 deeds · 50% more coins']) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('chips, Best against and landscape cards keep one layout', () => {

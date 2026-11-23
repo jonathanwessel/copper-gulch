@@ -24,7 +24,7 @@ test('the Mortar and Cannon Blast opens with a breakdown in words', () => {
   t.towers.push({ spot: 3, kind: 'cannon', level: 1, path: null, cd: 0, spent: 0, pulses: 0 });
   const ex = explainTower(t, t.towers[0]);
   assert.ok(ex.splash, 'the cannon has a blast breakdown');
-  assert.equal(ex.splash.rows[0].label, 'Base blast');
+  assert.equal(ex.splash.rows[0].label, 'New Cannon');
   assert.match(unitText('blast', ex.splash.value), /^(Small|Wide)$/);
   assert.equal(blastWord(1), 'Small'); assert.equal(blastWord(1.5), 'Wide');
   const play = fs.readFileSync(new URL('../src/ui/play.js', import.meta.url), 'utf8');

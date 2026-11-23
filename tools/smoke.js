@@ -42,6 +42,19 @@ export async function uncovered(page) {
     // and beside it every good's name shows whole (review of 2026.11.19-6: "Copper ..." beside a side card)
     if (vis(strip)) for (const n of strip.querySelectorAll('.gname')) if (n.scrollWidth > n.clientWidth + 1) bad.push('the goods strip cuts ' + n.textContent);
     if (vis(buy) && vis(card)) { const b = R(buy), c = R(card); if (b.top < c.top - 1 || b.bottom > c.bottom + 1 || b.bottom > innerHeight) bad.push('the card\'s ' + buy.textContent.split(' ')[0] + ' button is out of view'); }
+    // no button or switch of the card sits partly under its pinned price bar (review of 2026.11.23-7: in landscape the
+    // building card at level 10 scrolled with its foreman switch under the bar)
+    if (vis(card)) {
+      const pin = card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
+      if (vis(pin) && getComputedStyle(pin).position === 'sticky') {
+        const p = R(pin), c = R(card);
+        for (const n of card.querySelectorAll('button, .switch, [role=switch]')) {
+          if (!vis(n) || pin.contains(n) || getComputedStyle(n).visibility === 'hidden') continue;
+          const r = R(n); if (r.bottom <= c.top + 1 || r.top >= c.bottom - 1) continue; // scrolled out of the card whole
+          if (r.bottom > p.top + 1 && r.top < p.bottom - 1 && r.top < p.top - 1) bad.push('the card\'s ' + (n.textContent.trim().slice(0, 24) || n.id || 'button') + ' sits half under its price bar');
+        }
+      }
+    }
     return bad;
   });
 }
@@ -721,9 +734,9 @@ async function run() {
         const row = document.querySelector('#sheet [data-why="timber"] .evword');
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
         // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
-        out.row = !!row && !row.hidden && /^\d:\d\d$/.test(row.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
+        out.row = !!row && !row.hidden && /^\d:\d\d left$/.test(row.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
-        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^0:\d\d$/.test(row.textContent) && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
+        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^0:\d\d left$/.test(row.textContent) && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
         Object.assign(m, keep); await wait(450);
         out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden;
         return out;
@@ -860,9 +873,9 @@ async function run() {
         out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         // one runs at a time, and another lines up next with a tap (review of 2026.11.20-6: no grayed Busy), off with a second tap
         const w = document.querySelector('#sheet [data-research="walls"]');
-        out.lineUp = !w.disabled && w.textContent === 'Line up';
+        out.lineUp = !w.disabled && w.textContent === 'Research';
         w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
-        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Line up';
+        w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Research';
         out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /1 more timber for each copper or brick/.test(sheet.textContent);
         return out;
@@ -1415,7 +1428,7 @@ async function run() {
       await page.evaluate(() => document.querySelector('[data-auto="retry"]').click());
       if (!await waitFor(page, () => document.querySelector('[data-auto="retry"]').textContent === 'Turn off' && /Ready if a boss gets through/.test(document.querySelector('.sheet').textContent), 3000)) bad.push('Keep trying the boss did not switch on');
       await page.evaluate(() => { const t = CG.game.town; t.wave = 18; Object.assign(t.waves, { hold: true, autoHold: true, phase: 'break', timer: 0, queue: [], foes: [] }); t.lost = { why: 'boss', wave: 20, back: 18, coins: 900, at: t.t }; });
-      if (!await waitFor(page, () => /Stays at wave 19 until|Goes back up to wave 19 and stays there until|Trying wave 20 again/.test(document.querySelector('.sheet').textContent) && !CG.game.town.waves.hold, 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
+      if (!await waitFor(page, () => /Tries again after a tower|Tries again once Auto-towers|Trying wave 20 again/.test(document.querySelector('.sheet').textContent) && !CG.game.town.waves.hold, 3000)) bad.push('the sheet did not show the try (' + (await page.evaluate(() => document.querySelector('.sheet').textContent.slice(0, 300))) + ')');
       bad.push(...(await check(page)).map(b => 'retry: ' + b));
       // Call to arms (M6a): the War Office's Armory brings out To arms; its sheet says what a call costs; a call sends the
       // workers out (drawn on the board), stops the buildings, and the button shows the time in a fixed-width cell
@@ -1454,6 +1467,9 @@ async function run() {
         bad.push(...(await check(page)).map(b => 'crowded ' + vp2.join('x') + ': ' + b));
         await page.evaluate(() => CG.play.openSpot(3)); await sleep(400);
         bad.push(...(await uncovered(page)).map(b => 'crowded card ' + vp2.join('x') + ': ' + b));
+        // a building at level 10 with its foreman row (review of 2026.11.23-7: the switch sat under the pinned price bar)
+        await page.evaluate(() => { const t = CG.game.town; CG.play.close(); t.buildings.camp = Math.max(10, t.level('camp')); CG.play.open('camp'); }); await sleep(400);
+        bad.push(...(await uncovered(page)).map(b => 'building card at level 10 ' + vp2.join('x') + ': ' + b));
         await page.evaluate(() => CG.play.close());
       }
       bad.push(...errs);

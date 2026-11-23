@@ -87,7 +87,8 @@ export function priceNote({ have, kept = 0, price = 0, boom = false }) {
   const none = have - kept < 1;
   // in a boom the price is up from where it was, so "comes back" read as a drop (review of 2026.11.23-1)
   // the price row already says under 1 coin, so only the reason (words check of 2026.11.23-2: the boom line repeated it)
-  if (price < .0095 && boom) return 'You sold a lot of it lately.';
+  // and the words follow the boom's up arrow (review of 2026.11.23-7: "sold a lot" alone beside the arrow read as a drop)
+  if (price < .0095 && boom) return 'The boom lifts it, but you sold a lot of it lately.';
   if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;

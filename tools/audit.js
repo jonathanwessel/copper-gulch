@@ -115,6 +115,9 @@ export function swallowRules() {
   // a patch script that writes "\b" inside a template string puts a raw backspace in the file, and the regex it was
   // meant for never matches (2026-11-22: test/fork.test.js's /\bbest\b/ had checked nothing since it was written)
   for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /\.(js|mjs)$/.test(f))) read(f).split('\n').forEach((line, i) => { if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(line)) out.push(f + ':' + (i + 1) + ' has a control character (a raw backspace from a patch script?)'); });
+  // a no-break space is written as its escape, never typed raw: a patch script turned the escape into the character
+  // itself in 2026.11.23-9 (the shell ate the backslash), and a raw one cannot be told from a space when reading
+  for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /[.](js|mjs)$/.test(f))) read(f).split('\n').forEach((line, i) => { if (line.includes(String.fromCharCode(160))) out.push(f + ':' + (i + 1) + ' has a raw no-break space (write it as its escape)'); });
   // and every file parses (2026.11.23-7: a comment swallowed half a line in src/ui/sheets.js, so the page would not load,
   // and no test imports that file; the rules above catch the usual shapes, this catches any syntax error)
   out.push(...parseRules());

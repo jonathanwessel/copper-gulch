@@ -31,7 +31,7 @@ import { INSTITUTION } from '../data/institutions.js';
 import { AUTO } from '../data/automation.js';
 import { ARMS } from '../data/arms.js';
 import { armsBlock, armsLoss, callToArms, militia, armsWait } from '../core/arms.js';
-import { bossName, stayAt } from './lost.js';
+import { bossName } from './lost.js';
 const upFirst = s => s[0].toUpperCase() + s.slice(1);
 import { ordersOf, takeOrder, giveUpOrder } from '../core/orders.js';
 import { ORDERS } from '../data/orders.js';
@@ -217,8 +217,9 @@ export function goodsSheet(game, town, focus = null) {
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
-        const bm = boomNow(game), ew = bm && bm.good === g ? boomClock(bm.left) : ''; // an arrow up or down and its time (the stylesheet draws the arrow)
-        { const al = bm && bm.good === g ? (bm.f > 1 ? 'Price up for ' : 'Price down for ') + ew : ''; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
+        // an arrow up or down and the time it has left (the stylesheet draws the arrow; review of 2026.11.23-7: a bare time said nothing of what it counts)
+        const bm = boomNow(game), ew = bm && bm.good === g ? boomClock(bm.left) + ' left' : '';
+        { const al = bm && bm.good === g ? (bm.f > 1 ? 'Price up for ' : 'Price down for ') + boomClock(bm.left) : ''; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.textContent !== ew) r.ev.textContent = ew;
         if (r.ev.hidden !== !ew) r.ev.hidden = !ew;
         if (r.ev.classList.contains('bust') !== (!!bm && bm.good === g && bm.f < 1)) r.ev.classList.toggle('bust');
@@ -306,7 +307,7 @@ export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
 /* Where research is not open in this town, the one thing to do: build its research building, or at an outpost, the
    towns that research (owner, 2026-11-20: Auto-research was on and the Research button was gone). */
-const placeName = t => ((t.def && (t.def.short || t.def.name)) || t.id).replace(/ /g, ' '); // a place's name never breaks across lines
+const placeName = t => ((t.def && (t.def.short || t.def.name)) || t.id).replace(/ /g, '\u00a0'); // a place's name never breaks across lines
 const orList = xs => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1]);
 export function researchClosedLine(game, town) {
   if (researchOpen(town)) return '';
@@ -388,7 +389,7 @@ export function researchSheet(game, town, goTo = null) {
         if (lab) { const w = Math.round(100 * (1 - lab.left / lab.total)) + '%'; if (x.fill.style.width !== w) x.fill.style.width = w; }
         // while another runs, the others line up one next (review of 2026.11.20-6: "Busy" on a grayed button)
         const next = town.labNext === id, lineUp = !lab && !!town.lab && block !== 'max';
-        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : lineUp ? 'Line up' : 'Research'; // review of 2026.11.20-18: "Research next" was unclear, Line up then Up next // the same verb as the free button (review of 2026.11.20-14: "Do next" beside Research) // "Next" read as a next page (review of this release)
+        const label = lab ? leftWord(lab.left) : block === 'max' ? 'Done' : next ? 'Up next' : 'Research'; // while one runs it lines this up and then says Up next (review of 2026.11.23-7: "Line up" was flagged, and "Do next" before it, so the button keeps its one word) // review of 2026.11.20-18: "Research next" was unclear, Line up then Up next // the same verb as the free button (review of 2026.11.20-14: "Do next" beside Research) // "Next" read as a next page (review of this release)
         if (x.go.textContent !== label) x.go.textContent = label;
         x.go.disabled = !!block && !lineUp; x.row.classList.toggle('running', !!lab); x.go.classList.toggle('on', next);
       }
@@ -447,8 +448,8 @@ export function autoSheet(game, town, openResearch = null) {
       const rs = retryState(game, town), bw = a.boss ? a.boss.wave : 0;
       const yLine = !autoOpen(game, 'retry') ? 'Build the ' + INSTITUTION[AUTO.opens.retry].name + ' at the Capital first.'
         : !a.retry ? ''
-        : rs === 'again' ? upFirst(stayAt(town, bw || (a.boss || {}).wave)) + ' until a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
-        : rs === 'stuck' ? (a.towers ? upFirst(stayAt(town, bw || (a.boss || {}).wave)) + ' until Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
+        : rs === 'again' ? 'Tries again after a tower goes up a level' // the reason (review of 2026.11.20-13: "On hold for now" gave none)
+        : rs === 'stuck' ? (a.towers ? 'Tries again once Auto-towers can upgrade' : 'Turn on Auto-towers, or upgrade a tower yourself')
         : rs === 'climb' ? 'Trying wave ' + bw + ' again' + (a.boss.tries > 1 ? ' · try ' + a.boss.tries : '')
         : 'Ready if a boss gets through';
       set(rows.retry, autoOpen(game, 'retry'), !!a.retry && autoOpen(game, 'retry'), yLine);
@@ -624,7 +625,7 @@ export function menuSheet(ctx) {
     const upd = btn('Check for updates', 'btn small'); upd.addEventListener('click', () => checkUpdates(true));
     const home = btn('Title screen', 'btn small', 'toTitle'); home.addEventListener('click', () => leave('title'));
     const r3 = el('div', 'row'); r3.append(installButton(), upd, help, home);
-    sec('More', r3, el('p', 'ver', 'Version ' + GAME_VERSION + ' · Free, no ads'));
+    sec('More', r3, el('p', 'ver', 'Version ' + GAME_VERSION + ' · Free,\u00a0no\u00a0ads'));
     // repainted with the top bar (sync), so the two coin counts always match
     const tick = () => {}; tick.sync = () => { if (!liveLine) return; const t = liveText(); if (liveLine.textContent !== t) liveLine.textContent = t; };
     return tick;

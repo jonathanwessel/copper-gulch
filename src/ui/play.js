@@ -575,7 +575,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   /* A place's name never breaks across lines on the strip (review of 2026.11.23-6: "Save coins to open Iron / Ridge"). */
   const NAMES = Object.values(TOWNS).map(t => t.name).filter(n => n.includes(' ')).concat(['the Capital']);
   const keepNames = s => NAMES.reduce((a, n) => a.split(n).join(n.replace(/ /g, '\u00a0')), s);
-  const goalWordsOf = g => keepNames(goalText(game, town, g)) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need && town.coins < g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + readyOf(g) : ''); // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
+  // a goal for several towers counts them, "2 of 5", and a coin count names coins (review of 2026.11.23-7)
+  const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return ' · ' + Math.min(a, b) + ' of ' + b; };
+  const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(t) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need && town.coins < g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g)); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
@@ -816,7 +818,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
     earnPer = earnRate(game, earnHist);
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
-    if (goalCur && (goalCur.need || goalCur.meter || goalCur.heldText) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
+    if (goalCur && (goalCur.need || goalCur.meter || goalCur.heldText || goalCur.count) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
     paintStrip(); paintCoinCosts();
     sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;
@@ -826,8 +828,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     paintCtl();
     measure();
     setText(waveInfo, waveBar(ws).word); // one fixed box: "in 28s", "On hold" or "Fighting", from the same state as the hold button
-    const away = ws.phase !== 'break'; if (call.classList.contains('away') !== away) call.classList.toggle('away', away); // kept in place, so the bar never changes width
-    if (ui.classList.contains('fighting') !== away) ui.classList.toggle('fighting', away); // quiet tags fade while raiders are on the road (review of 2026.11.19-13: a tag covered raiders)
+    // kept in place, so the bar never changes width; hidden during a wave and while held (one state with the hold button)
+    const away = !waveBar(ws).call, onRoad = ws.phase !== 'break'; if (call.classList.contains('away') !== away) call.classList.toggle('away', away);
+    if (ui.classList.contains('fighting') !== onRoad) ui.classList.toggle('fighting', onRoad); // quiet tags fade while raiders are on the road (review of 2026.11.19-13: a tag covered raiders)
     const callable = canCall(town); if (call.disabled === callable) call.disabled = !callable; // never locked in a break (owner rule); hidden while a wave is on the road
     // the side buttons come out as they become useful (src/core/reveal.js), with a dot when something there wants you
     look(town);

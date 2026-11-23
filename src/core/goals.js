@@ -139,7 +139,7 @@ export function firstInstitution(game) {
   // 2b: after the first contract the newcomer saved 10-12 minutes for 50K with nothing new)
   const short = game.shared.purse.coins + 1e-9 < foundCost(game);
   if (cp && !cp.active && (!cp.filled || short) && cp.offers.length) return { id: 'next:contract', next: 'contract', text: 'Tap Map, then tap the Capital and take a contract', at: () => ({ el: '#mapBtn' }), done: () => false };
-  return { id: 'next:institution', next: 'institution', text: 'Tap Map, then tap the Capital and build one of its buildings', need: foundCost(game), at: () => ({ el: '#mapBtn' }), done: () => false };
+  return { id: 'next:institution', next: 'institution', text: 'Tap Map, then add a building to the Capital', need: foundCost(game), at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 
 /* The clarity pass (PLAN.md M6a, 2026.11.23-2): a newcomer's play showed goals the player could not act on for 15-25
