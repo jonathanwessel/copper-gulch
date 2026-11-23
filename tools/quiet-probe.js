@@ -6,7 +6,8 @@ import { record } from './playthrough.js';
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEED = arg('seed', 1), MIN = arg('minutes', 330), LIMIT = 10;
 const { moments, r } = record(SEED, MIN);
-const mm = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+// round first, so 106:59.6 reads 107:00, not 106:60
+const mm = x => { const s = Math.round(x); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 let worst = 0;
 for (const m of moments) if (m.kinds[0] === 'quiet') {
   const n = parseInt(m.what[0]) || 2, from = m.quietFrom;

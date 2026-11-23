@@ -89,6 +89,10 @@ test('the strip lines of clarity fix 3b part 2', async () => {
   const { CAPITAL_HOLD } = await import('../src/core/goals.js');
   const { GOALS } = await import('../src/data/goals.js');
   assert.equal(CAPITAL_HOLD.text, 'Tap Hold waves while you save for the Capital');
+  // part 2b: the Capital's gate passing
+  const { capitalReadyWords } = await import('../src/ui/capital.js');
+  assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), 'Iron Ridge beat wave 30. The Capital costs 25K coins.');
+  assert.deepEqual(textIssues(capitalReadyWords({ town: 'ridge', coins: 25000 })), []);
   const text = id => GOALS.find(g => g.id === id).text;
   assert.equal(text('r-steel'), 'Tap the Steel Mill lot, then tap Build');
   assert.equal(text('r-five8'), 'Upgrade 5 towers to level 8');

@@ -36,6 +36,8 @@ function eta(game, o) {
 /* A running contract's figure, on the card and the map label: "Sent 108 of 270 timber" (review of 2026.11.20-3: the
    label did not say what is sent). */
 export const sentWords = a => 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) + ' ' + lower(a.good);
+/* The toast when the Capital's town first beats its wave (clarity fix 3b part 2b). */
+export const capitalReadyWords = e => (TOWNS[e.town] || { name: e.town }).name + ' beat wave ' + CAPITAL_DEF.found.wave + '. The Capital costs ' + fmt(e.coins) + ' coins.';
 export const contractDone = e => GOODS[e.good].name + ' delivered. You got ' + fmt(e.coins) + ' coins and ' + e.influence + ' Influence.';
 
 /* Two taps for something that throws work away: the first changes the label, the second does it. */

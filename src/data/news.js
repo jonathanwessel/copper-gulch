@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-8',
+    lines: [
+      'When Iron Ridge beats wave 30, a message says what the Capital costs.',
+      'While you save for a Capital building, the Goal asks you to keep a contract going.',
+      'Iron Ridge asks for a tower at level 15 at wave 28.',
+      'A town that loses while you climb to the Capital waits for you.',
+    ],
+  },
+  {
     v: '2026.11.23-7',
     lines: [
       'Pause and Hold waves now fit on a phone turned sideways.',

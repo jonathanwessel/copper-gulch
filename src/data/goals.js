@@ -78,8 +78,10 @@ export const GOALS = [
   { id: 'r-five5', town: 'ridge', text: 'Upgrade 5 towers to level 5', doneText: '5 towers are level 5', done: c => c.towers.filter(t => t.level >= 5).length >= 5, ready: c => c.bestWave >= 17, at: c => ({ tower: c.upTo(5) }), within: RIDGE_GOAL },
   { id: 'r-five8', town: 'ridge', text: 'Upgrade 5 towers to level 8', doneText: '5 towers are level 8', done: c => c.towers.filter(t => t.level >= 8).length >= 5, ready: c => c.bestWave >= 22, at: c => ({ tower: c.upTo(8) }), within: RIDGE_GOAL },
   { id: 'r-three10', town: 'ridge', text: 'Upgrade 3 towers to level 10', doneText: '3 towers are level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 3, ready: c => c.bestWave >= 27, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
-  // past wave 30 the Capital leads the strip until it stands, so these come after it
-  { id: 'r-up15', town: 'ridge', text: 'Upgrade a tower to level 15', doneText: 'A tower is level 15', done: c => c.towers.filter(t => t.level >= 15).length >= 1, ready: c => c.bestWave >= 31, at: c => ({ tower: c.upTo(15) }), within: RIDGE_GOAL },
+  // one tower at 15 for the last waves before the Capital (31 until clarity fix 3b part 2b: on seeds 4-5 the newcomer
+  // climbed 27 to 30 for 11-12 minutes with nothing new, its upgrades spread over 23 towers, and one tower at 15 got
+  // seed 2 past its wall at wave 29); past wave 30 the Capital leads the strip until it stands, so r-five10 comes after it
+  { id: 'r-up15', town: 'ridge', text: 'Upgrade a tower to level 15', doneText: 'A tower is level 15', done: c => c.towers.filter(t => t.level >= 15).length >= 1, ready: c => c.bestWave >= 28, at: c => ({ tower: c.upTo(15) }), within: RIDGE_GOAL },
   { id: 'r-five10', town: 'ridge', text: 'Upgrade 5 towers to level 10', doneText: '5 towers are level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 5, ready: c => c.bestWave >= 38, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
   // the Steel Mill had no goal (clarity fix 3b part 2): on seed 2 the newcomer never built one, so the Boiler Shop and every
   // later Ridge goal stayed shut and the strip read "Reach wave 30" for 40 minutes. A lot still shut asks for the level

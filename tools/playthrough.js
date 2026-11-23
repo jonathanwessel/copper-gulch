@@ -48,7 +48,8 @@ export function record(seed = SEED, minutes = MINUTES) {
       ev('tower:open', e => 'new tower ' + (e.kind || '')); ev('town:open', e => 'town opens ' + (e.town || e.id || ''));
       ev('town:found', e => 'founded ' + e.town); ev('research:open', e => 'research opens' + (e.town ? ' in ' + e.town : ''));
       ev('orders:open', e => 'orders open' + (e.town ? ' in ' + e.town : '')); ev('institution:found', e => 'institution ' + e.id);
-      ev('capital:found', () => 'Capital founded'); ev('outpost:won', e => 'outpost won ' + (e.town || ''));
+      // the Capital's gate passed: its toast says so (clarity fix 3b part 2b)
+      ev('capital:found', () => 'Capital founded'); ev('capital:ready', () => 'Capital ready'); ev('outpost:won', e => 'outpost won ' + (e.town || ''));
       ev('research:new', e => 'new research ' + (e.id || '') + (e.town ? ' in ' + e.town : '')); // its toast names it (clarity fix 3b)
       ev('contract:done', e => 'contract done ' + (e.good || '')); // its toast names it (clarity fix 3b part 2)
       ev('charter:offer', () => 'charter offered'); ev('first:sale', () => 'first sale'); ev('route:open', e => 'route ' + (e.from || '') + '-' + (e.to || ''));
@@ -85,7 +86,8 @@ export function record(seed = SEED, minutes = MINUTES) {
 }
 
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-const mm = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+// round first, so 106:59.6 reads 107:00, not 106:60
+const mm = x => { const s = Math.round(x); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/playthrough.js')) {
   const { start } = await import('./serve.js'), { chromium } = await import('./cdp.js');

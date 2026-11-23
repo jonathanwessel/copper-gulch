@@ -11,7 +11,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { researchOpen } from './research.js';
 import { canFound, nextTowns, deedsOf } from './empire.js';
-import { capitalOpen } from './capital.js';
+import { capitalOpen, capitalNext as capitalAhead } from './capital.js';
 import { treeOf, foundCost } from './tree.js';
 import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 
@@ -72,6 +72,10 @@ export const capitalSaving = (game, town) => {
   const f = CAPITAL_DEF.found;
   if (!town || capitalOpen(game)) return false;
   if (town.id === f.from) return (town.bestWave || 0) >= f.wave;
+  // once the Capital is in sight, a town that lost while away stays held until it stands (clarity fix 3b part 2b: on
+  // seed 2 the Gulch lost at its own wall four times during the Ridge's climb to wave 30, and each time the strip sent
+  // the newcomer there to spend the climb's coins on the Gulch's towers)
+  if (!isOutpost(town) && town.waves && town.waves.autoHold && town.lost && town.lost.away && capitalAhead(game)) return true;
   return !isOutpost(town) && !!capitalNext(game);
 };
 /* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens
@@ -81,7 +85,7 @@ export const savingFor = (game, town) => nextTowns(game).some(n => n.from === to
 const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && (!town.waves.autoHold || capitalNext(game))));
 /* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
 const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
-  && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry));
+  && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry) && !capitalSaving(game, t));
 
 /* The goal the strip shows for the town in play, or null when its goals are all done (or the strip is off).
    held false: leave out the Resume waves steps (the careful bots tap Resume waves by their own rules and read the
@@ -131,7 +135,10 @@ export function goalNow(game, held = true) {
 export function firstInstitution(game) {
   const tr = game.shared.tree, cp = game.shared.capital;
   if (!capitalOpen(game) || !tr || tr.founded.length) return null;
-  if (cp && !cp.active && !cp.filled && cp.offers.length) return { id: 'next:contract', next: 'contract', text: 'Tap Map, then tap the Capital and take a contract', at: () => ({ el: '#mapBtn' }), done: () => false };
+  // while the building's coins are short, a contract always runs: each one pays coins toward it (clarity fix 3b part
+  // 2b: after the first contract the newcomer saved 10-12 minutes for 50K with nothing new)
+  const short = game.shared.purse.coins + 1e-9 < foundCost(game);
+  if (cp && !cp.active && (!cp.filled || short) && cp.offers.length) return { id: 'next:contract', next: 'contract', text: 'Tap Map, then tap the Capital and take a contract', at: () => ({ el: '#mapBtn' }), done: () => false };
   return { id: 'next:institution', next: 'institution', text: 'Tap Map, then tap the Capital and build one of its buildings', need: foundCost(game), at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 

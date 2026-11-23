@@ -35,7 +35,7 @@ import { waveSheet, waveBar, waveTitle } from './wave.js';
 import { foeCard } from './foe.js';
 import { bossBar } from './boss.js';
 import { workerCard } from './worker.js';
-import { contractDone, capitalSheet } from './capital.js';
+import { contractDone, capitalSheet, capitalReadyWords } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, MODE_WORDS } from './format.js';
@@ -536,6 +536,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id && !isOutpost(town)) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000, { kind: 'here' }); }), // only where Perks shows (review of 2026.11.23-6: in Pine Hollow)
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
+    game.bus.on('capital:ready', e => { if (!game.catching) toast(capitalReadyWords(e), 5000); }),
     game.bus.on('order:done', e => { if (!game.catching) toast(orderDone(e, e.town === town.id), 4000); }),
     game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),

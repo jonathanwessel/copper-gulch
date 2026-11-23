@@ -32,6 +32,15 @@ export function canFoundCapital(game) {
   const f = CAPITAL_DEF.found, from = game.towns[f.from];
   return !!(from && !capitalOpen(game) && from.bestWave >= f.wave && from.coins + 1e-9 >= f.coins);
 }
+/* 'capital:ready' { town, coins }, once per game: the paying town's best wave reached the Capital's. The flag lives on
+   empire (game.shared.capital.told), so a charter in that town never fires it again. An old save past the wave and
+   without the Capital gets it once, which is its news too. */
+function readyOnce(game) {
+  const f = CAPITAL_DEF.found, from = game.towns[f.from];
+  if (!from || (from.bestWave || 0) < f.wave || capitalOf(game).told) return;
+  capitalOf(game).told = true;
+  game.bus.emit('capital:ready', { town: f.from, coins: f.coins });
+}
 /* Found it: the purse pays and the board fills. Returns true when it was founded. */
 export function foundCapital(game) {
   if (!canFoundCapital(game)) return false;
@@ -138,6 +147,9 @@ export const capital = {
   },
   tick(dt, game) {
     const c = capitalOf(game);
+    // the Capital's gate passed, once: its paying town beat its wave and only the coins are left (clarity fix 3b part
+    // 2b: the strip turned to "Tap Hold waves while you save for the Capital" with no word of why)
+    if (!c.open) readyOnce(game);
     if (!c.open || c.offers.length >= C.board) return;
     if ((c.wait -= dt) <= 0) fill(game);
   },
