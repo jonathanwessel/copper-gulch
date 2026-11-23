@@ -37,7 +37,7 @@ test('the Ridge goal strip walks the chain to the Locomotive Works', () => {
   assert.equal(pine.id, 'r-pine', 'once the first workshop stands, the strip sends the player to win Pine Hollow');
   assert.equal(pine.at({ back: null }).go, 'pinehollow');
   g.towns.pinehollow.won = true;
-  assert.equal(next().id, 'r-boiler');
+  assert.equal(next().id, 'r-boiler', 'the Steel Mill stands (level 3), so its goal is done');
   build(r, { boilershop: 1 });
   assert.equal(next().id, 'r-steel5');
   build(r, { steelmill: 5 });
@@ -77,7 +77,7 @@ test('in Copper Gulch the strip asks for the Toolsmith once the Ridge has its Ro
 test('the careful bot reads a goal in another town as the next level that opens its building there', () => {
   const g = ridge('lw3'), r = g.towns.ridge, gt = g.towns.gulch;
   build(r, { ironmine: 5, colliery: 3, furnace: 3, steelmill: 5, boilershop: 1, rolling: 1 });
-  for (const id of ['r-quarry', 'r-mine', 'r-coal', 'r-furnace', 'r-pine', 'r-boiler', 'r-steel5', 'r-rolling']) g.shared.goals.done[id] = true;
+  for (const id of ['r-quarry', 'r-mine', 'r-coal', 'r-furnace', 'r-pine', 'r-steel', 'r-boiler', 'r-steel5', 'r-rolling']) g.shared.goals.done[id] = true;
   assert.equal(goalNow(g).id, 'r-tools');
   build(gt, { camp: 10, mine: 6, saw: 4, smelter: 5 });
   let gb = goalBuilding(g, r);

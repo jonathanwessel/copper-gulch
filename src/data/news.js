@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-6',
+    lines: [
+      'The Capital now costs 25K coins. The Goal asks you to hold the waves while you save for it.',
+      'Iron Ridge has new goals for the Steel Mill and for towers as you climb.',
+      'Tap the Goal to open the card of the building or tower it names.',
+      'After the Capital, the Goal asks for a contract and then one of its buildings.',
+    ],
+  },
+  {
     v: '2026.11.23-5',
     lines: [
       'Iron Ridge has three new research items. Telescope Sights shows up at wave 27, Steam Hammers at wave 32 and Bounty Office at wave 37.',

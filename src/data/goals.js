@@ -69,8 +69,23 @@ export const GOALS = [
   { id: 'r-furnace', town: 'ridge', text: 'Tap the Blast Furnace lot, then tap Build', doneText: 'Blast Furnace built', done: c => c.lv('furnace') >= 1, ready: c => c.unlocked('furnace'), at: () => ({ plot: 'furnace' }), within: RIDGE_GOAL },
   // Pine Hollow (Evaluation 2): the newcomer never went there, since nothing on the strip sent it. Once the first
   // workshop stands, the Ridge's strip sends the player to win Pine Hollow (and its bounties), then back.
+  // the Ridge's climb (clarity fix 3b part 2): every Ridge goal was a building, so the newcomer met its wave-10 boss with
+  // every tower at level 1 and lost it for 30 minutes, and the climbs to waves 30 and 52 had nothing on the strip but
+  // the wave. Tower goals that show up as the best wave climbs.
+  { id: 'r-path', town: 'ridge', text: 'Upgrade a tower to level 5 and pick a path', doneText: 'Tower path picked', done: c => c.pathed(), ready: c => c.bestWave >= 7, at: c => ({ tower: c.topTower() }), within: RIDGE_GOAL },
   { id: 'r-pine', town: 'ridge', text: 'Tap Map, Pine Hollow, then Play Pine Hollow', doneText: 'Pine Hollow won', done: c => c.wonIn('pinehollow'), ready: c => c.lv('furnace') >= 1 && c.founded('pinehollow'), at: goTo('pinehollow'), away: true, within: RIDGE_GOAL },
-  { id: 'r-boiler', town: 'ridge', text: 'Tap the Boiler Shop lot, then tap Build', doneText: 'Boiler Shop built', done: c => c.lv('boilershop') >= 1, ready: c => c.unlocked('boilershop'), at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
+  { id: 'r-up10', town: 'ridge', text: 'Upgrade a tower to level 10', doneText: 'A tower is level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 1, ready: c => c.bestWave >= 12, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
+  { id: 'r-five5', town: 'ridge', text: 'Upgrade 5 towers to level 5', doneText: '5 towers are level 5', done: c => c.towers.filter(t => t.level >= 5).length >= 5, ready: c => c.bestWave >= 17, at: c => ({ tower: c.upTo(5) }), within: RIDGE_GOAL },
+  { id: 'r-five8', town: 'ridge', text: 'Upgrade 5 towers to level 8', doneText: '5 towers are level 8', done: c => c.towers.filter(t => t.level >= 8).length >= 5, ready: c => c.bestWave >= 22, at: c => ({ tower: c.upTo(8) }), within: RIDGE_GOAL },
+  { id: 'r-three10', town: 'ridge', text: 'Upgrade 3 towers to level 10', doneText: '3 towers are level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 3, ready: c => c.bestWave >= 27, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
+  // past wave 30 the Capital leads the strip until it stands, so these come after it
+  { id: 'r-up15', town: 'ridge', text: 'Upgrade a tower to level 15', doneText: 'A tower is level 15', done: c => c.towers.filter(t => t.level >= 15).length >= 1, ready: c => c.bestWave >= 31, at: c => ({ tower: c.upTo(15) }), within: RIDGE_GOAL },
+  { id: 'r-five10', town: 'ridge', text: 'Upgrade 5 towers to level 10', doneText: '5 towers are level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 5, ready: c => c.bestWave >= 38, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
+  // the Steel Mill had no goal (clarity fix 3b part 2): on seed 2 the newcomer never built one, so the Boiler Shop and every
+  // later Ridge goal stayed shut and the strip read "Reach wave 30" for 40 minutes. A lot still shut asks for the level
+  // that opens it (stepFor), so these two walk the furnace and the mill up a level at a time.
+  { id: 'r-steel', town: 'ridge', text: 'Tap the Steel Mill lot, then tap Build', doneText: 'Steel Mill built', done: c => c.lv('steelmill') >= 1, at: () => ({ plot: 'steelmill' }), within: RIDGE_GOAL },
+  { id: 'r-boiler', town: 'ridge', text: 'Tap the Boiler Shop lot, then tap Build', doneText: 'Boiler Shop built', done: c => c.lv('boilershop') >= 1, at: () => ({ plot: 'boilershop' }), within: RIDGE_GOAL },
   { id: 'r-steel5', town: 'ridge', text: 'Tap the Steel Mill and upgrade it to level 5', doneText: 'Steel Mill is level 5', done: c => c.lv('steelmill') >= 5, ready: c => c.lv('steelmill') >= 1, at: () => ({ plot: 'steelmill' }), within: RIDGE_GOAL },
   { id: 'r-rolling', town: 'ridge', text: 'Tap the Rolling Mill lot, then tap Build', doneText: 'Rolling Mill built', done: c => c.lv('rolling') >= 1, ready: c => c.unlocked('rolling'), at: () => ({ plot: 'rolling' }), within: RIDGE_GOAL },
   { id: 'r-tools', town: 'ridge', text: 'Tap Map, Copper Gulch, then build a Toolsmith', doneText: 'Toolsmith built in Copper Gulch', done: ridgeTools, ready: c => c.lv('rolling') >= 1, at: goTo('gulch'), there: ['gulch', 'toolsmith'], within: RIDGE_GOAL },

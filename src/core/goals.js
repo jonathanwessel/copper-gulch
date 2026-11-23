@@ -12,6 +12,7 @@ import { CAPITAL_DEF } from '../data/capital.js';
 import { researchOpen } from './research.js';
 import { canFound, nextTowns, deedsOf } from './empire.js';
 import { capitalOpen } from './capital.js';
+import { treeOf, foundCost } from './tree.js';
 import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 
 /* What a goal reads: a small view of one town. */
@@ -41,6 +42,7 @@ export function goalContext(game, town) {
     },
     lowTower: () => by((a, b) => a.level < b.level),
     topTower: () => by((a, b) => a.level > b.level, t => !t.path),
+    upTo: lvl => by((a, b) => a.level > b.level, t => t.level < lvl), // the highest tower still under that level
   };
 }
 
@@ -59,14 +61,24 @@ const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
   return { id: 'resume-' + id, away: true, text: 'Tap Map, ' + name + ', then tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
 };
-/* The town that pays for the Capital, past its wave, saving for it or about to found it: a player who holds its waves
-   to save is not asked to resume them until the Capital stands (clarity fix 3). */
-export const capitalSaving = (game, town) => { const f = CAPITAL_DEF.found; return !!town && town.id === f.from && !capitalOpen(game) && (town.bestWave || 0) >= f.wave; };
+/* The Capital's save is on: the empire's next step is the Capital and only its coins are missing, or it can be built
+   now. Returns that step, or null. */
+const capitalNext = game => { const s = nextStep(game); return s && s.next === 'capital' && (s.need || s.id.endsWith(':go')) ? s : null; };
+/* A town saving for the Capital: the town that pays for it once past its wave, and while the save is on, every town
+   but an outpost. A player who holds its waves to save is not asked to resume them until the Capital stands (clarity
+   fix 3), and neither is one that lost while saving (clarity fix 3b part 2: on seed 2 "Build more towers, then tap
+   Resume waves" in the Gulch spent the save on its towers). */
+export const capitalSaving = (game, town) => {
+  const f = CAPITAL_DEF.found;
+  if (!town || capitalOpen(game)) return false;
+  if (town.id === f.from) return (town.bestWave || 0) >= f.wave;
+  return !isOutpost(town) && !!capitalNext(game);
+};
 /* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens
    next or the Capital. */
 export const savingFor = (game, town) => nextTowns(game).some(n => n.from === town.id && n.waveOk) || capitalSaving(game, town);
-// a hold after a lost boss still asks for towers and Resume waves while saving for the Capital
-const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && !town.waves.autoHold));
+// while the Capital's save is on, a town held after a loss stays held too: its waves would only cost the save
+const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && (!town.waves.autoHold || capitalNext(game))));
 /* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
 const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
   && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry));
@@ -77,26 +89,50 @@ const heldAway = game => Object.values(game.towns).find(t => t.id !== game.activ
 /* A goal that takes the player to another town (review 2026-11-18: "Go to Copper Gulch and build a Smelter there"
    showed during a boss wave in the town in play). The play screen keeps such a goal off the strip during a boss wave. */
 export const sendsAway = g => !!(g && (g.there || g.away));
+/* The first step of the Capital's save in the town that pays for it (clarity fix 3b part 2). */
+export const CAPITAL_HOLD = { id: 'next:capital:hold', next: 'capital', text: 'Tap Hold waves while you save for the Capital', at: () => ({ el: '#holdWaves' }), done: () => false };
 
 export function goalNow(game, held = true) {
   const sh = game.shared.goals, town = game.town;
   if (!sh || sh.off || !town) return null;
   if (held && heldHere(game, town)) return town.waves.autoHold ? RESUME_LOST : RESUME;
-  const away = held && heldAway(game);
-  if (away) return goResume(away.id);
   // the Capital comes first once only its coins are missing (clarity fix 3): the newcomer of seed 1 reached the Ridge's
   // wave 30 at 93 min and then followed the Ridge's own goals (a Rolling Mill to level 5 for 23 minutes), which spend
   // the same purse, and never saw the Capital's count. Not in an outpost still being won, and not for the careful bots
   // (held false), which save for it by their own rule. No step asks to hold the waves for it: tried, the newcomer of
   // seed 1 then went to the Gulch with the Ridge held and never came back (190 minutes with nothing new).
-  if (held && !(isOutpost(town) && !town.won)) { const cap = nextStep(game); if (cap && cap.next === 'capital' && (cap.need || cap.id.endsWith(':go'))) return cap; }
+  // It also comes before going to resume another town that lost while away (clarity fix 3b part 2): on seed 2 the
+  // strip sent the newcomer to the Gulch five times during the save, where "Build more towers, then tap Resume waves"
+  // spent 124K of the 130K it earned, and the save took 35 minutes. A town on hold loses nothing more, and the Map's
+  // dot still shows it; the strip sends the player back there once the Capital stands.
+  // In every town but an outpost the save starts with Hold waves, as the save for Iron Ridge does: climbing on while
+  // saving, the newcomer of seed 1 lost its vault every 7 minutes at the Ridge's waves 37-42 and spent 712K on towers
+  // before the Capital stood at 216 min, and on seed 2 it sat in the Gulch for 167 minutes doing the same there. (Fix 3 tried this step before the order above and dropped it, since a resume elsewhere
+  // then took the player away for good.)
+  if (held && !(isOutpost(town) && !town.won)) {
+    const cap = capitalNext(game);
+    if (cap) return cap.need && !isOutpost(town) && !(town.waves && town.waves.hold) ? CAPITAL_HOLD : cap;
+  }
+  const away = held && heldAway(game);
+  if (away) return goResume(away.id);
   let c = null;
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;
     c = c || goalContext(game, town);
     if (!g.ready || g.ready(c)) return stepFor(game, town, g);
   }
-  return nextStep(game);
+  return firstInstitution(game) || nextStep(game);
+}
+
+/* Once the Capital stands, the empire's next steps are its first contract, then its first building (clarity fix 3b part
+   2: nothing sent the newcomer there, so it never took a contract or built one, and the 20 minutes after the Capital had
+   nothing new). A contract is free to take and its goods go by themselves; the building counts its price as have / need,
+   and the Capital's card has a Buildings tab with a Build button for each. Never marked done. */
+export function firstInstitution(game) {
+  const tr = game.shared.tree, cp = game.shared.capital;
+  if (!capitalOpen(game) || !tr || tr.founded.length) return null;
+  if (cp && !cp.active && !cp.filled && cp.offers.length) return { id: 'next:contract', next: 'contract', text: 'Tap Map, then tap the Capital and take a contract', at: () => ({ el: '#mapBtn' }), done: () => false };
+  return { id: 'next:institution', next: 'institution', text: 'Tap Map, then tap the Capital and build one of its buildings', need: foundCost(game), at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 
 /* The clarity pass (PLAN.md M6a, 2026.11.23-2): a newcomer's play showed goals the player could not act on for 15-25

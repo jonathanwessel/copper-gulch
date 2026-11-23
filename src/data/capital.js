@@ -14,7 +14,7 @@ export const CAPITAL_DEF = {
   // 60K since clarity fix 3 (2026-11-23): the newcomer bot reaches the Ridge's wave 30 at 109-123 min earning 6.5-10K
   // a minute (tools/capital-probe.js), so 150K was 15-23 minutes of every coin and it never saved; 60K is 6-9 minutes
   // there and 4-5 minutes of saving for the active bot
-  found: { from: 'ridge', wave: 30, coins: 60000, shows: 25 },
+  found: { from: 'ridge', wave: 30, coins: 25000, shows: 25 }, // 60K until clarity fix 3b part 2: a held Ridge earns about 3K a minute, so 60K was 19 minutes of holding
   contracts: {
     board: 3,
     minutes: [4, 8],

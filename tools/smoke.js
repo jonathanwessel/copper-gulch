@@ -948,6 +948,10 @@ async function run() {
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
+        // a tap on the strip opens the card of the lot it names, with its Build button (clarity fix 3b part 2)
+        gl.click(); await wait(150);
+        out.goalOpensCard = CG.play.current() === 'dmine' && !!document.querySelector('#card #buy');
+        CG.play.close(); await wait(100);
         return out;
       });
       for (const [k, v] of Object.entries(begin)) if (!v) bad.push('outpost start: not ' + k);

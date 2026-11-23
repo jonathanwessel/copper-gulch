@@ -111,7 +111,15 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const goalTag = el('span', 'glabel', 'Goal'), goalWords = el('span', 'gtext');
   goal.append(goalTag, goalWords);
   const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
-  goal.addEventListener('click', () => { mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping'); });
+  // a goal on the board opens the card of what it names, so an upgrade's price shows as have / need there (clarity fix
+  // 3b part 2: "Tap the Rolling Mill and upgrade it to level 5" had no count, and a count beside the level was read as one
+  // number in two reviews); a goal on a button only points at it again
+  goal.addEventListener('click', () => {
+    const at = goalCur && typeof goalCur.at === 'function' && doneFor <= 0 ? goalCur.at(goalContext(game, town)) || {} : {}, s = at.spot ?? at.tower;
+    if (at.plot && BUILDINGS[at.plot] && town.def.buildings.includes(at.plot)) { open(at.plot); return; }
+    if (s !== null && s !== undefined && !at.el) { openSpot(s); return; }
+    mark.classList.remove('ping'); void mark.offsetWidth; mark.classList.add('ping');
+  });
   // the boss bar (src/ui/boss.js) at the foot of the column, so showing it moves nothing above it; a tap opens the boss's card
   const boss = bossBar(town, { store, onTap: id => openFoe(id) });
   const left = el('div', 'hudleft'); left.append(place, wave, ctl, goal, boss.el); paintPlace();

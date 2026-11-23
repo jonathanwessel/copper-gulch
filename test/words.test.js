@@ -84,3 +84,13 @@ test('a coin goal says how long is left if you save (clarity fix 2, reworded by 
   assert.equal(readyWords(30), 'under a minute to go');
   assert.equal(readyWords(4500), 'about 1 h 15 min to go');
 });
+
+test('the strip lines of clarity fix 3b part 2', async () => {
+  const { CAPITAL_HOLD } = await import('../src/core/goals.js');
+  const { GOALS } = await import('../src/data/goals.js');
+  assert.equal(CAPITAL_HOLD.text, 'Tap Hold waves while you save for the Capital');
+  const text = id => GOALS.find(g => g.id === id).text;
+  assert.equal(text('r-steel'), 'Tap the Steel Mill lot, then tap Build');
+  assert.equal(text('r-five8'), 'Upgrade 5 towers to level 8');
+  assert.equal(text('r-three10'), 'Upgrade 3 towers to level 10');
+});

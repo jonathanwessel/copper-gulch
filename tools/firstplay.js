@@ -8,7 +8,8 @@
 //     when they are not;
 //   - it makes a wrong buy 30% of the time: any other thing it can pay for, on any pad, with any path.
 // It saves up and holds the waves only when the goal strip asks (for Iron Ridge), saves (towers only when raiders get
-// through) while the strip counts coins for a goal it says is ready within GOAL_SAVE, taps Resume waves when the strip asks
+// through) while the strip counts coins for a goal it says is ready within GOAL_SAVE (or a building's card shows the
+// price of the upgrade the strip asks for), taps Resume waves when the strip asks
 // (or 45 s after a lost boss in play), calls a wave early only when the
 // strip asks, hires no foremen and does not sign a charter.
 // Targets (GDD.md, Pacing targets; PLAN.md M2): no town on hold over 10 min unless saving for its next town, Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
@@ -18,7 +19,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext, earnRate, readyIn, savingFor } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
@@ -28,7 +29,9 @@ import { perkState, pickPerk } from '../src/core/charter.js';
 import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { options, buildValue, campaign } from './balance.js';
 import { nextTowns, foundTown, canFound } from '../src/core/empire.js';
-import { canFoundCapital, foundCapital } from '../src/core/capital.js';
+import { canFoundCapital, foundCapital, takeContract } from '../src/core/capital.js';
+import { foundBlock, foundInstitution } from '../src/core/tree.js';
+import { INSTITUTIONS } from '../src/data/institutions.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 165); // long enough to found Iron Ridge and the Capital
@@ -45,7 +48,21 @@ export const VAULT_LOW = .7, WAVES_PER_TOWER = 4;
 /* Saving for a coin goal (clarity fix 2, PLAN.md M6a): while the strip counts coins for a goal ("136 / 500 · about 2 min
    to go") that is ready within GOAL_SAVE seconds at the empire's income, the newcomer saves, as a player reading
    it would: it buys a tower only when raiders get through, and nothing else. */
-export const GOAL_SAVE = 600;
+export const GOAL_SAVE = 600, LOST_BUYS = 3;
+/* "Build more towers, then tap Resume waves": true while the newcomer still builds first (it has bought fewer than
+   LOST_BUYS towers or upgrades since the loss and can pay for one more), so it does both acts the strip names. */
+export const buildFirst = (game, town, rng, bought) => goalNow(game) === RESUME_LOST && bought < LOST_BUYS && choices(game, town, rng).some(c => c.what === 'tower' || c.what === 'upgrade');
+/* The coins a goal counts: its need on the strip, or for a goal to upgrade a building, the next level's price, which its
+   card shows as have / need (a tap on the strip opens it; clarity fix 3b part 2: "Tap the Rolling Mill and upgrade it
+   to level 5" sat 10-14 minutes after the Capital while the newcomer spent each coin as it came). */
+export function goalNeed(game, town, g) {
+  if (!g) return null;
+  if (g.need) return g.need;
+  if (typeof g.at !== 'function' || g.away || g.there) return null;
+  let at = null; try { at = g.at(goalContext(game, town)) || {}; } catch (e) { return null; }
+  if (at.tower != null) { const t = towerAt(town, at.tower); return t ? towerCost(town, t.kind, t.level).coins : null; }
+  return at.plot && town.level(at.plot) > 0 && unlocked(town, at.plot) ? cost(town, at.plot) : null;
+}
 const hurting = t => !t.towers.length || t.vault.hp < VAULT_LOW * t.vault.max;
 const short = (t, leak) => !t.towers.length || leak >= t.wave - 1 || t.vault.hp < VAULT_LOW * t.vault.max || t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER);
 
@@ -76,6 +93,9 @@ export function goalTap(game, town, rng) {
     if (g.next === 'capital') return canFoundCapital(game) ? { what: 'go', label: 'capital', run: () => foundCapital(game) } : null;
     return canFound(game, g.next) ? { what: 'go', label: g.next, run: () => !!foundTown(game, g.next) && game.go(g.next) } : null;
   }
+  // the Capital's first building: Map, the Capital, its Buildings tab, a Build button (any of them)
+  if (g.next === 'contract') { const o = game.shared.capital.offers; return o.length ? { what: 'go', label: 'contract', run: () => takeContract(game, rng.pick(o).id) } : null; }
+  if (g.next === 'institution') { const ids = INSTITUTIONS.map(i => i.id).filter(id => foundBlock(game, id) === null); return ids.length ? { what: 'go', label: 'institution', run: () => foundInstitution(game, rng.pick(ids)) } : null; }
   if (g.resume) return town.waves.hold ? { what: 'resume', label: 'waves', run: () => { setHold(game, town, false); return true; } } : null;
   if (at.el && at.el.includes('holdWaves')) return town.waves.hold ? null : { what: 'hold', label: 'waves', run: () => { setHold(game, town, true); return true; } };
   if (at.el && at.el.includes('callWave')) return town.waves.phase === 'break' ? { what: 'call', label: 'wave ' + town.wave, run: () => callEarly(game, town) >= 0 } : null;
@@ -100,7 +120,7 @@ export function goalTap(game, town, rng) {
    records the moments a newcomer meets this way). */
 export function newcomer(seed, minutes = MINUTES, hook = null) {
   const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
-  const heldFrom = {};
+  const heldFrom = {}, lostBuys = {};
   const r = { held2: { longest: 0, town: null, at: 0 }, goalHeld: {}, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
   let next = rng.range(...WAIT), lastNews = 0, lastLeak = { drycreek: -99, gulch: -99 }, lastGap = 0;
   const now = () => g.stats.steps * .25;
@@ -117,7 +137,8 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     const t = g.town, at = now();
     if (hook && hook(g, at, r)) break;
     // a lost boss holds the waves: the newcomer reads the card, builds a while, then taps Resume waves
-    if (t.waves.autoHold && s % 4 === 0) { r.heldAt ??= at; if (at - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; } }
+    // (not while it saves: the strip then keeps the town held, clarity fix 3b part 2)
+    if (t.waves.autoHold && s % 4 === 0 && !savingFor(g, t)) { r.heldAt ??= at; if (at - r.heldAt >= RETRY) { setHold(g, t, false); r.heldAt = null; } }
     if (r.dcWon === null && g.towns.drycreek.won) { r.dcWon = at; news(); }
     if (r.pineWon == null && g.towns.pinehollow && g.towns.pinehollow.won) r.pineWon = at;
     const tb = tabs(g, t), shown = Object.keys(tb).filter(k => tb[k]).join(',');
@@ -150,8 +171,13 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     // (or the Capital, clarity fix 3)
     const saving = savingFor(g, t) && !!t.waves.hold; // it saves once it holds the waves, as the goal strip says
     if (saving) r.savedFrom ??= at;
-    const goal = goalTap(g, t, rng);
-    const gn = goalNow(g), eta = gn && gn.need ? readyIn(t.coins, gn.need, earnPer) : null;
+    let goal = goalTap(g, t, rng);
+    // "Build more towers, then tap Resume waves": it buys LOST_BUYS towers or upgrades first while it can pay for one,
+    // then resumes (clarity fix 3b part 2: it tapped Resume at once, and the newcomer's Ridge lost its wave-10 boss for
+    // 30 minutes with every tower at level 1)
+    if (!t.waves.autoHold) delete lostBuys[t.id];
+    if (goal && goal.what === 'resume' && buildFirst(g, t, rng, lostBuys[t.id] || 0)) goal = null;
+    const gn = goalNow(g), need = goalNeed(g, t, gn), eta = need ? readyIn(t.coins, need, earnPer) : null;
     const goalSaving = !saving && eta !== null && eta <= GOAL_SAVE;
     if (goalSaving) r.goalSaved = (r.goalSaved || 0) + 1;
     if (goal && (goal.what === 'go' || rng.chance(FOLLOW))) { tap = goal; r.goalTaps++; }
@@ -175,6 +201,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
       else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
+      if ((tap.what === 'tower' || tap.what === 'upgrade') && t.waves.autoHold) lostBuys[t.id] = (lostBuys[t.id] || 0) + 1;
       r.taps.push(at);
       if (r.log.length < 400) r.log.push([Math.round(at), g.active, tap.what, tap.label]);
       next = at + rng.range(...WAIT);
