@@ -35,13 +35,15 @@ export class Selection {
     for (const m of [this.square, this.ring, this.range, this.fill, this.dead, this.inner, this.glow]) { m.renderOrder = 3; this.group.add(m); }
     board.group.add(this.group);
   }
-  /* { plot: id }, { spot: index }, { foe: id } (a raider, followed as it walks) or null. */
+  /* { plot: id }, { spot: index }, { foe: id } (a raider, followed as it walks), { worker: id } (a building's workers
+     called to arms) or null. */
   set(target) { this.target = target || null; this.group.visible = !!this.target; this.battle.lift = this.target && this.target.spot !== undefined ? this.target.spot : null; }
   update(t) {
     const tg = this.target;
     if (!tg) return;
     const pulse = .5 + .5 * Math.sin(t * 6), B = this.town.def.board;
     if (tg.foe !== undefined) return this.followFoe(tg.foe, pulse);
+    if (tg.worker !== undefined) return this.onWorkers(tg.worker, pulse);
     const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
     this.group.position.set(x, .035, z);
     this.square.visible = !!tg.plot; this.ring.visible = !tg.plot;
@@ -74,6 +76,18 @@ export class Selection {
     const big = u.boss ? 1.5 : 1, s = big * (1 + pulse * .08);
     this.ring.scale.set(s, 1, s); this.ring.material.opacity = .65 + .35 * pulse;
     this.glow.scale.set(.5 * big, 1.1 * big, .5 * big); this.glowMat.uniforms.uOp.value = .32 + .28 * pulse;
+  }
+  /* A building's workers by the road: the ring round the pair while they are out; gone with them. */
+  onWorkers(id, pulse) {
+    const p = this.board.militia ? this.board.militia.points().find(q => q.id === id) : null;
+    this.group.visible = !!p;
+    if (!p) return;
+    this.group.position.set(p.x, .035, p.z);
+    this.square.visible = false; this.ring.visible = true;
+    this.range.visible = this.fill.visible = this.dead.visible = this.inner.visible = false; this.reach = 0;
+    const s = .9 * (1 + pulse * .08);
+    this.ring.scale.set(s, 1, s); this.ring.material.opacity = .65 + .35 * pulse;
+    this.glow.scale.set(.5, 1, .5); this.glowMat.uniforms.uOp.value = .32 + .28 * pulse;
   }
   dispose() { this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
 }

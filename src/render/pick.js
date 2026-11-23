@@ -75,6 +75,19 @@ export function pickFoe(cam, el, board, battle, clientX, clientY) {
   if (m && m.distance < cam.position.distanceTo(best.u.obj.position) - .8) return null;
   return { id: best.id, px: best.px };
 }
+/* The pair of workers by the road under a screen point while the town is called to arms: the nearest within FOE_NEAR px
+   of where they stand. Returns { id (their building), px } or null. */
+export function pickWorker(cam, el, board, clientX, clientY) {
+  const rc = el.getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top;
+  let best = null, bd = FOE_NEAR;
+  for (const p of board.militia ? board.militia.points() : []) {
+    const s = project(cam, el, _f.set(p.x, .3, p.z));
+    if (!s) continue;
+    const d = Math.hypot(s.x - x, s.y - y);
+    if (d < bd) { bd = d; best = { id: p.id, px: d }; }
+  }
+  return best;
+}
 /* How far a pad's or plot's middle is from a screen point on screen, in px (Infinity when behind the camera). */
 export function hitPx(cam, el, board, hit, clientX, clientY) {
   const rc = el.getBoundingClientRect(), def = board.def;

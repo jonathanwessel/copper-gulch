@@ -3,6 +3,12 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.22-11',
+    lines: [
+      'After To arms, tap a pair of workers by the road to see how long until they go back to work and what their building is not making.',
+    ],
+  },
+  {
     v: '2026.11.22-10',
     lines: [
       'When a boss is on the road, a bar under the top bar shows its health, its armor and what it is doing. Tap the bar to see its card.',

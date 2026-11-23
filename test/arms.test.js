@@ -192,3 +192,31 @@ test('a save keeps the militia and its wait, and an old save migrates with nobod
   for (const x of Object.values(m.game.towns)) assert.deepEqual(x.arms, { t: 0, cd: 0, clock: 0 });
   assert.equal(loadGame(m.game).town.arms.t, 0);
 });
+
+test('a tap on the workers: their building, the seconds until they go back, what it does not make, from one core function', async () => {
+  const { workerStatus } = await import('../src/core/arms.js');
+  const { workerView, workerLines } = await import('../src/ui/worker.js');
+  const { textIssues } = await import('../tools/audit.js');
+  const { output } = await import('../src/core/economy.js');
+  const g = empire('arms-card'), t = g.town;
+  build(t, 12);
+  const id = militia(t)[0].id;
+  assert.equal(workerStatus(t, id).out, false, 'nobody out before a call');
+  assert.equal(workerView(t, id).gone, 'Back to work!');
+  t.waves.hold = true;
+  assert.ok(callToArms(g, t));
+  const st = workerStatus(t, id);
+  assert.equal(st.out, true); assert.equal(st.level, 12);
+  assert.ok(Math.abs(st.left - ARMS.seconds) < 1e-9);
+  assert.ok(Math.abs(st.lost - output(t, id) * ARMS.seconds) < 1e-6, 'its own output for the seconds left');
+  const v = workerView(t, id);
+  assert.match(v.name, / workers$/); assert.equal(v.back, ARMS.seconds + 's'); assert.equal(v.gone, null);
+  assert.match(v.lostLabel, /^[A-Z][a-z ]+ lost$/); assert.match(v.lost, /^\S{1,5}$/, 'a number in its fixed cell, the good in its label');
+  for (const line of workerLines(t, id)) assert.deepEqual(textIssues(line), [], line);
+  for (let i = 0; i < 40; i++) g.step(.25);
+  assert.ok(workerStatus(t, id).left < st.left - 9, 'it counts down');
+  for (let i = 0; i < ARMS.seconds * 4; i++) g.step(.25);
+  assert.equal(workerStatus(t, id).out, false, 'back at work when the call ends');
+  assert.deepEqual(workerLines(t, id), [v.name, 'Back to work!']);
+  assert.equal(workerStatus(t, 'nope'), null);
+});

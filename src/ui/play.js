@@ -34,6 +34,7 @@ import { setSwitch } from './switch.js';
 import { waveSheet, waveBar, waveTitle } from './wave.js';
 import { foeCard } from './foe.js';
 import { bossBar } from './boss.js';
+import { workerCard } from './worker.js';
 import { contractDone, capitalSheet } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -225,7 +226,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let foeUi = null; // the raider card while it is open (src/ui/foe.js)
   function open(id) {
     if (sheets.current) sheets.close();
-    if (foeUi) { foeUi = null; card.classList.remove('foecard', 'gonefoe'); }
+    if (foeUi) { foeUi = null; card.classList.remove('foecard', 'gonefoe', 'workercard'); }
     openId = id; why = false; whyStat = null; card.hidden = false; paintCard();
     viewApi.select(id.startsWith('spot:') ? { spot: +id.slice(5) } : { plot: id }); // highlight it on the board while the card is open
   }
@@ -240,8 +241,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     viewApi.select({ foe: id });
     return true;
   }
-  function close() { openId = null; foeUi = null; card.hidden = true; card.classList.remove('foecard', 'gonefoe'); viewApi.select(null); }
-  viewApi.onTap = hit => { if (hit && hit.foe !== undefined) { if (!openFoe(hit.foe)) close(); } else if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
+  /* A building's workers called to arms (the card follows the call and closes a moment after it ends). */
+  function openWorker(id) {
+    if (!(town.arms && town.arms.t > 0)) return false;
+    if (sheets.current) sheets.close();
+    openId = 'worker:' + id; why = false; whyStat = null; card.hidden = false;
+    foeUi = workerCard(card, town, id, { onClose: () => close() });
+    viewApi.select({ worker: id });
+    return true;
+  }
+  function close() { openId = null; foeUi = null; card.hidden = true; card.classList.remove('foecard', 'gonefoe', 'workercard'); viewApi.select(null); }
+  viewApi.onTap = hit => { if (hit && hit.worker !== undefined) { if (!openWorker(hit.worker)) close(); } else if (hit && hit.foe !== undefined) { if (!openFoe(hit.foe)) close(); } else if (hit && hit.plot) open(hit.plot); else if (hit && hit.spot !== undefined) openSpot(hit.spot); else close(); };
 
   // the card is rebuilt only when something on it changes, so a button is never swapped under a finger
   let sig = '', madeEl = null, usedEl = null;
@@ -805,7 +815,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
   /* Take this town's screen down (switching towns builds a new one). */
   const destroy = () => { if (ro) ro.disconnect(); for (const off of offs) off(); ui.remove(); const lc = document.getElementById('lostCard'); if (lc) lc.remove(); };
-  return { frame, open, openSpot, openFoe, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
+  return { frame, open, openSpot, openFoe, openWorker, close, current: () => openId, el: ui, sheets, openGoods, strip, openMenu, openResearch, openPerks, openAuto, openArms, openIncome, openVault, openWave, openPlaces, openCapital, destroy };
 }
 
 /* Toasts wait their turn: one at a time, at most three waiting (the oldest goes), and a line already showing or

@@ -51,6 +51,14 @@ const SCREENS = [
   ['boss-stage', async () => { const w = window.__boss; if (w) w.hp = w.max * .44; await new Promise(r => setTimeout(r, 900)); }],
   ['boss-card', async () => { const b = document.getElementById('bossBar'); if (b && !b.hidden) b.click(); await new Promise(r => setTimeout(r, 300)); }],
   ['boss-down', async () => { CG.play.close(); const w = window.__boss; if (w) w.hp = -1; for (let i = 0; i < 40 && !document.querySelector('#bossBar.gone'); i++) await new Promise(r => setTimeout(r, 30)); }],
+  // the workers called to arms (roadmap review 2026.11.22-9): a tap on a pair by the road opens their card
+  ['workers', async () => {
+    const t = CG.game.town, v = CG.town, wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view');
+    t.arms = { t: 30, cd: 300, clock: 0 }; await wait(800);
+    const id = Object.keys(t.def.board.plots || {}).filter(k => t.level(k) > 0).find(k => { const q = v.projectWorker(k); return q && q.x > 30 && q.x < cv.clientWidth - 30 && q.y > 200 && q.y < cv.clientHeight - 260; });
+    if (id) CG.play.openWorker(id); await wait(400);
+  }],
+  ['workers-back', async () => { CG.game.town.arms.t = 0; for (let i = 0; i < 40 && !document.querySelector('#card.gonefoe'); i++) await new Promise(r => setTimeout(r, 30)); }], // the shot as soon as it says so
   // a tower card short of a good: how much there is, about how long, and which building to upgrade
   ['strip', () => { const t = CG.game.town; CG.play.close(); t.goods.timber = 124; t.goods.planks = 18; t.goods.ore = 6; t.goods.clay = 40; }],
   ['short', () => { const t = CG.game.town; t.goods.ore = 2; t.buildings.mine = Math.max(5, t.level('mine')); CG.play.close(); CG.play.openSpot(3); }],
@@ -168,7 +176,8 @@ const OUTPOST = [
   // the bandit wagon at its stage, its two horsemen off, and the boss bar's card the first time a boss is on the road
   ['bandits-stage', async () => { const f = CG.game.town.waves.foes.find(x => x.kind === 'bandits'); if (f) f.hp = f.max * .45; await new Promise(r => setTimeout(r, 900)); }],
   ['boss-bar-intro', async () => { delete CG.game.shared.seen['boss-bar']; for (let i = 0; i < 60 && CG.coach.current !== 'boss-bar'; i++) await new Promise(r => setTimeout(r, 100)); }],
-  ['won', () => { CG.coach.dismiss(); delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
+  ['worker-intro', async () => { CG.coach.dismiss(); const t = CG.game.town; t.arms = { t: 30, cd: 300, clock: 0 }; delete CG.game.shared.seen['worker-tap']; for (let i = 0; i < 60 && CG.coach.current !== 'worker-tap'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['won', () => { CG.coach.dismiss(); CG.game.town.arms = { t: 0, cd: 0, clock: 0 }; delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
   // the back button's card, the first time there is somewhere to go back to
   ['back-card', async () => { delete CG.game.shared.seen.back; for (let i = 0; i < 60 && CG.coach.current !== 'back'; i++) await new Promise(r => setTimeout(r, 100)); }],

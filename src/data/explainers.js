@@ -56,6 +56,13 @@ export const EXPLAINERS = [
     text: 'Tap any raider on the road to see its health and armor, and what your towers did to it, like poison or frost.',
     when: h => !!h.foeOut && (h.foeOut.fx || h.wave >= 4), at: h => (h.foeOut ? { foe: h.foeOut.id } : null),
   },
+  // any town: the workers' card, the first time workers are out on the road (roadmap review 2026.11.22-9)
+  {
+    id: 'worker-tap', covers: ['workercard'],
+    title: 'Your workers',
+    text: 'Your workers are fighting by the road, and their buildings make nothing until they go back. Tap a pair of workers to see how long.',
+    when: h => !!h.workerOut, at: h => (h.workerOut ? { worker: h.workerOut } : null),
+  },
   // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
   {
     id: 'boss-bar', covers: ['bossbar'],

@@ -1,7 +1,7 @@
 /* Call to arms on the board (src/core/arms.js): while a town's workers fight, two of them stand at each built
    building's post by the road, rifles toward it. One instanced mesh for all of them, made once; nothing is made or
    thrown away while it runs. They rise out of the ground when called and sink back when the call is over. Never in
-   board.pickables, so a tap goes through them. Shown on every graphics tier (it is part of the fight, not scenery).
+   board.pickables: a tap finds a pair by where it stands on screen (src/render/pick.js, pickWorker), like a raider. Shown on every graphics tier (it is part of the fight, not scenery).
    Their shots are drawn by src/render/battle.js (a 'shot' of kind 'militia'). */
 import * as THREE from 'three';
 import { Kit, MAT } from './kit.js';
@@ -39,6 +39,12 @@ export class Militia {
       const r = pointAt(road, p.s), dx = r[0] - p.at[0], dz = r[1] - p.at[1], yaw = Math.atan2(dx, dz), sx = Math.cos(yaw) * .17, sz = -Math.sin(yaw) * .17;
       return { id: p.id, yaw, at: [-1, 1].map(side => [p.at[0] + sx * side, p.at[1] + sz * side]) };
     }) : [];
+  }
+  /* Where each building's pair stands while they are out: [{ id, x, z }] (empty when no one is out). */
+  points() {
+    if (!this.mesh.visible || this.k < .5) return [];
+    const town = this.board.town;
+    return this.spots.filter(sp => town.level(sp.id) > 0).map(sp => ({ id: sp.id, x: (sp.at[0][0] + sp.at[1][0]) / 2, z: (sp.at[0][1] + sp.at[1][1]) / 2 }));
   }
   /* Count of workers out now (for the smoke test). */
   get out() { return this.mesh.visible ? this.mesh.count : 0; }

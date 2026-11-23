@@ -51,6 +51,16 @@ export function armsLoss(game, town, seconds = ARMS.seconds) {
   for (const [g, n] of Object.entries(goods)) coins += Math.max(0, n - (use[g] || 0) * seconds) * price(game, town, g);
   return { goods, coins };
 }
+/* One building's workers by the road, as their card shows them and the tests read them (roadmap review 2026.11.22-9:
+   anything that moves can be tapped): the building they came from, its level, the seconds of the call left (out: they
+   are on the road now), and what that building does not make in those seconds (lost units of its good; 0 for power,
+   which no one sells). null for an id that is not a building. */
+export function workerStatus(town, id) {
+  const b = BUILDINGS[id];
+  if (!b) return null;
+  const a = state(town), L = town.level(id) || 0, left = a.t > 1e-9 && L > 0 ? a.t : 0;
+  return { id, name: b.name, level: L, left, out: left > 0, good: b.makes, lost: left > 0 && !isGrid(b.makes) ? output(town, id) * left : 0 };
+}
 /* Call the workers to arms. Returns true when they came out. */
 export function callToArms(game, town) {
   if (armsBlock(game, town)) return false;

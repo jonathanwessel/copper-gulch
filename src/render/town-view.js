@@ -8,7 +8,7 @@ import { Board } from './board.js';
 import { CameraRig } from './camera.js';
 import { Battle } from './battle.js';
 import { Selection } from './select.js';
-import { pickTarget, pickFoe, hitPx, project } from './pick.js';
+import { pickTarget, pickFoe, pickWorker, hitPx, project } from './pick.js';
 
 const _a = new THREE.Vector3();
 /* onZoomOut: the player zoomed out past the farthest view (opens the empire map); flyIn: dive in from above. */
@@ -24,8 +24,11 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => {
     // a raider when the finger is nearer its middle than the middle of the pad or building the tap would open (smoke,
     // 2026.11.22-9: a tap on a pad's middle opened a raider walking past it)
+    // the same for the workers called to arms, who stand by the road in front of their own building
     const foe = pickFoe(v.cam, canvas, board, battle, x, y), hit = pickTarget(v.cam, canvas, board, x, y);
-    onTap(foe && (!hit || foe.px < hitPx(v.cam, canvas, board, hit, x, y)) ? { foe: foe.id } : hit, x, y);
+    const wk = pickWorker(v.cam, canvas, board, x, y), hp = hit ? hitPx(v.cam, canvas, board, hit, x, y) : Infinity;
+    const moving = foe && (!wk || foe.px <= wk.px) ? { px: foe.px, out: { foe: foe.id } } : wk ? { px: wk.px, out: { worker: wk.id } } : null;
+    onTap(moving && moving.px < hp ? moving.out : hit, x, y);
   } });
   let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   /* The sun's shadow map is drawn only when something that casts a shadow changes: a building or tower built or
@@ -47,6 +50,9 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       if (!tg) return;
       // a raider: the map slides only when it walks under the card, so its ring stays in sight (it never chases it)
       if (tg.foe !== undefined) { const u = battle.foes.get(tg.foe); if (u) rig.keep({ x: u.obj.position.x, y: .4, z: u.obj.position.z }, 'f' + tg.foe, 0); return; }
+      // a building's workers by the road: kept clear of the card like a raider (smoke, 2026.11.22-11: a worker target
+      // fell through to the pads and threw every frame)
+      if (tg.worker !== undefined) { const p = board.militia.points().find(q => q.id === tg.worker); if (p) rig.keep({ x: p.x, y: .3, z: p.z }, 'w' + tg.worker, 0); return; }
       const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
       rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot, selection.reach || 0); // a tower's circle stays in view too
     },
@@ -68,6 +74,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, .45, u.obj.position.z), size); if (p) out.push(p); } return out; },
     /* Where a raider is drawn on screen, or null when it is gone or hidden in its entrance. */
     projectFoe: id => { const u = battle.foes.get(id); return u && u.obj.visible ? project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + (u.boss ? .7 : .4), u.obj.position.z), size) : null; },
+    /* Where a building's workers stand on screen while they are called to arms, or null. */
+    projectWorker: id => { const p = board.militia.points().find(q => q.id === id); return p ? project(v.cam, canvas, _a.set(p.x, .3, p.z), size) : null; },
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z), size); },
     /* Stop drawing and free the GPU memory; lose: also let go of the GPU context (the canvas is being replaced). */
     stop(lose = false) { cancelAnimationFrame(raf); selection.dispose(); battle.dispose(); board.dispose(); v.dispose(); if (lose) v.renderer.forceContextLoss(); },

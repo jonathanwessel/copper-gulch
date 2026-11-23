@@ -262,6 +262,31 @@ async function run() {
         ws.foes = ws.foes.filter(x => x.kind === F.stages[0].drop ? false : true);
         return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone };
       });
+      // the workers called to arms can be tapped too (roadmap review 2026.11.22-9): a real tap on a pair by the road
+      // opens their card with their building's name and the seconds left, the ring sits on them, and it says Back to work!
+      // once the call ends
+      const workers = await page.evaluate(async () => {
+        const t = CG.game.town, v = CG.town, wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view');
+        CG.play.close();
+        t.arms = { t: 30, cd: 300, clock: 0 }; await wait(700);
+        const ids = Object.keys(t.def.board.plots || {}).filter(id => t.level(id) > 0);
+        let id = null, p = null;
+        for (const k of ids) { const q = v.projectWorker(k); if (q && q.x > 20 && q.x < cv.clientWidth - 20 && q.y > 200 && q.y < cv.clientHeight - 120) { id = k; p = q; break; } }
+        if (!p) { t.arms.t = 0; return { none: true, ids: ids.length }; }
+        const rc = cv.getBoundingClientRect(), x = rc.left + p.x + 3, y = rc.top + p.y + 2;
+        for (const type of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, bubbles: true, isPrimary: true, pointerType: 'touch' }));
+        await wait(300);
+        const card = document.getElementById('card'), sel = v.selection.target, name = (card.querySelector('h2') || {}).textContent || '';
+        const back = (card.querySelector('.foestat b') || {}).textContent || '', open = !card.hidden && card.classList.contains('workercard');
+        const wide = card.scrollWidth > card.clientWidth + 1;
+        t.arms.t = 0; await wait(500);
+        const said = (card.querySelector('.foestat.gone .flabel') || {}).textContent || null;
+        await wait(1900);
+        const closed = card.hidden;
+        return { id, open, name, back, sel: sel && sel.worker, said, closed, wide };
+      });
+      if (workers.none) bad.push('the workers card: no workers came into view to tap ' + JSON.stringify(workers));
+      else if (!workers.open || !/ workers$/.test(workers.name) || !/^\d{1,2}s$/.test(workers.back) || workers.sel !== workers.id || workers.said !== 'Back to work!' || !workers.closed || workers.wide) bad.push('the workers card: ' + JSON.stringify(workers));
       if (!bossBar.hiddenFirst || !bossBar.shown || bossBar.name !== bossBar.want || bossBar.widths.length !== 1 || bossBar.stage !== bossBar.wantStage || !bossBar.same || !bossBar.opened || bossBar.cardName !== bossBar.want || bossBar.down !== bossBar.want + ' down!' || !bossBar.gone) bad.push('the boss bar: ' + JSON.stringify(bossBar));
       if (shade.cast || shade.auto || shade.rate > .5 || !shade.redrawn) bad.push('raiders cast a sun shadow, the shadow map is drawn every frame, or not after a level up: ' + JSON.stringify(shade));
       // a tower card with its damage opened up keeps Upgrade in view and clears Pause, Hold waves and the coins

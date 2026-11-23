@@ -238,6 +238,8 @@ html.no3d body { background: var(--bg); }
 .fx-fire { fill: #ff8a2a; } .fx-slow { fill: #9cc4ff; } .fx-brittle { fill: #e8dcc8; } .fx-stage { fill: #e8c050; }
 .card > p.gone { color: var(--gold); font-size: .85rem; line-height: 1.3; } /* in place of the coins line, the same height */
 .foecard.gonefoe .foestat, .foecard.gonefoe .foefx { opacity: .55; }
+.workercard .foestat { grid-template-columns: minmax(0, 1fr) 13.5ch; }
+.foecard.gonefoe .foestat.gone { opacity: 1; } .foestat.gone .flabel { color: var(--good); } /* the workers' card (src/ui/worker.js): a label and its number */
 .foes { gap: 4px; }
 .foes h3 { margin: 4px 0 0; }
 .pathhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; } /* its price row takes the full width under Pick a path */
