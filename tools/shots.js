@@ -157,8 +157,10 @@ const OUTPOST = [
     for (let i = 0; i < 100 && !(window.CG && CG.coach && CG.town); i++) await new Promise(r => setTimeout(r, 100));
     CG.coach.skipAll();
   }],
+  // a card being read aloud: the speaker button lit (a speech engine that only records, see speechStub)
+  ['coach-read', async () => { delete CG.game.shared.seen['dc-welcome']; for (let i = 0; i < 60 && CG.coach.current !== 'dc-welcome'; i++) await new Promise(r => setTimeout(r, 100)); const b = document.getElementById('coachSpeak'); if (b && !b.hidden) b.click(); }],
   // the goal strip: a goal just done, then the next one with its spotlight
-  ['goal-done', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 200); t.goods.stone = Math.max(t.goods.stone || 0, 30); CG.play.openSpot(0); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); CG.play.close(); }],
+  ['goal-done', () => { CG.coach.dismiss(); const t = CG.game.town; t.coins = Math.max(t.coins, 200); t.goods.stone = Math.max(t.goods.stone || 0, 30); CG.play.openSpot(0); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); CG.play.close(); }],
   ['goal', () => {}],
   // the Call now goal: three Crossbows up, two waves beaten, the wait half gone, so the button is lit and spotlit
   ['goal-call', () => { const t = CG.game.town; t.coins = Math.max(t.coins, 500); t.goods.stone = Math.max(t.goods.stone || 0, 100); for (const s of [0, 1, 2]) if (!t.towers.some(x => x.spot === s)) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="crossbow"]'); if (b) b.click(); } CG.play.close(); for (const id of ['dc-tower', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) CG.game.shared.goals.done[id] = true; t.bestWave = Math.max(t.bestWave, 2); t.wave = Math.max(t.wave, 3); Object.assign(t.waves, { phase: 'break', timer: 30, hold: false, queue: [], foes: [] }); setTimeout(() => { t.waves.timer = 30; }, 1400); }], // the timer is put back once the Done flash has gone; the shot waits for the ring (review of 2026.11.20-6: it was taken before the ring came)
@@ -314,11 +316,18 @@ async function shot(pg, f, size) {
   const top = await pg.evaluate(() => { const w = document.getElementById('wave'), r = w && w.getBoundingClientRect(); return r && r.height > 0 && getComputedStyle(w).visibility !== 'hidden' ? Math.round(r.top) : null; });
   if (top !== null) (waveTops[size] ||= []).push([path.basename(f), top]);
 }
-const watch = (pg, size) => { pg.on('pageerror', e => errs.push(size + ': ' + String(e.message).split('\n')[0])); return pg; };
+/* Every page gets a speech engine with one on-device voice that only records what it is asked to say, so the speaker
+   button on the cards and the Read aloud settings show the same on every machine, and nothing is spoken. */
+const speechStub = () => {
+  const fake = { said: [], current: null, getVoices: () => [{ name: 'Device', lang: 'en-US', localService: true }], speak(u) { this.said.push(u.text); this.current = u; }, cancel() { const u = this.current; this.current = null; if (u && u.onend) u.onend(); }, addEventListener() {} };
+  Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true });
+  window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+};
+const watch = async (pg, size) => { pg.on('pageerror', e => errs.push(size + ': ' + String(e.message).split('\n')[0])); await pg.addInitScript(speechStub); return pg; };
 try {
   for (const [size, [width, height]] of Object.entries(SIZES)) {
     if (!ONLY || ONLY === 'gulch') {
-    const p = watch(await b.newPage({ viewport: { width, height } }), size);
+    const p = await watch(await b.newPage({ viewport: { width, height } }), size);
     await p.goto(srv.url + '?coach=off&start=gulch');
     for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready && (!CG.scene || CG.scene.frames > 2)))); i++) await sleep(100);
     for (const [name, go] of SCREENS) {
@@ -329,7 +338,7 @@ try {
     await p.close();
     }
     if (!ONLY || ONLY === 'outpost') {
-    const q = watch(await b.newPage({ viewport: { width, height } }), size);
+    const q = await watch(await b.newPage({ viewport: { width, height } }), size);
     await q.goto(srv.url);
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
@@ -340,7 +349,7 @@ try {
     await q.close();
     }
     if (!ONLY || ONLY === 'ridge') {
-      const r = watch(await b.newPage({ viewport: { width, height } }), size);
+      const r = await watch(await b.newPage({ viewport: { width, height } }), size);
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
@@ -350,7 +359,7 @@ try {
       await r.close();
     }
     if (!ONLY || ONLY === 'falls') {
-      const r = watch(await b.newPage({ viewport: { width, height } }), size);
+      const r = await watch(await b.newPage({ viewport: { width, height } }), size);
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of FALLS) {

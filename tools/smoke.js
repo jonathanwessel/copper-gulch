@@ -51,6 +51,9 @@ export async function check(page) {
     const bad = [], vw = innerWidth;
     const wide = [document.documentElement, document.body, document.getElementById('app')].some(e => e && e.scrollWidth > vw + 1);
     if (wide) bad.push('sideways scroll');
+    // an element passed where text was meant shows as "[object HTMLLabelElement]" (2026.11.22-13: the Menu's Voice row)
+    const junk = (document.body.innerText || '').match(/\[object \w+\]|\bundefined\b|\bNaN\b/);
+    if (junk) bad.push('broken text on screen: ' + junk[0]);
     for (const b of document.querySelectorAll('button, a, [role=button]')) {
       const r = b.getBoundingClientRect();
       if (r.width && (r.width < 30 || r.height < 30)) bad.push('small target: ' + (b.id || b.textContent.trim().slice(0, 20)) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
@@ -646,6 +649,7 @@ async function run() {
       for (const open of ['openPerks', 'openMenu', 'openGoods']) { // every side button shows whole or not at all under a sheet
         await page.evaluate(o => { CG.play[o](); }, open); await sleep(700);
         bad.push(...(await uncovered(page)).map(b => open + ': ' + b));
+        bad.push(...(await check(page)).filter(b => b.startsWith('broken text')).map(b => open + ': ' + b));
         await page.evaluate(() => document.getElementById('sheetClose').click()); await sleep(200);
       }
       const overSheet = await page.evaluate(async () => {
@@ -1512,6 +1516,17 @@ async function run() {
   try {
     const page = await b3.newPage({ viewport: { width: 400, height: 860 } }), errs = [];
     page.on('pageerror', e => errs.push(e.message));
+    // a speech engine that only records what it is asked to say, with one on-device American voice (window.__voices
+    // can be changed, then voiceschanged fired, to take the voice away)
+    await page.addInitScript(() => {
+      const subs = [];
+      window.__voices = [{ name: 'Online', lang: 'en-US', localService: false }, { name: 'Device', lang: 'en-US', localService: true }];
+      const fake = { said: [], cancels: 0, current: null, getVoices: () => window.__voices,
+        speak(u) { this.said.push(u.text); this.current = u; }, cancel() { this.cancels++; const u = this.current; this.current = null; if (u && u.onend) u.onend(); },
+        addEventListener: (ev, fn) => { if (ev === 'voiceschanged') subs.push(fn); }, fire: () => subs.forEach(fn => fn()) };
+      Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true });
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+    });
     await page.goto(srv3.url);
     await waitFor(page, () => window.CG && CG.ready);
     await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
@@ -1524,8 +1539,34 @@ async function run() {
       });
       if (!st.paused) bad.push('the game ran under the card');
       bad.push(...(await check(page)).map(b => 'coach: ' + b));
-      await page.evaluate(() => document.getElementById('coachOk').click());
-      // the next card spotlights the Stone Camp
+      // the speaker button (owner, 2026-11-22): it reads exactly the card, a second tap stops it, closing stops it,
+      // and with Read cards aloud on the next card reads itself
+      const sp = await page.evaluate(async () => {
+        const b = document.getElementById('coachSpeak'), r = b.getBoundingClientRect(), syn = window.speechSynthesis, card = document.querySelector('#coach .coachcard').getBoundingClientRect();
+        const out = { shown: !b.hidden && r.width > 0, size: Math.round(Math.min(r.width, r.height)), inCard: r.left >= card.left && r.right <= card.right && r.top >= card.top, label: b.getAttribute('aria-label') };
+        const want = CG.coach.words(), title = document.querySelector('#coach .coachcard b').textContent, text = document.querySelector('#coach .coachcard p').textContent;
+        out.words = want.startsWith(title) && want.includes(text.split(' ').slice(0, 4).join(' '));
+        b.click(); await new Promise(r => setTimeout(r, 50));
+        out.said = syn.said.at(-1) === want; out.pressed = b.getAttribute('aria-pressed') === 'true' && CG.speech.speaking(); out.ducked = CG.audio.state().ducked;
+        b.click(); await new Promise(r => setTimeout(r, 50));
+        out.stopped = !CG.speech.speaking() && syn.cancels >= 1 && b.getAttribute('aria-pressed') === 'false' && !CG.audio.state().ducked;
+        b.click(); await new Promise(r => setTimeout(r, 50));
+        const c0 = syn.cancels; CG.audio.set('read', 1); document.getElementById('coachOk').click();
+        out.closeStops = !CG.speech.speaking() && syn.cancels > c0;
+        for (let i = 0; i < 60 && CG.coach.current !== 'dc-stone'; i++) await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 50));
+        out.auto = CG.coach.current === 'dc-stone' && syn.said.at(-1) === CG.coach.words() && CG.speech.speaking();
+        CG.audio.set('read', 0); CG.speech.stop();
+        // no on-device voice: the button goes away
+        window.__voices = [{ name: 'Online', lang: 'en-US', localService: false }]; syn.fire();
+        out.hidden = document.getElementById('coachSpeak').hidden;
+        window.__voices = [{ name: 'Device', lang: 'en-US', localService: true }]; syn.fire();
+        return out;
+      });
+      for (const [k, v] of Object.entries(sp)) if (!v && k !== 'size' && k !== 'label') bad.push('speaker button: not ' + k);
+      if (sp.size < 36) bad.push('speaker button is ' + sp.size + ' px, under 36');
+      if (sp.label !== 'Read aloud') bad.push('speaker button label ' + sp.label);
+      // the next card spotlights the Stone Camp (the speaker check above has already moved on to it)
       if (!await waitFor(page, () => CG.coach.current === 'dc-stone', 6000)) bad.push('the Stone Camp card did not follow');
       const hole = await page.evaluate(() => { const h = document.querySelector('#coach .hole'); return !h.hidden && h.getBoundingClientRect().width > 0; });
       if (!hole) bad.push('no spotlight on the Stone Camp');
@@ -1537,6 +1578,11 @@ async function run() {
       await page.evaluate(() => document.getElementById('play').click());
       await waitFor(page, () => CG.town && CG.town.frames > 5); await sleep(2500);
       if (await page.evaluate(() => ['dc-welcome', 'dc-stone'].includes(CG.coach.current))) bad.push('the welcome cards came back after a reload');
+      // the Menu's Read aloud section (with an on-device voice): the Voice slider and the Read cards aloud switch
+      const menu = await page.evaluate(async () => { CG.coach.skipAll(); CG.play.openMenu(); await new Promise(r => setTimeout(r, 300)); const r = document.getElementById('readAloud'); const o = { voice: !!document.getElementById('voiceVol'), read: !!r && /Read cards aloud/.test(r.textContent) }; r.click(); o.on = CG.audio.get('read') === 1; r.click(); o.off = CG.audio.get('read') === 0; return o; });
+      for (const [k, v] of Object.entries(menu)) if (!v) bad.push('Menu read aloud: not ' + k);
+      bad.push(...(await check(page)).map(b => 'menu: ' + b));
+      await page.evaluate(() => document.getElementById('sheetClose').click());
     }
     bad.push(...errs);
     console.log('coach', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');

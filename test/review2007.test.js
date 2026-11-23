@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { newGame } from '../src/core/setup.js';
 import { buildTower, towerCost, reserves, setStock, RESERVE } from '../src/core/defense.js';
 import { oldWavesLabel } from '../src/core/explain.js';
+import { priceRow } from '../src/ui/sheets.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { goodsLine, priceLabel } from '../src/ui/format.js';
@@ -47,7 +48,7 @@ test('the price bar starts with the price in one form, and its end word is only 
   assert.equal(priceLabel(.001), 'Under 1 coin each');
   for (const s of [1, .7, .5, .2, .02]) assert.ok(['Full price', 'Down 30%', 'Down 50%', 'Down 80%', 'Down 98%'].includes(priceWord(s)));
   const sheets = read('src/ui/sheets.js');
-  assert.match(sheets, /priceLabel\(ex\.value\)/);
+  assert.equal(priceRow(2, 1)[0], priceLabel(2), 'the row starts with the price'); // what the row shows, not its source (PLAN.md, word tests)
   assert.match(sheets, /explainBox\(ex, \{ total: null \}\)/);
 });
 

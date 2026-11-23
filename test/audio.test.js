@@ -63,12 +63,15 @@ test('the volumes are kept under cg-audio and a damaged entry falls back to the 
   const s = store();
   assert.deepEqual(readAudio(s), AUDIO_DEFAULT);
   writeAudio({ music: .3, sound: 2 }, s);
-  assert.deepEqual(readAudio(s), { music: .3, sound: 1 });
+  assert.deepEqual(readAudio(s), { music: .3, sound: 1, voice: .9, read: 0 });
   s.setItem(AUDIO_KEY, '{oops');
   assert.deepEqual(readAudio(s), AUDIO_DEFAULT);
   const a = createAudio({ store: s, win: {} });
   a.set('music', 0); a.set('sound', .45);
-  assert.deepEqual(readAudio(s), { music: 0, sound: .45 });
+  assert.deepEqual(readAudio(s), { music: 0, sound: .45, voice: .9, read: 0 });
+  a.set('voice', .4); a.set('read', true);
+  assert.deepEqual(readAudio(s), { music: 0, sound: .45, voice: .4, read: 1 });
+  assert.equal(JSON.parse(s.getItem(AUDIO_KEY)).v, 2);
   assert.ok([...s.m.keys()].every(k => k.startsWith('cg-')));
 });
 

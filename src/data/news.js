@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-1',
+    lines: [
+      'Tip cards have a speaker button at the top right. Tap it to hear the card read out loud. Tap it again to stop.',
+      'In the Menu, turn on Read cards aloud to hear each new tip card by itself, and set how loud with Voice. It uses the voice built into your device, so it works offline.',
+      'A raider card shows the best tower against it on its own line.',
+    ],
+  },
+  {
     v: '2026.11.22-12',
     lines: [
       'Towns look sharper on phones, with smoother edges on buildings, towers and people.',

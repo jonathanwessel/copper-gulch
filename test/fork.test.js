@@ -134,9 +134,9 @@ test('fork text says what it does in one short line, with no advice on where or 
   for (const [kind, sides] of Object.entries(FORKS)) for (const P of Object.values(sides)) {
     const words = P.about.split(/s+/).length;
     assert.ok(words <= 10, kind + ' ' + P.name + ' has ' + words + ' words');
-    assert.ok(!/best|start of the road|end of the road|near the vault|reaches far/i.test(P.about), P.name + ': ' + P.about);
+    assert.ok(!/\bbest\b|start of the road|end of the road|near the vault|reaches far/i.test(P.about), P.name + ': ' + P.about);
   }
-  for (const e of EXPLAINERS.filter(x => x.covers.some(c => c.startsWith('fork')))) assert.ok(!/best|start of the road|near the vault/i.test(e.text), e.text);
+  for (const e of EXPLAINERS.filter(x => x.covers.some(c => c.startsWith('fork')))) assert.ok(!/\bbest\b|start of the road|near the vault/i.test(e.text), e.text);
 });
 
 test('a tower one level from its fork shows the explainer on it', () => {

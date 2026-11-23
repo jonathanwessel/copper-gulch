@@ -16,7 +16,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek', 'system:goals'],
     title: 'Welcome to Dry Creek',
-    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Start with the goal shown here.',
+    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Start with the Goal at the top.',
     when: () => true, at: () => ({ el: '#goal' }),
   },
   {
@@ -381,7 +381,7 @@ export const EXPLAINERS = [
   {
     id: 'auto-research', covers: ['auto-research'],
     title: 'Auto-research',
-    text: 'The University is built. Tap Auto and turn on Auto-research. It keeps researching the next level of what you picked before. Tap Research in any town to see what is running.',
+    text: 'The University is built. Tap Auto and turn on Auto-research. It starts the next research by itself. Tap Research in any town to see what is running.',
     when: h => h.autoResearch && !!h.tabs.auto && !!h.tabs.research && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {

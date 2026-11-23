@@ -286,6 +286,7 @@ One sheet per town, opened with the Auto button on the play screen (`src/core/au
   - A goal counts the first time it is true, in any order, and a goal that can't be done yet is passed over. Finished goals stay finished in the save. A finished goal shows Done for a moment, then the next one comes in. When a town's goals are all done the strip goes away.
   - The careful bot finishes them all by about 25 minutes into a new game; `tools/balance.js` fails if any goal takes longer than 40 minutes.
 - **Coach cards** appear once each, when a system unlocks.
+  - **Read aloud** (owner, 2026-11-22, `src/audio/speech.js`): a speaker button at the top right of each card reads its title and text with the device's own voice (`localService` voices only, American English first; none, no button). A second tap stops it, and it stops when the card closes, the place changes or the app hides. The music dips while it reads. The Menu's Read aloud section has a Voice volume and Read cards aloud (off by default), which reads each new card by itself. Card text is written to be said: no emoji, no x3, no names left in braces (`tools/audit.js`).
 - **Tabs appear one by one:**
   - Town at the start (Dry Creek);
   - Map and the back button at the top when Copper Gulch opens, to switch between Dry Creek and the Gulch;

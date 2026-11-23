@@ -6,7 +6,7 @@
    which the bots count with too. Live numbers sit in cells of fixed width, so the card never twitches. */
 import { FOES, STAGE_WORDS } from '../data/foes.js';
 import { foeStatus } from '../core/defense.js';
-import { bestLine } from './wave.js';
+import { bestView, BEST_LABEL } from './wave.js';
 import { drawFoe } from '../art/foes.js';
 import { fmt, fmtLive } from './format.js';
 
@@ -32,7 +32,7 @@ export function foeView(town, f, store = 'vault') {
     // a boss's stage leads its effects, in the boss bar's words (one state, one source: both read foeStatus)
     effects: [...(st.stage ? [{ key: 'stage', word: STAGE_WORDS[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
     none: 'No effects.', // review of 2026.11.22-9: "Nothing on it now" read as a narrator
-    worth: coins(st.worth), best: bestLine(town, f.kind),
+    worth: coins(st.worth), best: bestView(town, f.kind),
     gone: st.gone === 'down' ? F.name + ' down!' : st.gone === 'through' ? 'It got to the ' + store + '.' : null,
   };
 }
@@ -43,7 +43,8 @@ export function foeLines(town, f, store) {
   if (v.armor) out.push('Armor', v.armor.text);
   for (const e of v.effects) out.push(e.word, e.left);
   if (!v.effects.length) out.push(v.none);
-  out.push(v.worth + ' ' + v.best);
+  if (v.best.tower) out.push(v.best.label, v.best.tower); else out.push(v.best.any);
+  out.push(v.worth);
   if (v.gone) out.push(v.gone);
   return out.filter(Boolean);
 }
@@ -82,10 +83,13 @@ export function foeCard(card, town, f, { store = 'vault', onClose = () => {} } =
   head.append(pic, el('h2', null, v0.name), close);
   close.addEventListener('click', onClose);
   const hp = barRow('Health', 'hp'), ar = v0.armor ? barRow('Armor', 'ar') : null;
-  const fx = el('div', 'foefx'), worth = el('p', 'uses', v0.worth + ' ' + v0.best);
+  const fx = el('div', 'foefx'), worth = el('p', 'uses', v0.worth);
+  // the tower that hits it hardest, as a labeled row like Health and Armor (review of 2026.11.22-12)
+  const best = el('div', 'foestat best');
+  best.append(el('span', 'flabel', BEST_LABEL), el('b', null, v0.best.tower || 'Any tower'));
   card.append(head, hp.row);
   if (ar) card.append(ar.row);
-  card.append(fx, worth);
+  card.append(fx, best, worth);
   let sig = '', goneFor = 0, last = performance.now();
   const set = (n, s) => { if (n.textContent !== s) n.textContent = s; };
   const update = () => {

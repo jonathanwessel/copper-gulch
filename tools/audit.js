@@ -14,6 +14,7 @@ import { FORKS, TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
 import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
+import { SAY_SYMBOLS } from '../src/audio/speech.js';
 import { NEWS } from '../src/data/news.js';
 import { GOALS } from '../src/data/goals.js';
 import { SYSTEMS } from '../src/core/setup.js';
@@ -107,6 +108,9 @@ export function audit() {
 export function swallowRules() {
   const out = [], code = /\/\/[^'"`]*; *(this\.|const |let |if \(|for \(|return\b|[a-zA-Z_]+\.[a-zA-Z_]+ *(=|\())/;
   for (const f of walk('src').filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line, i) => { if (code.test(line) && !/https?:/.test(line)) out.push(f + ':' + (i + 1) + ' has code after a // comment, so it never runs'); });
+  // a patch script that writes "\b" inside a template string puts a raw backspace in the file, and the regex it was
+  // meant for never matches (2026-11-22: test/fork.test.js's /\bbest\b/ had checked nothing since it was written)
+  for (const dir of ['src', 'tools', 'test']) for (const f of walk(dir).filter(f => /\.(js|mjs)$/.test(f))) read(f).split('\n').forEach((line, i) => { if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(line)) out.push(f + ':' + (i + 1) + ' has a control character (a raw backspace from a patch script?)'); });
   return out;
 }
 
@@ -132,6 +136,14 @@ export function explainerRules() {
     if (!e.title || !e.text || typeof e.when !== 'function') p.push('explainer ' + e.id + ' needs a title, a text and a when()');
     if (e.text && e.text.length > 260) p.push('explainer ' + e.id + ' is too long for a phone card (' + e.text.length + ' characters)');
     for (const x of [e.title, e.text]) if (/[:;]/.test(x || '')) p.push('explainer ' + e.id + ' uses a colon or semicolon (writing rule)');
+    // the speaker button reads every card aloud (src/audio/speech.js): no emoji or symbol the voice cannot say, no
+    // name left as {boss}, and no "x3" (write "3 times")
+    for (const x of [e.title, e.text]) {
+      const odd = [...(x || '')].filter(ch => !/[\x20-\x7e]/.test(ch) && SAY_SYMBOLS[ch] === undefined);
+      if (odd.length) p.push('explainer ' + e.id + ' has ' + odd.join('') + ', which cannot be read aloud');
+      if (/[{}]/.test(x || '')) p.push('explainer ' + e.id + ' has a name left in braces');
+      if (/\bx\d|\d+x\b/.test(x || '')) p.push('explainer ' + e.id + ' writes x3 or 3x (write "3 times", it is read aloud)');
+    }
     for (const c of e.covers || []) covered.add(c);
   }
   for (const f of requiredFeatures()) if (!covered.has(f)) p.push('feature ' + f + ' has no explainer (src/data/explainers.js)');

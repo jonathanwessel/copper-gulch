@@ -68,6 +68,9 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 }
 
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
+/* A good's price row on the Goods sheet: [the price, how high it stands]. A price under 1 coin that is down says it
+   once, by the price (review of 2026.11.22-12: "Under 1 coin each" beside "Down 99%"). */
+export const priceRow = (price, s) => { const pl = priceLabel(price), pw = priceWord(s); return [pl, price > 0 && price < .95 && pw.startsWith('Down') ? '' : pw]; };
 export const priceWord = s => (s > 1.05 ? 'Up ' + Math.min(99, Math.round((s - 1) * 100)) + '%' : s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
@@ -205,8 +208,9 @@ export function goodsSheet(game, town, focus = null) {
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
         const sat = saturation(game, g);
-        const pw = priceWord(sat * eventFactor(game, g)); if (r.level.textContent !== pw) r.level.textContent = pw; // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
-        const pl = priceLabel(ex.value); if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
+        const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
+        if (r.level.textContent !== pw) r.level.textContent = pw;
+        if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
         setSwitch(r.sw, 'Sell spare', MODE_WORDS[mode], selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
@@ -412,7 +416,7 @@ export function autoSheet(game, town, openResearch = null) {
     add('foremen', 'Foremen', 'Upgrades buildings in this town that have a foreman.').sw.addEventListener('click', () => { setForemen(town, !foremenWorking(town)); paint(); });
     add('towers', 'Auto-towers', 'Upgrades one tower in this town every few minutes.').sw.addEventListener('click', () => { setAuto(game, town, 'towers', !autoOf(game, town).towers); paint(); });
     add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town keeps playing and tries again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
-    add('research', 'Auto-research', 'Keeps this town researching the next level of what you picked before.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
+    add('research', 'Auto-research', 'Starts the next research in this town by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     // Call to arms by Auto: only at a boss or a low vault, with its own switch (owner idea, 2026-11-20)
     add('arms', 'Call to arms', "Calls this town's workers out when the boss is on the road or the vault is low.").sw.addEventListener('click', () => { setAuto(game, town, 'arms', !autoOf(game, town).arms); paint(); });
     // its line opens Research, so what it runs is one tap away (owner, 2026-11-20)
@@ -526,20 +530,30 @@ export function menuSheet(ctx) {
       sec('Graphics', row, el('p', 'uses', 'Low runs smoothest. High looks best.'));
     }
 
-    // Sound: two sliders, kept on this device (src/audio/audio.js)
+    // Sound: the Music and Sound sliders, and Voice where the device has its own voice to read the explainer cards
+    // aloud (src/audio/speech.js), all kept on this device (src/audio/audio.js); Voice sits with the other volumes so
+    // it reads as how loud (review of 2026.11.22-13: under Read aloud it could mean which voice)
     const audio = ctx.audio || (globalThis.CG && globalThis.CG.audio);
     if (audio) {
+      const speech = ctx.speech || (globalThis.CG && globalThis.CG.speech), talk = !!speech && speech.available();
       const box = el('div', 'sliders');
-      for (const [k, name] of [['music', 'Music'], ['sound', 'Sound']]) {
+      for (const [k, name] of [['music', 'Music'], ['sound', 'Sound'], ...(talk ? [['voice', 'Voice']] : [])]) {
         const row = el('label', 'slider'), inp = el('input'), val = el('span', 'val');
         inp.type = 'range'; inp.min = '0'; inp.max = '100'; inp.step = '5'; inp.id = k + 'Vol';
         inp.value = String(Math.round(audio.get(k) * 100));
         const show = () => { val.textContent = +inp.value ? inp.value + '%' : 'Off'; };
-        inp.addEventListener('input', () => { audio.start(); audio.set(k, +inp.value / 100); show(); });
+        inp.addEventListener('input', () => { if (k !== 'voice') audio.start(); audio.set(k, +inp.value / 100); show(); });
         if (k === 'sound') inp.addEventListener('change', () => audio.play('coin'));
         show(); row.append(el('span', 'name', name), inp, val); box.append(row);
       }
       sec('Volume', box);
+      if (talk) {
+        const read = btn('', 'btn small', 'readAloud');
+        const paint = () => setSwitch(read, 'Read cards aloud', audio.get('read') ? 'On' : 'Off', !!audio.get('read'));
+        read.addEventListener('click', () => { audio.set('read', !audio.get('read')); paint(); });
+        paint();
+        sec('Read aloud', read);
+      }
     }
 
     // Save slots

@@ -2,7 +2,11 @@
    explained and a short card with "Got it". The game waits while a card is open. Each card shows once; what has been
    seen is kept in the save (game.shared.seen). An explainer with `town` shows only in that town. One with `go` (a town
    id) and `button` gets a second button that takes the player there. startCoach returns
-   { frame(dt), current, dismiss(), skipAll(), destroy() }. */
+   { frame(dt), current, dismiss(), skipAll(), destroy() }.
+   The speaker button at the top right reads the card aloud (src/audio/speech.js, on-device voices only) and a second
+   tap stops it. It is hidden when the device has no such voice. With Read cards aloud on (readAuto()), each new card
+   reads itself. Speech stops when the card closes or the coach is taken down (switching places). */
+import { sayable } from '../audio/speech.js';
 import { EXPLAINERS } from '../data/explainers.js';
 import { FOES } from '../data/foes.js';
 import { militia } from '../core/arms.js';
@@ -84,13 +88,26 @@ export function helper(town, game = null) {
 }
 
 /* locate(target) gives a screen point { x, y } for a 3D target, or null. */
-export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, onGo = () => {}, off = false }) {
+// a pixel speaker, with sound waves while it reads
+const SPEAKER = '<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 6h3v4H2zM5 5h2v6H5zM7 3h2v10H7z"/><path class="wave" fill="currentColor" d="M11 6h1v4h-1zM13 4h1v8h-1z"/></svg>';
+export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, onGo = () => {}, off = false, speech = null, readAuto = () => false }) {
   const seen = game.shared.seen || (game.shared.seen = {});
   let cur = null, wait = 1.2, acc = 0;
   const layer = el('div', 'coach'); layer.hidden = true; layer.id = 'coach';
   const hole = el('div', 'hole'), card = el('div', 'coachcard'), title = el('b'), text = el('p'), ok = el('button', 'btn primary', 'Got it');
-  const go = el('button', 'btn primary', ''), btns = el('div', 'coachbtns');
-  ok.id = 'coachOk'; go.id = 'coachGo'; go.hidden = true; btns.append(ok, go); card.append(title, text, btns); layer.append(hole, card); root.append(layer);
+  const go = el('button', 'btn primary', ''), btns = el('div', 'coachbtns'), head = el('div', 'coachhead'), speak = el('button', 'btn speak');
+  ok.id = 'coachOk'; go.id = 'coachGo'; go.hidden = true; speak.id = 'coachSpeak'; speak.type = 'button'; speak.innerHTML = SPEAKER;
+  head.append(title, speak); btns.append(ok, go); card.append(head, text, btns); layer.append(hole, card); root.append(layer);
+  const words = () => sayable(title.textContent, text.textContent);
+  const paintSpeak = () => {
+    const can = !!speech && speech.available(), on = can && speech.speaking();
+    speak.hidden = !can; speak.setAttribute('aria-pressed', String(on)); speak.classList.toggle('on', on);
+    speak.setAttribute('aria-label', on ? 'Stop reading' : 'Read aloud'); speak.title = on ? 'Stop reading' : 'Read aloud';
+  };
+  const offSpeech = speech ? speech.onChange(paintSpeak) : () => {};
+  paintSpeak();
+  speak.addEventListener('click', () => { if (!speech) return; if (speech.speaking()) speech.stop(); else speech.speak(words()); paintSpeak(); });
+  const hush = () => { if (speech && speech.speaking()) speech.stop(); };
   ok.addEventListener('click', () => api.dismiss());
   go.addEventListener('click', () => { const to = cur && cur.e.go; api.dismiss(); if (to) onGo(to); });
 
@@ -98,6 +115,8 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     cur = { e }; title.textContent = e.title; text.textContent = (e.say && e.say(helper(town, game))) || e.text; layer.hidden = false; layer.dataset.id = e.id;
     go.hidden = !e.go; go.textContent = e.button || ''; ok.textContent = e.go ? 'Stay here' : 'Got it'; ok.classList.toggle('primary', !e.go);
     pause(true); place();
+    hush(); paintSpeak();
+    if (speech && speech.available() && readAuto()) speech.speak(words());
   }
   function place() {
     const h = helper(town, game), target = cur.e.at ? cur.e.at(h) : null;
@@ -122,12 +141,14 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     },
     dismiss() {
       if (!cur) return;
-      seen[cur.e.id] = true; cur = null; layer.hidden = true; pause(false); wait = 1.2; onSeen();
+      hush(); seen[cur.e.id] = true; cur = null; layer.hidden = true; pause(false); wait = 1.2; onSeen();
     },
     /* Mark every card seen (for players who know the game, and for tools). */
     skipAll() { for (const e of EXPLAINERS) seen[e.id] = true; api.dismiss(); },
     /* Take the cards down without marking the open one seen (switching towns); it shows again later. */
-    destroy() { off = true; if (cur) { cur = null; pause(false); } layer.remove(); },
+    destroy() { off = true; hush(); offSpeech(); if (cur) { cur = null; pause(false); } layer.remove(); },
+    /* What the speaker button reads for the open card (for the tools). */
+    words: () => (cur ? words() : null),
   };
   return api;
 }

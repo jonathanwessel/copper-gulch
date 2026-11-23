@@ -9,14 +9,17 @@ import { newGame, loadGame } from './core/setup.js';
 import { showNews } from './ui/news.js';
 import { createAudio, soundsFor } from './audio/audio.js';
 import { moodOf } from './audio/tunes.js';
+import { createSpeech } from './audio/speech.js';
 import { bossWave } from './core/defense.js';
 
 initInstall();
 // music and sound (src/audio/): made on the first tap or key, silent while the app is hidden
 const audio = createAudio();
 for (const ev of ['pointerdown', 'keydown', 'touchend']) document.addEventListener(ev, () => audio.start(), { capture: true, passive: true });
-document.addEventListener('visibilitychange', () => audio.sleep(document.hidden));
-addEventListener('pagehide', () => audio.sleep(true));
+// the explainer cards read aloud (src/audio/speech.js): on-device voices only, and silent once the app hides
+const speech = createSpeech({ audio, volume: () => audio.get('voice') });
+document.addEventListener('visibilitychange', () => { audio.sleep(document.hidden); if (document.hidden) speech.stop(); });
+addEventListener('pagehide', () => { audio.sleep(true); speech.stop(); });
 addEventListener('pageshow', () => { if (!document.hidden) audio.sleep(false); });
 setInterval(() => {
   const g = window.CG && window.CG.game, t = g && g.town, ws = t && t.waves;
@@ -25,7 +28,7 @@ setInterval(() => {
 }, 120);
 // the test tools may start a new game in one later town alone (?start=gulch, ridge, pinehollow or falls); players always start in Dry Creek
 const START = ['gulch', 'ridge', 'pinehollow', 'falls'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
-const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, audio, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
+const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, audio, speech, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();
 // what changed since this device last opened the game (a new player skips it)
@@ -97,6 +100,7 @@ async function startGame() {
       game, town: game.town, root: document.body, off: coachOff,
       pause: on => { if (town) town.pause('coach', on); },
       onSeen: () => keep(), onGo: id => go(id), locate,
+      speech, readAuto: () => !!audio.get('read'),
     });
     if (!town && !flatTimer) { // no 3D: keep the game running and lay the plot tags out as a list
       document.documentElement.classList.add('flat');

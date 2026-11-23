@@ -2,25 +2,37 @@
    One AudioContext, made on the first tap or key (browsers allow sound only after one), with two volumes:
      music: the tunes from src/audio/tunes.js, scheduled half a second ahead of the audio clock;
      sound: short effects for building, shots, coins and the boss.
-   Both are kept under cg-audio ({ music, sound }, 0 to 1; 0 is off). The app going to the background suspends the
+   Both are kept under cg-audio ({ v, music, sound, voice, read }: volumes 0 to 1, 0 is off; voice is the volume the
+   explainer cards are read aloud at and read is 1 when each new card reads itself, src/audio/speech.js). Version 1
+   had only music and sound; readAudio fills in the rest (migrateAudio). The app going to the background suspends the
    context, so nothing plays while it is hidden, and coming back wakes it. A failed note never stops the game. */
 import { musicBar, midiHz, mrng, MOODS } from './tunes.js';
 
 export const AUDIO_KEY = 'cg-audio';
-export const AUDIO_DEFAULT = { music: .5, sound: .6 };
+export const AUDIO_DEFAULT = { music: .5, sound: .6, voice: .9, read: 0 };
+export const AUDIO_V = 2;
+/* An older kept shape brought up to this one: version 1 ({ music, sound }) gets the voice volume and Read cards
+   aloud off. */
+export function migrateAudio(o) {
+  if (!o || typeof o !== 'object') return null;
+  const out = { ...o };
+  if (!(out.v >= 2)) { if (out.voice === undefined) out.voice = AUDIO_DEFAULT.voice; if (out.read === undefined) out.read = 0; out.v = 2; }
+  return out;
+}
 const ls = () => { try { return globalThis.localStorage || null; } catch (e) { return null; } };
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
 
 /* The volumes kept on this device (the defaults when none are kept or the text is damaged). */
 export function readAudio(store = ls()) {
   let o = null;
-  try { o = JSON.parse(store && store.getItem(AUDIO_KEY)); } catch (e) { o = null; }
+  try { o = migrateAudio(JSON.parse(store && store.getItem(AUDIO_KEY))); } catch (e) { o = null; }
   const out = { ...AUDIO_DEFAULT };
   if (o && typeof o === 'object') for (const k of Object.keys(AUDIO_DEFAULT)) if (o[k] !== undefined) out[k] = clamp01(o[k]);
+  out.read = out.read ? 1 : 0;
   return out;
 }
 export function writeAudio(v, store = ls()) {
-  try { store.setItem(AUDIO_KEY, JSON.stringify({ music: clamp01(v.music), sound: clamp01(v.sound) })); return true; } catch (e) { return false; }
+  try { store.setItem(AUDIO_KEY, JSON.stringify({ v: AUDIO_V, music: clamp01(v.music), sound: clamp01(v.sound), voice: clamp01(v.voice ?? AUDIO_DEFAULT.voice), read: v.read ? 1 : 0 })); return true; } catch (e) { return false; }
 }
 
 /* How often each effect may sound at most (seconds), so a wave of shots stays a patter, not a roar. */
@@ -30,8 +42,9 @@ const MAX_PER_SEC = 14;
 export function createAudio({ store = ls(), win = globalThis.window } = {}) {
   const vol = readAudio(store);
   const S = { ctx: null, out: null, mus: null, lead: null, fx: null, mood: null, want: 'title', n: 0, seed: 1, t: 0, noise: null, bufs: {},
-    bars: 0, sounds: 0, last: {}, recent: [], asleep: false, rnd: mrng(Date.now() & 0xffff) };
+    bars: 0, sounds: 0, last: {}, recent: [], asleep: false, ducked: false, rnd: mrng(Date.now() & 0xffff) };
   const now = () => (S.ctx ? S.ctx.currentTime : 0);
+  const musicGain = () => vol.music * .5 * (S.ducked ? .25 : 1);
 
   /* Create the audio graph once, on the first tap, and wake it on later taps (iOS suspends it now and then). */
   function start() {
@@ -43,7 +56,7 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
       const c = S.ctx = new A();
       const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.connect(c.destination);
       const out = S.out = c.createGain(); out.gain.value = 1; out.connect(comp);
-      S.mus = c.createGain(); S.mus.gain.value = vol.music * .5; S.mus.connect(out);
+      S.mus = c.createGain(); S.mus.gain.value = musicGain(); S.mus.connect(out);
       S.fx = c.createGain(); S.fx.gain.value = vol.sound * .6; S.fx.connect(out);
       // the lead also goes through a canyon echo
       const lead = S.lead = c.createGain(), dl = c.createDelay(1), fb = c.createGain(), lp = c.createBiquadFilter(), wet = c.createGain();
@@ -165,13 +178,15 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
     return true;
   }
 
-  /* The volumes: set one (0 to 1), kept on this device at once. */
+  /* The volumes: set one (0 to 1), kept on this device at once. voice and read only keep the value (speech.js reads
+     them). */
   function set(k, v) {
     if (!(k in AUDIO_DEFAULT)) return;
-    vol[k] = clamp01(v); writeAudio(vol, store);
+    vol[k] = k === 'read' ? (v ? 1 : 0) : clamp01(v); writeAudio(vol, store);
+    if (k !== 'music' && k !== 'sound') return;
     if (!S.ctx) { if (vol[k]) start(); return; }
     const g = k === 'music' ? S.mus : S.fx;
-    try { g.gain.setTargetAtTime(vol[k] * (k === 'music' ? .5 : .6), now(), .08); } catch (e) { /* no sound */ }
+    try { g.gain.setTargetAtTime(k === 'music' ? musicGain() : vol[k] * .6, now(), .08); } catch (e) { /* no sound */ }
     if (k === 'music' && !vol.music) S.t = 0;
   }
   /* The app hidden or shown: hidden suspends everything, shown wakes it. */
@@ -180,11 +195,17 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
     const c = S.ctx; if (!c) return;
     try { (on ? c.suspend() : c.resume()).catch(() => {}); } catch (e) { /* no sound */ }
   }
+  /* The music dips while a card is read aloud, and comes back after. */
+  function duck(on) {
+    S.ducked = !!on;
+    if (!S.ctx || !S.mus) return;
+    try { S.mus.gain.setTargetAtTime(musicGain(), now(), on ? .12 : .4); } catch (e) { /* no sound */ }
+  }
   return {
-    start, tick, play, set, sleep,
+    start, tick, play, set, sleep, duck,
     get: k => vol[k],
     mood: m => { if (MOODS.includes(m)) S.want = m; },
-    state: () => ({ ctx: S.ctx ? S.ctx.state : 'none', mood: S.mood, want: S.want, bars: S.bars, sounds: S.sounds, music: vol.music, sound: vol.sound, asleep: S.asleep }),
+    state: () => ({ ctx: S.ctx ? S.ctx.state : 'none', mood: S.mood, want: S.want, bars: S.bars, sounds: S.sounds, music: vol.music, sound: vol.sound, asleep: S.asleep, ducked: S.ducked }),
   };
 }
 

@@ -11,6 +11,9 @@ import { EXPLAINERS } from '../src/data/explainers.js';
 import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
 import { EFFECT_WORDS, fxLeft } from '../src/ui/foe.js';
 import { STAGE_WORDS } from '../src/data/foes.js';
+import { BEST_LABEL } from '../src/ui/wave.js';
+import { priceRow } from '../src/ui/sheets.js';
+import { sayable } from '../src/audio/speech.js';
 
 test('the words on screen today', () => {
   assert.equal(oldWavesLabel(), 'Won last time');
@@ -27,7 +30,14 @@ test('the words on screen today', () => {
   for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
   // the boss bar's stages (owner, 2026-11-22)
   assert.deepEqual(STAGE_WORDS, { crew: 'Crew jumped off', horsemen: 'Horsemen rode off', plates: 'Plates fell off', steam: 'Full steam' });
-  for (const s of ['Won last time', 'Save for towers', 'Line up', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
+  // the review of 2026.11.22-12: the tower that hits a raider hardest is a labeled row, a crashed price says it once
+  assert.equal(BEST_LABEL, 'Best tower');
+  assert.deepEqual(priceRow(.02, .01), ['Under 1 coin each', '']);
+  assert.deepEqual(priceRow(12, .5), ['12 coins each', 'Down 50%']);
+  assert.deepEqual(priceRow(.5, 1.3), ['Under 1 coin each', 'Up 30%']);
+  // the speaker button reads the card's own words (owner, 2026-11-22)
+  assert.equal(sayable('Big Shell', 'Hits x2 · slower'), 'Big Shell. Hits 2 times, slower.');
+  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Line up', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('the explainers name the controls by their words on screen', async () => {

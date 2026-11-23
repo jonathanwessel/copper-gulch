@@ -239,6 +239,8 @@ html.no3d body { background: var(--bg); }
 .card > p.gone { color: var(--gold); font-size: .85rem; line-height: 1.3; } /* in place of the coins line, the same height */
 .foecard.gonefoe .foestat, .foecard.gonefoe .foefx { opacity: .55; }
 .workercard .foestat { grid-template-columns: minmax(0, 1fr) 13.5ch; }
+.foestat.best { grid-template-columns: auto minmax(0, 1fr); } .foestat.best b { overflow: hidden; text-overflow: ellipsis; } /* the tower that hits it hardest */
+.option.foe .uses .flabel { color: var(--muted); } .option.foe .uses .besttower { font-weight: 600; }
 .foecard.gonefoe .foestat.gone { opacity: 1; } .foestat.gone .flabel { color: var(--good); } /* the workers' card (src/ui/worker.js): a label and its number */
 .foes { gap: 4px; }
 .foes h3 { margin: 4px 0 0; }
@@ -663,6 +665,14 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
 }
 .coachcard.top { bottom: auto; top: max(16px, env(safe-area-inset-top)); }
 .coachcard b { color: var(--copper-hi); font-size: 1.1rem; }
+.coachhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.coachhead b { padding-top: 6px; }
+.coachcard .btn.speak { flex: none; justify-self: auto; min-width: 40px; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; color: var(--copper-hi); }
+.coachcard .btn.speak[hidden] { display: none; }
+.coachcard .btn.speak .wave { opacity: .35; }
+.coachcard .btn.speak.on { color: #1d120c; } /* lit like a pressed button, dark icon on gold */
+.coachcard .btn.speak.on .wave { opacity: 1; animation: speakwave .7s steps(2) infinite; }
+@keyframes speakwave { 50% { opacity: .35; } }
 .coachcard p { margin: 0; font-weight: 500; }
 .coachcard .btn { justify-self: end; min-width: 120px; font-size: 1rem; }
 .coachbtns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }

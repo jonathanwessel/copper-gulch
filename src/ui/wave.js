@@ -34,9 +34,12 @@ export function bestTower(town, kind) {
   return best;
 }
 
-/* A raider row's tower line: the best tower, or Any when no tower hits it harder (review of 2026.11.20-3: the Bandit
-   row looked empty). */
-export const bestLine = (town, kind) => { const b = bestTower(town, kind); return b ? TOWERS[b].name + ' works best.' : 'Any tower works.'; }; // a sentence, no dot where a colon would go (review of 2026.11.20-5)
+/* A raider row's tower line: the tower that hits it hardest under a small label, or Any when no tower hits it harder
+   (review of 2026.11.20-3: the Bandit row looked empty). A label, not a sentence (review of 2026.11.22-12: "Snake Oil
+   Still works best" read as "still works best", and as advice). */
+export const BEST_LABEL = 'Best tower'; // review of 2026.11.22-13: "Hits it hardest" could read as what the raider hits
+export const bestView = (town, kind) => { const b = bestTower(town, kind); return b ? { label: BEST_LABEL, tower: TOWERS[b].name } : { label: null, tower: null, any: 'Any tower works.' }; };
+export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : v.any; };
 
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
@@ -85,7 +88,9 @@ export function waveSheet(town) {
         const row = el('div', 'option foe'), pic = drawFoe(kind), txt = el('div');
         pic.className = 'foepic'; row.dataset.foe = kind;
         txt.append(el('b', null, n === null ? FOES[kind].name : plural(n, FOES[kind].name)));
-        txt.append(el('span', 'uses', bestLine(town, kind)));
+        const bv = bestView(town, kind), line = el('span', 'uses');
+        if (bv.tower) line.append(el('span', 'flabel', bv.label + ' '), el('b', 'besttower', bv.tower)); else line.textContent = bv.any;
+        txt.append(line);
         row.append(pic, txt); out.push(row);
       }
       box.replaceChildren(...out);
