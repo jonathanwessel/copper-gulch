@@ -238,7 +238,9 @@ const RIDGE = [
   }],
   ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
   ['ridge-income', () => { CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
-  ['pinehollow', async () => { CG.play.sheets.close(); CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
+  // the Capital's save on the strip once the Ridge has beaten wave 30, ahead of the Ridge's own goals (clarity fix 3)
+  ['capital-save', () => { CG.play.sheets.close(); const R = CG.game.towns.ridge; window.__rb = R.bestWave; R.bestWave = Math.max(R.bestWave, 30); CG.game.town.coins = 21500; }],
+  ['pinehollow', async () => { CG.play.sheets.close(); const R = CG.game.towns.ridge; if (window.__rb != null) R.bestWave = window.__rb; CG.go('pinehollow'); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'pinehollow'); i++) await new Promise(r => setTimeout(r, 100)); }],
   // Research from an outpost (owner, 2026-11-20): the button is there and the sheet shows what the Gulch is researching
   ['outpost-research', async () => { const G = CG.game.towns.gulch; G.flags['open:research'] = true; G.lab = { id: 'saws', left: 42, total: 80 }; await new Promise(r => setTimeout(r, 400)); CG.play.openResearch(); }],
   ['pinehollow-entry', () => { CG.play.sheets.close(); CG.game.towns.gulch.lab = null; const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 2.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],

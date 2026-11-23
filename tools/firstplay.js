@@ -18,7 +18,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext, earnRate, readyIn } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn, savingFor } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
@@ -28,9 +28,10 @@ import { perkState, pickPerk } from '../src/core/charter.js';
 import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { options, buildValue, campaign } from './balance.js';
 import { nextTowns, foundTown, canFound } from '../src/core/empire.js';
+import { canFoundCapital, foundCapital } from '../src/core/capital.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 140); // long enough to found Iron Ridge
+const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 165); // long enough to found Iron Ridge and the Capital
 export const WAIT = [3, 8], WRONG = .3, FOLLOW = .7;
 export const STUCK_LIMIT = 180;
 /* Waves on hold (Evaluation 2, 2026-11-19): from about an hour in, every seed's Gulch and Ridge sat on hold for the
@@ -69,6 +70,11 @@ export function goalTap(game, town, rng) {
     const id = at.go; // Map (or the back button), then the town's card: Play, or Start for a town not founded yet
     if (!game.towns[id]) return canFound(game, id) ? { what: 'go', label: id, run: () => !!foundTown(game, id) && game.go(id) } : null;
     return { what: 'go', label: id, run: () => game.go(id) };
+  }
+  // the empire's next step once it can be taken: Map, then the Capital's or the town's Start (clarity fix 3)
+  if (g.next && g.id.endsWith(':go')) {
+    if (g.next === 'capital') return canFoundCapital(game) ? { what: 'go', label: 'capital', run: () => foundCapital(game) } : null;
+    return canFound(game, g.next) ? { what: 'go', label: g.next, run: () => !!foundTown(game, g.next) && game.go(g.next) } : null;
   }
   if (g.resume) return town.waves.hold ? { what: 'resume', label: 'waves', run: () => { setHold(game, town, false); return true; } } : null;
   if (at.el && at.el.includes('holdWaves')) return town.waves.hold ? null : { what: 'hold', label: 'waves', run: () => { setHold(game, town, true); return true; } };
@@ -127,7 +133,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     if (s % 4 === 0) earnPer = earnRate(g, earnHist);
     if (s % 4 === 0) { const gn = goalNow(g); if (gn) { const b = gn.id.split('>')[0]; r.goalHeld[b] = (r.goalHeld[b] || 0) + 1; } }
     if (s % 4 === 0) for (const x of Object.values(g.towns)) {
-      const held = x.waves && x.waves.hold && !x.won && !nextTowns(g).some(n => n.from === x.id && n.waveOk);
+      const held = x.waves && x.waves.hold && !x.won && !savingFor(g, x);
       if (!held) { delete heldFrom[x.id]; continue; }
       heldFrom[x.id] ??= at;
       if (at - heldFrom[x.id] > r.held2.longest) r.held2 = { longest: at - heldFrom[x.id], town: x.id, at: heldFrom[x.id] };
@@ -141,8 +147,8 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     let tap = null;
     // the Iron Ridge button: once its card says the wave is done, the newcomer saves for it (towers only when the
     // raiders get through), and taps Start the moment it can pay
-    const nt = nextTowns(g).find(n => n.from === t.id && n.waveOk);
-    const saving = !!nt && !!t.waves.hold; // it saves once it holds the waves, as the goal strip says
+    // (or the Capital, clarity fix 3)
+    const saving = savingFor(g, t) && !!t.waves.hold; // it saves once it holds the waves, as the goal strip says
     if (saving) r.savedFrom ??= at;
     const goal = goalTap(g, t, rng);
     const gn = goalNow(g), eta = gn && gn.need ? readyIn(t.coins, gn.need, earnPer) : null;
@@ -165,7 +171,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     if (tap.run()) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
-      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; else if (tap.label === 'pinehollow') r.pineAt ??= at; news(); } // the first time: the resume step sends it back later
+      if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; else if (tap.label === 'pinehollow') r.pineAt ??= at; else if (tap.label === 'capital') r.capitalAt ??= at; news(); } // the first time: the resume step sends it back later
       else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
@@ -198,6 +204,16 @@ export function skillGap(nc, careful) {
    wins it within PINE_WON of getting there. Checked when the run leaves that long after the Ridge was founded. */
 export const PINE_WON = 40 * 60;
 export const DC_WON = 20 * 60, GULCH_WAVE10 = 14 * 60, RIDGE_AT = 135 * 60; // Iron Ridge founded within 2 h 15 min of play
+/* The Capital (clarity fix 3, PLAN.md M6a): the newcomer opens it within CAPITAL_AT of play on most seeds (at least
+   CAPITAL_MOST of them) and on the median seed. Before the fix it never did in 5.5 hours (150K against a purse that
+   peaked at 22K). */
+export const CAPITAL_AT = 150 * 60, CAPITAL_MOST = 2 / 3;
+export function capitalMiss(runs) {
+  const at = runs.map(r => r.capitalAt ?? null), inTime = at.filter(x => x !== null && x <= CAPITAL_AT).length;
+  const med = at.map(x => x === null ? Infinity : x).sort((a, b) => a - b)[Math.floor(at.length / 2)];
+  const words = at.map(x => x === null ? 'never' : (x / 60).toFixed(0)).join(' ');
+  return inTime >= Math.ceil(CAPITAL_MOST * runs.length) && med <= CAPITAL_AT ? null : `the newcomer opened the Capital at ${words} min (want ${Math.ceil(CAPITAL_MOST * runs.length)} of ${runs.length} seeds and the median within ${CAPITAL_AT / 60} min)`;
+}
 export function misses(r) {
   const m = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   if (r.dcWon === null || r.dcWon > DC_WON) m.push(`seed ${r.seed}: Dry Creek won at ${mm(r.dcWon)} (want within 20 min)`);
@@ -220,6 +236,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/first
     console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'}) | ${mm(r.pineAt ?? null)}, ${r.pineWon != null && r.pineAt != null ? mm(r.pineWon - r.pineAt) : 'never'}`);
     all.push(...misses(r)); runs.push(r);
   }
+  const capMiss = capitalMiss(runs);
+  console.log('Capital opened at ' + runs.map(r => r.capitalAt == null ? 'never' : (r.capitalAt / 60).toFixed(0)).join(' ') + ' min' + (capMiss ? '' : ' ok'));
+  if (capMiss) all.push(capMiss);
   const careful = []; for (let s = 1; s <= SEEDS; s++) careful.push(campaign(s, 'active', 15));
   for (const x of skillGap(runs, careful)) {
     console.log(`skill: ${x.what}, median newcomer ${mm(x.newcomer)}, careful player ${mm(x.careful)}` + (x.ok ? ' ok' : ''));

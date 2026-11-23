@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-4',
+    lines: [
+      'The Capital now costs 60K coins, not 150K.',
+      'Before the Capital, the Goal says to beat wave 30 in Iron Ridge.',
+      'After that, the Goal in every town shows the coins the Capital needs.',
+    ],
+  },
+  {
     v: '2026.11.23-3',
     lines: [
       'A goal that needs coins now says about how soon you can pay for it if you save.',

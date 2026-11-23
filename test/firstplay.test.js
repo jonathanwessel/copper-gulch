@@ -57,3 +57,32 @@ test('every building, tower kind and raider has its own model, and the audit not
   FOES.ghost = { name: 'Ghost rider', hp: 1 };
   try { assert.ok(modelRules().some(p => p.includes('raider ghost'))); } finally { delete FOES.ghost; }
 });
+
+// Clarity fix 3: the newcomer had no tap for the Capital's step, so no newcomer run ever founded it. Every empire step
+// the strip shows that can be taken now is a tap the newcomer can make.
+test('the newcomer takes the empire steps the strip shows: go to the town that must climb, then found the Capital', async () => {
+  const { goalTap, capitalMiss, CAPITAL_AT } = await import('../tools/firstplay.js');
+  const { newGame } = await import('../src/core/setup.js');
+  const { foundTown } = await import('../src/core/empire.js');
+  const { goalNow, goalsOf } = await import('../src/core/goals.js');
+  const { capitalOpen } = await import('../src/core/capital.js');
+  const { CAPITAL_DEF } = await import('../src/data/capital.js');
+  const { Rng } = await import('../src/core/rng.js');
+  const g = newGame('fp-cap', 'gulch'), rng = new Rng('fp-cap');
+  g.town.bestWave = 20; g.town.coins = 1e6; foundTown(g, 'ridge');
+  for (const id of ['gulch', 'ridge', 'drycreek', 'pinehollow']) for (const x of goalsOf(id)) g.shared.goals.done[x.id] = true;
+  g.go('gulch'); g.towns.ridge.bestWave = CAPITAL_DEF.found.wave - 5; g.town.coins = 0;
+  let tap = goalTap(g, g.town, rng);
+  assert.equal(goalNow(g).id, 'next:capital:there');
+  assert.ok(tap && tap.what === 'go' && tap.label === 'ridge', 'the step to Iron Ridge is a tap');
+  tap.run(); assert.equal(g.active, 'ridge');
+  g.towns.ridge.bestWave = CAPITAL_DEF.found.wave; g.town.coins = CAPITAL_DEF.found.coins;
+  tap = goalTap(g, g.town, rng);
+  assert.equal(goalNow(g).id, 'next:capital:go');
+  assert.ok(tap && tap.label === 'capital', 'the step to found the Capital is a tap');
+  tap.run(); assert.ok(capitalOpen(g));
+  // the gate: most seeds and the median within CAPITAL_AT
+  const at = m => ({ capitalAt: m * 60 });
+  assert.equal(capitalMiss([at(112), at(125), at(130), at(140), at(148), at(160)]), null);
+  assert.ok(capitalMiss([at(112), at(125), at(155), at(160), at(170), { capitalAt: null }]), 'the median over ' + CAPITAL_AT / 60 + ' min fails');
+});

@@ -63,6 +63,7 @@ test('the Falls bookkeeping counts a Wire Mill short of copper against the impor
 
 test('the Falls goal strip walks up the chain and sends the player to the town that makes a missing import', () => {
   const g = falls('fb4'), t = g.town;
+  g.shared.capital.open = true; // the Capital comes before the Falls in play; while only its coins are missing its save leads the strip
   let gl = goalNow(g);
   assert.equal(gl.id, 'f-sand4', 'on arrival the strip has a step: the Sand Pit opens the next buildings');
   assert.equal(gl.text, 'Tap the Sand Pit and upgrade it to level 4');

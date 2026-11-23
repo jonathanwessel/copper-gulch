@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
 import { goalNow, goalText, goalsOf, nextStep, meterWords } from '../src/core/goals.js';
 import { foundTown } from '../src/core/empire.js';
+import { setHold } from '../src/core/defense.js';
 import { cost } from '../src/core/economy.js';
 import { textIssues } from '../tools/audit.js';
 import { TOWNS } from '../src/data/towns/index.js';
@@ -62,9 +63,13 @@ test('after Iron Ridge the strip leads to the Capital (the lower wave), then Sil
   const r = g.towns.ridge; r.bestWave = 10;
   let x = nextStep(g);
   assert.equal(x.next, 'capital');
-  assert.equal(x.text, 'Reach wave ' + CAPITAL_DEF.found.wave + ' in Iron Ridge to open the Capital');
-  assert.equal(meterWords(x, g), '', 'no count in the Gulch: it read as the Gulch\'s wave');
+  // in the Gulch it sends the player to Iron Ridge (clarity fix 3), with no count: it read as the Gulch's wave
+  assert.equal(x.text, 'Tap Map, Iron Ridge, then reach wave ' + CAPITAL_DEF.found.wave + ' there to build the Capital');
+  assert.equal(x.at().go, 'ridge');
+  assert.equal(x.meter, undefined);
   g.go('ridge');
+  x = nextStep(g);
+  assert.equal(x.text, 'Reach wave ' + CAPITAL_DEF.found.wave + ' in Iron Ridge to build the Capital');
   assert.equal(meterWords(x, g), 'wave 10 / ' + CAPITAL_DEF.found.wave, 'in Iron Ridge, beside its own wave bar');
   g.shared.capital.open = true;
   r.bestWave = TOWNS.falls.found.wave;
@@ -76,6 +81,34 @@ test('after Iron Ridge the strip leads to the Capital (the lower wave), then Sil
 
 test('every new strip line follows the writing rule', () => {
   const lines = ['Tap the Sawmill and upgrade it to level 10 to open the Toolsmith', 'Tap the Kiln lot, then tap Build',
-    'Reach wave 30 in Iron Ridge to open the Capital', 'Sign a charter in Perks for the deeds to open Silver Falls', 'Save coins to open the Capital', 'Tap Map, then tap the Capital to start it'];
+    'Reach wave 30 in Iron Ridge to build the Capital', 'Tap Map, Iron Ridge, then reach wave 30 there to build the Capital', 'Sign a charter in Perks for the deeds to open Silver Falls', 'Save coins to build the Capital', 'Tap Map, then tap the Capital to build it'];
   for (const s of lines) assert.deepEqual(textIssues(s), [], s);
+});
+
+test('once only coins are missing, the Capital leads the strip in every town, ahead of the town\'s own goals (clarity fix 3)', () => {
+  const g = gulch('cl9'), t = g.town;
+  t.bestWave = 20; t.coins = 1e6; foundTown(g, 'ridge');
+  t.coins = 1000;
+  g.go('ridge');
+  const r = g.town;
+  assert.ok(goalNow(g).id.startsWith('r-'), 'before wave 30 the Ridge shows its own goals');
+  r.bestWave = CAPITAL_DEF.found.wave;
+  let x = goalNow(g);
+  assert.equal(x.id, 'next:capital:coins');
+  setHold(g, r, true);
+  x = goalNow(g);
+  assert.equal(x.id, 'next:capital:coins', 'a player holding the Ridge to save is not asked to resume');
+  assert.equal(x.need, CAPITAL_DEF.found.coins);
+  assert.ok(goalNow(g, false).id.startsWith('r-'), 'the careful bots save for it by their own rule and still read the Ridge goals');
+  g.go('gulch');
+  assert.equal(goalNow(g).id, 'next:capital:coins', 'the same in the Gulch');
+  g.go('pinehollow');
+  assert.ok(!goalNow(g) || goalNow(g).next !== 'capital', 'not in an outpost still being won');
+  g.go('ridge');
+  r.coins = CAPITAL_DEF.found.coins;
+  assert.equal(goalNow(g).id, 'next:capital:go');
+  g.shared.capital.open = true;
+  assert.equal(goalNow(g).id, 'resume', 'once it stands, Resume waves');
+  setHold(g, r, false);
+  assert.ok(goalNow(g).id.startsWith('r-'), 'then the Ridge goals come back');
 });

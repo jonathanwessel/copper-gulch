@@ -4,7 +4,7 @@
    goalNow(game) is the goal the strip shows: the first goal of the town in play that is not done and is ready.
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
-import { unlocked, missing, cost } from './economy.js';
+import { unlocked, missing, cost, isOutpost } from './economy.js';
 import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -59,8 +59,14 @@ const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
   return { id: 'resume-' + id, away: true, text: 'Tap Map, ' + name + ', then tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
 };
-/* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens next. */
-const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk));
+/* The town that pays for the Capital, past its wave, saving for it or about to found it: a player who holds its waves
+   to save is not asked to resume them until the Capital stands (clarity fix 3). */
+export const capitalSaving = (game, town) => { const f = CAPITAL_DEF.found; return !!town && town.id === f.from && !capitalOpen(game) && (town.bestWave || 0) >= f.wave; };
+/* The town in play holds its waves for no reason the strip gave: not saving for, or about to found, the town it opens
+   next or the Capital. */
+export const savingFor = (game, town) => nextTowns(game).some(n => n.from === town.id && n.waveOk) || capitalSaving(game, town);
+// a hold after a lost boss still asks for towers and Resume waves while saving for the Capital
+const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && !town.waves.autoHold));
 /* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
 const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
   && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry));
@@ -78,6 +84,12 @@ export function goalNow(game, held = true) {
   if (held && heldHere(game, town)) return town.waves.autoHold ? RESUME_LOST : RESUME;
   const away = held && heldAway(game);
   if (away) return goResume(away.id);
+  // the Capital comes first once only its coins are missing (clarity fix 3): the newcomer of seed 1 reached the Ridge's
+  // wave 30 at 93 min and then followed the Ridge's own goals (a Rolling Mill to level 5 for 23 minutes), which spend
+  // the same purse, and never saw the Capital's count. Not in an outpost still being won, and not for the careful bots
+  // (held false), which save for it by their own rule. No step asks to hold the waves for it: tried, the newcomer of
+  // seed 1 then went to the Gulch with the Ridge held and never came back (190 minutes with nothing new).
+  if (held && !(isOutpost(town) && !town.won)) { const cap = nextStep(game); if (cap && cap.next === 'capital' && (cap.need || cap.id.endsWith(':go'))) return cap; }
   let c = null;
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;
@@ -139,11 +151,16 @@ export function nextStep(game) {
   if (!out.length) return null;
   const s = out.sort((a, b) => a.f.wave - b.f.wave)[0], from = game.towns[s.f.from], fromName = TOWNS[s.f.from].name;
   const best = () => (game.towns[s.f.from] || from).bestWave || 0;
+  // the Capital's card says Build the Capital and a town's card says Start, so the strip uses the same word (fresh-eyes read of 2026.11.23-4)
+  const verb = s.id === 'capital' ? 'build' : 'open';
   // the count names what it counts ("wave 9 / 30"): a bare "9 / 30" in another town read as that town's wave (review of 2026.11.23-2)
-  if (best() < s.f.wave) return { id: 'next:' + s.id + ':wave', next: s.id, text: 'Reach wave ' + s.f.wave + ' in ' + fromName + ' to open ' + s.name, meter: () => [best(), s.f.wave], pre: 'wave ', meterTown: s.f.from, done: () => false };
-  if (s.f.deeds && deedsOf(game) < s.f.deeds) return { id: 'next:' + s.id + ':deeds', next: s.id, text: 'Sign a charter in Perks for the deeds to open ' + s.name, meter: g2 => [deedsOf(g2), s.f.deeds], post: ' deeds', done: () => false };
-  if (from.coins + 1e-9 < s.f.coins) return { id: 'next:' + s.id + ':coins', next: s.id, text: 'Save coins to open ' + s.name, need: s.f.coins, at: () => ({ el: '#coins' }), done: () => false };
-  return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + ' to start it', at: () => ({ el: '#mapBtn' }), done: () => false };
+  // in another town the step sends the player to the town that must climb (clarity fix 3: the newcomer of seed 1 sat
+  // in the Gulch for 2 hours under "Reach wave 30 in Iron Ridge" while the Ridge climbed slowly in the background)
+  if (best() < s.f.wave && game.active !== s.f.from) return { id: 'next:' + s.id + ':there', next: s.id, away: true, text: 'Tap Map, ' + fromName + ', then reach wave ' + s.f.wave + ' there to ' + verb + ' ' + s.name, at: () => ({ el: game.back === s.f.from ? '#backBtn' : '#mapBtn', go: s.f.from }), done: () => false };
+  if (best() < s.f.wave) return { id: 'next:' + s.id + ':wave', next: s.id, text: 'Reach wave ' + s.f.wave + ' in ' + fromName + ' to ' + verb + ' ' + s.name, meter: () => [best(), s.f.wave], pre: 'wave ', meterTown: s.f.from, done: () => false };
+  if (s.f.deeds && deedsOf(game) < s.f.deeds) return { id: 'next:' + s.id + ':deeds', next: s.id, text: 'Sign a charter in Perks for the deeds to ' + verb + ' ' + s.name, meter: g2 => [deedsOf(g2), s.f.deeds], post: ' deeds', done: () => false };
+  if (from.coins + 1e-9 < s.f.coins) return { id: 'next:' + s.id + ':coins', next: s.id, text: 'Save coins to ' + verb + ' ' + s.name, need: s.f.coins, at: () => ({ el: '#coins' }), done: () => false };
+  return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + (s.id === 'capital' ? ' to build it' : ' to start it'), at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 
 /* Saving for a coin goal (clarity fix 2, PLAN.md M6a): a newcomer saw "136 / 500" for 20 minutes and spent every coin

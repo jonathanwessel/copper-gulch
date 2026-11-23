@@ -7,8 +7,8 @@
 // place, the charter offer, and every stretch of 2 minutes with nothing new (no goal done, no unlock, no card).
 // Then each save is loaded in the real game in a headless browser and shot at phone size (a second shot when the
 // moment opens a sheet or the map). Writes <dir>/NN-kind-what.png and <dir>/moments.md (time, place, what happened,
-// the goal strip's words), the list a fresh-eyes reviewer reads in order. The bot founds the Capital as soon as it can
-// pay, as a player who follows the map's Found button would (the newcomer of firstplay.js has no Capital step).
+// the goal strip's words), the list a fresh-eyes reviewer reads in order. The bot founds the Capital when the strip
+// says to (the newcomer of firstplay.js takes that step since clarity fix 3).
 import fs from 'node:fs';
 import path from 'node:path';
 import { newcomer } from './firstplay.js';
@@ -16,7 +16,7 @@ import { helper } from '../src/ui/coach.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { tabs, stripGoods } from '../src/core/reveal.js';
 
-import { canFoundCapital, foundCapital, capitalOpen } from '../src/core/capital.js';
+import { capitalOpen } from '../src/core/capital.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { SAVE_VERSION } from '../src/core/save.js';
 
@@ -56,8 +56,6 @@ export function record(seed = SEED, minutes = MINUTES) {
     }
     if (g.stats.steps % 4) return false; // once a second, as the coach looks
     const t = g.town;
-    // the Capital: founded the moment it can be paid for
-    if (canFoundCapital(g)) foundCapital(g);
     if (capitalOpen(g)) { capitalAt ??= at; if (at - capitalAt > AFTER_CAPITAL) return true; }
     for (const [what, name] of queue) {
       const action = name === 'town:found' || name === 'capital:found' || name === 'institution:found' || name === 'town:open' ? 'map' : name === 'charter:offer' ? 'perksBtn' : null;
