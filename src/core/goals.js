@@ -5,7 +5,8 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave } from './defense.js';
+import { FOES } from '../data/foes.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
@@ -43,6 +44,8 @@ export function goalContext(game, town) {
     lowTower: () => by((a, b) => a.level < b.level),
     topTower: () => by((a, b) => a.level > b.level, t => !t.path),
     upTo: lvl => by((a, b) => a.level > b.level, t => t.level < lvl), // the highest tower still under that level
+    // the tower whose next level costs the fewest coins: the quickest help in a fight
+    cheapUp: () => by((a, b) => towerCost(town, a.kind, a.level).coins < towerCost(town, b.kind, b.level).coins),
   };
 }
 
@@ -96,10 +99,35 @@ export const sendsAway = g => !!(g && (g.there || g.away));
 /* The first step of the Capital's save in the town that pays for it (clarity fix 3b part 2). */
 export const CAPITAL_HOLD = { id: 'next:capital:hold', next: 'capital', text: 'Tap Hold waves while you save for the Capital', at: () => ({ el: '#holdWaves' }), done: () => false };
 
+/* A boss fight in the town in play with few hits left (clarity fix 5; review 5: "2 hearts left in a boss fight while the
+   strip talks about Iron Ridge"): the strip stays on the fight and names a tap that helps now, the tower whose next
+   level costs the fewest coins. Never marked done: it goes when the fight does. */
+export const FIGHT_LOW = .4;
+export const bossFight = (game, town) => !!town && game.active === town.id && !town.won && !!town.waves && town.waves.phase !== 'break'
+  && bossWave(town, town.wave) && (town.towers || []).length > 0 && town.vault.hp <= FIGHT_LOW * town.vault.max;
+const bossNameOf = town => ((FOES[(town.def && town.def.boss) || 'wagon'] || FOES.wagon).name).toLowerCase();
+/* spot: the tower the town's own goal names, so the strip never asks for two towers in turn (on seed 1 the fight's
+   cheapest tower took the coins saved for the goal's level 15); else the cheapest to raise. */
+export const fightStep = (town, spot = null) => ({ id: 'fight', fight: true, text: 'Stop the ' + bossNameOf(town) + '. Tap a tower and upgrade it', at: c => ({ tower: spot != null ? spot : c.cheapUp() }), done: () => false });
+
+/* The tower the town's own next goal names, or null. */
+function ownTower(game, town) {
+  const sh = game.shared.goals; let c = null;
+  for (const g of GOALS) {
+    if (g.town !== town.id || sh.done[g.id]) continue;
+    c = c || goalContext(game, town);
+    if (g.ready && !g.ready(c)) continue;
+    if (g.away || g.there || typeof g.at !== 'function') return null;
+    try { const at = g.at(c) || {}; return at.tower != null ? at.tower : null; } catch (e) { return null; }
+  }
+  return null;
+}
+
 export function goalNow(game, held = true) {
   const sh = game.shared.goals, town = game.town;
   if (!sh || sh.off || !town) return null;
   if (held && heldHere(game, town)) return town.waves.autoHold ? RESUME_LOST : RESUME;
+  if (held && bossFight(game, town)) return fightStep(town, ownTower(game, town));
   // the Capital comes first once only its coins are missing (clarity fix 3): the newcomer of seed 1 reached the Ridge's
   // wave 30 at 93 min and then followed the Ridge's own goals (a Rolling Mill to level 5 for 23 minutes), which spend
   // the same purse, and never saw the Capital's count. Not in an outpost still being won, and not for the careful bots

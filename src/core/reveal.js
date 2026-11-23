@@ -13,6 +13,7 @@ import { TOWERS } from '../data/towers.js';
 import { towerOpen, towerIn } from './defense.js';
 import { anyAuto } from './automation.js';
 import { armsOpen, armsHere } from './arms.js';
+import { needsYou } from './map.js';
 
 /* The goods the Goods list shows: what this town's built buildings make (power is not a good: the Water Wheel's card
    shows it). */
@@ -74,7 +75,7 @@ export function dots(game, town) {
   const towns = {};
   for (const [id, o] of Object.entries(game.towns)) {
     if (o === town) continue;
-    if ((o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)) towns[id] = true; // raided while you were away
+    if (needsYou(game, id)) towns[id] = true; // raided, lost or held: the Map button's dot (one source, clarity fix 5)
   }
   const want = {
     // new goods to see, or an order board the player has not looked at yet (src/core/orders.js)

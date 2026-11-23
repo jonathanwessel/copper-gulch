@@ -16,7 +16,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek', 'system:goals'],
     title: 'Welcome to Dry Creek',
-    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Start with the Goal at the top.',
+    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Tap the Goal at the top to start.',
     when: () => true, at: () => ({ el: '#goal' }),
   },
   {

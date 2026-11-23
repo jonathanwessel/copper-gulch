@@ -149,6 +149,8 @@ const SCREENS = [
   // boss waves are gates: the war wagon got through, the card says so and the waves hold
   // a stone pad once the town has as many towers as it had pads: its card says why a new one costs more (2026.11.20-17)
   ['crowd', async () => { CG.play.close(); CG.play.sheets.close(); const D = await import(new URL('src/core/defense.js', location.href).href), g = CG.game, t = g.town, B = t.def.board; g.shared.purse.coins = Math.max(g.shared.purse.coins, 1e8); for (const k of Object.keys(t.goods)) t.goods[k] = Math.max(t.goods[k] || 0, 1e5); const free = B.spots.map((_, i) => i).filter(i => !B.pits.includes(i) && !D.towerAt(t, i)); while (D.normalTowers(t) < B.crowd && free.length) D.buildTower(g, t, free.shift(), 'crossbow'); CG.play.openSpot(free[0]); }],
+  // a boss fight with few hits left: the goal stays on the fight and names a tower (clarity fix 5)
+  ['boss-low', async () => { CG.play.close(); CG.play.sheets.close(); const m = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; t.wave = 20; t.bestWave = 19; Object.assign(t.waves, { hold: false, autoHold: false, phase: 'break', timer: 0, queue: [], foes: [] }); m.startWave(CG.game, t); t.vault.hp = Math.floor(t.vault.max * .3); }],
   ['boss-lost', async () => { CG.play.close(); const m = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; t.wave = 20; t.bestWave = 19; t.recent = Math.max(t.recent || 0, 600); m.fall(CG.game, t, 'boss'); }],
 ];
 // a new game, which starts in Dry Creek Outpost (cards on, so the win card can be shown)

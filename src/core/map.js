@@ -17,6 +17,27 @@ import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
 import { retryState } from './automation.js';
 import { waitsAway } from './defense.js';
+import { savingFor } from './goals.js';
+
+/* Why a place wants the player now, or null. One source for the Map button's dot, the back button's dot, the map
+   label's red word or dot and the goal strip's step to go there (clarity fix 5, one state one source):
+     'lost'    it lost its vault or boss and holds its waves, and does not try again by itself;
+     'hold'    the player held its waves, and no goal asks to save there;
+     'stuck'   Keep trying the boss is on, but no tower here can go up a level by itself;
+     'wait'    out of play with no tower, so its clock waits;
+     'raided'  raiders broke in while the player was elsewhere, until the player looks. */
+export function needsYou(game, id) {
+  const t = game.towns[id];
+  if (!t || !t.waves) return null;
+  const r = retryState(game, t);
+  if (r === 'stuck') return 'stuck';
+  if (t.waves.hold && r !== 'again' && r !== 'climb') return t.waves.autoHold ? 'lost' : savingFor(game, t) ? null : 'hold';
+  if (waitsAway(game, t)) return 'wait';
+  if (game.active !== id && (t.breaches || 0) > ((t.flags && t.flags.breachSeen) || 0)) return 'raided';
+  return null;
+}
+/* The Map button's dot: another place needs you, or something on the map wants a tap. */
+export const mapDot = (game, here) => Object.keys(game.towns).some(id => id !== here && !!needsYou(game, id)) || mapCalls(game);
 
 /* The map is open once a second town is, or a town to start is in sight (its Start card lives on the map). */
 export const mapOpen = game => Object.keys(game.towns).length > 1 || nextTowns(game).length > 0;
@@ -105,8 +126,8 @@ export function siteState(game, id) {
     const left = (ws.queue || []).length + (ws.foes || []).filter(f => f.hp > 0).length;
     return { ...base, state: 'fight', left, size: Math.max(left, ws.size || 0), timer: 0 };
   }
-  if (ws.hold) return { ...base, state: 'hold', needs: retryState(game, t) !== 'again', timer: ws.timer, left: 0, size: 0 };
-  if (waitsAway(game, t)) return { ...base, state: 'wait', timer: ws.timer, left: 0, size: 0 };
+  if (ws.hold) return { ...base, state: 'hold', needs: !!needsYou(game, id), retry: retryState(game, t) === 'again', timer: ws.timer, left: 0, size: 0 };
+  if (waitsAway(game, t)) return { ...base, state: 'wait', needs: true, timer: ws.timer, left: 0, size: 0 };
   return { ...base, state: t.won ? 'raids' : 'next', timer: Math.max(0, ws.timer), left: 0, size: 0 };
 }
 

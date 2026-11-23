@@ -101,7 +101,7 @@ export function ordersPanel(game, town) {
   live.push(() => {
     setText(repN, 'Reputation ' + Math.round(st.rep) + ' of ' + ORDERS.max);
     const w = Math.round(100 * st.rep / ORDERS.max) + '%'; if (fill.style.width !== w) fill.style.width = w;
-    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders come now and pay more' : 'Rush orders come at ' + ORDERS.rushAt); // what a rush order is (review of 2026.11.23-6: "Rush orders are open")
+    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders pay more' : 'Rush orders come at ' + ORDERS.rushAt); // what a rush order is (review of 2026.11.23-6: "Rush orders are open")
   });
   const a = st.active;
   if (a) {

@@ -31,6 +31,7 @@ const BUTTON_OPENS = { goods: 'goodsBtn', research: 'researchBtn', perks: 'perks
 /* Plays the newcomer and returns the moments: [{ at, town, kinds: [..], what: [..], goal, action, save }]. */
 export function record(seed = SEED, minutes = MINUTES) {
   const moments = [], bossSeen = new Set(), lostSeen = new Set();
+  let lostEv = null;
   let wired = false, lastNew = 0, seenTabs = null, queue = [], capitalAt = null;
   const goalText = g => { try { const x = goalNow(g); if (!x) return ''; const c = goalContext(g, g.town), s = typeof x.text === 'function' ? x.text(c) : x.text; return String(s || x.title || x.id || ''); } catch (e) { return ''; } };
   const keep = (g, at, kind, what, action = null) => {
@@ -55,7 +56,9 @@ export function record(seed = SEED, minutes = MINUTES) {
       ev('charter:offer', () => 'charter offered'); ev('first:sale', () => 'first sale'); ev('route:open', e => 'route ' + (e.from || '') + '-' + (e.to || ''));
       g.bus.on('goal:done', () => { lastNew = Math.max(lastNew, g.stats.steps * .25); });
       g.bus.on('wave:start', e => { if (e.boss && !bossSeen.has(e.town) && e.town === g.active) { bossSeen.add(e.town); queue.push(['boss wave ' + e.wave + ' in ' + e.town, 'boss']); } });
-      g.bus.on('breach', e => { if (!lostSeen.has(e.town) && e.town === g.active) { lostSeen.add(e.town); queue.push(['lost wave ' + e.wave + ' in ' + e.town, 'lost']); } });
+      // the breach itself rides with the moment, so its shot shows the line the player saw (clarity fix 5: a loaded save
+      // has no toast, and the review read the lost wave as silent)
+      g.bus.on('breach', e => { if (!lostSeen.has(e.town) && e.town === g.active) { lostSeen.add(e.town); lostEv = { ...e }; queue.push(['lost wave ' + e.wave + ' in ' + e.town, 'lost']); } });
     }
     if (g.stats.steps % 4) return false; // once a second, as the coach looks
     const t = g.town;
@@ -63,6 +66,7 @@ export function record(seed = SEED, minutes = MINUTES) {
     for (const [what, name] of queue) {
       const action = name === 'town:found' || name === 'capital:found' || name === 'institution:found' || name === 'town:open' ? 'map' : name === 'charter:offer' ? 'perksBtn' : null;
       keep(g, at, name === 'boss' || name === 'lost' ? name : 'unlock', what, action);
+      if (name === 'lost' && lostEv) { moments[moments.length - 1].ev = lostEv; lostEv = null; }
     }
     queue = [];
     const tb = tabs(g, t), shown = Object.keys(tb).filter(k => tb[k]);
@@ -123,6 +127,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/playt
       // a card due: wait for it (the coach looks about once a second)
       const card = m.kinds.includes('card');
       for (let i = 0; i < (card ? 50 : 15); i++) { if (await p.evaluate(() => !!document.querySelector('.coachcard') && !document.querySelector('.coachcard').closest('[hidden]'))) break; await sleep(100); }
+      if (m.ev) { await p.evaluate(e => { CG.game.catching = false; CG.game.bus.emit('breach', e); }, m.ev); await sleep(400); }
       await sleep(700);
       const f = path.join(dir, name + '.png'); await p.screenshot({ path: f });
       const shots = [path.basename(f)];

@@ -64,6 +64,11 @@ export function goalNeed(game, town, g) {
   return at.plot && town.level(at.plot) > 0 && unlocked(town, at.plot) ? cost(town, at.plot) : null;
 }
 const hurting = t => !t.towers.length || t.vault.hp < VAULT_LOW * t.vault.max;
+/* The goal names one tower to raise (its strip counts that tower's price, clarity fix 3b part 2c). */
+export function goalTower(game, town, g) {
+  if (!g || typeof g.at !== 'function' || g.away || g.there) return false;
+  try { return (g.at(goalContext(game, town)) || {}).tower != null; } catch (e) { return false; }
+}
 const short = (t, leak) => !t.towers.length || leak >= t.wave - 1 || t.vault.hp < VAULT_LOW * t.vault.max || t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER);
 
 /* Everything the newcomer could tap now and pay for: [{ what, label, value, run }]. */
@@ -186,7 +191,10 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
       if (!all.length) { next = at + 1; continue; } // nothing it can pay for: it looks again in a second
       // while it holds the waves no raider comes, so only too few towers for the wave number makes it buy one
       // saving for a goal, only a vault under VAULT_LOW makes it buy (not a raider or two, nor towers against the wave)
-      const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t) : short(t, lastLeak[t.id]);
+      // a goal that raises one tower is itself the defense: saving for it, a low vault does not make it buy another
+    // (clarity fix 3b part 2c: on seed 2 the Ridge lost wave 29 for 11 minutes while the strip asked for one tower at
+    // level 15 and the newcomer spread each coin over 23 towers)
+    const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t) && !goalTower(g, t, gn) : short(t, lastLeak[t.id]);
       const pool = weak ? all.filter(c => c.what === 'tower' || c.what === 'upgrade') : all.filter(c => c.what === 'building' || c.what === 'research');
       const best = (pool.length ? pool : all).slice().sort((a, b) => b.value - a.value)[0];
       if (weak && !pool.length) { next = at + 1; continue; } // it wants a tower and waits for the coins

@@ -137,6 +137,8 @@ html.no3d body { background: var(--bg); }
 .place .townname { pointer-events: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
 .place .btn { flex: none; min-height: 34px; padding: 4px 10px; white-space: nowrap; }
 .place .backbtn { flex: 0 1 auto; min-width: 0; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
+.place .backbtn.dot { padding-right: 16px; } /* its dot sits inside, since the name clips (it was cut off unseen until clarity fix 5 gave it more to say) */
+.place .backbtn.dot::after { top: 3px; right: 3px; width: 8px; height: 8px; border-width: 1px; }
 .backbtn::before { content: ""; display: inline-block; width: 6px; height: 10px; margin-right: 6px; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 50%); vertical-align: -1px; }
 .place .btn[hidden], .townname[hidden] { display: none; }
 /* a phone: tighter boxes so "Copper Gulch", Map and "Dry Creek" fit beside the coins */
@@ -441,6 +443,7 @@ html.flat .tag { position: static; transform: none !important; }
   box-shadow: 3px 3px 0 rgba(22, 15, 11, .6); animation: riseX .3s both; transition: opacity .2s; pointer-events: none;
 }
 .toast.out { opacity: 0; }
+.toast, p { text-wrap: pretty; } /* no lone last word on a line (review of 2026.11.23-9: Kegs. and Influence. alone) */
 .mapkeep { position: fixed; visibility: hidden; pointer-events: none !important; } /* the capitol's box on the map: toasts keep off it */
 .toast.wait, .mapbadge.undertoast, .tag.undertoast { visibility: hidden; } /* no room to show it yet: it waits with its time stopped (src/ui/play.js) */
 /* a dot on a button: something there wants you (src/core/reveal.js) */

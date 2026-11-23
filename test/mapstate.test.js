@@ -74,7 +74,10 @@ test('a town away with no tower waits for the player, in red', () => {
 
 test('every label word fits its 12-character cell, and a hold Auto will lift reads Retry soon', () => {
   for (const s of [{ state: 'fight' }, { state: 'hold', needs: true }, { state: 'hold', needs: false }, { state: 'wait' }, { state: 'next', timer: 5999 }, { state: 'raids', timer: 1e9 }]) assert.ok(stateWord(s).length <= 12, stateWord(s));
-  assert.equal(stateWord({ state: 'hold', needs: false }), 'Retry soon');
+  assert.equal(stateWord({ state: 'hold', needs: false, retry: true }), 'Retry soon');
+  assert.equal(stateNeeds({ state: 'hold', needs: false, retry: true }), false);
+  // a hold that saves for the next town is On hold in the plain color (needsYou, clarity fix 5)
+  assert.equal(stateWord({ state: 'hold', needs: false }), 'On hold');
   assert.equal(stateNeeds({ state: 'hold', needs: false }), false);
 });
 

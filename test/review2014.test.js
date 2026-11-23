@@ -36,7 +36,7 @@ test('a price comes first, with what you have under it', () => {
   const play = read('src/ui/play.js'), sheets = read('src/ui/sheets.js'), cap = read('src/ui/capital.js'), html = read('index.html');
   assert.ok(play.includes("const coinCost = need => fmt(need) + ' coins'"));
   assert.ok(play.includes("el('small', 'hv hn', haveWords(have))"));
-  assert.ok(play.includes("'Either path costs'")); // the level-20 fork says 'Either one costs' on the same row
+  assert.ok(play.includes("'Either one costs'")); // one name for the path and the level-20 fork (2026.11.23-10)
   assert.ok(sheets.includes("priceOver(x.price, need, 'coins', town.coins)")); // price over have since 2026.11.20-18
   assert.ok(cap.includes('priceOver(small, need, unit, have)'));
   assert.match(html, /\.costrow \.need \{ display: inline-flex; flex-direction: column;/);

@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-10',
+    lines: [
+      'A red dot on Map now shows every town that needs you, held towns too.',
+      'In a boss fight with few hearts left, the Goal says which tower to upgrade.',
+      'Messages no longer leave one word alone on the last line.',
+    ],
+  },
+  {
     v: '2026.11.23-9',
     lines: [
       'While waves are on hold, only Resume waves shows. Call now comes back once they run.',

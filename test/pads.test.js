@@ -71,7 +71,7 @@ test('towers past the old pad count cost 25% more coin and goods each; Mortars a
   const list = towerCost(t, 'crossbow', 0);
   const normal = B.spots.map((_, i) => i).filter(i => !B.pits.includes(i));
   for (let n = 0; n < B.crowd; n++) { assert.equal(crowdFactor(t, 'crossbow'), 1, 'tower ' + (n + 1)); assert.ok(buildTower(g, t, normal[n], 'crossbow')); }
-  assert.equal(crowdLine(t), 'You have 12 towers here. The prices below go up with each new tower.');
+  assert.equal(crowdLine(t), 'You have 12 towers here. Each new tower costs more.');
   const next = towerCost(t, 'crossbow', 0);
   assert.equal(next.coins, Math.ceil(TOWERS.crossbow.coins * t.mods.factor('cost') * t.mods.factor('cost:towerNew') * 1.25));
   for (const [g, n] of Object.entries(list.goods)) assert.equal(next.goods[g], Math.ceil(n * 1.25), g + ' costs 25% more too');

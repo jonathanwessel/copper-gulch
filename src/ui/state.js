@@ -23,15 +23,16 @@ const raiders = n => n + (n === 1 ? ' raider' : ' raiders');
 export function stateWord(s) {
   if (!s) return '';
   if (s.state === 'fight') return 'Fighting';
-  if (s.state === 'hold') return s.needs ? 'On hold' : 'Retry soon';
+  if (s.state === 'hold') return s.retry ? 'Retry soon' : 'On hold';
   if (s.state === 'wait') return 'No towers';
   return (s.state === 'raids' ? 'Raid in ' : 'Next in ') + clock(s.timer);
 }
 /* The mark beside the word: swords for a fight, a clock for a countdown, a pause sign for a hold (red when the player
    must go there), a flag for a won outpost's raids. */
 export const stateMark = s => (!s ? null : s.state === 'fight' ? 'swords' : s.state === 'hold' ? 'pause' : s.state === 'raids' ? 'flag' : 'clock');
-/* Red: the town needs the player (its waves hold after a loss, or wait for a tower). */
-export const stateNeeds = s => !!s && ((s.state === 'hold' && s.needs) || s.state === 'wait');
+/* Red: the town needs the player (needsYou in src/core/map.js: its waves hold after a loss or by the player with no
+   goal saving there, or wait for a tower). A hold that saves for the next town is On hold in the plain color. */
+export const stateNeeds = s => !!s && (s.state === 'hold' || s.state === 'wait') && !!s.needs;
 
 /* The thin bar under a label, 0 to 1: raiders beaten in a fight, or the time gone in a countdown of span seconds.
    null for a hold or a wait, where the bar is empty. */

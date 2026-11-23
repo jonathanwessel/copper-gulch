@@ -12,7 +12,7 @@ import { forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, t
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
-import { mapOpen, mapCalls } from '../core/map.js';
+import { mapOpen, needsYou, mapDot } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
 import { orderDone, orderMissed } from './sheets.js';
 import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, STOCK_LABEL } from './sheets.js';
@@ -47,7 +47,7 @@ export { fmt };
 export { fmtLive };
 const rate = n => fmtLive(n) + '/s';
 /* On a stone pad's card once the town has its list-price towers: why a new one costs more (src/core/defense.js, crowdFactor). */
-export const crowdLine = town => { const n = normalTowers(town); return n >= crowdOf(town) ? 'You have ' + n + ' towers here. The prices below go up with each new tower.' : ''; };
+export const crowdLine = town => { const n = normalTowers(town); return n >= crowdOf(town) ? 'You have ' + n + ' towers here. Each new tower costs more.' : ''; };
 /* A good's square, in its color (GOODS[g].color). */
 const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
 
@@ -69,14 +69,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const backBtn = el('button', 'btn small backbtn'); backBtn.id = 'backBtn'; backBtn.hidden = true;
   backBtn.addEventListener('click', () => { const b = game.back; if (b && shell.go) shell.go(b); });
   place.append(name, mapBtn, backBtn);
-  const needsYou = id => { const o = game.towns[id]; return !!o && ((o.waves && o.waves.autoHold && retryState(game, o) !== 'again') || retryState(game, o) === 'stuck' || (o.breaches || 0) > ((o.flags && o.flags.breachSeen) || 0)); };
   const paintPlace = () => {
     const b = game.back, next = nextTowns(game);
     if (backBtn.hidden !== !b) backBtn.hidden = !b;
     setText(name, town.def.short || town.def.name); // the short name, as the map and the back button say it (review of 2026.11.19-4), so all three fit on a phone
-    if (b) { const s = TOWNS[b].short || TOWNS[b].name; setText(backBtn, s); if (backBtn.dataset.town !== b) { backBtn.dataset.town = b; backBtn.setAttribute('aria-label', 'Back to ' + s); } backBtn.classList.toggle('dot', needsYou(b)); }
+    if (b) { const s = TOWNS[b].short || TOWNS[b].name; setText(backBtn, s); if (backBtn.dataset.town !== b) { backBtn.dataset.town = b; backBtn.setAttribute('aria-label', 'Back to ' + s); } backBtn.classList.toggle('dot', !!needsYou(game, b)); }
     const show = mapOpen(game); if (mapBtn.hidden !== !show) mapBtn.hidden = !show;
-    mapBtn.classList.toggle('dot', Object.keys(game.towns).some(id => id !== town.id && needsYou(id)) || mapCalls(game));
+    // one source with the map's labels and the goal strip (needsYou, clarity fix 5)
+    mapBtn.classList.toggle('dot', mapDot(game, town.id));
   };
   const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
@@ -490,9 +490,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const path = !!choices, bar = el('div', path ? 'buybar pathbar' : 'buybar');
     if (choices) {
       const ph = el('div', 'pathhead'), pt = el('div');
-      pt.append(el('b', null, forkUp ? 'Pick an upgrade' : 'Pick a path'), el('small', null, 'Can\'t be undone'));
+      // one name for both picks (review of 2026.11.23-9: "Pick an upgrade" against "Pick a path")
+      pt.append(el('b', null, 'Pick an upgrade'), el('small', null, 'Can\'t be undone'));
       const pc = costRow(c, true); // one price above two Choose buttons (review of 2026.11.19-13), on its own row under Pick a path with no label (review of 2026.11.20-13: "Either path 9.99M / 2.31K coins" read as a cut-off label, and Bricks wrapped)
-      const pw = el('div', 'pathcost'); pw.append(el('small', null, forkUp ? 'Either one costs' : 'Either path costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
+      const pw = el('div', 'pathcost'); pw.append(el('small', null, 'Either one costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
       ph.append(pt, pw); bar.append(ph);
       for (const [key, P] of Object.entries(choices)) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, bossWords(P.about)));

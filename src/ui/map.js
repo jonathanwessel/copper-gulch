@@ -4,7 +4,7 @@
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { siteInfo, siteState, lockedRules, mapRoutes, makesOf } from '../core/map.js';
+import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive, splitLive, vaultCount, LITTLE } from './format.js';
@@ -369,7 +369,10 @@ export function mountMap(root, game, view, shell) {
         if (hit) setText(B.fill, vaultCount(tv));
         B.fill.classList.toggle('low', info.alert === 'vault');
         setText(B.extra, rates.words[s.id]);
-        B.b.classList.toggle('dot', !!info.alert && !st && info.alert !== 'retry' && info.alert !== 'retrying'); // On hold says itself in red, so a red dot is only a problem the label does not name (review of 2026.11.20-18: one dot meant three things)
+        // a red dot: the place needs you and its state word does not say so in red (needsYou, the Map button's own
+        // source, clarity fix 5). A low vault shows in its red count and a short workshop on the card, since Map shows
+        // no dot for them (review of 2026.11.20-18: one dot meant three things)
+        B.b.classList.toggle('dot', !!needsYou(game, s.id) && !stateNeeds(ss));
         B.b.classList.remove('gold');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
