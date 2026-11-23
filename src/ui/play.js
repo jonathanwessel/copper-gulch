@@ -28,7 +28,7 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '..
    2026.11.19-13: two rows of up to 10 goods covered a quarter of a 400 px high screen). */
 const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
 const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
-import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords } from '../core/goals.js';
+import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords, earnRate, readyIn, readyWords } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
 import { waveSheet, waveBar, waveTitle } from './wave.js';
@@ -559,7 +559,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   let goalId = null, goalCur = null, doneFor = 0;
   // a goal that saves coins adds have / need, written with the top bar; heldText changes the words once the waves are held
   // meter: the empire's next step counts a wave or deeds the same way (src/core/goals.js, nextStep)
-  const goalWordsOf = g => goalText(game, town, g) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) : ''); // whole coins (review of 2026.11.23-2: "2.9 / 30")
+  // a coin goal also says how soon it is ready if you save, at the empire's income over the last minute (clarity fix 2)
+  const earnHist = []; let earnPer = 0;
+  const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ' · ' + w : ''; };
+  const goalWordsOf = g => goalText(game, town, g) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + readyOf(g) : ''); // whole coins (review of 2026.11.23-2: "2.9 / 30")
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
@@ -780,6 +783,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     acc = 0;
     hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
+    earnPer = earnRate(game, earnHist);
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
     if (goalCur && (goalCur.need || goalCur.meter || goalCur.heldText) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
     paintStrip(); paintCoinCosts();

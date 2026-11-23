@@ -7,7 +7,8 @@
 //     raiders get through (the vault bar) or its towers are few for the wave number, and the building that pays best
 //     when they are not;
 //   - it makes a wrong buy 30% of the time: any other thing it can pay for, on any pad, with any path.
-// It saves up and holds the waves only when the goal strip asks (for Iron Ridge), taps Resume waves when the strip asks
+// It saves up and holds the waves only when the goal strip asks (for Iron Ridge), saves (towers only when raiders get
+// through) while the strip counts coins for a goal it says is ready within GOAL_SAVE, taps Resume waves when the strip asks
 // (or 45 s after a lost boss in play), calls a wave early only when the
 // strip asks, hires no foremen and does not sign a charter.
 // Targets (GDD.md, Pacing targets; PLAN.md M2): no town on hold over 10 min unless saving for its next town, Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
@@ -17,7 +18,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
@@ -40,6 +41,11 @@ export const HELD_LIMIT = 600;
    vault in this wave or the last one, when the vault bar is below VAULT_LOW, and about every WAVES_PER_TOWER waves
    as the wave number climbs. */
 export const VAULT_LOW = .7, WAVES_PER_TOWER = 4;
+/* Saving for a coin goal (clarity fix 2, PLAN.md M6a): while the strip counts coins for a goal ("136 / 500 · about 2 min
+   to go") that is ready within GOAL_SAVE seconds at the empire's income, the newcomer saves, as a player reading
+   it would: it buys a tower only when raiders get through, and nothing else. */
+export const GOAL_SAVE = 600;
+const hurting = t => !t.towers.length || t.vault.hp < VAULT_LOW * t.vault.max;
 const short = (t, leak) => !t.towers.length || leak >= t.wave - 1 || t.vault.hp < VAULT_LOW * t.vault.max || t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER);
 
 /* Everything the newcomer could tap now and pay for: [{ what, label, value, run }]. */
@@ -89,7 +95,7 @@ export function goalTap(game, town, rng) {
 export function newcomer(seed, minutes = MINUTES, hook = null) {
   const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
   const heldFrom = {};
-  const r = { held2: { longest: 0, town: null, at: 0 }, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
+  const r = { held2: { longest: 0, town: null, at: 0 }, goalHeld: {}, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
   let next = rng.range(...WAIT), lastNews = 0, lastLeak = { drycreek: -99, gulch: -99 }, lastGap = 0;
   const now = () => g.stats.steps * .25;
   const news = () => { lastNews = now(); };
@@ -98,6 +104,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
   g.bus.on('breach', e => { if (e.town === g.active) r.breaches.push(e.town + ' ' + e.wave); });
   g.bus.on('wave:clear', e => { if (e.town === 'gulch' && e.wave === 10 && r.wave10 === null && r.gulchAt !== null) r.wave10 = now() - r.gulchAt; });
   let seenTabs = '';
+  const earnHist = []; let earnPer = 0;
   const RETRY = 45;
   for (let s = 0; s < minutes * 240; s++) {
     g.step(.25);
@@ -116,6 +123,9 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
       const idle = at - Math.max(lastGap, lastNews);
       if (idle > r.stuck.longest) r.stuck = { longest: idle, at: Math.max(lastGap, lastNews) };
     }
+    // how long each goal sits on the strip, in seconds (its steps count as the goal: "g-tools>sawmill" is g-tools)
+    if (s % 4 === 0) earnPer = earnRate(g, earnHist);
+    if (s % 4 === 0) { const gn = goalNow(g); if (gn) { const b = gn.id.split('>')[0]; r.goalHeld[b] = (r.goalHeld[b] || 0) + 1; } }
     if (s % 4 === 0) for (const x of Object.values(g.towns)) {
       const held = x.waves && x.waves.hold && !x.won && !nextTowns(g).some(n => n.from === x.id && n.waveOk);
       if (!held) { delete heldFrom[x.id]; continue; }
@@ -135,16 +145,20 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     const saving = !!nt && !!t.waves.hold; // it saves once it holds the waves, as the goal strip says
     if (saving) r.savedFrom ??= at;
     const goal = goalTap(g, t, rng);
+    const gn = goalNow(g), eta = gn && gn.need ? readyIn(t.coins, gn.need, earnPer) : null;
+    const goalSaving = !saving && eta !== null && eta <= GOAL_SAVE;
+    if (goalSaving) r.goalSaved = (r.goalSaved || 0) + 1;
     if (goal && (goal.what === 'go' || rng.chance(FOLLOW))) { tap = goal; r.goalTaps++; }
     if (!tap) {
-      const all = choices(g, t, rng).filter(c => !saving || c.what === 'tower' || c.what === 'upgrade');
+      const all = choices(g, t, rng).filter(c => !(saving || goalSaving) || c.what === 'tower' || c.what === 'upgrade');
       if (!all.length) { next = at + 1; continue; } // nothing it can pay for: it looks again in a second
       // while it holds the waves no raider comes, so only too few towers for the wave number makes it buy one
-      const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : short(t, lastLeak[t.id]);
+      // saving for a goal, only a vault under VAULT_LOW makes it buy (not a raider or two, nor towers against the wave)
+      const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t) : short(t, lastLeak[t.id]);
       const pool = weak ? all.filter(c => c.what === 'tower' || c.what === 'upgrade') : all.filter(c => c.what === 'building' || c.what === 'research');
       const best = (pool.length ? pool : all).slice().sort((a, b) => b.value - a.value)[0];
       if (weak && !pool.length) { next = at + 1; continue; } // it wants a tower and waits for the coins
-      if (saving && !weak) { next = at + 1; continue; } // saving: it buys nothing it does not need
+      if ((saving || goalSaving) && !weak) { next = at + 1; continue; } // saving: it buys nothing it does not need
       if (rng.chance(WRONG)) { tap = rng.pick(all); if (tap !== best) r.wrong++; }
       else tap = best;
     }

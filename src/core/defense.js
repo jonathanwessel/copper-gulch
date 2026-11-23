@@ -453,6 +453,9 @@ export function fight(game, town, dt) {
     }
   }
   stages(game, town); // a boss hurt past a stage changes (and its crew jumps off) before the fallen are counted
+  // its crew is new on the road: give them their place too, or a fever carrier falling this step finds no place to pass
+  // its poison to (a 6-hour newcomer run crashed on it, 2026.11.23-3)
+  for (const f of ws.foes) if (!pos.has(f)) pos.set(f, pointAt(laneOf(f), f.s));
   // the fallen pay their bounty (a fever-carrier passes its poison on)
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);

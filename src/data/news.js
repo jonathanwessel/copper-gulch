@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-3',
+    lines: [
+      'A goal that needs coins now says about how soon you can pay for it if you save.',
+      'Fixed a rare freeze when a raider spreading poison fell just as the war wagon crew jumped off.',
+    ],
+  },
+  {
     v: '2026.11.23-2',
     lines: [
       'The Goal at the top always shows a next step. With no goals left in a town, it shows how to open the next town or the Capital.',

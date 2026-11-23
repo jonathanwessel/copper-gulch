@@ -77,3 +77,10 @@ test('the sell modes say what each does, and a boom never reads as a drop (revie
   assert.ok(!/comes back/.test(priceNote({ have: 0, price: .00005, boom: true })));
   assert.equal(slotWords({ town: 'gulch', wave: 12, coins: 4321 }, true), 'Copper Gulch · Wave 12 · 4.32K coins');
 });
+
+test('a coin goal says how long is left if you save (clarity fix 2, reworded by the review of 2026.11.23-3)', async () => {
+  const { readyWords } = await import('../src/core/goals.js');
+  assert.equal(readyWords(80), 'about 2 min to go');
+  assert.equal(readyWords(30), 'under a minute to go');
+  assert.equal(readyWords(4500), 'about 1 h 15 min to go');
+});

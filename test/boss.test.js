@@ -121,3 +121,15 @@ test('one state, one source: the boss card shows the same stage as the bar, and 
     assert.deepEqual(bossLines(t, f), [FOES[kind].name + ' down!']);
   }
 });
+
+test('a fever carrier that falls as the war wagon drops its crew passes its poison to the crew, with no crash', () => {
+  // 2026.11.23-3: a 6-hour newcomer run crashed here, since the crew had no place on the road yet that step
+  const { g, t, f } = onRoad('gulch'), st = FOES.wagon.stages[0];
+  const carrier = { ...f, id: 987654, kind: 'raider', hp: 0, max: 10, armor: 0, stage: 0, spread: true, poison: 6, poisonT: 4, rot: 0, dead: false, leaked: false };
+  t.waves.foes.push(carrier);
+  f.hp = f.max * (st.at - .01);
+  assert.doesNotThrow(() => fight(g, t, .25));
+  const crew = t.waves.foes.filter(x => x.kind === st.drop);
+  assert.equal(crew.length, st.n);
+  assert.ok(crew.some(x => x.poisonT > 0), 'a crew member beside the carrier caught its poison');
+});

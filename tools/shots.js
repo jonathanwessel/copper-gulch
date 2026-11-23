@@ -207,6 +207,8 @@ const RIDGE = [
     for (const id of ['g-tower', 'g-camp3', 'g-mine', 'g-cannon', 'g-camp5', 'g-saw', 'g-research', 'g-pit', 'g-frost', 'g-mine5', 'g-smelter', 'g-path', 'g-wave10', 'g-mortar']) d[id] = true;
     t.coins = 4000;
   }],
+  // the saving goal once the waves are held: coins as have / need and about how soon it is ready (clarity fix 2)
+  ['ridge-held', () => { document.getElementById('holdWaves').click(); }],
   ['ridge-ready', () => { CG.game.town.coins = 2e5; }],
   // the card that points at Map once Iron Ridge is in sight
   ['found-card', async () => { delete CG.game.shared.seen.found; for (let i = 0; i < 60 && CG.coach.current !== 'found'; i++) await new Promise(r => setTimeout(r, 100)); }],
@@ -355,7 +357,7 @@ try {
       await r.goto(srv.url + '?coach=off&start=gulch');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of RIDGE) {
-        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' || name === 'map' ? 3000 : name === 'map-fly' ? 120 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
+        await r.evaluate(go); await sleep(name === 'found-chip' ? 3000 : name === 'ridge-save' || name === 'ridge-held' ? 4000 : name === 'ridge-income' ? 6000 : name === 'ridge' || name === 'pinehollow' || name === 'map' ? 3000 : name === 'map-fly' ? 120 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 9000 : name === 'train' ? 150 : 1200);
         const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
       }
       await r.close();

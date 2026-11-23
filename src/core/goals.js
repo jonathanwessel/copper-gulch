@@ -146,6 +146,34 @@ export function nextStep(game) {
   return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + ' to start it', at: () => ({ el: '#mapBtn' }), done: () => false };
 }
 
+/* Saving for a coin goal (clarity fix 2, PLAN.md M6a): a newcomer saw "136 / 500" for 20 minutes and spent every coin
+   as it came, since nothing said the goal was near if they saved. The strip adds how long is left at the empire's income
+   over the last minute, and the newcomer bot saves the same way. One rate for both: earnRate. */
+export const EARN_WINDOW = 60, READY_MAX = 36000;
+/* Coins a second the empire earned over the last EARN_WINDOW seconds of play; hist is the caller's own list. */
+export function earnRate(game, hist, span = EARN_WINDOW) {
+  const t = game.stats.steps * .25, e = game.earned;
+  if (hist.length && (e < hist[hist.length - 1][1] || t < hist[hist.length - 1][0])) hist.length = 0; // a charter or a load starts it over
+  hist.push([t, e]);
+  while (hist.length > 2 && t - hist[1][0] >= span) hist.shift();
+  const [t0, e0] = hist[0];
+  return t - t0 >= 5 ? Math.max(0, (e - e0) / (t - t0)) : 0;
+}
+/* Seconds until have reaches need at perSec, or null (ready already, or nothing comes in). */
+export const readyIn = (have, need, perSec) => need > have + 1e-9 && perSec > 0 ? (need - have) / perSec : null;
+/* "about 4 min to go": the time left to the goal's count. Whole minutes (it changes at most once a minute), hours and
+   minutes past an hour in steps of 5 minutes, "over 10 hours to go" past that; "" when there is no time to show. The
+   first words, "ready in about 1:20", were read as having no subject and "over an hour" as too vague to act on (review
+   of 2026.11.23-3), so the time counts down to the coins the strip just showed. */
+export function readyWords(s) {
+  if (s == null) return '';
+  if (s < 60) return 'under a minute to go';
+  if (s < 3600) return 'about ' + Math.ceil(s / 60) + ' min to go';
+  if (s > READY_MAX) return 'over 10 hours to go';
+  const m = Math.ceil(s / 300) * 5, h = Math.floor(m / 60), r = m % 60;
+  return 'about ' + h + ' h' + (r ? ' ' + r + ' min' : '') + ' to go';
+}
+
 /* The words the strip shows for a goal: its text, or, for a goal with wait: kind while that tower can't be paid yet,
    what is still missing ("Wait for 5 more coins and 3 more timber, then tap a stone pad"), counting down as it comes. */
 /* heldText: the words once the waves are held. need: coins the goal saves for; the screen adds have / need. */
