@@ -22,8 +22,8 @@ import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
 import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
-import { rectDist, gateDist, polyDist, blockers, routeLine, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint } from './empire-plan.js';
-import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
+import { rectDist, gateDist, polyDist, blockers, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint, spokeLine, plazaArc, STATION_R } from './empire-plan.js';
+import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, depotModel, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
 const S = DIORAMA, MAXWAGONS = 48, MAXTRAINS = 24, MAXCARS = 72, GAP = .36;
@@ -114,11 +114,14 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const ribbonMat = cloudy(new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
   const flat = objs => { for (const o of objs) o.traverse(n => { if (n.isMesh && n.material.userData.own && n.material !== ribbonMat && (n.name === 'road' || n.name === 'rails' || n.name === 'creek')) { n.material.dispose(); n.material = ribbonMat; } }); return objs; };
 
-  // every pair of towns a route could join (routes appear as goods move): each pair's road is laid out once, clear of
-  // every board, entrance and the Capital's plaza, and a link uses it in either direction
-  const B = blockers(sites), river = B.river, creek = B.creek, paths = {};
-  for (const a of sites) for (const b of sites) if (a.id < b.id && !a.capital && !b.capital) paths[a.id + '|' + b.id] = pathOf(routeLine(a, b, B).pts);
-  const pathPts = Object.values(paths).map(p => p.pts);
+  // every place's spoke (the ring, part 1b; owner, 2026-11-22: roads come from the vaults): a road from the depot by its
+  // vault in to a station on the Capital's plaza, laid out once, clear of every board, entrance and the plaza. Goods
+  // between two places ride one spoke in, round the plaza on the road that circles it, and the other out.
+  const B = blockers(sites), river = B.river, creek = B.creek, spokes = {}, paths = {};
+  for (const s of sites) if (TOWNS[s.id]) spokes[s.id] = spokeLine(s.id, B);
+  const linkPath = (from, to) => { const k = from + '>' + to, a = spokes[from], b = spokes[to]; if (!paths[k] && a && b) paths[k] = pathOf([...a.pts, ...plazaArc(a.station, b.station), ...b.pts.slice().reverse()]); return paths[k]; };
+  const plazaLoop = Array.from({ length: 49 }, (_, i) => { const t = i / 48 * Math.PI * 2; return [CAPITAL[0] + Math.sin(t) * STATION_R(), CAPITAL[1] + Math.cos(t) * STATION_R()]; });
+  const pathPts = Object.values(spokes).map(p => p.pts);
   // land not open yet takes only a hint of its town's colors (the ground is laid once, when the map opens)
   const feet = B.towns.map(([id, f]) => [id, f, TOWNS[id].board.look, game.towns[id] ? 1 : .35]);
   const height = (x, z) => {
@@ -232,20 +235,25 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
 
   // routes: a dirt road for each link that has carried goods, with wagons on it; once the Rail Office is founded every
   // route is laid with rails and trains run on it. A plank bridge carries a route over the river.
-  const routes = {};
+  // laid: each spoke drawn (with its depot), and the road round the plaza, by id ('plaza')
+  const routes = {}, laid = {};
   let kind = routeKind(game);
+  const lay = (id, pts, depot) => {
+    const wet = river ? waterCut(river.pts, river.width) : null; // the route stops at the water, the bridge carries it over
+    const parts = flat(kind === 'rail' ? railModel(pts, wet) : roadModel(pts, wet));
+    if (river) parts.push(...routeBridges(pts, river, kind === 'rail'));
+    if (depot) parts.push(depotModel(pts[0], Math.atan2(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1])));
+    const road = merged(parts, { cast: false }); road.name = kind === 'rail' ? 'rails' : 'road'; add(road); laid[id] = road;
+  };
   const placeRoutes = () => {
     const k = routeKind(game);
-    if (k !== kind) { kind = k; for (const r of Object.values(routes)) { root.remove(r.road); disposeTree(r.road); } for (const key of Object.keys(routes)) delete routes[key]; }
+    if (k !== kind) { kind = k; for (const r of Object.values(laid)) { root.remove(r); disposeTree(r); } for (const key of Object.keys(laid)) delete laid[key]; }
     for (const l of mapRoutes(game)) {
-      if (routes[l.key]) continue;
-      const rev = l.from > l.to, path = paths[rev ? l.to + '|' + l.from : l.from + '|' + l.to];
+      const path = linkPath(l.from, l.to);
       if (!path || path.pts.length < 2) continue;
-      const wet = river ? waterCut(river.pts, river.width) : null; // the route stops at the water, the bridge carries it over
-      const parts = flat(kind === 'rail' ? railModel(path.pts, wet) : roadModel(path.pts, wet));
-      if (river) parts.push(...routeBridges(path.pts, river, kind === 'rail'));
-      const road = merged(parts, { cast: false }); road.name = kind === 'rail' ? 'rails' : 'road'; add(road);
-      routes[l.key] = { ...path, rev, road, phase: (l.key.length * .137) % 1 };
+      for (const id of [l.from, l.to]) if (!laid[id]) lay(id, spokes[id].pts, true);
+      if (!laid.plaza) lay('plaza', plazaLoop, false);
+      if (!routes[l.key]) routes[l.key] = { ...path, rev: false, phase: (l.key.length * .137) % 1 };
     }
   };
   placeRoutes();

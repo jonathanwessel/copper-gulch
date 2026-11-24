@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TOWNS } from '../src/data/towns/index.js';
-import { SITES, CAPITAL } from '../src/data/empire.js';
-import { ENT_BOX, footprint, blockers, routeLine, fallsRiver, creekBed, flavor, FLAVOR, mesaPlan, camp, routeKind, polyDist, rectDist } from '../src/render/empire-plan.js';
+import { SITES, CAPITAL, DIORAMA } from '../src/data/empire.js';
+import { ENT_BOX, footprint, blockers, routeLine, spokeLine, fallsRiver, creekBed, flavor, FLAVOR, mesaPlan, camp, routeKind, polyDist, rectDist } from '../src/render/empire-plan.js';
 
 const sites = [{ id: 'capital', at: CAPITAL, capital: true }, ...Object.entries(SITES).map(([id, at]) => ({ id, at }))];
 const B = blockers(sites);
@@ -38,7 +38,8 @@ test('the river and the dry creek keep off every board and entrance but their ow
 
 test('every town has land that fits it, and none of it stands on a board, an entrance, a road or the water', () => {
   const river = fallsRiver(), creek = creekBed(), roads = [];
-  for (const a of sites) for (const b of sites) if (a.id < b.id && !a.capital && !b.capital) roads.push(routeLine(a, b, B).pts);
+  // the roads the map draws: every place's spoke in to the Capital (the ring, part 1b)
+  for (const id of Object.keys(SITES)) roads.push(spokeLine(id, B).pts);
   const free = (x, z, m) => !B.hit(x, z, m) && !roads.some(p => polyDist(x, z, p) < .6 + m) && polyDist(x, z, river.pts) > river.width * .6 + m && polyDist(x, z, creek.pts) > creek.width * .6 + m * .5;
   for (const id of Object.keys(SITES)) {
     const list = flavor(id, free);
@@ -89,4 +90,33 @@ test('every entrance on the map points away from the Capital, and every vault fa
     const [vx, vz] = toMap(id, TOWNS[id].board.vault);
     assert.ok(Math.hypot(vx - CAPITAL[0], vz - CAPITAL[1]) < L, `${id}: its vault faces away from the Capital`);
   }
+});
+
+/* Spokes (the ring, part 1b; owner, 2026-11-22: "the connecting roads and trains come from the vaults"): every place's
+   road leaves a depot by its vault on the board's inner edge and runs to a station on the plaza's edge, and no road
+   crosses a board, a raider road or the plaza. Seen red: the roads of 2026.11.24-4 ran town to town, the Gulch's to
+   Iron Ridge leaving the Gulch's side 5 away from its vault and never coming near the Capital. */
+test('every road leaves a depot by its vault and runs in to the Capital', async () => {
+  const { spokeLine, depotOf, linkLine, STATION_R, toMap } = await import('../src/render/empire-plan.js');
+  for (const id of Object.keys(SITES)) {
+    const s = spokeLine(id, B), d = depotOf(id), f = footprint(id).rect;
+    // the depot stands just past the board's edge, on the side that faces the Capital
+    assert.ok(rectDist(d[0], d[1], f) > 0 && rectDist(d[0], d[1], f) < .6, `${id}: its depot is not at its board's edge`);
+    assert.ok(Math.hypot(d[0] - CAPITAL[0], d[1] - CAPITAL[1]) < Math.hypot(f.x - CAPITAL[0], f.z - CAPITAL[1]), `${id}: its depot faces away from the Capital`);
+    if (TOWNS[id].kind !== 'outpost') { const [vx, vz] = toMap(id, TOWNS[id].board.vault); assert.ok(Math.hypot(vx - d[0], vz - d[1]) < 1, `${id}: its depot is far from its vault`); }
+    // it stands on dry ground: Silver Falls' river runs out by its vault (review of 2026.11.24-5, the depot on the water)
+    const TB = TOWNS[id].board;
+    if (TB.river) { const wet = TB.river.path.concat([TB.vault]).map(p => toMap(id, p)); assert.ok(polyDist(d[0], d[1], wet) > (TB.river.width || 1.1) / 2 * DIORAMA + .4, `${id}: its depot stands on its river`); }
+    // it starts at the depot and ends on the plaza's edge
+    assert.deepEqual(s.pts[0], d);
+    const e = s.pts[s.pts.length - 1]; assert.ok(Math.abs(Math.hypot(e[0] - CAPITAL[0], e[1] - CAPITAL[1]) - STATION_R()) < 1e-6, `${id}: its road stops short of the Capital`);
+    // it touches no board, no raider road and not the plaza on the way
+    for (const [x, z] of s.pts.slice(1, -1)) assert.equal(B.hit(x, z, .2, ['capital']), null, `${id}: its road at ${x.toFixed(1)},${z.toFixed(1)} touches ${B.hit(x, z, .2, ['capital'])}`);
+    for (const [x, z] of s.pts) assert.ok(Math.hypot(x - CAPITAL[0], z - CAPITAL[1]) >= STATION_R() - 1e-6, `${id}: its road crosses the plaza`);
+  }
+  // goods between two places go in one spoke, round the plaza and out the other
+  const l = linkLine('gulch', 'ridge', B);
+  assert.deepEqual(l.pts[0], depotOf('gulch')); assert.deepEqual(l.pts[l.pts.length - 1], depotOf('ridge'));
+  assert.ok(l.pts.some(([x, z]) => Math.hypot(x - CAPITAL[0], z - CAPITAL[1]) < STATION_R() + .01));
+  for (let i = 1; i < l.pts.length; i++) assert.ok(Math.hypot(l.pts[i][0] - l.pts[i - 1][0], l.pts[i][1] - l.pts[i - 1][1]) < 1, 'a gap in the road');
 });

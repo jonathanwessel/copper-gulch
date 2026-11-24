@@ -5,6 +5,8 @@
      rectDist(x, z, r)    signed distance from a point to a rounded rect (negative inside)
      blockers(sites)      what a route or a prop must keep off: every board, entrance, the Capital's plaza, the river
      routeLine(a, b, B)   the road between two sites: a gentle curve from board edge to board edge that keeps off the rest
+     spokeLine(id, B)     a place's road from the depot by its vault in to a station on the Capital's plaza
+     linkLine(a, b, B)    the road goods take between two places: one spoke in, round the plaza, the other out
      mesaPlan(...)        varied mesas, buttes and spires round the map's edge, in the colors of the nearest town
      flavor(id, R, free)  the land that fits each town: pines, hoodoos, rock ridges, dunes, scrub
      fallsRiver()         the river that comes down the falls in the east and runs into Silver Falls
@@ -88,7 +90,7 @@ export function blockers(sites) {
       if (!skip.includes(id) && rectDist(x, z, f.rect) < m) return id;
       for (const g of f.gates) if (gateDist(x, z, g) < m) return id + ':gate';
     }
-    if (plaza && Math.hypot(x - plaza.at[0], z - plaza.at[1]) < CITY.plaza + .6 + m) return 'capital';
+    if (plaza && !skip.includes('capital') && Math.hypot(x - plaza.at[0], z - plaza.at[1]) < CITY.plaza + .6 + m) return 'capital';
     return null;
   };
   return { towns, river, creek, plaza, hit };
@@ -99,8 +101,8 @@ export function blockers(sites) {
    and keeps the shortest that touches nothing (or touches least). Returns { pts: [[x, z]], hits, len } (hits: sample
    points that still touch something, 0 when clear). The same pair always gets the same road. */
 const ROUTES = new Map();
-export function routeLine(a, b, B, step = .3) {
-  const key = a.id + '|' + b.id + '|' + B.towns.map(t => t[0]).join();
+export function routeLine(a, b, B, step = .3, { own: keepOff = false } = {}) {
+  const key = a.id + '|' + b.id + '|' + B.towns.map(t => t[0]).join() + (keepOff ? '|own' : '');
   if (ROUTES.has(key)) return ROUTES.get(key);
   const A = a.at, Bt = b.at, L = Math.hypot(Bt[0] - A[0], Bt[1] - A[1]) || 1;
   const own = (x, z) => { let n = 0; for (const [id, f] of B.towns) if (id === a.id || id === b.id) for (const g of f.gates) if (gateDist(x, z, g) < .45) n++; return n; };
@@ -125,6 +127,8 @@ export function routeLine(a, b, B, step = .3) {
     for (let i = 0; i < pts.length; i++) {
       const [x, z] = pts[i];
       if (B.hit(x, z, .45, [a.id, b.id])) hits++;
+      // a spoke keeps off its own board too, past its depot (an outpost's ran along its own edge)
+      if (keepOff && i && TOWNS[a.id] && rectDist(x, z, footprint(a.id).rect) < .3) hits++;
       hits += own(x, z);
       if (i) len += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]);
     }
@@ -138,6 +142,53 @@ export function routeLine(a, b, B, step = .3) {
   }
   ROUTES.set(key, best);
   return best;
+}
+
+/* Spokes (the ring, part 1b; owner, 2026-11-22: "the connecting roads and trains come from the vaults"). Every place
+   has one road in to the Capital: it leaves a depot just past its board's inner edge, level with its vault (an
+   outpost's stockpile stands by its entrance, so its depot is in the middle of that edge), and ends at a station on the
+   plaza's edge. Goods between two places ride one spoke in, round the plaza and the other spoke out, so every road on
+   the map runs from a vault through the middle and none crosses a raider road. */
+const DEPOT_OUT = .55;  // how far past the board's inner edge a depot stands (board units)
+export const STATION_R = () => CITY.plaza + .8; // a station's distance from the Capital's middle (map units): a rail bed reaches .66 each side of its middle, so it clears the plaza
+export function depotOf(id) {
+  const B = TOWNS[id].board, x0 = TOWNS[id].kind === 'outpost' ? B.cols / 2 : Math.max(.8, Math.min(B.cols - .8, B.vault[0]));
+  // a board whose river runs out by its vault: the depot steps along the edge until it stands on dry ground (review of
+  // 2026.11.24-5: Silver Falls' depot stood on the water)
+  const wet = B.river ? B.river.path.concat([B.vault]) : null, clear = B.river ? (B.river.width || 1.1) / 2 + .7 : 0;
+  for (const d of [0, -1, 1, -1.5, 1.5, -2, 2, -2.5, 2.5, -3, 3]) {
+    const x = Math.max(.8, Math.min(B.cols - .8, x0 + d));
+    if (!wet || polyDist(x, B.rows + DEPOT_OUT, wet) > clear) return toMap(id, [x, B.rows + DEPOT_OUT]);
+  }
+  return toMap(id, [x0, B.rows + DEPOT_OUT]);
+}
+const ringAt = a => [CAPITAL[0] + Math.sin(a) * STATION_R(), CAPITAL[1] + Math.cos(a) * STATION_R()];
+const angleOf = ([x, z]) => Math.atan2(x - CAPITAL[0], z - CAPITAL[1]);
+/* One place's spoke: { pts (depot first, station last), hits, len, depot, station }. */
+export function spokeLine(id, B) {
+  const depot = depotOf(id), r = routeLine({ id, at: depot }, { id: 'capital', at: CAPITAL, capital: true }, B, .3, { own: true });
+  const pts = [depot];
+  for (const p of r.pts) {
+    if (Math.hypot(p[0] - CAPITAL[0], p[1] - CAPITAL[1]) <= STATION_R()) break;
+    if (p === r.pts[0] || rectDist(p[0], p[1], footprint(id).rect) < 0) continue;
+    pts.push(p);
+  }
+  const station = ringAt(angleOf(pts[pts.length - 1]));
+  pts.push(station);
+  return { pts, hits: r.hits, depot, station };
+}
+/* Round the plaza from one station to another, the short way. */
+export function plazaArc(s1, s2, step = .3) {
+  const a1 = angleOf(s1); let d = angleOf(s2) - a1;
+  while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+  const n = Math.max(1, Math.ceil(Math.abs(d) * STATION_R() / step)), out = [];
+  for (let i = 1; i < n; i++) out.push(ringAt(a1 + d * i / n));
+  return out;
+}
+/* The whole road between two places: from's spoke in, round the plaza, to's spoke out. */
+export function linkLine(from, to, B) {
+  const a = spokeLine(from, B), b = spokeLine(to, B);
+  return { pts: [...a.pts, ...plazaArc(a.station, b.station), ...b.pts.slice().reverse()], hits: a.hits + b.hits };
 }
 
 /* Mesas round the map's edge, every one a little different: a broad mesa, a tall butte, a thin spire, a two-step, or a

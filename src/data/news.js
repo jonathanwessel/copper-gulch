@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-5',
+    lines: [
+      'On the Map every road now starts at a small depot by a town vault and runs in to the Capital.',
+      'Goods between two towns go in to the Capital, around it and out again.',
+    ],
+  },
+  {
     v: '2026.11.24-4',
     lines: [
       'The Map now has the Capital in the middle with your towns in a ring around it.',

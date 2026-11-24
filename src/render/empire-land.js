@@ -270,6 +270,17 @@ export function railModel(pts, wet = null) {
   }
   return [bed, k.build({ cast: false })];
 }
+/* A small freight depot where a place's road leaves it, beside its vault (the ring, part 1b): a plank platform, a shed
+   with a red roof, and a few crates. yaw: the way the road leaves, toward the Capital. */
+export function depotModel([x, z], yaw) {
+  const k = new Kit({ ao: false }), c = Math.cos(yaw), s = Math.sin(yaw);
+  // a point (across, along) from the depot's middle, turned so along runs down the road
+  const at = (u, v) => [x + u * c + v * s, z - u * s + v * c];
+  { const [px, pz] = at(0, 0); k.box(px, 0, pz, .78, .06, .5, 'woodL', { ry: yaw }); }
+  { const [px, pz] = at(-.18, 0); k.box(px, .06, pz, .36, .24, .34, 'woodD', { ry: yaw }); k.gable(px, .3, pz, .44, .42, .16, 'roofRD', { ry: yaw + Math.PI / 2 }); }
+  for (const [u, v] of [[.2, -.12], [.28, .08], [.14, .1]]) { const [px, pz] = at(u, v); k.box(px, .06, pz, .1, .1, .1, 'wood', { ry: yaw + u }); }
+  return k.build({ cast: true });
+}
 /* A plank bridge wherever a route crosses the river: the route stops at the water's edge (waterCut), the deck spans the
    water and a short bit of each bank, and its posts stand in the water, each with a pale ring (owner, 2026-11-22). */
 export const DECK_Y = .22; // the top of a route bridge's deck
