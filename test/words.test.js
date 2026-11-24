@@ -16,9 +16,9 @@ import { priceRow } from '../src/ui/sheets.js';
 import { sayable } from '../src/audio/speech.js';
 
 test('the words on screen today', () => {
-  assert.equal(oldWavesLabel(), 'Won last time');
+  assert.equal(oldWavesLabel(), 'Wave'); assert.equal(oldWavesLabel({ wave: 7 }), 'Wave 7');
   assert.equal(STOCK_LABEL, 'Save for towers');
-  assert.deepEqual(STOCK_CHOICES.map(c => c[1]), ['2 upgrades', '4 upgrades']);
+  assert.deepEqual(STOCK_CHOICES.map(c => c[1]), ['Normal', 'Lots']);
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   assert.equal(LITTLE, 'a little');
   assert.deepEqual(splitLive(5.49, [4.79, .66, .04]).rows, ['4.8', '0.6', LITTLE]);
@@ -46,7 +46,7 @@ test('the explainers name the controls by their words on screen', async () => {
   assert.match(by('boom'), /then Sell spare to pick when it sells/);
   const { priceWord } = await import('../src/ui/sheets.js');
   assert.deepEqual([1.6, 1, .6].map(priceWord), ['Up 60%', 'Full price', 'Down 40%']);
-  assert.match(by('stock'), /^Tap 4 upgrades/);
+  assert.match(by('stock'), /^Tap Lots/);
   assert.match(by('mortar'), /A dark spot shows where each one will land/);
   assert.match(by('map'), /thin bar under a town/);
   assert.match(by('vault'), /The heart at the top shows how many hits it has left/); // words read of 2026.11.23-11: tie the vault to the heart

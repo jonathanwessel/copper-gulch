@@ -125,8 +125,10 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     else if (target) { const p = locate(target); if (p) r = { x: p.x - 48, y: p.y - 48, w: 96, h: 96 }; }
     hole.hidden = !r;
     if (r) Object.assign(hole.style, { left: Math.round(r.x) + 'px', top: Math.round(r.y) + 'px', width: Math.round(r.w) + 'px', height: Math.round(r.h) + 'px' });
-    // the card goes in the half of the screen away from the spotlight
-    const low = r && r.y + r.h / 2 > innerHeight / 2;
+    // the card sits at the foot of the screen, over the goods strip, unless it would cover the spotlight; at the top
+    // it covers the top bar (review of 2026.11.23-10: the workers card lay over the boss bar and the goal, with its
+    // spotlight in the middle of the screen)
+    const low = r && r.y + r.h > innerHeight - card.offsetHeight - 32;
     card.classList.toggle('top', !!low);
   }
   const api = {

@@ -5,7 +5,7 @@
 import { GOODS } from '../data/goods.js';
 import { TOWNS } from '../data/towns/index.js';
 import { capitalOf, capitalOpen, canFoundCapital, foundCapital, takeContract, dropContract, spareRate } from '../core/capital.js';
-import { CAPITAL_DEF } from '../data/capital.js';
+import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
 import { INSTITUTIONS, boughtText, outpostWords } from '../data/institutions.js';
 import { isOutpost } from '../core/economy.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
@@ -154,7 +154,7 @@ export function capitalSheet(game, toast = () => {}) {
     b.addEventListener('click', () => { if (foundCapital(game)) paint(); }); // the sheet itself shows it is built, no toast
     const paint = () => {
       if (!capitalOpen(game)) {
-        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', 'Send goods here for coins and Influence. Spend Influence on upgrades for every town.'), wave, coins, row); }
+        if (sig !== 'locked') { sig = 'locked'; const row = el('div', 'row'); row.append(b); body.replaceChildren(el('p', 'uses', CAPITAL_ABOUT), wave, coins, row); }
         const t = game.towns[f.from], w = t ? t.bestWave || 0 : 0, c = t ? t.coins : 0;
         setText(wave, 'Beat wave ' + f.wave + ' in ' + townName(f.from) + (w >= f.wave ? ' · Done' : ' · Best so far ' + w));
         setText(coins, fmt(f.coins) + ' coins' + (c >= f.coins ? ' · Done' : ' · You have ' + fmt(c)));

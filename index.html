@@ -121,6 +121,7 @@ html.no3d body { background: var(--bg); }
 .wave b { color: var(--copper-hi); white-space: nowrap; display: inline-block; width: 8ch; text-align: left; } /* one width from "Wave 1" to "Wave 999" */
 .wave .vaultbtn { min-width: 32px; justify-content: center; }
 .wavebtn { flex: none; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.explain.why .oldwave { flex: none; padding: 0 5px; line-height: 1.2; color: var(--gold); font-weight: bold; background: rgba(0, 0, 0, .35); border: 1px solid rgba(0, 0, 0, .5); } /* the wave bar's gold number, in the tower card's row (review of 2026.11.23-9) */
 .wave.old b { color: var(--gold); } /* towers hit harder on waves beaten before (the tower card's "Beaten waves" row) */
 .vault { width: 44px; height: 10px; background: var(--line); border: 1px solid #000; display: block; }
 .heart { display: inline-block; width: 14px; height: 12px; flex: none; color: #d8483a; } /* the vault's mark (src/ui/heart.js) */
@@ -166,12 +167,19 @@ html.no3d body { background: var(--bg); }
 .bossbar[hidden] { display: none; }
 .bossbar .foepic { display: block; width: 28px; height: 28px; image-rendering: pixelated; }
 .bossbar .btext { display: grid; gap: 3px; min-width: 0; }
-.bossbar .brow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bossbar .brow { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 16px; } /* the stage picture is 16 px, so the bar keeps one height with it, before it and once the boss is down */
 .bossbar .bname { flex: 1 1 auto; min-width: 0; color: var(--copper-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bossbar .bstage { flex: none; width: 11em; text-align: right; color: var(--gold); white-space: nowrap; overflow: hidden; }
+.bossbar .bstage { flex: none; width: 34px; height: 16px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.bossbar .bstage .foepic.small { width: 16px; height: 16px; }
+.bossbar .spic { display: block; flex: none; width: 14px; height: 14px; }
+.bossbar .spic.plates { background: linear-gradient(135deg, transparent 44%, var(--bad) 44%, var(--bad) 58%, transparent 58%), #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); }
+.bossbar .spic.steam { background: radial-gradient(circle at 30% 65%, #eef1f4 30%, transparent 32%), radial-gradient(circle at 62% 45%, #eef1f4 34%, transparent 36%), radial-gradient(circle at 78% 72%, #d6dbe0 24%, transparent 26%); }
+.bossbar .sarrow { display: block; flex: none; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; }
+.bossbar .sarrow.up { border-bottom: 9px solid var(--bad); }
+.bossbar .sarrow.down { border-top: 9px solid var(--good); }
 .bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
 .bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
-.bossbar .bnum { flex: none; width: 11ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bossbar .bnum { flex: none; width: 13.5ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; color: #c8ccd4; }
 .bossbar .shield { display: block; width: 8px; height: 10px; background: #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); flex: none; }
 .bossbar.gone { border-color: var(--good); }
@@ -444,6 +452,9 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .toast.out { opacity: 0; }
 .toast, p { text-wrap: pretty; } /* no lone last word on a line (review of 2026.11.23-9: Kegs. and Influence. alone) */
+/* every line on a card or a sheet too, not only paragraphs (review of 2026.11.23-10: "Influence." alone under the
+   Capital's Next row); the style alone, so no nowrap is undone */
+.card *, .sheet *, .coachcard *, li { text-wrap-style: pretty; }
 .mapkeep { position: fixed; visibility: hidden; pointer-events: none !important; } /* the capitol's box on the map: toasts keep off it */
 .toast.wait, .mapbadge.undertoast, .tag.undertoast { visibility: hidden; } /* no room to show it yet: it waits with its time stopped (src/ui/play.js) */
 /* a dot on a button: something there wants you (src/core/reveal.js) */
@@ -537,6 +548,7 @@ html.flat .tag { position: static; transform: none !important; }
 .seg { display: inline-flex; gap: 0; }
 .seg > .btn { white-space: nowrap; }
 .seg > .btn + .btn { margin-left: -2px; } /* two buttons that read as one choice, the picked one gold (review of 2026.11.20-15: the copper pill did not look tappable) */
+.sheetbody.more::after { content: ''; position: sticky; bottom: calc(-1 * max(14px, env(safe-area-inset-bottom))); z-index: 3; height: 30px; margin-top: -42px; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .8)); } /* more below the edge (sheets.js moreBelow) */
 .sheetbody::-webkit-scrollbar { width: 8px; }
 .sheetbody::-webkit-scrollbar-track { background: var(--line); }
 .sheetbody::-webkit-scrollbar-thumb { background: var(--copper); border: 2px solid var(--line); }
@@ -648,6 +660,10 @@ button.option.labrow { width: 100%; font: inherit; color: inherit; text-align: l
 .labrow small { font-variant-numeric: tabular-nums; text-align: right; margin-left: auto; }
 button.option.labrow::after { content: '›'; flex: none; font-weight: 700; color: var(--copper-hi); } /* a row that goes somewhere */
 .labrow.idle small { color: var(--bad); }
+.labline { display: flex; gap: 6px; align-items: stretch; } /* an idle town's row and its Start button (review of 2026.11.23-9) */
+.labline > .labrow { flex: 1 1 auto; min-width: 0; }
+.labline > .labstart { flex: none; display: grid; justify-items: center; align-content: center; gap: 1px; max-width: 9.5em; white-space: normal; text-align: center; }
+.labline > .labstart small { font-size: .72rem; line-height: 1.05; }
 #autoSeeResearch { justify-self: start; align-self: flex-start; width: auto; margin-top: 4px; } /* a small second button, never the row's main one (review of 2026.11.20-16) */
 .costrow { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; font-size: .82rem; color: var(--ink); }
 .costrow .need { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; white-space: nowrap; } /* the price, then "have 400" under it (review of 2026.11.20-14) */

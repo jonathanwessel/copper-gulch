@@ -195,7 +195,7 @@ test('On, a vault that fell on a plain wave while away plays the wave before it 
   G.towers[0].level--;
   G.towers[1].path = 'a'; G.towers[1].level = 5; autoOf(g, G).boss.power = towerPower(G); setAuto(g, G, 'towers', true);
   assert.equal(retryState(g, G), 'again');
-  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14. It keeps fighting and tries again after a tower goes up a level.');
+  assert.equal(retryLine(g, G), 'Copper Gulch lost wave 14 and went back. Auto tries it again after a tower goes up a level.');
 });
 
 test('On, a vault that fell in play moves the try down, so a wave it cannot beat is not played in a loop', async () => {

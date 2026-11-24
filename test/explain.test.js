@@ -78,11 +78,11 @@ test('the vault: its strength in hits, each bonus, hits left and what each raide
   const ex = explainVault(t);
   assert.equal(ex.value, vaultMax(t));
   assert.ok(Math.abs(product(ex) - ex.value) <= .5);
-  assert.deepEqual(ex.rows.map(r => r.label), ['Full vault', 'Stone Walls perk', 'Thick Walls research']);
+  assert.deepEqual(ex.rows.map(r => r.label), ['Vault', 'Stone Walls perk', 'Thick Walls research']);
   assert.equal(ex.left, Math.ceil(t.vault.hp));
   assert.deepEqual(ex.raiders.map(r => r.label), ['Bandit', 'Horseman', 'Brute', 'Wagon crew', 'War wagon'], 'the crew the war wagon drops counts too');
   const dc = newGame('d').town;
-  assert.equal(explainVault(dc).rows[0].label, 'Full stockpile');
+  assert.equal(explainVault(dc).rows[0].label, 'Stockpile');
   assert.ok(explainVault(dc).raiders.some(r => r.label === 'Bandit wagon'));
 });
 

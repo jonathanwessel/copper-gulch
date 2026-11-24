@@ -11,7 +11,7 @@ import { fmt, fmtLive, splitLive, vaultCount, LITTLE } from './format.js';
 import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
-import { CAPITAL_DEF } from '../data/capital.js';
+import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
 import { capitalPanel, contractDone, sentWords, influenceWords } from './capital.js';
 import { treeCalls } from '../core/tree.js';
 import { retryState } from '../core/automation.js';
@@ -285,7 +285,7 @@ export function mountMap(root, game, view, shell) {
     } else {
       const lr = lockedRules(game, id);
       kids.push(head(nameOf(id), lr.ready ? '' : (id === 'capital' ? 'Not built yet' : 'Not open yet'))); // ready: the Start button says it
-      if (id === 'capital') kids.push(el('p', 'uses', 'Send goods here for coins and Influence. Spend Influence on upgrades for every town.'));
+      if (id === 'capital') kids.push(el('p', 'uses', CAPITAL_ABOUT));
       else kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.'));
       for (const r of lr.rules) {
         if (r.kind === 'deeds') {

@@ -60,7 +60,7 @@ export const EXPLAINERS = [
   {
     id: 'worker-tap', covers: ['workercard'],
     title: 'Your workers',
-    text: 'Your workers are fighting by the road, and their buildings make nothing until they go back. Tap a pair of workers to see how long.',
+    text: 'Your workers are fighting by the road, and their buildings make nothing until they go back. Tap a pair of workers to see when they go back.',
     when: h => !!h.workerOut, at: h => (h.workerOut ? { worker: h.workerOut } : null),
   },
   // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
@@ -116,7 +116,7 @@ export const EXPLAINERS = [
   {
     id: 'stock', covers: ['stock'],
     title: 'Goods for towers',
-    text: 'Tap 4 upgrades to save enough for 4 upgrades of every tower. Building towers waits less, but you sell fewer goods.',
+    text: 'Tap Lots to save goods for 4 upgrades of every tower, not 2. Building towers waits less, but you sell fewer goods.',
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
@@ -147,7 +147,9 @@ export const EXPLAINERS = [
     id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
     text: 'Every raider that gets through hits the vault. The heart at the top shows how many hits it has left. Each wave you beat mends it a little. If the heart reaches 0, you lose coins and go back two waves. Build more towers or upgrade the ones you have.',
-    when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
+    // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
+    // 2026.11.23-11: on a phone the card lay over the top bar and its heart)
+    when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ el: '#vaultBtn' }),
   },
   {
     id: 'milestone', covers: ['milestone', 'upgrade'],

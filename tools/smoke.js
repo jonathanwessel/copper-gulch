@@ -59,6 +59,34 @@ export async function uncovered(page) {
   });
 }
 
+/* Every red dot a top bar button can carry is wholly in view on its button: nothing clips it (a parent that hides
+   overflow, the screen's edge) and nothing covers it (2026.11.23-10: the back button clipped its dot unseen for days).
+   Each button is given its dot for the check, so every button that can ever carry one is measured. */
+export async function dotsSeen(page) {
+  return page.evaluate(() => {
+    const bad = [];
+    for (const id of ['mapBtn', 'backBtn', 'goodsBtn', 'researchBtn', 'perksBtn', 'autoBtn', 'armsBtn', 'menuBtn']) {
+      const b = document.getElementById(id);
+      if (!b || b.hidden || b.offsetParent === null) continue;
+      const had = b.classList.contains('dot'); b.classList.add('dot');
+      const r = b.getBoundingClientRect(), cs = getComputedStyle(b, '::after');
+      const w = parseFloat(cs.width) + 2 * parseFloat(cs.borderTopWidth || 0), h = parseFloat(cs.height) + 2 * parseFloat(cs.borderTopWidth || 0);
+      const top = r.top + parseFloat(cs.top), right = r.right - parseFloat(cs.right), d = { l: right - w, r: right, t: top, b: top + h };
+      if (d.l < 0 || d.t < 0 || d.r > innerWidth || d.b > innerHeight) bad.push(id + ' dot off the screen');
+      for (let p = b.parentElement; p && p !== document.body; p = p.parentElement) {
+        const ps = getComputedStyle(p); if (ps.overflowX === 'visible' && ps.overflowY === 'visible') continue;
+        const pr = p.getBoundingClientRect(); if (d.l < pr.left - .5 || d.r > pr.right + .5 || d.t < pr.top - .5 || d.b > pr.bottom + .5) bad.push(id + ' dot clipped by ' + (p.id || p.className));
+      }
+      for (const [x, y] of [[(d.l + d.r) / 2, (d.t + d.b) / 2], [d.l + 2, d.t + 2], [d.r - 2, d.b - 2]]) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit && hit !== b && !b.contains(hit)) { bad.push(id + ' dot covered by ' + (hit.id || hit.className || hit.tagName)); break; }
+      }
+      if (!had) b.classList.remove('dot');
+    }
+    return bad;
+  });
+}
+
 export async function check(page) {
   return page.evaluate(() => {
     const bad = [], vw = innerWidth;
@@ -280,7 +308,8 @@ async function run() {
         const widths = new Set([w0]);
         for (const k of [.9, .7, .55]) { f.hp = max * k; await wait(250); widths.add(box(bar)); }
         f.hp = max * (F.stages[0].at - .05); await wait(500); widths.add(box(bar));
-        const stage = (bar.querySelector('.bstage') || {}).textContent, after = others();
+        // the stage is a picture now, with its words as the label (review of 2026.11.23-9); the picture must be drawn
+        const sn = bar.querySelector('.bstage'), stage = sn && sn.children.length === 2 ? sn.getAttribute('aria-label') : 'no picture', after = others();
         bar.click(); await wait(250);
         const card = document.getElementById('card'), cardName = (card.querySelector('h2') || {}).textContent, opened = !card.hidden && card.classList.contains('foecard');
         CG.play.close();
@@ -1449,7 +1478,7 @@ async function run() {
         out.drawn = CG.town.board.militia.out > 0 && CG.town.board.militia.out === 2 * Object.keys(t.def.board.plots).filter(id => t.level(id) > 0).length;
         out.pick = !CG.town.board.pickables.some(o => o.parent && o.parent.name === 'militia');
         CG.play.sheets.close(); await wait(400);
-        const left = btn.querySelector('.btime'); out.timer = !!left && !left.hidden && /^[0-9]:[0-5][0-9]$/.test(left.textContent);
+        const left = btn.querySelector('.btime'); out.timer = !!left && !left.hidden && /^Back in [0-9]:[0-5][0-9]$/.test(left.textContent);
         out.width = Math.abs(btn.getBoundingClientRect().width - w0) < 1;
         const made = JSON.stringify(t.made); await wait(600); out.stopped = JSON.stringify(t.made) === made;
         return out;
@@ -1465,6 +1494,7 @@ async function run() {
       for (const vp2 of name === 'land' ? [[860, 400], [844, 390], [667, 375], [932, 430]] : [vp]) {
         await page.setViewportSize({ width: vp2[0], height: vp2[1] }); await sleep(500);
         bad.push(...(await check(page)).map(b => 'crowded ' + vp2.join('x') + ': ' + b));
+        bad.push(...(await dotsSeen(page)).map(b => 'crowded ' + vp2.join('x') + ': ' + b));
         await page.evaluate(() => CG.play.openSpot(3)); await sleep(400);
         bad.push(...(await uncovered(page)).map(b => 'crowded card ' + vp2.join('x') + ': ' + b));
         // a building at level 10 with its foreman row (review of 2026.11.23-7: the switch sat under the pinned price bar)

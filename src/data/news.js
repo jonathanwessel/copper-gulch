@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-13',
+    lines: [
+      'The boss bar shows what fell off the boss and an arrow for its speed.',
+      'In Goods, Save for towers is now Normal or Lots.',
+      'In an outpost, Research has a Start button for a town with nothing running.',
+      'The Vault sheet shows each bonus as extra hits.',
+      'To arms says Back in or Ready in beside its clock.',
+    ],
+  },
+  {
     v: '2026.11.23-12',
     lines: [
       'Your first building at the Capital now costs 40K coins.',

@@ -45,7 +45,10 @@ export function retryLine(game, town) {
   if (st === 'stuck') return 'Play ' + here + ' and upgrade a tower one level. Then it fights ' + what + ' again.';
   // the loss and what it does now (review of 2026.11.20-18: the line never said the town lost)
   // it keeps fighting meanwhile, so the line never reads as waiting beside Fighting (review of 2026.11.23-9)
-  return here + ' lost wave ' + w + '. It keeps fighting and tries again after a tower goes up a level.';
+  // it names Auto, whose switch does this, so a town beside it On hold after the same loss reads as the switch off,
+  // not a second rule (review of 2026.11.23-10)
+  // and that it went back, so Fighting a lower wave beside it reads right (review of 2026.11.23-13)
+  return here + ' lost wave ' + w + ' and went back. Auto tries it again after a tower goes up a level.';
 }
 /* The warning line on the town's map card while its waves are on hold: what happened and the wave it went back to
    (review of 2026.11.20-4: "got through. The vault is full again." read as a contradiction). */

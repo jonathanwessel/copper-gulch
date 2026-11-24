@@ -44,3 +44,17 @@ test('selling a raised tower gives back a share of its upgrades too', () => {
   assert.ok(back > 3 * Math.floor(towerCost(t, 'cannon', 0).coins * SELL_BACK), 'more than a level 1 sells for');
   assert.equal(t.coins, before + back);
 });
+
+// review of 2026.11.23-9: "Level 6 × 2.932" read as too exact; a factor may round the other way at 2 decimals, so no
+// tower breakdown needs a third
+test('no tower damage breakdown writes a factor with three decimals', () => {
+  const g = newGame('rv3', 'gulch'), t = g.town;
+  for (const mod of [null, 1.3, 1.15]) {
+    if (mod) t.mods.set('towerDmg', 'Gunsmith research', { mul: mod });
+    for (const k of Object.keys(TOWERS)) for (const path of [null, 'a', 'b']) for (let L = 1; L <= 30; L++) {
+      if (path && !PATHS[k][path]) continue;
+      const ex = explainTower(t, { kind: k, level: L, path: L >= 5 ? path : null });
+      for (const e of [ex.dmg, ex.poison].filter(Boolean)) for (const v of mulShown(e)) if (v !== null) assert.ok(!/\.\d{3}/.test(String(v)), k + ' ' + L + ' ' + v);
+    }
+  }
+});

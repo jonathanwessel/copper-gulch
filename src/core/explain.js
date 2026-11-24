@@ -96,7 +96,7 @@ export function explainTower(town, t) {
     if (p && pathMul && pathMul !== 1) rows.push({ label: p.name, mul: pathMul });
     if (k && forkMul !== 1) rows.push({ label: k.name, mul: forkMul });
     // the old-waves bonus names the wave it lasts to (review of 2026.11.19-10: "Until you beat your best wave" was unclear)
-    rows.push(...modRows(town.mods, stat).map(r => (r.label === OLD_LABEL ? { ...r, label: oldWavesLabel(town) } : r)));
+    rows.push(...modRows(town.mods, stat).map(r => (r.label === OLD_LABEL ? { ...r, label: oldWavesLabel(town), old: true } : r)));
     return done(unit, rows);
   };
   // the first row is the tower when new (review of 2026.11.23-7: "Base damage" was a word a new player had not learned)
@@ -122,11 +122,16 @@ export function explainTower(town, t) {
 /* Short, so "× 3" stays on its line on a phone (review of 2026.11.19-12: "Stronger on waves you beat before, up to wave 23"
    wrapped and read as a sentence). The wave number on the play screen turns gold while it lasts. */
 /* (review of 2026.11.19-13: "Beaten waves 1-23 × 3" on wave 3 read as a mystery; the wave number turns gold while it lasts) */
-export const oldWavesLabel = () => 'Won last time'; // review of 2026.11.20-15: "signing" was a word a new player had not learned // why it is easier, the charter, within the 20 letters beside × 3 (review of 2026.11.20-14: "Wave beaten before" did not say why) // a fact about this wave, "Wave beaten before × 3" (review of 2026.11.20-13: "Under best wave 22" read as jargon) // review of 2026.11.20-10: says how long it lasts, so × 3 reads as a boost until you are back there // review of 2026.11.20-9: says what earns it, the waves before the old best. // review of 2026.11.20-8: name the bonus. // review of 2026.11.20-7: "Wave beaten before × 3" said nothing to a new player, this says why it is easier. 2026.11.20-4: "Replay waves 1-22 × 3" did not say why // what it is for (review of 2026.11.20-2: "Best wave 22 bonus" was unclear, 2026.11.20-3: "Catch-up" read as jargon)
+/* (review of 2026.11.23-9: "Won last time" was flagged again, after six rewordings, so by the twice-flagged rule the
+   words gave way to a picture: the row's label is the wave number in gold, drawn like the wave bar's own gold number,
+   which is gold while this bonus lasts. The row carries old: true so the box draws it as that badge.) */
+export const oldWavesLabel = town => (town && town.wave ? 'Wave ' + town.wave : 'Wave');
 
 /* The vault's strength in hits (a stockpile's too), and how many hits each raider that gets there takes. */
 export function explainVault(town) {
-  const rows = [{ label: town.def && town.def.store === 'stockpile' ? 'Full stockpile' : 'Full vault', base: wavesOf(town).vault }, ...modRows(town.mods, 'vault')];
+  // the start is named by the place's store, the total in the sheet is Most hits (review of 2026.11.23-11: "Full vault"
+  // and "Full strength" were two names for one thing)
+  const rows = [{ label: town.def && town.def.store === 'stockpile' ? 'Stockpile' : 'Vault', base: wavesOf(town).vault }, ...modRows(town.mods, 'vault')];
   const ex = done('hits', rows);
   ex.value = vaultMax(town); // whole hits, as the battle uses
   ex.left = Math.max(0, Math.ceil(town.vault.hp));

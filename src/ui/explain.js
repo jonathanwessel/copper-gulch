@@ -74,8 +74,9 @@ export function mulShown(ex) {
       near[i] = shownMul(n, r.mul); other[i] = shownMul(n === lo ? hi : lo, r.mul);
     }
     if (!first) first = near;
-    // nearest first at 1-2, then 2, then 3 decimals; only at 3 decimals may a factor round the other way
-    for (let mask = 0; mask < (digits === 3 ? 1 << Math.min(idx.length, 6) : 1); mask++) {
+    // nearest first at 1-2, then 2, then 3 decimals; at 2 or 3 a factor may round the other way, so a level row reads
+    // "× 2.94", never "× 2.932" (review of 2026.11.23-9; with this no tower breakdown needs 3 decimals)
+    for (let mask = 0; mask < (digits ? 1 << Math.min(idx.length, 6) : 1); mask++) {
       const vals = near.map((v, i) => { const j = idx.indexOf(i); return j >= 0 && mask >> j & 1 ? other[i] : v; });
       if (read(vals) === want) return vals;
     }
@@ -86,11 +87,12 @@ export function mulShown(ex) {
 /* The breakdown box: one row per part, then the total. */
 export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
   const box = el('div', 'explain why');
-  const row = (a, b, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, b)); box.append(r); };
+  // the old-waves row's label is the wave bar's gold wave number (review of 2026.11.23-9)
+  const row = (a, b, cls, old) => { const r = el('div', cls); r.append(el('span', old ? 'oldwave' : null, a), el('b', null, b)); box.append(r); };
   const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
   // a price that reads "almost 0 coins": a factor under 0.01 reads "÷ 2,000" with it
   const almost = ex.unit === 'coins' && shownNum('coins', ex.value) === 'almost';
-  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul));
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul), null, r.old);
   if (total && (ex.rows.length > 1 || ex.unit === 'reach')) row(total, unitText(ex.unit, ex.value, extra), 'total'); // total null: the price bar above says it
   return box;
 }
@@ -138,7 +140,18 @@ export function vaultSheet(town) {
     const paint = () => {
       const ex = explainVault(town), s = JSON.stringify([ex.rows, ex.value, ex.left]);
       if (s === sig) return; sig = s;
-      const box = explainBox(ex, { total: 'Full strength' }), left = el('div', 'total');
+      // each bonus as the hits it adds, so nothing is left to multiply (review of 2026.11.23-11: "War Office × 1.25"
+      // was a sum for the player to work out), then the most it holds
+      const box = el('div', 'explain why'), left = el('div', 'total');
+      const add = (a, v, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, v)); box.append(r); };
+      let v = 0;
+      for (const r of ex.rows) {
+        if (r.base !== undefined) { v = r.base; add(r.label, unitText('hits', r.base)); continue; }
+        const d = v * (r.mul - 1); v += d;
+        add(r.label, (d < 0 ? '-' : '+') + mendText(Math.abs(d)));
+      }
+      // the map card's own words for it (review of 2026.11.23-13: "Most hits" beside the map's "Vault can take")
+      if (ex.rows.length > 1) add((ex.rows[0].label === 'Stockpile' ? 'Stockpile' : 'Vault') + ' can take', unitText('hits', ex.value), 'total');
       const hits = el('b', 'hitsleft'); hits.append(heart(), el('span', null, unitText('hits', ex.left))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
       left.append(el('span', null, 'Hits left'), hits);
       const mend = el('div', 'total'); mend.append(el('span', null, 'Each wave you beat'), el('b', null, '+' + mendText(ex.mend)));

@@ -133,3 +133,16 @@ test('a fever carrier that falls as the war wagon drops its crew passes its pois
   assert.equal(crew.length, st.n);
   assert.ok(crew.some(x => x.poisonT > 0), 'a crew member beside the carrier caught its poison');
 });
+
+// review of 2026.11.23-9: the stage words were flagged twice on the bar, so the bar shows a picture of what fell off
+// and an arrow for the pace instead, from the stage's own numbers
+test('every boss stage has a picture and a pace arrow that match its numbers', async () => {
+  const { stagePic } = await import('../src/ui/boss.js');
+  for (const [k, F] of Object.entries(FOES)) for (const st of F.stages || []) {
+    const p = stagePic(k, st.key);
+    assert.ok(p && p.pic, k + ' picture');
+    if (st.drop) assert.equal(p.pic, st.drop, k + ' shows the raiders it dropped');
+    assert.equal(p.speed, st.speed < 1 ? 'down' : 'up', k + ' arrow follows its pace');
+  }
+  assert.equal(stagePic('raider', 'crew'), null);
+});

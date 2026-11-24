@@ -40,7 +40,9 @@ test('the old-waves damage row says up to which wave', () => {
   const rows = explainTower(t, t.towers[0]).dmg.rows;
   assert.ok(!rows.some(r => r.label === OLD_LABEL));
   const row = rows.find(r => r.label === oldWavesLabel(t));
-  assert.match(row.label, /^[A-Z][a-z ]{2,19}$/); // short beside × 3 (the words are pinned in test/words.test.js) assert.equal(row.mul, 3);
+  // short beside × 3, drawn as the wave bar's gold number (the words are pinned in test/words.test.js)
+  assert.ok(row.old && row.label.length <= 20);
+  assert.equal(row.mul, 3);
 });
 
 test('institutions name the outposts they help', () => {

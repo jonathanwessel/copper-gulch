@@ -166,7 +166,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       }
       if (more) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
-    if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) powerChip.classList.toggle('low', low); }
+    if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) { powerChip.classList.toggle('low', low); powerChip.querySelector('.gname').textContent = low ? 'Low power' : GOODS[BUILDINGS[gm].makes].name; } } // the red count says why (review of 2026.11.23-9)
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
     // a boom or bust (src/core/market.js): a small arrow in the chip's corner, so the chip keeps its size
     const bm = boomNow(game), ev = bm ? (bm.f > 1 ? 'boom' : 'bust') : '';
@@ -203,7 +203,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
   const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id), capital: openCapital }));
-  const openVault = () => sheets.open('vault', store === 'vault' ? 'Vault' : 'Stockpile', vaultSheet(town));
+  const openVault = () => sheets.open('vault', titled(store === 'vault' ? 'Vault' : 'Stockpile'), vaultSheet(town)); // names its place (review of 2026.11.23-11)
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
   const openWave = () => sheets.open('wave', waveTitle(town), waveSheet(town));
@@ -292,10 +292,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     line.addEventListener('click', () => { why = !why; showWhy = why; paintCard(); });
     card.append(line);
     line.setAttribute('aria-expanded', String(why && !!L));
-    if (why && L) { const wb = explainBox(made); card.append(wb); if (showWhy) showAbovePin(line, wb); } // the tapped row stays in view above it
+    if (why && L) card.append(explainBox(made));
     const ins = Object.entries(b.inputs), goodsIn = ins.filter(([k]) => !isGrid(k)); // power is not used up by each one, so it has its own line (review of 2026.11.20-12: "Each glass uses 2 sand and 1 power")
     if (goodsIn.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + goodsIn.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
     usedEl = null; if (usedText) card.append(usedEl = el('p', 'uses', usedText)); // what goes in, then where it goes
+    // the tapped row stays in view above the pinned price, down to the line of where its goods go (review of
+    // 2026.11.23-9: that last line sat under the pinned bar)
+    if (why && L && showWhy) showAbovePin(line, card.lastElementChild);
     // goods shipped in from another town (src/core/economy.js, ship): where they come from, and what to do when short
     const imp = ins.map(([k]) => k).filter(k => ((town.def && town.def.imports) || []).includes(k));
     const fromName = g => { const t = TOWNS[GOODS[g].town]; return t ? t.short || t.name : 'another town'; };
@@ -455,7 +458,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       r.dataset.why = key; r.setAttribute('aria-expanded', String(whyStat === key)); r.classList.toggle('on', whyStat === key);
       r.addEventListener('click', () => { whyStat = whyStat === key ? null : key; showWhy = !!whyStat; paintCard(); });
     };
-    line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison || st.rot ? ' + ' + fmtDmg(st.poison || st.rot) + '/s poison' : ''), 'dmg');
+    line('Damage', fmtDmg(st.dmg) + ' a hit' + (st.poison || st.rot ? ' + ' + fmtDmg(st.poison || st.rot) + ' poison a second' : ''), 'dmg'); // in words like Shots (review of 2026.11.23-9: "105/s poison" beside "1.4 a second")
     if (st.rot) line('Poison lasts', 'Until the raider falls');
     // poison eats armor (M6a): from its level, and before it what the level brings
     if (st.eat) line('Poisoned raiders', eatWords(st.eat));
@@ -541,8 +544,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('order:done', e => { if (!game.catching) toast(orderDone(e, e.town === town.id), 4000); }),
     game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
-    game.bus.on('research:done', e => { if (e.town === town.id) toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000, { kind: 'here' }); }),
-    game.bus.on('research:new', e => { if (e.town === town.id) toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000, { kind: 'here' }); }),
+    // not over the open Research sheet, whose rows already show it (review of 2026.11.23-9)
+    game.bus.on('research:done', e => { if (e.town === town.id && sheets.current !== 'research') toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000, { kind: 'here' }); }),
+    game.bus.on('research:new', e => { if (e.town === town.id && sheets.current !== 'research') toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000, { kind: 'here' }); }),
     game.bus.on('breach', e => {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
@@ -585,7 +589,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // an explainer card is up and stops the game, so a goal it just finished is not marked done yet: it goes from the
     // strip at once (review of 2026.11.19-4: "Beat wave 10 to open Copper Gulch" behind "Copper Gulch is open")
     const coachEl = document.getElementById('coach'), stale = !!(g0 && g0.done && coachEl && !coachEl.hidden && g0.done(goalContext(game, town)));
-    const now = (boss && sendsAway(g0)) || lostUp || stale ? null : g0; // a boss fight here: no goal that sends you away
+    // a card with its own Play button for the next place is up: the strip does not say the same trip a second way
+    // (review of 2026.11.23-9: "Tap Map, then tap Copper Gulch" beside the card's Play Copper Gulch)
+    const goBtn = document.getElementById('coachGo'), goCard = !!(coachEl && !coachEl.hidden && goBtn && !goBtn.hidden);
+    // a boss fight here: no goal that sends you away
+    const now = (boss && sendsAway(g0)) || (goCard && sendsAway(g0)) || lostUp || stale ? null : g0;
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
@@ -847,8 +855,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     perksBtn.hidden = !T.perks; perksBtn.classList.toggle('dot', D.perks); // an outpost has no charter
     autoBtn.hidden = !T.auto; autoBtn.classList.toggle('dot', D.auto);
     autoBtn.classList.toggle('on', autoOn(game, town, 'towers') || autoOn(game, town, 'research'));
+    // the clock says what it counts to (review of 2026.11.23-9: "To arms 3:54" said nothing of what the time was)
     armsBtn.hidden = !T.arms;
-    if (T.arms) { const a = town.arms || { t: 0, cd: 0 }, s = a.t > 0 ? clock(a.t) : a.cd > 0 ? clock(a.cd) : ''; setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s; if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0); }
+    if (T.arms) { const a = town.arms || { t: 0, cd: 0 }, s = a.t > 0 ? 'Back in ' + clock(a.t) : a.cd > 0 ? 'Ready in ' + clock(a.cd) : ''; setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s; if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0); }
     paintPlace();
     perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }

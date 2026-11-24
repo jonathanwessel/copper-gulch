@@ -6,6 +6,9 @@
           output, picked at random in the range), pay (coins per unit, times the good's base price), influence
           (Influence for an ask of `per` minutes, by the good's tier), least (the smallest ask, in units, by tier),
           retry (seconds before an empty spot on the board looks again). */
+/* The Capital in one sentence, on its map card and its own card before it is built (review of 2026.11.23-9: two
+   sentences there read as a manual). */
+export const CAPITAL_ABOUT = 'Send goods here for coins and Influence, which buys upgrades for every town.';
 export const CAPITAL_DEF = {
   name: 'Capital',               // the map label's name too (review of 2026.11.20-10: "Capital" against "The Capital")
   short: 'Capital',

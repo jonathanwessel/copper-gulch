@@ -61,9 +61,14 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
       back.hidden = false; sheet.hidden = false;
     },
     close() { cur = null; sheet.hidden = true; back.hidden = true; body.replaceChildren(); },
-    frame(dt) { if (cur && cur.tick) cur.tick(dt); },
+    frame(dt) { if (cur && cur.tick) cur.tick(dt); if (cur) moreBelow(); },
     sync() { if (cur && cur.tick && cur.tick.sync) cur.tick.sync(); },
   };
+  /* A sheet with more below its edge darkens its foot, so a row cut there reads as more to scroll to (reviews of
+     2026.11.23-9 and -11: the Rail Office's price and the Vault sheet's raider list cut at the edge in landscape, with
+     only a thin scrollbar to say there was more). Gone once scrolled to the end. */
+  const moreBelow = () => { const m = body.scrollHeight - body.scrollTop - body.clientHeight > 4; if (body.classList.contains('more') !== m) body.classList.toggle('more', m); };
+  body.addEventListener('scroll', moreBelow, { passive: true });
   x.addEventListener('click', api.close); back.addEventListener('click', api.close);
   return api;
 }
@@ -71,7 +76,9 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
 /* Where a good's price stands against its full price, in one word for the end of its bar. */
 /* A good's price row on the Goods sheet: [the price, how high it stands]. A price under 1 coin that is down says it
    once, by the price (review of 2026.11.22-12: "Under 1 coin each" beside "Down 99%"). */
-export const priceRow = (price, s) => { const pl = priceLabel(price), pw = priceWord(s); return [pl, price > 0 && price < .95 && pw.startsWith('Down') ? '' : pw]; };
+/* A Goods row's price and how far it has moved. At its usual price the row says nothing more (review of 2026.11.23-9:
+   "Full price" alone at the row's edge read as a label for nothing); the price bar in its breakdown still ends in it. */
+export const priceRow = (price, s) => { const pl = priceLabel(price), pw = priceWord(s); return [pl, pw === 'Full price' || (price > 0 && price < .95 && pw.startsWith('Down')) ? '' : pw]; };
 export const priceWord = s => (s > 1.05 ? 'Up ' + Math.min(99, Math.round((s - 1) * 100)) + '%' : s >= .95 ? 'Full price' : 'Down ' + Math.min(99, Math.max(5, Math.round((1 - s) * 100))) + '%'); // review of 2026.11.20-10: "1% of best" did not say best of what // review of 2026.11.20-9: "High price" beside "Under 1 coin each" read as an absolute price, a share of the good's own best price does not // review of 2026.11.20-8: "Top" and "High" alone gave no meaning // price: one unit's; almost 0 is said once, by the price at the bar's front (review of 2026.11.20-7: "Almost 0" sat where Top sits)
 
 /* The Save for towers switch's state: how many upgrades of every tower it saves goods for, "2 upgrades" or "4 upgrades". */
@@ -81,7 +88,10 @@ export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESE
 /* Review of 2026.11.20-15: "Each tower keeps goods for" read as a time span, its pill did not look tappable, and the
    building cards called the same idea Keep for towers. Now one name, Save for towers, and two plain buttons. */
 export const STOCK_LABEL = 'Save for towers';
-export const STOCK_CHOICES = [['normal', RESERVE.levels + ' upgrades'], ['lots', RESERVE.levels * RESERVE.lots + ' upgrades']]; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
+/* The owner's own words for the two choices (2026-11-19, "Stock for towers: Normal / Lots"): the counts of upgrades
+   were read five times and flagged again as "Save for towers · 2 upgrades" (review of 2026.11.23-9), so by the
+   twice-flagged rule the numbers leave the buttons; each row's "for towers" count shows what is kept. */
+export const STOCK_CHOICES = [['normal', 'Normal'], ['lots', 'Lots']]; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* Town orders on the Goods sheet (src/core/orders.js): the town's reputation, the order running with how much is sent and
    the time left, and the offers with Take. Taking another while one runs, or Give up, takes two taps, since it costs
@@ -322,6 +332,21 @@ export const otherLabs = (game, town) => Object.values(game.towns).filter(t => t
 /* Research running in the other towns, one line each, "Copper Gulch · Sharp Saws · 13 sec left". This town's own
    running item is on its row below, so it is not said twice. */
 /* Every other town that can research, idle ones too, so a wasted slot shows (review of 2026.11.20-16). */
+/* What a town with nothing researching would start from another place's Research sheet: the item Auto-research
+   would raise (one already researched by hand), else the cheapest item it can pay for now. null when none (review of
+   2026.11.23-9: the outpost's sheet only said a rule, so its rows got something to do). */
+export function idlePick(town) {
+  if (!researchOpen(town) || town.lab) return null;
+  const auto = nextResearch(town);
+  if (auto) return auto.id;
+  let best = null;
+  for (const id of itemsOf(town)) {
+    if (researchBlock(town, id)) continue;
+    const c = researchCost(town, id);
+    if (town.coins + 1e-9 >= c && (!best || c < best.c)) best = { id, c };
+  }
+  return best ? best.id : null;
+}
 export const elsewhereLines = (game, town) => otherLabs(game, town).map(x => x.name + ' · ' + x.what);
 /* The Research sheet. goTo(id) puts another town in play with its Research open (a row under Your towns). */
 export function researchSheet(game, town, goTo = null) {
@@ -347,7 +372,15 @@ export function researchSheet(game, town, goTo = null) {
           const r = el('button', 'option labrow' + (x.what === 'Not researching' ? ' idle' : '')); r.dataset.town = x.id;
           r.append(el('b', null, x.name), el('small', null, x.what));
           r.addEventListener('click', () => { if (goTo) goTo(x.id); });
-          return r;
+          // a town with nothing running gets a button that starts its next item from here
+          const t = game.towns[x.id], pick = t && idlePick(t);
+          if (!pick) return r;
+          const line = el('div', 'labline'), go = btn('', 'btn small labstart'); go.dataset.start = x.id;
+          go.append(el('span', null, 'Start'), el('small', null, RESEARCH[pick].name));
+          go.setAttribute('aria-label', 'Start ' + RESEARCH[pick].name + ' in ' + ((t.def && (t.def.short || t.def.name)) || t.id));
+          go.addEventListener('click', () => { const p = idlePick(t); if (p) startResearch(game, t, p); paintAway(true); });
+          line.append(r, go);
+          return line;
         }));
       }
       const fl = (folded ? 'Show' : 'Hide') + ' your other towns'; if (awayHead.textContent !== fl) awayHead.textContent = fl;

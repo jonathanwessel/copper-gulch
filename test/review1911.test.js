@@ -1,5 +1,6 @@
 // Review of 2026.11.19-11: the old-waves row says why damage triples, the foreman line says what it does, the price card
 // gives one reason at a time, the institutions give amounts a player can check and a bought upgrade has its row.
+import { CAPITAL_ABOUT } from '../src/data/capital.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -40,6 +41,9 @@ test('a bought Price Lists shows on the card and as a row in the price breakdown
 
 test('the Capital says what Influence is and its toast names a building the card shows', () => {
   const cap = fs.readFileSync(new URL('../src/ui/capital.js', import.meta.url), 'utf8'), map = fs.readFileSync(new URL('../src/ui/map.js', import.meta.url), 'utf8');
-  for (const s of [cap, map]) assert.match(s, /Send goods here for coins and Influence. Spend Influence on upgrades/);
+  // one sentence from one place, on the map card and the Capital's own card (review of 2026.11.23-9)
+  for (const s of [cap, map]) assert.match(s, /CAPITAL_ABOUT/);
+  assert.match(CAPITAL_ABOUT, /Influence/); assert.match(CAPITAL_ABOUT, /upgrades/);
+  assert.equal(CAPITAL_ABOUT.split('. ').length, 1, 'one sentence');
   assert.match(cap, /toast\(inst\.name \+ ' upgraded\. '/);
 });
