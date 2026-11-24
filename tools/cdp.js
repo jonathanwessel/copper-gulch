@@ -88,6 +88,9 @@ async function launch(opts = {}) {
       const { targetId } = await bws.send('Target.createTarget', { url: 'about:blank' });
       const s = await connect(`ws://127.0.0.1:${port}/devtools/page/${targetId}`);
       await s.send('Page.enable'); await s.send('Runtime.enable');
+      // a tool's page: the game shows tip cards as soon as they fall due, since the tools force one card after
+      // another (src/core/cards.js spaces them for players; test/cards.test.js proves the spacing)
+      await s.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.CG_TOOLS = true' });
       let loaded = null; s.on('Page.loadEventFired', () => { if (loaded) { loaded(); loaded = null; } });
       const waitLoad = () => new Promise(r => { loaded = r; setTimeout(r, 15000); });
       const page = {

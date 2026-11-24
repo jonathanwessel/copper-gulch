@@ -1704,6 +1704,11 @@ async function run() {
         b.click(); await new Promise(r => setTimeout(r, 50));
         out.stopped = !CG.speech.speaking() && syn.cancels >= 1 && b.getAttribute('aria-pressed') === 'false' && !CG.audio.state().ducked;
         b.click(); await new Promise(r => setTimeout(r, 50));
+        // the Stone Camp card comes once wave 1 is called (clarity fix 7), so a Crossbow goes up and wave 1 starts
+        // first; the Call now card would come before it, so it counts as seen
+        const d = await import(new URL('src/core/defense.js', location.href).href), g = CG.game, t = g.town;
+        t.coins = Math.max(t.coins, 500); t.goods.stone = Math.max(t.goods.stone || 0, 50);
+        d.buildTower(g, t, 0, 'crossbow'); d.callEarly(g, t); g.shared.seen.waves = true;
         const c0 = syn.cancels; CG.audio.set('read', 1); document.getElementById('coachOk').click();
         out.closeStops = !CG.speech.speaking() && syn.cancels > c0;
         for (let i = 0; i < 60 && CG.coach.current !== 'dc-stone'; i++) await new Promise(r => setTimeout(r, 100));

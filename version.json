@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.24-9",
-  "notes": "A stalled workshop says what it waits for, and the goal asks for the building that feeds it"
+  "version": "2026.11.24-10",
+  "notes": "Tip cards come one at a time with play between them, and cards about what to do now come first"
 }

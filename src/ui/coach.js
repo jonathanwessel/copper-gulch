@@ -24,6 +24,7 @@ import { capitalNext, capitalOpen } from '../core/capital.js';
 import { foundCost } from '../core/tree.js';
 import { NODE_COST } from '../data/institutions.js';
 import { ordersOf } from '../core/orders.js';
+import { cardDue, playTime } from '../core/cards.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -93,7 +94,7 @@ export function helper(town, game = null) {
 /* locate(target) gives a screen point { x, y } for a 3D target, or null. */
 // a pixel speaker, with sound waves while it reads
 const SPEAKER = '<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 6h3v4H2zM5 5h2v6H5zM7 3h2v10H7z"/><path class="wave" fill="currentColor" d="M11 6h1v4h-1zM13 4h1v8h-1z"/></svg>';
-export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, onGo = () => {}, off = false, speech = null, readAuto = () => false }) {
+export function startCoach({ game, town, root, locate = () => null, pause = () => {}, onSeen = () => {}, onGo = () => {}, off = false, speech = null, readAuto = () => false, spaced = true }) {
   const seen = game.shared.seen || (game.shared.seen = {});
   let cur = null, wait = 1.2, acc = 0;
   const layer = el('div', 'coach'); layer.hidden = true; layer.id = 'coach';
@@ -168,8 +169,9 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
       if (cur) { place(); return; }
       if ((wait -= dt) > 0 || (acc += dt) < .25) return;
       acc = 0;
-      const h = helper(town, game), next = EXPLAINERS.find(e => !seen[e.id] && (!e.town || e.town === h.id) && e.when(h));
-      if (next) show(next);
+      // spaced in the first minutes, and a card about what to do now before a tip (src/core/cards.js; clarity fix 7)
+      const h = helper(town, game), next = cardDue(EXPLAINERS, h, seen, playTime(game), spaced ? game.cardAt ?? null : null);
+      if (next) { game.cardAt = playTime(game); show(next); }
     },
     dismiss() {
       if (!cur) return;
@@ -181,6 +183,8 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     destroy() { off = true; hush(); offSpeech(); if (cur) { cur = null; pause(false); } layer.remove(); },
     /* What the open card spotlights ({ plot }, { spot }, { el }...), or null (for the tools). */
     target: () => (cur && cur.e.at ? cur.e.at(helper(town, game)) : null),
+    /* Turn the cards on or off for a run started with ?coach=off (for the tools: the Ridge shots open one card). */
+    wake(on = true) { off = !on; },
     /* What the speaker button reads for the open card (for the tools). */
     words: () => (cur ? words() : null),
   };

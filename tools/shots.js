@@ -187,6 +187,8 @@ const OUTPOST = [
   ['bandits-stage', async () => { const f = CG.game.town.waves.foes.find(x => x.kind === 'bandits'); if (f) f.hp = f.max * .45; await new Promise(r => setTimeout(r, 900)); }],
   ['boss-bar-intro', async () => { delete CG.game.shared.seen['boss-bar']; for (let i = 0; i < 60 && CG.coach.current !== 'boss-bar'; i++) await new Promise(r => setTimeout(r, 100)); }],
   ['worker-intro', async () => { CG.coach.dismiss(); const t = CG.game.town; t.arms = { t: 30, cd: 300, clock: 0 }; delete CG.game.shared.seen['worker-tap']; for (let i = 0; i < 60 && CG.coach.current !== 'worker-tap'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  // the Selling card on the Goods button (clarity fix 7 made the Selling and Goods cards one)
+  ['selling-card', async () => { CG.coach.dismiss(); CG.game.town.arms = { t: 0, cd: 0, clock: 0 }; delete CG.game.shared.seen.goods; for (let i = 0; i < 60 && CG.coach.current !== 'goods'; i++) await new Promise(r => setTimeout(r, 100)); }],
   ['won', () => { CG.coach.dismiss(); CG.game.town.arms = { t: 0, cd: 0, clock: 0 }; delete CG.game.shared.seen['dc-won']; CG.game.town.bestWave = 10; }],
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
   // the back button's card, the first time there is somewhere to go back to
@@ -226,8 +228,9 @@ const RIDGE = [
   ['ridge-held', () => { document.getElementById('holdWaves').click(); }],
   ['ridge-ready', () => { CG.game.town.coins = 2e5; }],
   // the card that points at Map once Iron Ridge is in sight
-  ['found-card', async () => { delete CG.game.shared.seen.found; for (let i = 0; i < 60 && CG.coach.current !== 'found'; i++) await new Promise(r => setTimeout(r, 100)); }],
-  ['found', async () => { CG.coach.dismiss(); document.getElementById('mapBtn').click(); for (let i = 0; i < 80 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('ridge'); await new Promise(r => setTimeout(r, 1200)); }],
+  // this run has the coach off, so it wakes for this one card (it never showed in the shots before 2026.11.24-10)
+  ['found-card', async () => { const sn = CG.game.shared.seen; window.__foundSeen = { ...sn }; CG.coach.skipAll(); delete sn.found; CG.coach.wake(); for (let i = 0; i < 60 && CG.coach.current !== 'found'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  ['found', async () => { CG.coach.dismiss(); CG.coach.wake(false); if (window.__foundSeen) { const sn = CG.game.shared.seen; for (const k of Object.keys(sn)) delete sn[k]; Object.assign(sn, window.__foundSeen, { found: true }); window.__foundSeen = null; } document.getElementById('mapBtn').click(); for (let i = 0; i < 80 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await new Promise(r => setTimeout(r, 100)); CG.mapui.openSite('ridge'); await new Promise(r => setTimeout(r, 1200)); }],
   ['ridge', async () => { document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'ridge'); i++) await new Promise(r => setTimeout(r, 100)); }],
   ['ridge-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - 1, z: 1.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['ridge-built', () => {

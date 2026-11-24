@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-10',
+    lines: [
+      'Tip cards come one at a time, with time to play between them.',
+      'Cards about what to do now come first. Tips about the Menu and other buttons wait until you need them.',
+      'The Selling and Goods cards are now one card.',
+    ],
+  },
+  {
     v: '2026.11.24-9',
     lines: [
       'When a building runs out of something, its card says what it needs and which building to upgrade.',

@@ -19,6 +19,7 @@ import { tabs, stripGoods } from '../src/core/reveal.js';
 import { capitalOpen } from '../src/core/capital.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { SAVE_VERSION } from '../src/core/save.js';
+import { cardDue, CARD_GAP } from '../src/core/cards.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const dir = path.resolve(process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'playthrough');
@@ -31,7 +32,7 @@ const BUTTON_OPENS = { goods: 'goodsBtn', research: 'researchBtn', perks: 'perks
 /* Plays the newcomer and returns the moments: [{ at, town, kinds: [..], what: [..], goal, action, save }]. */
 export function record(seed = SEED, minutes = MINUTES) {
   const moments = [], bossSeen = new Set(), lostSeen = new Set();
-  let lostEv = null;
+  let lostEv = null, cardAt = null;
   let wired = false, lastNew = 0, seenTabs = null, queue = [], capitalAt = null;
   const goalText = g => { try { const x = goalNow(g); if (!x) return ''; const c = goalContext(g, g.town), s = typeof x.text === 'function' ? x.text(c) : x.text; return String(s || x.title || x.id || ''); } catch (e) { return ''; } };
   const keep = (g, at, kind, what, action = null) => {
@@ -76,8 +77,10 @@ export function record(seed = SEED, minutes = MINUTES) {
     // a card that reads the page: the boom card wants its good's chip on the strip (the first run showed it five times,
     // since off the page it was never due and so never marked seen)
     if (h.boom) h.boomChip = stripGoods(t).includes(h.boom.good);
-    const due = EXPLAINERS.find(e => !seen[e.id] && (!e.town || e.town === h.id) && e.when(h));
-    if (due) { keep(g, at, 'card', due.id + ': ' + due.title); seen[due.id] = true; } // the save shows it due, then Got it
+    // spaced as the game spaces them (src/core/cards.js; clarity fix 7)
+    const due = cardDue(EXPLAINERS, h, seen, at, cardAt);
+    // each card keeps its own time, since a moment within 3 seconds of another is one shot with the first one's time
+    if (due) { cardAt = at; keep(g, at, 'card', due.id + ': ' + due.title); (moments[moments.length - 1].cards ||= []).push({ at, id: due.id }); seen[due.id] = true; } // the save shows it due, then Got it
     // a quiet stretch is one shot, taken at 2 minutes; its line says how long it lasted in the end
     if (at - lastNew >= QUIET) {
       const q = moments[moments.length - 1];
@@ -89,6 +92,18 @@ export function record(seed = SEED, minutes = MINUTES) {
   return { moments, r };
 }
 
+/* Clarity fix 7's gate: at most 8 tip cards before 5:00, each at least CARD_GAP seconds after the last, none twice. */
+export function cardCheck(moments) {
+  const c = moments.flatMap(m => m.cards || []), out = [], seen = {};
+  const early = c.filter(x => x.at < 300).length;
+  if (early > 8) out.push(early + ' cards before 5:00');
+  c.forEach((x, i) => {
+    if (seen[x.id]) out.push(x.id + ' shown twice'); seen[x.id] = 1;
+    if (i && x.at - c[i - 1].at < CARD_GAP - .01) out.push(c[i - 1].id + ' then ' + x.id + ' ' + (x.at - c[i - 1].at).toFixed(0) + ' s apart');
+  });
+  return out;
+}
+
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 // round first, so 106:59.6 reads 107:00, not 106:60
 const mm = x => { const s = Math.round(x); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -98,6 +113,8 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/playt
   const t0 = Date.now(), { moments, r } = record();
   console.log(`seed ${SEED}: ${moments.length} moments in ${(r.end / 60).toFixed(0)} min of play (${((Date.now() - t0) / 1000).toFixed(0)} s); Dry Creek won ${r.dcWon ? mm(r.dcWon) : 'never'}, Gulch ${r.gulchAt ? mm(r.gulchAt) : 'never'}, Ridge ${r.ridgeAt ? mm(r.ridgeAt) : 'never'}`);
   fs.mkdirSync(dir, { recursive: true });
+  const cardErrs = cardCheck(moments);
+  console.log(cardErrs.length ? 'cards: ' + cardErrs.join('; ') : 'cards ok: at most 8 before 5:00, 20 s apart, none twice');
   const [width, height] = SIZES[SIZE], sleep = ms => new Promise(res => setTimeout(res, ms)), errs = [], lines = [];
   const srv = await start(0), b = await chromium.launch();
   const speechStub = () => {
@@ -147,5 +164,6 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/playt
   const head = `# A newcomer's first play, seed ${SEED}\n\nThe newcomer bot (tools/firstplay.js) on the core, each moment loaded in the real game at ${SIZE} size.\n\n| # | play time | place | what happened | goal strip | shots |\n|---|---|---|---|---|---|\n`;
   fs.writeFileSync(path.join(dir, 'moments.md'), head + lines.join('\n') + '\n');
   console.log('wrote ' + path.join(dir, 'moments.md'));
+  errs.push(...cardErrs);
   if (errs.length) { console.log('page errors:\n' + [...new Set(errs)].slice(0, 20).join('\n')); process.exitCode = 1; }
 }

@@ -14,37 +14,39 @@ import { BOOM } from '../core/market.js';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
-    id: 'dc-welcome', town: 'drycreek', covers: ['welcome:drycreek', 'system:goals'],
+    id: 'dc-welcome', town: 'drycreek', now: 1, covers: ['welcome:drycreek', 'system:goals'],
     title: 'Welcome to Dry Creek',
     text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Tap the Goal at the top to start.',
     when: () => true, at: () => ({ el: '#goal' }),
   },
   {
-    id: 'dc-stone', town: 'drycreek', covers: ['system:economy', 'tier:0'],
+    id: 'dc-stone', town: 'drycreek', now: true, covers: ['system:economy', 'tier:0'],
     title: 'The Stone Camp',
     text: 'This is your Stone Camp. It cuts stone. Tap it to upgrade it. Every level cuts more. Crossbows here are built with stone.',
-    when: () => true, at: () => ({ plot: 'quarry' }),
+    // once wave 1 is called, when the goal asks for its upgrade (clarity fix 7: it came a second after the welcome)
+    when: h => h.towers.length >= 1 && (h.phase === 'wave' || h.bestWave >= 1), at: () => ({ plot: 'quarry' }),
   },
   {
-    id: 'dc-stockpile', town: 'drycreek', covers: ['stockpile'],
+    id: 'dc-stockpile', town: 'drycreek', now: true, covers: ['stockpile'],
     title: 'The stockpile',
     text: 'Raiders ride for this pile of goods. Each one that gets there damages it. If it falls, you lose some coins and go back two waves.',
-    when: h => h.t > 12 && !h.won, at: () => ({ vault: true }),
+    // when the first raiders are on the road (clarity fix 7)
+    when: h => h.t > 12 && !h.won && (h.phase === 'wave' || h.bestWave >= 1), at: () => ({ vault: true }),
   },
   {
-    id: 'dc-mine', town: 'drycreek', covers: ['building:dmine'],
+    id: 'dc-mine', town: 'drycreek', now: true, covers: ['building:dmine'],
     title: 'The Copper Camp',
     text: 'You can build a Copper Camp now. It digs copper ore, which sells for more than stone. Tap it to build it.',
     when: h => h.unlocked('dmine'), at: () => ({ plot: 'dmine' }),
   },
   {
-    id: 'dc-boss', town: 'drycreek', covers: ['boss:bandits'],
+    id: 'dc-boss', town: 'drycreek', now: true, covers: ['boss:bandits'],
     title: 'The bandit wagon',
     text: 'Wave 10 brings the bandit wagon. It is tougher than other raiders. At half health two horsemen ride off it. Stop the wagon and Dry Creek is yours.',
     when: h => h.wave >= 9 && !h.won, at: () => ({ el: '#wave' }),
   },
   {
-    id: 'dc-won', town: 'drycreek', covers: ['outpost:won'], go: 'gulch', button: 'Play Copper Gulch',
+    id: 'dc-won', town: 'drycreek', now: true, covers: ['outpost:won'], go: 'gulch', button: 'Play Copper Gulch',
     title: 'Copper Gulch is open',
     text: 'You beat wave 10 at Dry Creek. Tap Play Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
     when: h => h.won,
@@ -58,21 +60,21 @@ export const EXPLAINERS = [
   },
   // any town: the workers' card, the first time workers are out on the road (roadmap review 2026.11.22-9)
   {
-    id: 'worker-tap', covers: ['workercard'],
+    id: 'worker-tap', now: true, covers: ['workercard'],
     title: 'Your workers',
     text: 'Your workers are fighting by the road, and their buildings make nothing until they go back. Tap a pair of workers to see when they go back.',
     when: h => !!h.workerOut, at: h => (h.workerOut ? { worker: h.workerOut } : null),
   },
   // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
   {
-    id: 'boss-bar', covers: ['bossbar'],
+    id: 'boss-bar', now: true, covers: ['bossbar'],
     title: 'The boss bar',
     text: 'A boss changes when it is badly hurt. Tap this bar to see it.',
     when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch
   {
-    id: 'welcome', town: 'gulch', covers: ['welcome:gulch'],
+    id: 'welcome', town: 'gulch', now: 1, covers: ['welcome:gulch'],
     title: 'Welcome to Copper Gulch',
     text: 'This is your Lumber Camp. It cuts timber. Tap it to upgrade it. Every level cuts more.',
     when: () => true, at: () => ({ plot: 'camp' }),
@@ -81,24 +83,20 @@ export const EXPLAINERS = [
     id: 'camera', covers: ['camera'],
     title: 'Moving around',
     text: 'Drag to move the map. Pinch to zoom. Twist two fingers to turn it.',
-    when: h => h.t > 4,
+    // Dry Creek fits on the screen, so it waits for the Gulch's bigger map (clarity fix 7)
+    when: h => h.t > 4 && (h.towns >= 2 || h.t > 480),
   },
   {
-    id: 'towers', covers: ['system:defense', 'tower:crossbow'],
+    id: 'towers', now: true, covers: ['system:defense', 'tower:crossbow'],
     title: 'Raiders are coming',
     text: 'They ride down the road to rob you. Tap a stone pad and build a Crossbow. A pad between two bends of the road can shoot at both.',
     when: h => h.t > 8 && !h.towers.length, at: () => ({ spot: 0 }),
   },
+  // selling and the Goods button in one card, since both said how to keep a good (clarity fix 7)
   {
-    id: 'market', covers: ['system:market'],
+    id: 'goods', covers: ['system:market', 'goods'],
     title: 'Selling',
-    text: 'Everything you make is sold right away. Sell too much of one good and its price drops for a while, so making several goods earns more. To keep a good instead, tap its building and switch Sell to Off.',
-    when: h => h.flags.firstSale && h.t > 20, at: () => ({ el: '#coins' }),
-  },
-  {
-    id: 'goods', covers: ['goods'],
-    title: 'Goods',
-    text: 'Tap Goods to see what your town has in stock and what each good sells for right now. Tap Sell next to a good to keep it instead of selling it.',
+    text: 'Spare goods sell right after they are made. When you sell a lot of one, its price drops for a while. Tap Goods to see prices, or to stop selling one.',
     when: h => !!h.tabs.goods, at: () => ({ el: '#goodsBtn' }),
   },
   {
@@ -120,7 +118,7 @@ export const EXPLAINERS = [
     when: h => h.stockOpen && h.towers.length > 0, at: () => ({ el: '#stockTowers' }),
   },
   {
-    id: 'waves', covers: ['call'],
+    id: 'waves', now: 1, covers: ['call'],
     title: 'Waves',
     text: 'Raiders come in waves. Each raider that gets through lowers the number by the heart. Tap Call now to start the next wave early and get bonus coins. Tap it right away and the wave has more raiders.',
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
@@ -141,10 +139,10 @@ export const EXPLAINERS = [
     id: 'menu', covers: ['menu', 'slots', 'export'],
     title: 'Menu',
     text: 'Tap Menu to change the graphics, start a new game in another save slot, or copy your save to keep it safe.',
-    when: h => h.towers.length > 0 && h.t > 150, at: () => ({ el: '#menuBtn' }),
+    when: h => h.towers.length > 0 && h.t > 150 && h.towns >= 2, at: () => ({ el: '#menuBtn' }),
   },
   {
-    id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
+    id: 'vault', town: 'gulch', now: true, covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
     text: 'Every raider that gets through hits the vault. The heart at the top shows how many hits it has left. Each wave you beat mends it a little. If the heart reaches 0, you lose coins and go back two waves. Build more towers or upgrade the ones you have.',
     // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
@@ -155,10 +153,11 @@ export const EXPLAINERS = [
     id: 'milestone', covers: ['milestone', 'upgrade'],
     title: 'Milestones',
     text: 'At levels 10, 25, 50 and 100, a building makes twice as much. Tap Makes on its card to see how the number adds up.',
-    when: h => h.anyLevel >= 6, at: h => ({ plot: h.topBuilding }),
+    // when the first level 10 is one level away (clarity fix 7: it came at minute 4 with levels at 6)
+    when: h => h.anyLevel >= 9, at: h => ({ plot: h.topBuilding }),
   },
   {
-    id: 'workshop', covers: ['tier:1'],
+    id: 'workshop', now: true, covers: ['tier:1'],
     title: 'The Sawmill',
     text: 'The Sawmill turns timber into planks, which sell for more. Upgrade the Lumber Camp along with it so it never runs out of timber.',
     when: h => h.unlocked('saw'), at: () => ({ plot: 'saw' }),
@@ -176,67 +175,67 @@ export const EXPLAINERS = [
     when: h => h.foremanPlot !== null, at: h => ({ plot: h.foremanPlot }),
   },
   {
-    id: 'short', covers: ['starved'],
+    id: 'short', now: true, covers: ['starved'],
     title: 'Out of materials',
     text: 'A red edge on a building\'s tag means it ran out of what it needs. Upgrade the building that supplies it.',
     when: h => !!h.starved, at: h => ({ plot: h.starved }),
   },
   {
-    id: 'cannon', covers: ['tower:cannon'],
+    id: 'cannon', now: true, covers: ['tower:cannon'],
     title: 'Cannon',
     text: 'Your Copper Mine digs ore, so you can build a Cannon. Tap a stone pad to build one. It\'s slow, but each shot also hits the raiders around the one it aims at.',
     when: h => h.can('cannon') && (h.made.ore || 0) > 0, at: () => ({ spot: 1 }),
   },
   {
-    id: 'frost', covers: ['tower:frost'],
+    id: 'frost', now: true, covers: ['tower:frost'],
     title: 'Frost Lens',
     text: 'You can build a Frost Lens now. Tap a stone pad to build one. It slows every raider in range, so your other towers get more shots.',
     when: h => h.can('frost') && (h.made.planks || 0) > 0 && (h.made.clay || 0) > 0, at: () => ({ spot: 4 }),
   },
   {
-    id: 'still', covers: ['tower:still'],
+    id: 'still', now: true, covers: ['tower:still'],
     title: 'Snake Oil Still',
     text: 'You can build a Snake Oil Still now. Tap a stone pad to build one. Its poison hurts brutes and bosses most. From level 10 it also eats half their armor, so your other towers hit them harder.',
     when: h => h.can('still') && (h.made.ore || 0) > 0 && (h.made.planks || 0) > 0, at: () => ({ spot: 2 }),
   },
   {
-    id: 'finished', covers: ['tier:2'],
+    id: 'finished', now: true, covers: ['tier:2'],
     title: 'Tools',
     text: 'The Toolsmith makes tools, which sell for much more than the planks and copper that go in.',
     when: h => h.unlocked('toolsmith'), at: () => ({ plot: 'toolsmith' }),
   },
   {
-    id: 'paths', covers: ['path'],
+    id: 'paths', now: true, covers: ['path'],
     title: 'Choose an upgrade',
     text: 'At level 5 this tower turns into one of two kinds. Tap it and pick the one you want. The choice is for good.',
     when: h => h.towerAtLevel(4) !== null, at: h => ({ tower: h.towerAtLevel(4) }),
   },
   {
-    id: 'fork', covers: ['fork'],
+    id: 'fork', now: true, covers: ['fork'],
     title: 'Still at level 20',
     text: 'The next upgrade for this Still is a choice of two. Slow Rot poisons raiders until they fall. Last Call hits raiders low on health much harder. Tap the Still to pick.',
     when: h => h.forkReady !== null, at: h => ({ tower: h.forkReady }),
   },
   {
-    id: 'fork-cannon', covers: ['fork:cannon'],
+    id: 'fork-cannon', now: true, covers: ['fork:cannon'],
     title: 'Cannon at level 20',
     text: 'The next upgrade for this Cannon is a choice of two. Rocket Battery fires 4 rockets at once and reaches far. Big Shell fires one huge shot. Tap the Cannon to pick.',
     when: h => h.forkCannon != null, at: h => ({ tower: h.forkCannon }),
   },
   {
-    id: 'fork-crossbow', covers: ['fork:crossbow'],
+    id: 'fork-crossbow', now: true, covers: ['fork:crossbow'],
     title: 'Crossbow at level 20',
     text: 'The next upgrade for this Crossbow is a choice of two. Piercing Bolts go through up to 3 raiders. Sharpshooter aims at the toughest raider and hits much harder. Tap the Crossbow to pick.',
     when: h => h.forkCrossbow != null, at: h => ({ tower: h.forkCrossbow }),
   },
   {
-    id: 'fork-frost', covers: ['fork:frost'],
+    id: 'fork-frost', now: true, covers: ['fork:frost'],
     title: 'Frost Lens at level 20',
     text: 'The next upgrade for this Frost Lens is a choice of two. Blizzard reaches much farther. Cold Snap slows raiders much more. Tap the Frost Lens to pick.',
     when: h => h.forkFrost != null, at: h => ({ tower: h.forkFrost }),
   },
   {
-    id: 'boss', town: 'gulch', covers: ['boss'],
+    id: 'boss', town: 'gulch', now: true, covers: ['boss'],
     title: 'The war wagon',
     text: 'Every 10th wave brings the war wagon. It is slow and heavily armored. At half health its crew jumps off and runs for the vault. If the wagon gets there, the wave is lost.',
     when: h => h.wave % 10 === 0 && h.phase === 'wave', at: () => ({ el: '#wave' }),
@@ -257,7 +256,7 @@ export const EXPLAINERS = [
     id: 'numbers', covers: ['explain'],
     title: 'Tap to see why',
     text: 'Tap your coins at the top to see what earns them. Tap Damage, Range or another line on a card to see what adds to it.',
-    when: h => h.flags.firstSale && h.towers.length > 0 && h.t > 150, at: () => ({ el: '#coins' }),
+    when: h => h.flags.firstSale && h.towers.length > 0 && h.t > 150 && h.towns >= 2, at: () => ({ el: '#coins' }),
   },
   {
     id: 'dots', covers: ['dots'],
@@ -280,7 +279,7 @@ export const EXPLAINERS = [
     when: h => h.awayFighting && h.t > 5, at: () => ({ el: '#mapBtn' }),
   },
   {
-    id: 'lost', covers: ['lost'],
+    id: 'lost', now: true, covers: ['lost'],
     title: 'Waves on hold',
     text: 'Raiders beat this town while you were away, so its waves are on hold. Build or upgrade towers. Then tap Resume waves.',
     when: h => h.autoHold && h.phase === 'break', at: () => ({ el: '#holdWaves' }),
@@ -305,7 +304,7 @@ export const EXPLAINERS = [
   },
   {
     // it covers the pits too: their own card showed at wave 4, 8 waves before a Mortar could stand there (clarity fix 4)
-    id: 'mortar', covers: ['tower:mortar', 'pit'],
+    id: 'mortar', now: true, covers: ['tower:mortar', 'pit'],
     title: 'The Mortar is open',
     text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. A dark spot shows where each one will land. It can\'t hit raiders close to it.',
     when: h => !!h.flags['open:mortar'] && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
@@ -324,7 +323,7 @@ export const EXPLAINERS = [
   },
   // Iron Ridge and Pine Hollow
   {
-    id: 'found', covers: ['found'],
+    id: 'found', now: true, covers: ['found'],
     title: 'A new town',
     text: 'Iron Ridge is in sight. Tap Map, then tap Iron Ridge to see what it takes to start it.',
     when: h => h.next.includes('ridge'), at: () => ({ el: '#mapBtn' }),
@@ -401,14 +400,14 @@ export const EXPLAINERS = [
     when: h => h.autoResearch && !!h.tabs.auto && !!h.tabs.research && h.t > 2, at: () => ({ el: '#autoBtn' }),
   },
   {
-    id: 'retry', covers: ['retry'],
+    id: 'retry', now: true, covers: ['retry'],
     title: 'Try again',
     text: 'Tap Auto and turn on Try the boss again. After a boss gets through or the vault falls, this town plays the wave before it again and again. Once a tower goes up a level, it tries again.',
     say: h => 'Tap Auto and turn on Fight the ' + h.boss + ' again. After the ' + h.boss + ' gets through or the vault falls, this town plays the wave before it again and again. Once a tower goes up a level, it tries again.', // the town's own boss, as the switch names it (review of 2026.11.20-8)
     when: h => h.bossLost && !!h.tabs.auto && h.phase === 'break', at: () => ({ el: '#autoBtn' }),
   },
   {
-    id: 'ridge-welcome', town: 'ridge', covers: ['welcome:ridge'],
+    id: 'ridge-welcome', town: 'ridge', now: 1, covers: ['welcome:ridge'],
     title: 'Welcome to Iron Ridge',
     text: 'Raiders come out of the railway tunnel and ride past every row of buildings. Start with the Quarry. Crossbows here are built with stone.',
     when: () => true, at: () => ({ plot: 'rquarry' }),
@@ -420,13 +419,13 @@ export const EXPLAINERS = [
     when: h => h.level('boilershop') > 0 || h.level('loco') > 0, at: h => ({ plot: h.level('boilershop') > 0 ? 'boilershop' : 'loco' }),
   },
   {
-    id: 'ridge-boss', town: 'ridge', covers: ['boss:train'],
+    id: 'ridge-boss', town: 'ridge', now: true, covers: ['boss:train'],
     title: 'The armored train',
     text: 'Wave 10 brings the armored train. Its plates stop part of every hit. At half health they fall off and the train goes faster. Mortars and the Still hurt it most.',
     when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
   },
   {
-    id: 'ph-welcome', town: 'pinehollow', covers: ['welcome:pinehollow'],
+    id: 'ph-welcome', town: 'pinehollow', now: 1, covers: ['welcome:pinehollow'],
     title: 'Welcome to Pine Hollow',
     text: 'Hold this logging camp for 15 waves. Its timber and clay go to your towns, so the Gulch can make more bricks for Iron Ridge.',
     when: () => true, at: () => ({ plot: 'logcamp' }),
@@ -439,7 +438,7 @@ export const EXPLAINERS = [
     when: h => h.next.includes('falls'), at: () => ({ el: '#mapBtn' }),
   },
   {
-    id: 'falls-welcome', town: 'falls', covers: ['welcome:falls', 'river'],
+    id: 'falls-welcome', town: 'falls', now: 1, covers: ['welcome:falls', 'river'],
     title: 'Welcome to Silver Falls',
     text: 'Raiders ride the road, and boats come down the river. Build towers by the water too. Start with the Sand Pit. Crossbows here are built with sand.',
     when: () => true, at: () => ({ plot: 'sandpit' }),
@@ -451,13 +450,13 @@ export const EXPLAINERS = [
     when: h => h.level('glassworks') > 0, at: () => ({ plot: 'waterwheel' }),
   },
   {
-    id: 'falls-boss', town: 'falls', covers: ['boss:steamer'],
+    id: 'falls-boss', town: 'falls', now: true, covers: ['boss:steamer'],
     title: 'The ironclad steamer',
     text: 'Wave 10 brings an ironclad steamer down the river. Its plates stop part of every hit. When it is nearly beaten it lets off steam and goes faster. Mortars and the Still hurt it most.',
     when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
   },
   {
-    id: 'sb-welcome', town: 'sandybend', covers: ['welcome:sandybend'],
+    id: 'sb-welcome', town: 'sandybend', now: 1, covers: ['welcome:sandybend'],
     title: 'Welcome to Sandy Bend',
     text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',
     when: () => true, at: () => ({ plot: 'sandwash' }),

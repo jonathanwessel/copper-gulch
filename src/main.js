@@ -99,7 +99,7 @@ async function startGame() {
     CG.play = mountPlay(document.getElementById('app'), game, viewApi, { view: town, audio, meter, leave, go, locate, map: () => openMap(), onHelp: () => CG.play.sheets.close() });
     // the explainer cards; ?coach=off turns them off (the test tools use it)
     CG.coach = startCoach({
-      game, town: game.town, root: document.body, off: coachOff,
+      game, town: game.town, root: document.body, off: coachOff, spaced: !window.CG_TOOLS,
       pause: on => { if (town) town.pause('coach', on); },
       onSeen: () => keep(), onGo: id => go(id), locate,
       speech, readAuto: () => !!audio.get('read'),
