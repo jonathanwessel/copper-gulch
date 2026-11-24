@@ -78,6 +78,11 @@ const MAPVIEWS = [
   ['card-ridge', () => { if (!CG.game.towns.ridge) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('ridge'); }],
   ['card-falls', () => { if (!CG.game.towns.falls) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('falls'); }],
   ['card-pinehollow', () => { if (!CG.game.towns.pinehollow) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('pinehollow'); }],
+  // trains and wagons (the ring, part 2): close on the Capital's stations, twice a few seconds apart, and on the Ridge's
+  // depot, where they leave their shed and go back into it
+  ['station', () => { const c = CG.map.sites.find(x => x.capital), r = CG.map.rig, v = { x: c.at[0], z: c.at[1] + 1, yaw: .3, pitch: .95, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
+  ['station-later', async () => { await new Promise(q => setTimeout(q, 2500)); }],
+  ['depot', async () => { const { depotOf } = await import('./src/render/empire-plan.js'), d = depotOf('ridge'), r = CG.map.rig, v = { x: d[0], z: d[1], yaw: .5, pitch: .9, dist: 5 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['low', () => { const r = CG.map.rig, v = { x: 0, z: 4, yaw: .4, pitch: .5, dist: 22 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['near', () => { const r = CG.map.rig, v = { x: -7, z: 12, yaw: -.3, pitch: .7, dist: 13 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['north', () => { const r = CG.map.rig, v = { x: 7, z: -12, yaw: 0, pitch: .7, dist: 14 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],

@@ -1,9 +1,9 @@
 /* The empire map in 3D (GDD.md, Empire map): open country with every town as a small diorama of its board (its
    buildings at their tiers, its road and entrance, its vault and towers) standing on land that fits it (the plan is in
    src/render/empire-plan.js, the models in src/render/empire-land.js), surveyed land with a surveyors' camp where a
-   town is not open yet and in the middle where the Capital will stand, and roads between towns that carry goods, with
-   wagons rolling along them (more and faster as a route gets busier), laid with rails and run by trains once the Rail
-   Office is founded. Cloud shadows drift over all of it. The game keeps running while the map is up. Every gesture
+   town is not open yet and in the middle where the Capital will stand, and a road from each place's depot in to a
+   station at the Capital once it carries goods, with wagons running in and back on it (more as it gets busier), laid
+   with rails and run by trains once the Rail Office is founded (their timetable is src/render/empire-trains.js). Cloud shadows drift over all of it. The game keeps running while the map is up. Every gesture
    moves the map under the fingers (src/render/camera.js). startEmpireView returns an api the interface uses. */
 import * as THREE from 'three';
 import { createScene } from './scene.js';
@@ -18,15 +18,17 @@ import { makeTower } from '../assets/models/units.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { TOWNS } from '../data/towns/index.js';
 import { DIORAMA, CAPITAL } from '../data/empire.js';
-import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
+import { mapSites, mapRoutes } from '../core/map.js';
+import { GOODS } from '../data/goods.js';
+import { pathOf, trackOf, shedOf, fleet as timetable, startFleet, stepFleet, placeFleet, wantFor, busy, SHAPE, LANE } from './empire-trains.js';
 import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
 import { rectDist, gateDist, polyDist, blockers, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint, spokeLine, plazaArc, STATION_R, ROUTE_CLEAR } from './empire-plan.js';
-import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, depotModel, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
+import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, depotModel, stationModel, DECK_Y, engineGeometry, carGeometry, loadGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
-const S = DIORAMA, MAXWAGONS = 48, MAXTRAINS = 24, MAXCARS = 72, GAP = .36;
+const S = DIORAMA, MAXWAGONS = 48, MAXENGINES = 32, MAXCARS = 64;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _e = new THREE.Euler(), _v = new THREE.Vector3();
 /* How far a site reaches on the map (map units): an open town's board at diorama scale, the Capital's plaza, or a
    surveyed plot. */
@@ -73,21 +75,6 @@ function wagonGeometry() {
   return geo;
 }
 
-/* A route's line as a path wagons follow: { pts: [[x, z]], len, at(u, out) } with u from 0 to 1. */
-function pathOf(pts) {
-  const cum = [0];
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  const len = cum[cum.length - 1] || 1;
-  const at = (u, out) => {
-    const s = Math.max(0, Math.min(1, u)) * len;
-    let i = 1; while (i < cum.length - 1 && cum[i] < s) i++;
-    const f = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1), p0 = pts[i - 1], p1 = pts[i];
-    out.x = lerp(p0[0], p1[0], f); out.z = lerp(p0[1], p1[1], f); out.yaw = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
-    return out;
-  };
-  return { pts, len, at };
-}
-
 /* One instanced mesh for a moving kind (wagons, engines, cars). */
 function fleet(geo, mat, max) {
   const m = new THREE.InstancedMesh(geo, mat, max);
@@ -119,6 +106,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   // between two places ride one spoke in, round the plaza on the road that circles it, and the other out.
   const B = blockers(sites), river = B.river, creek = B.creek, spokes = {}, paths = {};
   for (const s of sites) if (TOWNS[s.id]) spokes[s.id] = spokeLine(s.id, B);
+  const tracks = Object.fromEntries(Object.entries(spokes).map(([id, sp]) => [id, trackOf(sp.pts)])); // each spoke's two lanes (empire-trains.js)
   const linkPath = (from, to) => { const k = from + '>' + to, a = spokes[from], b = spokes[to]; if (!paths[k] && a && b) paths[k] = pathOf([...a.pts, ...plazaArc(a.station, b.station), ...b.pts.slice().reverse()]); return paths[k]; };
   const plazaLoop = Array.from({ length: 49 }, (_, i) => { const t = i / 48 * Math.PI * 2; return [CAPITAL[0] + Math.sin(t) * STATION_R(), CAPITAL[1] + Math.cos(t) * STATION_R()]; });
   const pathPts = Object.values(spokes).map(p => p.pts);
@@ -233,62 +221,79 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const capSite = sites.find(s => s.capital);
   placeSites();
 
-  // routes: a dirt road for each link that has carried goods, with wagons on it; once the Rail Office is founded every
-  // route is laid with rails and trains run on it. A plank bridge carries a route over the river.
-  // laid: each spoke drawn (with its depot), and the road round the plaza, by id ('plaza')
+  // routes: each place's spoke is laid (a dirt road, or rails once the Rail Office is founded) when a link through it
+  // first carries goods, with its depot and its station, and the road round the plaza once. A plank bridge carries a
+  // route over the river. laid: what is drawn, by spoke id, and 'plaza'.
   const routes = {}, laid = {};
   let kind = routeKind(game);
-  const lay = (id, pts, depot) => {
+  const lay = (id, pts, spoke) => {
     const wet = river ? waterCut(river.pts, river.width) : null; // the route stops at the water, the bridge carries it over
-    const parts = flat(kind === 'rail' ? railModel(pts, wet) : roadModel(pts, wet));
-    if (river) parts.push(...routeBridges(pts, river, kind === 'rail'));
-    if (depot) parts.push(depotModel(pts[0], Math.atan2(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1])));
-    const road = merged(parts, { cast: false }); road.name = kind === 'rail' ? 'rails' : 'road'; add(road); laid[id] = road;
+    const tr = spoke ? tracks[id] : null, rail = kind === 'rail' && spoke;
+    const parts = flat(rail ? railModel(pts, wet, [tr.inLane, tr.outLane, tr.cross]) : roadModel(pts, wet));
+    if (river) parts.push(...routeBridges(pts, river, rail, spoke ? [LANE, -LANE] : null));
+    if (spoke) { const sh = shedOf(tr); parts.push(depotModel([sh.x, sh.z], sh.yaw), stationModel(pts, LANE)); }
+    const road = merged(parts, { cast: false }); road.name = rail ? 'rails' : 'road'; add(road); laid[id] = road;
   };
+  // each spoke's timetables (wagons and trains; the ring, part 2), and what its cars carry: in, the goods it sends to
+  // the Capital, out, the goods it gets back (as colors)
+  const fleets = {}, loads = {};
+  let started = false;
   const placeRoutes = () => {
     const k = routeKind(game);
     if (k !== kind) { kind = k; for (const r of Object.values(laid)) { root.remove(r); disposeTree(r); } for (const key of Object.keys(laid)) delete laid[key]; }
+    const goods = {};
     for (const l of mapRoutes(game)) {
       const path = linkPath(l.from, l.to);
       if (!path || path.pts.length < 2) continue;
-      for (const id of [l.from, l.to]) if (!laid[id]) lay(id, spokes[id].pts, true);
+      for (const id of [l.from, l.to]) {
+        if (!laid[id]) lay(id, spokes[id].pts, true);
+        if (!fleets[id]) fleets[id] = { road: timetable(tracks[id], 'road'), rail: timetable(tracks[id], 'rail') };
+        const g = goods[id] || (goods[id] = { keys: [], in: new Set(), out: new Set() });
+        g.keys.push(l.key);
+        for (const good of l.goods) g[id === l.from ? 'in' : 'out'].add(good);
+      }
       if (!laid.plaza) lay('plaza', plazaLoop, false);
-      if (!routes[l.key]) routes[l.key] = { ...path, rev: false, phase: (l.key.length * .137) % 1 };
+      if (!routes[l.key]) routes[l.key] = path;
     }
+    for (const [id, g] of Object.entries(goods)) loads[id] = { keys: g.keys, in: [...g.in].map(x => new THREE.Color(GOODS[x] ? GOODS[x].color : '#b08850')), out: [...g.out].map(x => new THREE.Color(GOODS[x] ? GOODS[x].color : '#b08850')) };
+    // when the map opens, the vehicles are already out on their runs (at least one on a spoke that has carried goods,
+    // since the flow meter may not have its first sample yet; review of 2026.11.24-7: no train in the first shots); a
+    // spoke laid later starts with its sheds full
+    if (!started) { started = true; for (const [id, f] of Object.entries(fleets)) { const w = wantFor(Math.max(rateOf(id), .5), f[kind]); startFleet(f[kind], w, id.length); } }
   };
+  const rateOf = id => (loads[id] ? loads[id].keys.reduce((a, key) => a + (meter ? meter.flow[key] || 0 : 0), 0) : 0);
+  const wagons = fleet(wagonGeometry(), mats.solid, MAXWAGONS), engines = fleet(engineGeometry(), mats.solid, MAXENGINES), cars = fleet(carGeometry(), mats.solid, MAXCARS), crates = fleet(loadGeometry(), mats.solid, MAXCARS);
+  crates.setColorAt(0, new THREE.Color('#ffffff')); // made now, so the material is built with instance colors from the start
+  root.add(wagons, engines, cars, crates);
   placeRoutes();
-  const wagons = fleet(wagonGeometry(), mats.solid, MAXWAGONS), engines = fleet(engineGeometry(), mats.solid, MAXTRAINS), cars = fleet(carGeometry(), mats.solid, MAXCARS);
-  root.add(wagons, engines, cars);
-  const pos = { x: 0, z: 0, yaw: 0 };
   // a wagon or train over the river rides up onto the bridge's deck (routeBridges: its top stands at DECK_Y)
   const onDeck = (x, z) => { if (!river) return 0; const d = polyDist(x, z, river.pts) - river.width / 2; return d > .18 ? 0 : (DECK_Y - .02) * Math.min(1, (.18 - d) / .12); };
-  const put = (mesh, n, r, u, y, bob, t, i, scale = 1.5) => {
-    r.at(r.rev ? 1 - u : u, pos); if (r.rev) pos.yaw += Math.PI;
-    _e.set(0, pos.yaw, bob ? Math.sin(t * 9 + i * 2) * .03 : 0); _q.setFromEuler(_e);
-    _p.set(pos.x, y + onDeck(pos.x, pos.z) + (bob ? Math.abs(Math.sin(t * 6 + i)) * .015 : 0), pos.z); _s.setScalar(scale);
+  const NONE = { count: 0, cars: 0 };
+  let nw = 0, ne = 0, nc = 0, nl = 0, cur = null, now = 0;
+  const emit = (part, x, z, yaw, load, vid) => {
+    const mesh = part === 'wagon' ? wagons : part === 'engine' ? engines : cars, n = part === 'wagon' ? nw : part === 'engine' ? ne : nc;
+    if (n >= mesh.instanceMatrix.count) return;
+    const bob = part === 'wagon', i = vid.charCodeAt(0);
+    _e.set(0, yaw, bob ? Math.sin(now * 9 + i * 2) * .03 : 0); _q.setFromEuler(_e);
+    _p.set(x, (bob ? .02 + Math.abs(Math.sin(now * 6 + i)) * .015 : .03) + onDeck(x, z), z); _s.setScalar(SHAPE[part].scale);
     _m.compose(_p, _q, _s); mesh.setMatrixAt(n, _m);
+    if (part === 'wagon') nw++; else if (part === 'engine') ne++; else nc++;
+    const list = load && cur ? cur[load] : null;
+    if (list && list.length && nl < MAXCARS) { crates.setMatrixAt(nl, _m); crates.setColorAt(nl, list[(i + Number(vid.slice(vid.indexOf(':') + 1))) % list.length]); nl++; }
   };
   const rollWagons = (dt, t) => {
-    let nw = 0, ne = 0, nc = 0;
-    for (const [key, r] of Object.entries(routes)) {
-      const look = wagonsFor(meter ? meter.flow[key] || 0 : 0);
-      if (!look.count) continue;
-      if (kind === 'rail') { // trains: one for every two wagons' worth, two to four cars each, a little faster
-        const trains = Math.max(1, Math.round(look.count / 2)), ncar = Math.min(4, 2 + Math.floor(look.count / 3)), gap = GAP / r.len;
-        r.phase = (r.phase + dt * look.speed * 1.3 / r.len) % 1;
-        for (let i = 0; i < trains && ne < MAXTRAINS; i++) {
-          const u = (r.phase + i / trains) % 1;
-          if (u < gap * ncar || u > 1 - .01) continue; // the whole train is on the line before it shows
-          put(engines, ne++, r, u, .03, false, t, i, 1.1);
-          for (let c = 1; c <= ncar && nc < MAXCARS; c++) put(cars, nc++, r, u - c * gap, .03, false, t, i, 1.1);
-        }
-        continue;
-      }
-      r.phase = (r.phase + dt * look.speed / r.len) % 1;
-      for (let i = 0; i < look.count && nw < MAXWAGONS; i++) put(wagons, nw++, r, (r.phase + i / look.count) % 1, .02, true, t, i);
+    nw = ne = nc = nl = 0; now = t;
+    for (const [id, f] of Object.entries(fleets)) {
+      const r = rateOf(id);
+      stepFleet(f.road, dt, kind === 'road' ? wantFor(r, f.road) : NONE);
+      // once the Rail Office lays rails, the wagons out on the road go home first, then the trains start
+      stepFleet(f.rail, dt, kind === 'rail' && !busy(f.road) ? wantFor(r, f.rail) : NONE);
+      cur = loads[id] || null;
+      placeFleet(f.road, tracks[id], emit); placeFleet(f.rail, tracks[id], emit);
     }
-    wagons.count = nw; engines.count = ne; cars.count = nc;
-    wagons.instanceMatrix.needsUpdate = engines.instanceMatrix.needsUpdate = cars.instanceMatrix.needsUpdate = true;
+    wagons.count = nw; engines.count = ne; cars.count = nc; crates.count = nl;
+    wagons.instanceMatrix.needsUpdate = engines.instanceMatrix.needsUpdate = cars.instanceMatrix.needsUpdate = crates.instanceMatrix.needsUpdate = true;
+    if (crates.instanceColor) crates.instanceColor.needsUpdate = true;
   };
 
   // the selected site: a pulsing ring on the ground round it, for as long as its card is open
@@ -314,6 +319,8 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     get routeKind() { return kind; },
     get wagons() { return wagons.count; },
     get trains() { return engines.count; },
+    /* Each spoke's timetable as it runs: how many slots are on for wagons and for trains, and how many it can hold. */
+    get fleets() { return Object.fromEntries(Object.entries(fleets).map(([id, f]) => [id, { road: f.road.slots.filter(s => s.on).length, rail: f.rail.slots.filter(s => s.on).length, roadMax: f.road.nmax, railMax: f.rail.nmax }])); },
     /* What the map's land is made of, for the checks: no plate under any town, the camps on land not open yet. */
     get land() {
       let plates = 0;

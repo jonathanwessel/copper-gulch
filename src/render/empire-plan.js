@@ -169,17 +169,45 @@ export function depotOf(id) {
 }
 const ringAt = a => [CAPITAL[0] + Math.sin(a) * STATION_R(), CAPITAL[1] + Math.cos(a) * STATION_R()];
 const angleOf = ([x, z]) => Math.atan2(x - CAPITAL[0], z - CAPITAL[1]);
-/* One place's spoke: { pts (depot first, station last), hits, len, depot, station }. */
+/* Where each place's station stands on the plaza's ring (an angle round the Capital): where its road meets the ring,
+   spread so no two stand closer than STATION_GAP, or their trains and wagons would run side by side into the plaza
+   (the ring, part 2: Silver Falls' and Sandy Bend's roads met the ring 0.9 apart, and their wagons turning there
+   overlapped). Worked out once for a set of blockers. */
+export const STATION_GAP = .5;
+function stationAngles(B) {
+  if (B.stations) return B.stations;
+  const raw = B.towns.map(([id]) => {
+    const r = routeLine({ id, at: depotOf(id) }, { id: 'capital', at: CAPITAL, capital: true }, B, .3, { own: true });
+    const hit = r.pts.find(p => Math.hypot(p[0] - CAPITAL[0], p[1] - CAPITAL[1]) <= STATION_R()) || r.pts[r.pts.length - 1];
+    return { id, a: angleOf(hit) };
+  }).sort((x, y) => x.a - y.a);
+  const wrap = d => { while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
+  for (let pass = 0; pass < 40 && raw.length > 1; pass++) for (let i = 0; i < raw.length; i++) {
+    const a = raw[i], b = raw[(i + 1) % raw.length], d = wrap(b.a - a.a);
+    if (d < STATION_GAP) { const push = (STATION_GAP - d) / 2 + 1e-4; a.a -= push; b.a += push; }
+  }
+  B.stations = Object.fromEntries(raw.map(r => [r.id, r.a]));
+  return B.stations;
+}
+/* One place's spoke: { pts (depot first, station last), hits, len, depot, station }. Its last stretch bends round to
+   its station (radius and angle eased together, so it never cuts into the plaza). */
 export function spokeLine(id, B) {
   const depot = depotOf(id), r = routeLine({ id, at: depot }, { id: 'capital', at: CAPITAL, capital: true }, B, .3, { own: true });
-  const pts = [depot];
+  const pts = [depot], R = STATION_R(), BEND = 1.4;
   for (const p of r.pts) {
-    if (Math.hypot(p[0] - CAPITAL[0], p[1] - CAPITAL[1]) <= STATION_R()) break;
+    if (Math.hypot(p[0] - CAPITAL[0], p[1] - CAPITAL[1]) <= R + BEND) break;
     if (p === r.pts[0] || rectDist(p[0], p[1], footprint(id).rect) < 0) continue;
     pts.push(p);
   }
-  const station = ringAt(angleOf(pts[pts.length - 1]));
-  pts.push(station);
+  const want = (stationAngles(B)[id] ?? angleOf(pts[pts.length - 1])), last = pts[pts.length - 1];
+  const r0 = Math.hypot(last[0] - CAPITAL[0], last[1] - CAPITAL[1]), a0 = angleOf(last);
+  let d = want - a0; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+  const n = Math.max(2, Math.ceil(Math.hypot(r0 - R, d * R) / .3));
+  for (let i = 1; i <= n; i++) {
+    const f = i / n, e = f * f * (3 - 2 * f), rr = r0 + (R - r0) * f, a = a0 + d * e;
+    pts.push([CAPITAL[0] + Math.sin(a) * rr, CAPITAL[1] + Math.cos(a) * rr]);
+  }
+  const station = pts[pts.length - 1];
   return { pts, hits: r.hits, depot, station };
 }
 /* Round the plaza from one station to another, the short way. */

@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-7',
+    lines: [
+      'On the Map, wagons and trains now leave a shed by each town, go to the Capital, wait there and come back.',
+      'Train cars carry crates in the colors of the goods they move.',
+      'Busy towns send more trains, and they never run into each other.',
+      'Wagon roads are lighter, with wheel ruts, so they no longer look like raider roads.',
+    ],
+  },
+  {
     v: '2026.11.24-6',
     lines: [
       'Town names on the Map keep to the outside of the ring, away from the Capital.',

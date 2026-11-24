@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.24-6",
-  "notes": "Map names keep to the outside of the ring and a tapped town stays in view"
+  "version": "2026.11.24-7",
+  "notes": "Trains and wagons run from each town to the Capital and back"
 }

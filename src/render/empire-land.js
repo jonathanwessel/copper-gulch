@@ -10,6 +10,7 @@ import { PROPS } from '../assets/models/gulch.js';
 import { TOWNS } from '../data/towns/index.js';
 import { SQUASH, ENT_BOX } from './empire-plan.js';
 import { waterCut, crossings, bridgePlan } from './bridge-plan.js';
+import { SHED, SHED_WIDE } from './empire-trains.js';
 
 /* --- cloud shadows --------------------------------------------------------------------------------------------------
    Soft shade that drifts across the whole map, worked out per vertex (cheap on every tier): every map material
@@ -241,51 +242,88 @@ export function surveyed(capital, c) {
 }
 
 /* --- roads and rails ------------------------------------------------------------------------------------------------- */
-const DIRT = [new THREE.Color('#9a7550'), new THREE.Color('#7a5a3c'), new THREE.Color('#b38c62')];
-/* A dirt road: the ribbon with its ruts, and small stones along both edges. */
+/* A wagon road: lighter than a town's raider road, with two wheel ruts in each lane (the ring, part 2: a brown road
+   beside a town read as its raider road), and small stones along both edges. */
+const WAGON_ROAD = [new THREE.Color('#c9ab82'), new THREE.Color('#9b7b57'), new THREE.Color('#9a7c5c')]; // dirt, rut, a darker edge so it reads against the sand from far away
+const RUTS = (() => {
+  const [d, r, e] = WAGON_ROAD, out = [[-.66, e], [-.6, d], [.6, d], [.66, e]];
+  for (const o of [-.53, -.13, .13, .53]) out.push([o - .04, d], [o, r], [o + .04, d]);
+  return out.sort((a, b) => a[0] - b[0]);
+})();
 export function roadModel(pts, wet = null) {
-  const road = roadRibbon(pts, DIRT, .7, .015, null, wet); road.position.y = .01; road.material.userData.own = true;
+  const road = roadRibbon(pts, WAGON_ROAD, .85, .015, RUTS, wet); road.position.y = .01; road.material.userData.own = true;
   const k = new Kit({ ao: false }), R = rng(pts.length);
   for (let i = 1; i < pts.length - 1; i += 2) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / L, nz = (bx - ax) / L;
-    for (const s of [-1, 1]) if (R() < .55 && !(wet && wet(pts[i][0], pts[i][1]))) k.dode(pts[i][0] + nx * s * (.5 + R() * .06), -.01, pts[i][1] + nz * s * (.5 + R() * .06), .035 + R() * .03, R() < .5 ? 'stone' : 'stoneD');
+    for (const s of [-1, 1]) if (R() < .55 && !(wet && wet(pts[i][0], pts[i][1]))) k.dode(pts[i][0] + nx * s * (.6 + R() * .06), -.01, pts[i][1] + nz * s * (.6 + R() * .06), .035 + R() * .03, R() < .5 ? 'stone' : 'stoneD');
   }
   return [road, k.build({ cast: false })];
 }
-/* Rails: a bed of gray ballast, wooden ties and two steel rails, with a telegraph pole now and then. */
-export function railModel(pts, wet = null) {
+/* Rails: a bed of gray ballast with a track along each line of `lines` (a spoke's two lanes and the crossover between
+   them, from src/render/empire-trains.js trackOf; with no lines, one track down the middle), wooden ties, steel rails,
+   a buffer stop at each lane's station end, and a telegraph pole now and then. */
+export function railModel(pts, wet = null, lines = null) {
   const bed = roadRibbon(pts, [new THREE.Color('#8f877c'), new THREE.Color('#6e675e'), new THREE.Color('#a59c8e')], .62, .012,
     [[-.66, new THREE.Color('#a59c8e')], [-.5, new THREE.Color('#8f877c')], [.5, new THREE.Color('#878075')], [.66, new THREE.Color('#a59c8e')]], wet);
   bed.material.userData.own = true; bed.name = 'rails';
   const k = new Kit({ ao: false });
+  const track = line => {
+    let t0 = 0;
+    for (let i = 1; i < line.length; i++) {
+      const [ax, az] = line[i - 1], [bx, bz] = line[i], L = Math.hypot(bx - ax, bz - az);
+      if (L < 1e-4) continue;
+      const ry = Math.atan2(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L, mx = (ax + bx) / 2, mz = (az + bz) / 2;
+      for (; t0 < L; t0 += .2) { const x = ax + (bx - ax) * t0 / L, z = az + (bz - az) * t0 / L; if (!(wet && wet(x, z))) k.box(x, .01, z, .34, .035, .07, '#3e2a1c', { ry }); } // no ties on the water
+      t0 -= L;
+      for (const s of [-1, 1]) k.box(mx + nx * s * .09, .03, mz + nz * s * .09, .03, .03, L + .01, '#c9d2dc', { ry });
+    }
+  };
+  (lines || [pts]).forEach(track);
+  if (lines) for (const l of lines.slice(0, 2)) { const [x, z] = l[l.length - 1], [px, pz] = l[l.length - 2]; k.box(x, 0, z, .3, .12, .06, 'paintR', { ry: Math.atan2(x - px, z - pz) }); } // buffer stops
   let run = 0;
   for (let i = 1; i < pts.length; i++) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i], L = Math.hypot(bx - ax, bz - az);
     if (L < 1e-4) continue;
-    const ry = Math.atan2(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L, mx = (ax + bx) / 2, mz = (az + bz) / 2;
-    for (let t = 0; t < L; t += .17) { const x = ax + (bx - ax) * t / L, z = az + (bz - az) * t / L; if (!(wet && wet(x, z))) k.box(x, .01, z, .4, .035, .08, '#3e2a1c', { ry }); } // no ties on the water
-    for (const s of [-1, 1]) k.box(mx + nx * s * .1, .03, mz + nz * s * .1, .03, .03, L + .01, '#c9d2dc', { ry });
+    const ry = Math.atan2(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L;
     run += L;
-    if (run > 2.4 && !(wet && wet(ax + nx * .42, az + nz * .42))) { run = 0; k.box(ax + nx * .42, 0, az + nz * .42, .035, .55, .035, 'woodD'); k.box(ax + nx * .42, .5, az + nz * .42, .16, .025, .025, 'woodD', { ry }); }
+    if (run > 2.4 && !(wet && wet(ax + nx * .6, az + nz * .6))) { run = 0; k.box(ax + nx * .6, 0, az + nz * .6, .035, .55, .035, 'woodD'); k.box(ax + nx * .6, .5, az + nz * .6, .16, .025, .025, 'woodD', { ry }); }
   }
   return [bed, k.build({ cast: false })];
 }
-/* A small freight depot where a place's road leaves it, beside its vault (the ring, part 1b): a plank platform, a shed
-   with a red roof, and a few crates. yaw: the way the road leaves, toward the Capital. */
+/* A depot where a place's road leaves it, beside its vault (the ring, part 1b): a long shed over both lanes, open
+   toward the Capital, that trains and wagons run into and out of (they show only once out of it, the ring part 2),
+   a plank yard round it and a few crates. yaw: the way the road leaves, toward the Capital. */
 export function depotModel([x, z], yaw) {
   const k = new Kit({ ao: false }), c = Math.cos(yaw), s = Math.sin(yaw);
-  // a point (across, along) from the depot's middle, turned so along runs down the road
+  // a point (across, along) from the depot's point, turned so along runs down the road
   const at = (u, v) => [x + u * c + v * s, z - u * s + v * c];
-  { const [px, pz] = at(0, 0); k.box(px, 0, pz, .78, .06, .5, 'woodL', { ry: yaw }); }
-  { const [px, pz] = at(-.18, 0); k.box(px, .06, pz, .36, .24, .34, 'woodD', { ry: yaw }); k.gable(px, .3, pz, .44, .42, .16, 'roofRD', { ry: yaw + Math.PI / 2 }); }
-  for (const [u, v] of [[.2, -.12], [.28, .08], [.14, .1]]) { const [px, pz] = at(u, v); k.box(px, .06, pz, .1, .1, .1, 'wood', { ry: yaw + u }); }
+  const mid = (SHED - .2) / 2, wide = SHED_WIDE;
+  { const [px, pz] = at(0, mid); k.box(px, 0, pz, wide + .3, .04, SHED + .5, 'woodL', { ry: yaw }); }
+  { const [px, pz] = at(0, -.2); k.box(px, .04, pz, wide, .42, .06, 'woodD', { ry: yaw }); } // the back wall
+  for (const q of [-1, 1]) { const [px, pz] = at(q * wide / 2, mid); k.box(px, .04, pz, .06, .42, SHED + .2, 'woodD', { ry: yaw }); } // the side walls
+  { const [px, pz] = at(0, mid); k.gable(px, .46, pz, SHED + .3, wide + .14, .2, '#7d6b5a', { ry: yaw }); /* weathered boards, so a shed by every town does not read as a marker */ }
+  for (const [u, v] of [[.78, .1], [.8, .32], [-.8, .5]]) { const [px, pz] = at(u, v); k.box(px, .04, pz, .1, .1, .1, 'wood', { ry: yaw + u }); }
+  return k.build({ cast: true });
+}
+/* A station where a spoke meets the Capital's plaza: a plank platform beside the way-out lane, where trains and wagons
+   stop to load, with a canopy on posts. pts: the spoke (depot first), lane: a lane's distance from the middle. */
+export function stationModel(pts, lane) {
+  const k = new Kit({ ao: false }), n = pts.length, [ex, ez] = pts[n - 1];
+  let back = n - 1, run = 0;
+  while (back > 0 && run < 2.2) { run += Math.hypot(pts[back][0] - pts[back - 1][0], pts[back][1] - pts[back - 1][1]); back--; }
+  const [bx, bz] = pts[back], L = Math.hypot(ex - bx, ez - bz) || 1, ux = (ex - bx) / L, uz = (ez - bz) / L, ry = Math.atan2(ux, uz);
+  // the way-out lane is on the left of the way in (empire-trains.js: a lane at -LANE)
+  const nx = -uz, nz = ux, o = lane + .42, mx = (ex + bx) / 2 + nx * o, mz = (ez + bz) / 2 + nz * o;
+  k.box(mx, 0, mz, .3, .08, L, 'woodL', { ry });
+  for (const t of [-.38, 0, .38]) k.box(mx + ux * t * L + nx * .06, .08, mz + uz * t * L + nz * .06, .03, .3, .03, 'woodD');
+  k.box(mx + nx * .02, .38, mz + nz * .02, .36, .03, L * .9, '#7d6b5a', { ry });
   return k.build({ cast: true });
 }
 /* A plank bridge wherever a route crosses the river: the route stops at the water's edge (waterCut), the deck spans the
    water and a short bit of each bank, and its posts stand in the water, each with a pale ring (owner, 2026-11-22). */
 export const DECK_Y = .22; // the top of a route bridge's deck
-export function routeBridges(pts, river, rail = false) {
-  const k = new Kit({ ao: false }), wet = waterCut(river.pts, river.width, 0), half = .4;
+export function routeBridges(pts, river, rail = false, lanes = null) {
+  const k = new Kit({ ao: false }), wet = waterCut(river.pts, river.width, 0), half = lanes ? .58 : .4;
   // the deck stands DECK_Y over the water, so water shows under it from a low view (review of 2026.11.22-7: a deck
   // laid nearly on the water hid the narrow map river); it reaches only a little past each bank
   for (const run of crossings(pts, river.pts, river.width / 2 + .18, .05)) {
@@ -296,7 +334,7 @@ export function routeBridges(pts, river, rail = false) {
       k.box(mx + P.sx * q * (half - .02), y + .08, mz + P.sz * q * (half - .02), .03, .03, L, 'wood', { ry }); // a rail each side
       for (let t = 0; t <= L; t += L / 4) k.box(ax + ux * (t - .03) + P.sx * q * (half - .02), y, az + uz * (t - .03) + P.sz * q * (half - .02), .03, .09, .03, 'woodD');
     }
-    if (rail) for (const q of [-1, 1]) k.box(mx + P.sx * q * .1, y, mz + P.sz * q * .1, .03, .03, L, '#c9d2dc', { ry });
+    if (rail) for (const c of lanes || [0]) for (const q of [-1, 1]) k.box(mx + P.sx * (c + q * .09), y, mz + P.sz * (c + q * .09), .03, .03, L, '#c9d2dc', { ry });
     for (const [px, pz] of P.posts) { k.box(px, -.06, pz, .06, y - .05 + .06, .06, 'woodD'); k.torus(px, .012, pz, .07, .012, '#cfe6ee', { rx: Math.PI / 2, ts: 12 }); }
   }
   return k.parts.solid.length ? [k.build({ cast: true })] : [];
@@ -315,12 +353,19 @@ export function engineGeometry() {
   k.ball(0, .2, .3, .03, 'glowW', { mat: 'solid' });
   return geometryOf(k);
 }
+/* An open freight car: an iron frame with low plank sides, so its load shows from above (or that it runs empty). */
 export function carGeometry() {
   const k = new Kit({ ao: false });
   k.box(0, .04, 0, .24, .04, .46, 'iron');
-  k.box(0, .08, 0, .24, .18, .44, 'brick'); k.box(0, .26, 0, .26, .025, .46, 'roofRD');
-  k.box(.122, .1, 0, .005, .12, .14, 'woodD', { ao: false }); k.box(-.122, .1, 0, .005, .12, .14, 'woodD', { ao: false });
+  for (const q of [-1, 1]) { k.box(q * .115, .08, 0, .02, .08, .44, 'wood'); k.box(0, .08, q * .215, .24, .08, .02, 'wood'); }
+  k.box(0, .08, 0, .21, .015, .41, 'woodD');
   for (const sx of [-1, 1]) for (const sz of [-.15, .15]) k.cyl(sx * .12, .02, sz, .045, .03, 'black', { rz: Math.PI / 2, seg: 8 });
+  return geometryOf(k);
+}
+/* A car's load: crates heaped in it, white so each car takes its good's color (the instance color). */
+export function loadGeometry() {
+  const k = new Kit({ ao: false });
+  k.box(0, .09, -.1, .19, .11, .18, '#ffffff'); k.box(0, .09, .1, .19, .13, .17, '#ffffff'); k.box(.02, .2, -.04, .13, .07, .14, '#f2f2f2');
   return geometryOf(k);
 }
 
