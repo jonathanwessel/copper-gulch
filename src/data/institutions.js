@@ -2,13 +2,15 @@
    the purse. Each institution is one branch of the Empire tree: a line of upgrades bought in order with Influence.
    Every upgrade's effect is a named source on a stat in every town (the institution's name, so the explain view shows
    "Bank"), inside the stat's published cap (src/core/mods.js).
-   found: coins for the first institution founded; each one founded after it costs `growth` times more, whichever it is,
+   found: coins for the first institution founded (first), then coins for the next; each one founded after it costs `growth` times more, whichever it is,
           so the order is the player's choice.
    cost:  Influence for the 1st, 2nd... upgrade of a branch (the same in every branch).
    effects: { stat, mul, where } where 'outpost' puts it only on outposts. The stat 'influence' is the Capital's own
           (Influence a finished contract pays). Text follows the writing rule in PLAN.md: plain, short, no colons. */
 
-export const FOUND = { coins: 50000, growth: 1.6 }; // growth 1.5 until 2026-11-18: foremen stopped wasting coins and the fastest seed bought a tree upgrade every 9.2 min
+// first: 40K since clarity fix 3b part 2d (2026-11-23), 50K before: with both towns at a wall the newcomer of seed 5 never
+// built it in 30 minutes after the Capital; the second still costs 80K and each after it growth times more
+export const FOUND = { first: 40000, coins: 50000, growth: 1.6 }; // growth 1.5 until 2026-11-18: foremen stopped wasting coins and the fastest seed bought a tree upgrade every 9.2 min
 export const NODE_COST = [10, 15, 25, 40, 60]; // the first was 8 until 2026.11.18-15 (a seed bought a tree upgrade every 9.2 min again)
 
 export const INSTITUTIONS = [

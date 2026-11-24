@@ -31,10 +31,10 @@ test('institutions are founded once each with coins from the purse, and each one
   const g = newGame('t0', 'gulch');
   assert.equal(foundBlock(g, 'bank'), 'closed', 'no Capital yet');
   assert.equal(treeCalls(g), false);
-  const e = empire('t1', FOUND.coins - 1);
-  assert.equal(foundCost(e), FOUND.coins);
+  const e = empire('t1', FOUND.first - 1);
+  assert.equal(foundCost(e), FOUND.first, 'the first one (clarity fix 3b part 2d)');
   assert.equal(foundBlock(e, 'bank'), 'coins', 'one coin short');
-  e.town.coins = FOUND.coins + 10;
+  e.town.coins = FOUND.first + 10;
   assert.equal(treeCalls(e), true, 'the Capital badge gets a dot');
   const seen = []; e.bus.on('institution:found', x => seen.push(x));
   assert.equal(foundInstitution(e, 'bank'), true);
@@ -46,7 +46,7 @@ test('institutions are founded once each with coins from the purse, and each one
   assert.equal(foundInstitution(e, 'war'), true);
   assert.equal(foundCost(e), FOUND.coins * FOUND.growth ** 2);
   assert.deepEqual(seen.map(x => x.id), ['bank', 'war']);
-  assert.deepEqual(seen.map(x => x.coins), [FOUND.coins, FOUND.coins * FOUND.growth]);
+  assert.deepEqual(seen.map(x => x.coins), [FOUND.first, FOUND.coins * FOUND.growth]);
 });
 
 test('upgrades are bought in order with Influence, and each branch tops out', () => {
@@ -137,7 +137,7 @@ test('the save keeps the tree, and a v14 save loads with none founded', () => {
   const m = migrate(old);
   assert.deepEqual(m.game.shared.tree, { founded: [], nodes: {}, spent: 0 });
   const g2 = loadGame(m.game);
-  assert.equal(foundCost(g2), FOUND.coins);
+  assert.equal(foundCost(g2), FOUND.first);
 });
 
 test('names and text follow the rules: unique names, no colons, every node says what it does', () => {

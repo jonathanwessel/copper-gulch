@@ -57,6 +57,10 @@ export const goalsOf = id => GOALS.filter(g => g.town === id);
    strip asks for Resume waves in the town in play (unless it holds to save for its next town), then sends the player
    to a town that lost while away. These are never marked done: they show while the waves are held. resume: the tap
    the bots make. */
+/* The save for the Capital's first building is on: the Capital stands, no building yet, and its coins are short. */
+export const firstSave = game => capitalOpen(game) && !(game.shared.tree && game.shared.tree.founded.length) && game.shared.purse.coins + 1e-9 < foundCost(game);
+/* A town that lost its boss while the player was away and holds its waves since. */
+const lostBossAway = town => !!(town.waves && town.waves.autoHold && town.lost && town.lost.away && (town.lost.why === 'boss' || bossWave(town, town.lost.wave)));
 export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at: () => ({ el: '#holdWaves' }), done: () => false };
 /* After a loss the lost card says to build more towers first (review of 2026.11.19-1), so the strip says the same. */
 export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
@@ -73,7 +77,12 @@ const capitalNext = game => { const s = nextStep(game); return s && s.next === '
    Resume waves" in the Gulch spent the save on its towers). */
 export const capitalSaving = (game, town) => {
   const f = CAPITAL_DEF.found;
-  if (!town || capitalOpen(game)) return false;
+  if (!town) return false;
+  // after the Capital, while its first building is saved for, a town that lost its boss while away stays held too
+  // (clarity fix 3b part 2d: on seed 5 the Gulch lost its wave-30 war wagon every few minutes, and each time the strip
+  // sent the newcomer back there to spend the save on its towers, so the building never came in 30 minutes). Only a
+  // lost boss: holding a town that lost a plain wave too cost its bounties (part 2c) and seeds 2 and 6 their building.
+  if (capitalOpen(game)) return !isOutpost(town) && lostBossAway(town) && firstSave(game);
   if (town.id === f.from) return (town.bestWave || 0) >= f.wave;
   // once the Capital is in sight, a town that lost while away stays held until it stands (clarity fix 3b part 2b: on
   // seed 2 the Gulch lost at its own wall four times during the Ridge's climb to wave 30, and each time the strip sent
@@ -164,7 +173,7 @@ export function firstInstitution(game) {
   const tr = game.shared.tree, cp = game.shared.capital;
   if (!capitalOpen(game) || !tr || tr.founded.length) return null;
   // while the building's coins are short, a contract always runs: each one pays coins toward it (clarity fix 3b part
-  // 2b: after the first contract the newcomer saved 10-12 minutes for 50K with nothing new)
+  // 2b: after the first contract the newcomer saved 10-12 minutes for 50K, its price then, with nothing new)
   const short = game.shared.purse.coins + 1e-9 < foundCost(game);
   if (cp && !cp.active && (!cp.filled || short) && cp.offers.length) return { id: 'next:contract', next: 'contract', text: 'Tap Map, then tap the Capital and take a contract', at: () => ({ el: '#mapBtn' }), done: () => false };
   return { id: 'next:institution', next: 'institution', text: 'Tap Map, then add a building to the Capital', need: foundCost(game), at: () => ({ el: '#mapBtn' }), done: () => false };

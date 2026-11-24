@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-12',
+    lines: [
+      'Your first building at the Capital now costs 40K coins.',
+      'If a boss beats a town while you save for it, that town waits on hold.',
+    ],
+  },
+  {
     v: '2026.11.23-11',
     lines: [
       'Each wave you beat mends the vault a little. Tap the heart next to the wave number to see how much.',

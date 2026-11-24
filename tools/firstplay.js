@@ -19,7 +19,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, FIGHT_LOW } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
@@ -63,7 +63,7 @@ export function goalNeed(game, town, g) {
   if (at.tower != null) { const t = towerAt(town, at.tower); return t ? towerCost(town, t.kind, t.level).coins : null; }
   return at.plot && town.level(at.plot) > 0 && unlocked(town, at.plot) ? cost(town, at.plot) : null;
 }
-const hurting = t => !t.towers.length || t.vault.hp < VAULT_LOW * t.vault.max;
+const hurting = (t, low = VAULT_LOW) => !t.towers.length || t.vault.hp < low * t.vault.max;
 /* The goal names one tower to raise (its strip counts that tower's price, clarity fix 3b part 2c). */
 export function goalTower(game, town, g) {
   if (!g || typeof g.at !== 'function' || g.away || g.there) return false;
@@ -194,7 +194,10 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
       // a goal that raises one tower is itself the defense: saving for it, a low vault does not make it buy another
     // (clarity fix 3b part 2c: on seed 2 the Ridge lost wave 29 for 11 minutes while the strip asked for one tower at
     // level 15 and the newcomer spread each coin over 23 towers)
-    const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t) && !goalTower(g, t, gn) : short(t, lastLeak[t.id]);
+    // saving for the Capital's first building, only a vault at the strip's own fight line (FIGHT_LOW, where it turns to
+    // "Stop the war wagon") makes it buy (clarity fix 3b part 2d: at VAULT_LOW, 17 of 25 hearts with "about 1 min to go"
+    // took 42K of a 43.5K save on seed 1, and the save broke at every wave of a wall on seeds 5 and 6)
+    const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t, gn && gn.next === 'institution' ? FIGHT_LOW : VAULT_LOW) && !goalTower(g, t, gn) : short(t, lastLeak[t.id]);
       const pool = weak ? all.filter(c => c.what === 'tower' || c.what === 'upgrade') : all.filter(c => c.what === 'building' || c.what === 'research');
       const best = (pool.length ? pool : all).slice().sort((a, b) => b.value - a.value)[0];
       if (weak && !pool.length) { next = at + 1; continue; } // it wants a tower and waits for the coins

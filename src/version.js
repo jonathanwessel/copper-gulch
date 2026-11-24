@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.23-11';
-export const GAME_NEWS = 'The vault mends a little after each wave you beat';
+export const GAME_VERSION = '2026.11.23-12';
+export const GAME_NEWS = 'The first Capital building costs 40K and a town that lost its boss waits while you save';

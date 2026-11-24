@@ -19,7 +19,7 @@ export const nodesOf = (game, id) => treeOf(game).nodes[id] || 0;
 export const influence = game => (capitalOf(game) || {}).influence || 0;
 
 /* Coins the next institution costs (the same whichever it is). */
-export const foundCost = game => FOUND.coins * FOUND.growth ** treeOf(game).founded.length;
+export const foundCost = game => { const n = treeOf(game).founded.length; return n ? FOUND.coins * FOUND.growth ** n : FOUND.first; };
 /* Influence the next upgrade of a branch costs, or null when every one is bought. */
 export function nodeCost(game, id) { const n = nodesOf(game, id); return n < INSTITUTION[id].nodes.length ? NODE_COST[n] : null; }
 /* The next upgrade of a branch, or null. */
