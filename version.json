@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.24-8",
-  "notes": "Dry Creek asks for Call now first, and the coin rate counts the last minute"
+  "version": "2026.11.24-9",
+  "notes": "A stalled workshop says what it waits for, and the goal asks for the building that feeds it"
 }

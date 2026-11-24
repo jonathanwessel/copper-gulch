@@ -252,7 +252,11 @@ const RIDGE = [
     for (let i = 0; i < 300; i++) { f = t.waves.foes.find(x => x.kind === 'train'); if (f) { f.hp = f.max = 1e6; if (f.s >= 5.4) break; } await w(50); }
   }],
   ['ridge-goods', () => { CG.town.rig.reset(); const t = CG.game.town; t.shipped = { bricks: 12 }; t.goods.bricks = 6; CG.play.openGoods(); }],
-  ['ridge-income', () => { CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
+  // a stalled workshop says why (clarity fix 6): a Boiler Shop at 12 behind a Steel Mill at 3, its row on the Goods
+  // sheet and its card; the levels go back in the next frame
+  ['ridge-stall', () => { CG.play.close(); CG.play.sheets.close(); const t = CG.game.town; window.__st = { s: t.buildings.steelmill, b: t.buildings.boilershop }; t.buildings.steelmill = 3; t.buildings.boilershop = 12; t.goods.steel = 0; (t.stall ||= {}).boilershop = 60; CG.play.openGoods('boilers'); }],
+  ['ridge-stall-card', () => { CG.play.sheets.close(); CG.play.open('boilershop'); }],
+  ['ridge-income', () => { CG.play.close(); const t = CG.game.town; if (window.__st) { t.buildings.steelmill = window.__st.s; t.buildings.boilershop = window.__st.b; window.__st = null; } CG.play.sheets.close(); CG.play.openIncome(); }], // one purse: a line for each other town and outpost (waits 6 s)
   // the Capital's save on the strip once the Ridge has beaten wave 30, ahead of the Ridge's own goals (clarity fix 3),
   // with the toast that says the Ridge beat wave 30 (part 2b; the research frame before it marks that news told)
   // the Ridge's late research, shown as it climbs toward the Capital (clarity fix 3b part 1); its best wave goes back after

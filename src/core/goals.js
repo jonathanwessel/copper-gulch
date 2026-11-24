@@ -15,6 +15,7 @@ import { canFound, nextTowns, deedsOf } from './empire.js';
 import { capitalOpen, capitalNext as capitalAhead } from './capital.js';
 import { treeOf, foundCost } from './tree.js';
 import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
+import { stallOf } from './stall.js';
 
 /* What a goal reads: a small view of one town. */
 export function goalContext(game, town) {
@@ -158,6 +159,8 @@ export function goalNow(game, held = true) {
   }
   const away = held && heldAway(game);
   if (away) return goResume(away.id);
+  const fed = feedStep(game, town);
+  if (fed) return fed;
   let c = null;
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;
@@ -202,6 +205,8 @@ function stepFor(game, town, g, depth = 0) {
       const text = (town.level(m.id) > 0 ? 'Tap the ' + bname(m.id) + ' and upgrade it to level ' + m.level : 'Tap the ' + bname(m.id) + ' lot, then tap Build') + ' to open the ' + bname(at.plot);
       return stepFor(game, town, { id: g.id + '>' + m.id, town: g.town, text, done: g.done, step: true, at: () => ({ plot: m.id }) }, depth + 1);
     }
+    const fix = stallStep(game, town, g, at.plot, depth);
+    if (fix) return fix;
     return g.need || town.level(at.plot) > 0 ? g : { ...g, need: cost(town, at.plot) };
   }
   if (g.kind && at.spot != null) {
@@ -214,6 +219,57 @@ function stepFor(game, town, g, depth = 0) {
     }
   }
   return g;
+}
+
+/* A goal on a workshop that is stalled, or one that uses a good this town's stalled workshop makes, first asks for the
+   building that feeds it (clarity fix 6, review 6): the newcomer's Boiler Shop sat short of steel nearly all the time,
+   and its Locomotive Works then waited up to 31 minutes for a first boiler. A maker in another town sends the player
+   there (the Ridge's bricks come from a Kiln the newcomer kept at level 1 all game), and that town's strip then asks
+   for it (feedStep). The step goes when the stall does. */
+function stallStep(game, town, g, P, depth) {
+  const own = k => ((town.def && town.def.buildings) || []).find(b => BUILDINGS[b] && BUILDINGS[b].makes === k && town.level(b) > 0);
+  const ids = [P, ...Object.keys(BUILDINGS[P].inputs).map(own).filter(Boolean)];
+  for (const id of ids) {
+    const s = stallOf(game, town, id);
+    if (!s || !s.maker || s.maker.id === id) continue;
+    const mk = s.maker.id;
+    if (s.maker.town !== town.id) {
+      const mt = s.maker.town, src = game.towns[mt];
+      if (!src || isOutpost(src)) continue;
+      const tn = TOWNS[mt].short || TOWNS[mt].name, act = s.maker.built ? 'upgrade the ' + bname(mk) : 'build a ' + bname(mk);
+      return { id: g.id + '~' + mt + ':' + mk, town: g.town, text: 'Tap Map, ' + tn + ', then ' + act + '. The ' + bname(id) + ' needs more ' + GOODS[s.good].name.toLowerCase(), done: g.done, step: true, stall: id, feeds: { town: town.id, id, good: s.good }, there: [mt, mk], at: c => ({ el: c.back === mt ? '#backBtn' : '#mapBtn', go: mt }) };
+    }
+    const why = ' The ' + bname(id) + ' needs more ' + GOODS[s.good].name.toLowerCase();
+    const text = (s.maker.built ? 'Tap the ' + bname(mk) + ' and upgrade it.' : 'Tap the ' + bname(mk) + ' lot, then tap Build.') + why;
+    return stepFor(game, town, { id: g.id + '~' + mk, town: g.town, text, done: g.done, step: true, stall: id, at: () => ({ plot: mk }) }, depth + 1);
+  }
+  return null;
+}
+
+/* The other half of a step that sends the player here to feed another town's stalled workshop: while that town's own
+   goal waits on a good this town makes, the strip here asks for the building that makes it ("Tap the Kiln and upgrade
+   it. The Boiler Shop in Iron Ridge needs more bricks"). */
+function feedStep(game, town) {
+  if (isOutpost(town)) return null;
+  const sh = game.shared.goals;
+  for (const t of Object.values(game.towns)) {
+    if (t === town || isOutpost(t) || !t.def) continue;
+    let c = null, first = null;
+    for (const g of GOALS) {
+      if (g.town !== t.id || sh.done[g.id]) continue;
+      c = c || goalContext(game, t);
+      if (!g.ready || g.ready(c)) { first = g; break; }
+    }
+    if (!first || typeof first.at !== 'function' || first.away || first.there) continue;
+    let at = null; try { at = first.at(c) || {}; } catch (e) { continue; }
+    if (!at.plot || !BUILDINGS[at.plot]) continue;
+    const st = stallStep(game, t, first, at.plot, 0);
+    if (!st || !st.feeds || !st.there || st.there[0] !== town.id) continue;
+    const mk = st.there[1], tn = TOWNS[t.id].short || TOWNS[t.id].name;
+    const text = (town.level(mk) > 0 ? 'Tap the ' + bname(mk) + ' and upgrade it.' : 'Tap the ' + bname(mk) + ' lot, then tap Build.') + ' ' + tn + ' needs more ' + GOODS[st.feeds.good].name.toLowerCase();
+    return stepFor(game, town, { id: 'feed:' + t.id + ':' + mk, town: town.id, text, done: () => false, step: true, stall: st.feeds.id, at: () => ({ plot: mk }) }, 1);
+  }
+  return null;
 }
 
 /* When the town in play has no goal left, the strip shows the empire's next step: the next town or the Capital, the

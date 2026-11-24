@@ -8,6 +8,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { saturation, eventFactor, boomNow, sellMode, setSellMode, SELL_MODES } from '../core/market.js';
 import { explainPrice } from '../core/explain.js';
+import { goodStall, stallWords } from '../core/stall.js';
 import { explainBox } from './explain.js';
 import { encode } from '../core/save.js';
 import { loadGame } from '../core/setup.js';
@@ -184,7 +185,9 @@ export function goodsSheet(game, town, focus = null) {
         const row = el('div', 'option good'), txt = el('div', 'tapwhy'), name = el('b', null, GOODS[g].name), line = el('span'), line2 = el('span'), why = el('div');
         // the bar says what it is (review of 2026.11.19-12) and where it stands in a word (review of 2026.11.20-2: no scale)
         const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'), ev = el('small', 'evword'); ev.hidden = true; barRow.append(plabel, level); const head = el('div', 'gnamerow'); head.append(name, ev); // ev: a boom or bust and its time left, beside the name so the price row keeps its width on a phone // no bar: it had no label and said what the word says (review of 2026.11.20-15)
-        txt.append(head, line, line2, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
+        // a stalled workshop's good says what it waits for (clarity fix 6)
+        const wait = el('small', 'warn waitline'); wait.hidden = true;
+        txt.append(head, line, line2, wait, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
         // Sell spare opens the four modes under the row (GDD.md, Market); a pick closes them
         const sw = btn('', 'btn small'); sw.dataset.good = g;
@@ -194,7 +197,7 @@ export function goodsSheet(game, town, focus = null) {
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
         row.append(txt, sw); list.append(row, pick);
-        rows[g] = { line, line2, sw, why, txt, level, plabel, ev, pick, picks };
+        rows[g] = { line, line2, wait, sw, why, txt, level, plabel, ev, pick, picks };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -215,6 +218,9 @@ export function goodsSheet(game, town, focus = null) {
         if (r.line.textContent !== a) r.line.textContent = a;
         if (r.line2.textContent !== b2) r.line2.textContent = b2;
         if (r.line2.hidden !== !b2) r.line2.hidden = !b2;
+        const wt = stallWords(game, town, goodStall(game, town, g));
+        if (r.wait.textContent !== wt) r.wait.textContent = wt;
+        if (r.wait.hidden !== !wt) r.wait.hidden = !wt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1 }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';

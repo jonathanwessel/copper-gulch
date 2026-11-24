@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-9',
+    lines: [
+      'When a building runs out of something, its card says what it needs and which building to upgrade.',
+      'The Goods list shows what each stopped workshop is waiting for.',
+      'When the Boiler Shop runs short, the goal asks you to upgrade the Steel Mill, the Blast Furnace or the Kiln in Copper Gulch.',
+    ],
+  },
+  {
     v: '2026.11.24-8',
     lines: [
       'In Dry Creek, after your first Crossbow, the goal asks you to tap Call now. Wave 1 comes early and pays bonus coins.',

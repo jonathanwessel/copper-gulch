@@ -6,6 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { boomNow, sellMode, setSellMode } from '../core/market.js';
 import { explainMade, explainTower, explainWindow, incomeWindow, paysEach, usedBy } from '../core/explain.js';
+import { stallOf, stallFix, shortInput, makerOf as stallMaker } from '../core/stall.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords, hurtWords } from '../data/towers.js';
 import { vaultMax, forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
@@ -327,7 +328,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (town.starved[id] === 'towers' && L) {
       // held back by the tower reserve (src/core/economy.js, WORKSHOP): the yard has the input, the towers come first
       const g0 = Object.keys(b.inputs).find(g => (town.goods[g] || 0) - ((town.keepUse || {})[g] || 0) < uses(town, id, g)) || Object.keys(b.inputs)[0];
-      card.append(el('p', 'warn', 'Your towers get the ' + GOODS[g0].name.toLowerCase() + ' first. This runs again when there is more.'));
+      // a long stall names the building that would make more (clarity fix 6: the Ridge's Steel Mill was held for its
+      // pig iron behind a Blast Furnace at level 3)
+      const st = stallOf(game, town, id), fix = st && st.good === g0 ? stallFix(game, town, st) : '';
+      card.append(el('p', 'warn', 'Your towers get the ' + GOODS[g0].name.toLowerCase() + ' first. ' + (fix ? fix + ' to make more.' : 'This runs again when there is more.')));
     }
     else if (town.starved[id] && L && shortImp.length) {
       // the town that makes it may not have built its maker yet: then the line says to build it
@@ -335,7 +339,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const verb = src && mid && !src.level(mid) ? 'Build a ' : 'Upgrade the ';
       card.append(el('p', 'warn', 'Not enough ' + GOODS[g0].name.toLowerCase() + '. ' + verb + (mk || { name: 'workshop' }).name + ' in ' + fromName(g0) + '.'));
     }
-    else if (town.starved[id] && L) card.append(el('p', 'warn', 'It ran out of materials. Upgrade the building that supplies it.'));
+    else if (town.starved[id] && L) {
+      // named, from the same place as the strip and the Goods sheet (clarity fix 6: "It ran out of materials" named nothing)
+      const g0 = shortInput(town, id), mk = g0 && stallMaker(game, town, g0), fix = mk ? stallFix(game, town, { good: g0, maker: mk }) : '';
+      card.append(el('p', 'warn', g0 ? 'Not enough ' + GOODS[g0].name.toLowerCase() + '. ' + (fix ? fix + '.' : '') : 'It ran out of materials.'));
+    }
     const miss = missing(town, id);
     if (miss.length) card.append(el('p', 'warn', 'Unlocks when ' + miss.map(m => 'the ' + BUILDINGS[m.id].name + ' reaches level ' + m.level).join(' and ') + '.'));
     const row = el('div', 'row sellrow');

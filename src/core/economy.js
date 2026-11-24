@@ -95,8 +95,11 @@ export const RAN_SECONDS = 3;
    that way is marked town.starved[id] = 'towers' (its card says so). WORKSHOP.spare false is the rule before
    2026.11.19-15 (tools/reserve.js compares them). */
 export const WORKSHOP = { spare: true };
+/* town.stall[id]: seconds a built workshop has run under STALL_SHARE of its rate for want of a good, held for towers or not (src/core/stall.js). */
+export const STALL_SHARE = .5, STALL_SECONDS = 20, STALL_MAX = 60;
 export function produce(town, dt) {
   town.starved = {};
+  const stall = town.stall ||= {};
   const ran = town.ran ||= {}, k = 1 - Math.exp(-dt / RAN_SECONDS);
   // the workers are out fighting (Call to arms, src/core/arms.js): nothing is made
   if (town.arms && town.arms.t > 1e-9) { for (const id of Object.keys(ran)) ran[id] -= ran[id] * k; return; }
@@ -113,6 +116,11 @@ export function produce(town, dt) {
     }
     if (made < want * .999) town.starved[id] = all >= want * .999 ? 'towers' : true;
     ran[id] = id in ran ? ran[id] + (made / dt - ran[id]) * k : made / dt;
+    // short of a good, or held back for the towers (its maker is too small for both): climbs while short, falls twice as fast once it runs
+    if (Object.keys(b.inputs).length) {
+      const short = !!town.starved[id] && ran[id] < want / dt * STALL_SHARE;
+      stall[id] = Math.max(0, Math.min(STALL_MAX, (stall[id] || 0) + (short ? dt : -2 * dt)));
+    }
     if (made <= 0) continue;
     for (const [g, n] of need) town.goods[g] -= made * n;
     town.addGood(b.makes, made);
@@ -199,10 +207,10 @@ export const economy = {
   id: 'economy',
   init(town) {
     const s = town.def && town.def.start;
-    town.made = {}; town.sell = {}; town.starved = {}; town.drawn = {}; town.shipped = {};
+    town.made = {}; town.sell = {}; town.starved = {}; town.drawn = {}; town.shipped = {}; town.stall = {};
     // a new town's start coins go into the purse once; a charter starts the town over but never touches the purse
     if (s) { if (!town.charters) town.coins += s.coins || 0; Object.assign(town.buildings, s.buildings || {}); }
   },
-  load(town) { town.made ||= {}; town.sell ||= {}; town.starved ||= {}; town.drawn ||= {}; town.shipped ||= {}; },
+  load(town) { town.made ||= {}; town.sell ||= {}; town.starved ||= {}; town.drawn ||= {}; town.shipped ||= {}; town.stall ||= {}; },
   step(town, dt, game) { produce(town, dt); sellSurplus(game, town, dt); town.recent = (town.recent || 0) * Math.exp(-dt / RECENT_SECONDS); },
 };

@@ -96,6 +96,8 @@ The game starts in a tiny outpost, not a town. Outposts are small raw-goods camp
 ## Supply chains
 Goods go from raw to intermediate to finished. "<-" marks a good shipped in from another town.
 
+**A stalled workshop says why** (clarity fix 6, 2026-11-24). A built workshop that makes under half its rate for about 20 seconds, short of a good (or held back because the towers get that good first), is stalled. Its card says what it lacks and which building to upgrade ("Not enough steel. Upgrade the Steel Mill."), and the row of its good on the Goods sheet says "Waits for steel from the Steel Mill". While a goal needs that workshop or a good it makes, the goal strip first asks for the building that feeds it, following the chain back (Boiler Shop, Steel Mill, Blast Furnace). When the maker is in another town, the strip sends the player there ("Tap Map, Copper Gulch, then upgrade the Kiln. The Boiler Shop needs more bricks"), and that town's strip asks for it ("Tap the Kiln and upgrade it. Iron Ridge needs more bricks"). The step goes once the workshop runs again.
+
 - **Copper Gulch**
   - Raw: timber (Lumber Camp), copper ore (Copper Mine), clay (Clay Pit).
   - Intermediate: planks (Sawmill, 2 timber), copper (Smelter, 2 ore + 1 timber as fuel), bricks (Kiln, 2 clay + 1 timber).
