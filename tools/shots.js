@@ -187,6 +187,8 @@ const OUTPOST = [
   ['chip', async () => { for (let i = 0; i < 50 && (!document.getElementById('coachGo') || document.getElementById('coachGo').hidden); i++) await new Promise(r => setTimeout(r, 100)); document.getElementById('coachGo').click(); await new Promise(r => setTimeout(r, 800)); CG.coach.skipAll(); }],
   // the back button's card, the first time there is somewhere to go back to
   ['back-card', async () => { delete CG.game.shared.seen.back; for (let i = 0; i < 60 && CG.coach.current !== 'back'; i++) await new Promise(r => setTimeout(r, 100)); }],
+  // the Gulch's vault tip card, which says the vault mends (clarity fix 3b part 2c; the Gulch run has the coach off)
+  ['vault-card', async () => { CG.coach.dismiss(); const t = CG.game.town; t.vault.hp = Math.max(1, t.vault.max - 3); delete CG.game.shared.seen.vault; for (let i = 0; i < 60 && CG.coach.current !== 'vault'; i++) await new Promise(r => setTimeout(r, 100)); }],
 ];
 // Iron Ridge: a Gulch at wave 20 with the coins, the locked Iron Ridge button, its sheet, Start, then the Ridge itself
 const RIDGE = [

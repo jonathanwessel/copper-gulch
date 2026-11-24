@@ -3,6 +3,12 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.23-11',
+    lines: [
+      'Each wave you beat mends the vault a little. Tap the heart next to the wave number to see how much.',
+    ],
+  },
+  {
     v: '2026.11.23-10',
     lines: [
       'A red dot on Map now shows every town that needs you, held towns too.',

@@ -146,7 +146,7 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through damages the vault, like the stockpile in Dry Creek. If it falls, you lose some coins and go back two waves. Build more towers or upgrade the ones you have.',
+    text: 'Every raider that gets through hits the vault. The heart at the top shows how many hits it has left. Each wave you beat mends it a little. If the heart reaches 0, you lose coins and go back two waves. Build more towers or upgrade the ones you have.',
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
   },
   {

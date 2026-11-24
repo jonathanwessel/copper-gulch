@@ -125,6 +125,9 @@ export function incomeSheet(income) {
   };
 }
 
+/* Hits mended for each wave beaten: whole hits, or a half as 2½ (words read of 2026.11.23-11: "+2.5 hits" matched
+   nothing on the heart, which counts whole hits). */
+export const mendText = n => { const w = Math.floor(n + 1e-9), half = Math.abs(n - w - .5) < .05; return (half ? w + '½' : String(Math.round(n))) + (n === 1 ? ' hit' : ' hits'); };
 /* The Vault sheet (a stockpile's too): its strength and what adds to it, the hits left, and what each raider takes. */
 export function vaultSheet(town) {
   return body => {
@@ -138,7 +141,8 @@ export function vaultSheet(town) {
       const box = explainBox(ex, { total: 'Full strength' }), left = el('div', 'total');
       const hits = el('b', 'hitsleft'); hits.append(heart(), el('span', null, unitText('hits', ex.left))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
       left.append(el('span', null, 'Hits left'), hits);
-      box.append(left); top.replaceChildren(box);
+      const mend = el('div', 'total'); mend.append(el('span', null, 'Each wave you beat'), el('b', null, '+' + mendText(ex.mend)));
+      box.append(left, mend); top.replaceChildren(box);
       each.replaceChildren(...ex.raiders.map(r => { const d = el('div'); d.append(el('span', null, r.label), el('b', null, unitText('hits', r.hits))); return d; }));
     };
     paint();

@@ -500,6 +500,9 @@ function waveEnd(game, town) {
   if (ws.bossLeaked && !town.won) { fall(game, town, 'boss'); return; }
   ws.bossLeaked = false;
   town.bestWave = Math.max(town.bestWave, town.wave);
+  // a beaten wave mends the vault a little (GDD.md, Vault): a newcomer at a wall with a few hearts left climbs back
+  // instead of spending every coin on towers while the vault never refills
+  town.vault.hp = Math.min(town.vault.max, town.vault.hp + mendHits(town));
   game.bus.emit('wave:clear', { town: town.id, wave: town.wave });
   if (town.won) { Object.assign(ws, { phase: 'break', timer: Math.max(wavesOf(town).rest, (town.def.raid || 120) - (ws.age || 0)) }); return; } // light raids
   town.wave++;
@@ -654,6 +657,10 @@ export function shortfall(town, c) {
   return out;
 }
 
+/* Hits the vault mends for each wave beaten: a share of its full strength (a 25-hit vault mends 2.5). The battle and
+   the Vault sheet's row both read it. Whole hits were tried (3 for a 25-hit vault) and tipped two bot gates on one
+   seed each, so the sheet shows the half instead. */
+export const mendHits = town => town.vault.max * (wavesOf(town).mend || 0);
 /* The vault's full strength: research (Thick Walls) raises it. */
 export const vaultMax = town => Math.round(wavesOf(town).vault * town.mods.factor('vault'));
 function syncVault(town) {

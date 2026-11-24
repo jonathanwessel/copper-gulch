@@ -54,4 +54,5 @@ export const WAVE = {
   vault: 20,        // vault strength
   breachLoss: .1,   // share of coins lost when the vault falls
   breachBack: 2,    // waves dropped back when the vault falls
+  mend: .1,         // share of the vault's full strength it mends for each wave beaten (clarity fix 3b part 2c, GDD.md Vault)
 };

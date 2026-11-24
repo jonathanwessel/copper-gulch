@@ -49,7 +49,7 @@ test('the explainers name the controls by their words on screen', async () => {
   assert.match(by('stock'), /^Tap 4 upgrades/);
   assert.match(by('mortar'), /A dark spot shows where each one will land/);
   assert.match(by('map'), /thin bar under a town/);
-  assert.match(by('vault'), /like the stockpile in Dry Creek/);
+  assert.match(by('vault'), /The heart at the top shows how many hits it has left/); // words read of 2026.11.23-11: tie the vault to the heart
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
 });
 

@@ -14,7 +14,7 @@ import { FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { milestonesAt, output, uses, isGrid, gridOf, buildingsOf } from './economy.js';
 import { saturation, eventFactor } from './market.js';
-import { towerStats, wavesOf, vaultMax, OLD_LABEL } from './defense.js';
+import { towerStats, wavesOf, vaultMax, mendHits, OLD_LABEL } from './defense.js';
 
 /* The named sources on a stat as rows, plus a "Top limit" row when the stat's cap holds it back. */
 export function modRows(mods, stat) {
@@ -130,6 +130,7 @@ export function explainVault(town) {
   const ex = done('hits', rows);
   ex.value = vaultMax(town); // whole hits, as the battle uses
   ex.left = Math.max(0, Math.ceil(town.vault.hp));
+  ex.mend = mendHits(town); // hits back for each wave beaten, as the battle gives them
   const boss = (town.def && town.def.boss) || 'wagon';
   ex.raiders = Object.entries(FOES).filter(([k, f]) => (!f.boss || k === boss) && (!f.only || (FOES[boss].stages || []).some(st => st.drop === k)) && (!f.water || !!(town.def.board && town.def.board.river))).map(([k, f]) => ({ kind: k, label: f.name, hits: f.leak }));
   return ex;

@@ -25,7 +25,7 @@ const dir = path.resolve(process.argv[2] && !process.argv[2].startsWith('--') ? 
 const SEED = +arg('seed', 1), MINUTES = +arg('minutes', 330), SIZE = arg('size', 'phone');
 const SIZES = { phone: [400, 860], land: [860, 400], desk: [1366, 800] };
 export const QUIET = 120; // seconds with nothing new before a "quiet" shot
-const AFTER_CAPITAL = 20 * 60; // play on this long after the Capital opens, then stop
+const AFTER_CAPITAL = (+process.env.AFTER || 20) * 60; // play on this long after the Capital opens, then stop (AFTER=40 for 40 minutes)
 const BUTTON_OPENS = { goods: 'goodsBtn', research: 'researchBtn', perks: 'perksBtn', auto: 'autoBtn', arms: 'armsBtn', chip: 'map' };
 
 /* Plays the newcomer and returns the moments: [{ at, town, kinds: [..], what: [..], goal, action, save }]. */
