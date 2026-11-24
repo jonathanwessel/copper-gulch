@@ -167,6 +167,36 @@ export function explainIncome(town, before, now, seconds) {
   const bonuses = [...on('income', 'all'), ...on('price', 'sales'), ...on('bounty', 'raiders')];
   return { unit: 'rate', rows, value: rows.reduce((s, r) => s + r.value, 0), bonuses };
 }
+/* The purse's income window (clarity fix 10, review 10: the top bar read +0/s while the coins climbed, since it
+   counted the last 5 seconds and bounties come in bursts between waves). One window of INCOME_SPAN seconds of play
+   over every town's tally, kept on the game (game.incomeHist, never saved), so it lasts across switching towns. The
+   top bar, the Income sheet and the goal strip's "about 4 min to go" all read it (one state, one source), and its total
+   is earnRate's over the same span (src/core/goals.js), which the bots read. Call incomeWindow often (the play screen
+   does five times a second); it samples at most every 0.2 s of play. */
+export const INCOME_SPAN = 60;
+export function incomeWindow(game) {
+  const t = game.stats.steps * .25, h = game.incomeHist || (game.incomeHist = []), last = h[h.length - 1];
+  if (last && (t < last.t || game.earned < last.earned - 1e-6)) h.length = 0; // a load or a charter starts it over
+  if (!h.length || t - h[h.length - 1].t >= .2) {
+    h.push({ t, earned: game.earned, tally: Object.fromEntries(Object.entries(game.towns).map(([id, x]) => [id, { ...x.tally }])) });
+    while (h.length > 2 && t - h[1].t >= INCOME_SPAN) h.shift();
+  }
+  return h;
+}
+/* The income explained over the window: the town in play by source, then one row for each other town and outpost. */
+export function explainWindow(game) {
+  const h = incomeWindow(game), a = h[0], b = h[h.length - 1], secs = b.t - a.t, id = game.active; // from the first sample on, as the top bar never sits blank after a load
+  const ex = explainIncome(game.town, a.tally[id] || {}, b.tally[id] || {}, secs);
+  for (const [oid, now] of Object.entries(b.tally)) {
+    if (oid === id || secs <= 0) continue;
+    const was = a.tally[oid] || {}; let d = 0;
+    for (const k of Object.keys(now)) d += (now[k] || 0) - (was[k] || 0);
+    if (d / secs > 1e-9) ex.rows.push({ key: 'town:' + oid, label: incomeLabel('town:' + oid), value: d / secs });
+  }
+  ex.rows.sort((x, y) => y.value - x.value);
+  ex.value = ex.rows.reduce((s, r) => s + r.value, 0);
+  return ex;
+}
 /* A snapshot for explainEmpireIncome: the town in play's tally and what every town has earned. */
 export function incomeSnap(game) {
   return { active: game.active, tally: { ...game.town.tally }, life: Object.fromEntries(Object.entries(game.towns).map(([id, t]) => [id, t.lifetime])) };

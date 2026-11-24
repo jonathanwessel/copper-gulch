@@ -10,7 +10,7 @@ import { FOES } from '../data/foes.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
-import { researchOpen } from './research.js';
+import { researchOpen, itemsOf, researchBlock, researchCost } from './research.js';
 import { canFound, nextTowns, deedsOf } from './empire.js';
 import { capitalOpen, capitalNext as capitalAhead } from './capital.js';
 import { treeOf, foundCost } from './tree.js';
@@ -27,6 +27,8 @@ export function goalContext(game, town) {
     built: kind => towers.some(t => t.kind === kind), pathed: () => towers.some(t => t.path),
     topLevel: () => towers.reduce((a, t) => Math.max(a, t.level), 0),
     called: () => !!(town.flags && town.flags.called),
+    // wave 1 is on the road or past (the first Call now step goes then)
+    started: () => town.wave > 1 || (town.bestWave || 0) > 0 || !!(town.waves && town.waves.phase !== 'break'),
     wonIn: id => !!(game.towns[id] && game.towns[id].won), inPlay: game.active === town.id,
     founded: id => !!game.towns[id], lvIn: (tid, id) => game.towns[tid] ? game.towns[tid].level(id) : 0, canFound: id => canFound(game, id), held: () => !!(town.waves && town.waves.hold), heldByPlayer: () => !!(town.waves && town.waves.hold && !town.waves.autoHold),
     researched: () => !!town.lab || Object.values(town.research || {}).some(n => n > 0),
@@ -192,6 +194,8 @@ function stepFor(game, town, g, depth = 0) {
   if (depth > 4 || !g.at || g.away || g.there || g.resume) return g;
   const c = goalContext(game, town);
   let at = null; try { at = g.at(c) || {}; } catch (e) { return g; }
+  // Research counts the coins its cheapest item takes while they are short (clarity fix 4: "Tap Research and start one" with 85 of 200)
+  if (at.el === '#researchBtn' && !g.need) { const n = researchOpen(town) && !town.lab ? cheapResearch(town) : null; return n !== null && town.coins + 1e-9 < n ? { ...g, need: n } : g; }
   if (at.plot && BUILDINGS[at.plot]) {
     const m = missing(town, at.plot)[0];
     if (m) {
@@ -298,6 +302,40 @@ function viaBack(game, town, g) {
   if (!at || at.el !== '#backBtn') return g.text;
   const t = TOWNS[at.go], label = '◂ ' + ((t && (t.short || t.name)) || m[1]);
   return /^Play /.test(m[2]) ? 'Tap ' + label : 'Tap ' + label + ', then ' + m[2];
+}
+
+/* The coins the strip's step needs before it can be taken, or null when it needs none (clarity fix 4, review 3): its
+   need, a tower to build or raise, a building to build or upgrade, or the cheapest research. */
+export function goalCoins(game, town, g) {
+  if (!g || g.away || g.there || g.resume) return null;
+  if (g.need) return g.need;
+  if (typeof g.at !== 'function') return null;
+  const c = goalContext(game, town);
+  let at = null; try { at = g.at(c) || {}; } catch (e) { return null; }
+  if (g.kind && at.spot != null) return towerCost(town, g.kind, 0).coins;
+  if (at.tower != null) { const t = towerAt(town, at.tower); return t ? towerCost(town, t.kind, t.level).coins : null; }
+  if (at.plot && BUILDINGS[at.plot]) return unlocked(town, at.plot) ? cost(town, at.plot) : null;
+  if (at.el === '#researchBtn' && researchOpen(town) && !town.lab) { const n = cheapResearch(town); return n === null ? null : n; }
+  return null;
+}
+const cheapResearch = town => { let b = null; for (const id of itemsOf(town)) { const blk = researchBlock(town, id); if (blk === null || blk === 'coins') { const n = researchCost(town, id); if (b === null || n < b) b = n; } } return b; };
+
+/* The gate of clarity fix 4: the strip never asks for coins the purse lacks for longer than BROKE_LIMIT seconds while
+   the empire earns nothing (earnRate over its minute). brokeWatch() reads the strip once a second of play, the way
+   tools/broke-probe.js and test/broke.test.js drive it: step(game, seconds). */
+export const BROKE_LIMIT = 30;
+export function brokeWatch() {
+  const hist = [], w = { stretches: [], longest: 0, cur: null, last: -1 };
+  w.step = (game, at) => {
+    if (Math.floor(at) === w.last) return; w.last = Math.floor(at);
+    const per = earnRate(game, hist), town = game.town, g = goalNow(game), need = g ? goalCoins(game, town, g) : null;
+    const broke = need !== null && town.coins + 1e-9 < need && per <= 1e-9 && game.stats.steps * .25 > EARN_WINDOW / 4;
+    if (broke) {
+      if (!w.cur) { w.cur = { from: at, len: 0, town: town.id, goal: goalText(game, town, g), need: Math.ceil(need) }; w.stretches.push(w.cur); }
+      w.cur.len = at - w.cur.from; w.longest = Math.max(w.longest, w.cur.len);
+    } else w.cur = null;
+  };
+  return w;
 }
 
 /* Mark every goal done (for players already past the start; the save migration uses the list too). */

@@ -1,6 +1,7 @@
 /* The empire map's screen (GDD.md, Empire map), over the 3D map (src/render/empire-view.js): the coins, Pause and a
    button back to the town in play; a badge under every site (its wave, its vault, what it earns, a pulsing dot when it
    needs you); and the card a tapped site opens, with Play to fly in. Words follow the writing rule in PLAN.md. */
+import { incomeWindow } from '../core/explain.js';
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -510,6 +511,7 @@ export function mountMap(root, game, view, shell) {
         { const k = view.capitolBox ? view.capitolBox() : null; keep.hidden = !k; if (k) Object.assign(keep.style, { left: Math.round(k.l) + 'px', top: Math.round(k.t) + 'px', width: Math.round(k.r - k.l) + 'px', height: Math.round(k.b - k.t) + 'px' }); }
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
         { const cap = capitalOpen(game) ? capitalOf(game) : null; if (infl.hidden !== !cap) { infl.hidden = !cap; ui.classList.toggle('hasinfl', !!cap); } if (cap) setText(inflNum, fmtLive(Math.floor(cap.influence))); }
+        incomeWindow(game); // the play screen's minute of income keeps counting on the map (clarity fix 10)
         setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
       }
       if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)

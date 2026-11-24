@@ -98,7 +98,7 @@ export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
 }
 
 /* The Income sheet: coins a second by where they came from, then the bonuses already in those numbers.
-   income() gives explainIncome over the same few seconds as the number at the top. */
+   income() gives explainIncome over the same minute as the number at the top (clarity fix 10). */
 export function incomeSheet(income) {
   return body => {
     const parts = el('div', 'explain why'), bonus = el('div', 'explain why'), bsec = el('div', 'sec');
@@ -109,7 +109,7 @@ export function incomeSheet(income) {
       // the rows add up to the total as written (review of 2026.11.19-5: 4.7 + 0.6 + 0.0 under +5.4/s)
       const ex = income(), sp = splitLive(ex.value, ex.rows.map(r => r.value));
       const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, (v === LITTLE ? v : '+' + v + '/s')]);
-      if (!rows.length) rows.push(['No coins in the last few seconds', '']);
+      if (!rows.length) rows.push(['No coins in the last minute', '']);
       else rows.push(['Total', '+' + sp.total + '/s', 'total']);
       const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), mulText(r.mul)]);
       const s = JSON.stringify([rows, b]);

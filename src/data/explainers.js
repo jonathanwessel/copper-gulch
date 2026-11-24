@@ -254,12 +254,6 @@ export const EXPLAINERS = [
     when: h => h.toPick > 0 && !h.outpost, at: () => ({ el: '#perksBtn' }),
   },
   {
-    id: 'pit', covers: ['pit'],
-    title: 'Mortar pit',
-    text: 'This spot is too far from the road for most towers. A Mortar fits here. It fires over long distances but can\'t hit raiders close to it. You can build one here at wave 12.',
-    when: h => h.bestWave >= 4 && h.phase === 'break' && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
-  },
-  {
     id: 'numbers', covers: ['explain'],
     title: 'Tap to see why',
     text: 'Tap your coins at the top to see what earns them. Tap Damage, Range or another line on a card to see what adds to it.',
@@ -310,7 +304,8 @@ export const EXPLAINERS = [
     when: h => h.drew && h.t > 30, at: () => ({ plot: 'smelter' }),
   },
   {
-    id: 'mortar', covers: ['tower:mortar'],
+    // it covers the pits too: their own card showed at wave 4, 8 waves before a Mortar could stand there (clarity fix 4)
+    id: 'mortar', covers: ['tower:mortar', 'pit'],
     title: 'The Mortar is open',
     text: 'Tap a mortar pit, the ring of sandbags far from the road, and build a Mortar. Its shells blast a whole group of raiders far away. A dark spot shows where each one will land. It can\'t hit raiders close to it.',
     when: h => !!h.flags['open:mortar'] && h.firstPit !== null, at: h => ({ spot: h.firstPit }),
@@ -337,7 +332,7 @@ export const EXPLAINERS = [
   {
     id: 'capital-sight', covers: ['capital:sight'],
     title: 'The Capital',
-    text: 'You can build the Capital soon. Tap Map, then tap Capital to see what it needs.',
+    text: 'The Capital is on the map now. Tap Map, then tap Capital to see what it needs.',
     when: h => h.capitalSight, at: () => ({ el: '#mapBtn' }),
   },
   {

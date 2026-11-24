@@ -127,6 +127,9 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/playt
       // a card due: wait for it (the coach looks about once a second)
       const card = m.kinds.includes('card');
       for (let i = 0; i < (card ? 50 : 15); i++) { if (await p.evaluate(() => !!document.querySelector('.coachcard') && !document.querySelector('.coachcard').closest('[hidden]'))) break; await sleep(100); }
+      // a card the core found due that the game never showed is a failure, not a blank shot (clarity fix 10, review 10:
+      // "The Sawmill" moment showed no card)
+      if (card) { const want = (m.what.find(w => /^[a-z0-9-]+: /.test(w)) || '').split(':')[0], cur = await p.evaluate(() => (CG.coach && CG.coach.current) || null); if (want && cur !== want) errs.push(`moment ${n + 1}: the card ${want} was due and the game showed ${cur || 'none'}`); }
       if (m.ev) { await p.evaluate(e => { CG.game.catching = false; CG.game.bus.emit('breach', e); }, m.ev); await sleep(400); }
       await sleep(700);
       const f = path.join(dir, name + '.png'); await p.screenshot({ path: f });

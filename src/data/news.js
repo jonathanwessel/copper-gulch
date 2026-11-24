@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-8',
+    lines: [
+      'In Dry Creek, after your first Crossbow, the goal asks you to tap Call now. Wave 1 comes early and pays bonus coins.',
+      'The coin rate at the top no longer drops to 0 between waves.',
+      'The Research goal shows how many coins your first research takes.',
+      'The Mortar card now shows at wave 12, and the map moves so you can see the pit it points at.',
+      'When Thick Walls is done, a note shows how many hearts your vault has now.',
+    ],
+  },
+  {
     v: '2026.11.24-7',
     lines: [
       'On the Map, wagons and trains now leave a shed by each town, go to the Capital, wait there and come back.',

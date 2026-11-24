@@ -27,6 +27,9 @@ const FALLS_GOAL = 600;
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
   { id: 'dc-tower', town: 'drycreek', text: 'Tap a stone pad and build a Crossbow', doneText: 'Crossbow built', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  // nothing pays before wave 1's raiders fall, so the step after the first Crossbow needs no coins: calling wave 1 is
+  // free (it never brings more raiders) and pays bonus coins at once (clarity fix 4, review 3: "0 / 12" at +0/s)
+  { id: 'dc-first', town: 'drycreek', text: 'Tap Call now to start wave 1 and get bonus coins', doneText: 'Wave 1 called', done: c => c.called() || c.started(), ready: early(c => c.towers.length >= 1), at: () => ({ el: '#callWave' }) },
   { id: 'dc-stone2', town: 'drycreek', text: 'Tap the Stone Camp, then tap Upgrade', doneText: 'Stone Camp is level 2', done: c => c.lv('quarry') >= 2, ready: early(), at: () => ({ plot: 'quarry' }) },
   { id: 'dc-mine', town: 'drycreek', text: 'Tap the Copper Camp lot, then tap Build', doneText: 'Copper Camp built', done: c => c.lv('dmine') >= 1, ready: early(c => c.unlocked('dmine')), at: () => ({ plot: 'dmine' }) },
   { id: 'dc-three', town: 'drycreek', text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, count: c => [c.towers.length, 3], ready: early(), at: c => ({ spot: c.freeSpot() }) },

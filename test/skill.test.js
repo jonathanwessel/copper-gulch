@@ -45,7 +45,7 @@ test('the newcomer taps Call now only in a break, when the strip asks', () => {
   t.coins = 1e4; t.goods.stone = 1e4;
   for (const s of [0, 1, 2]) buildTower(g, t, s, 'crossbow');
   t.bestWave = 2;
-  for (const id of ['dc-tower', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) g.shared.goals.done[id] = true;
+  for (const id of ['dc-tower', 'dc-first', 'dc-stone2', 'dc-mine', 'dc-three', 'dc-up']) g.shared.goals.done[id] = true;
   assert.equal(goalNow(g).id, 'dc-call');
   const tap = goalTap(g, t, rng);
   assert.equal(tap.what, 'call');

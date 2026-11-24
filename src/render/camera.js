@@ -265,6 +265,14 @@ export class CameraRig {
     if (!this.slid || this.slid.g !== this.gestures) this.slid = { x: this.t.x, z: this.t.z, dist: this.t.dist, g: this.gestures };
     this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
   }
+  /* Slide the map so world point p lands on screen point (x, y) (client pixels): a tip card's spotlight whose pad sat
+     under the top bar (clarity fix 10, review 10: the Mortar card's box lay on Hold waves, its pit hidden under it). */
+  slideTo(p, x, y) {
+    const q = this.proj(this.t, p.x, p.y, p.z), g1 = this.ground(q.x, q.y, this.t), g2 = this.ground(x, y, this.t);
+    if (!g1 || !g2) return false;
+    this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
+    return true;
+  }
   /* The ground point { x, z } under a screen point (client pixels), for a rig state (the current one by default). */
   ground(px, py, s = this.c) {
     const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;

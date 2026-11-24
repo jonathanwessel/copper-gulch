@@ -123,11 +123,30 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     hush(); paintSpeak();
     if (speech && speech.available() && readAuto()) speech.speak(words());
   }
+  /* The part of the screen a spotlit pad can sit in: below the top bar (--hudtop on the play screen), above the card
+     at the foot (or below it when the card sits at the top) and in from the sides. */
+  function freeArea() {
+    const ui = document.getElementById('play-ui'), top = ui ? parseFloat(getComputedStyle(ui).getPropertyValue('--hudtop')) || 0 : 0;
+    const c = card.getBoundingClientRect(), m = 48;
+    const foot = c.height && c.top > innerHeight / 2 ? c.top : innerHeight; // a card left at the top from the last one is no floor
+    return { l: m, r: innerWidth - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, foot - m) };
+  }
   function place() {
     const h = helper(town, game), target = cur.e.at ? cur.e.at(h) : null;
     let r = null;
     if (target && target.el) { const n = document.querySelector(target.el); if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); r = { x: b.left - 6, y: b.top - 6, w: b.width + 12, h: b.height + 12 }; } }
-    else if (target) { const p = locate(target); if (p) r = { x: p.x - 48, y: p.y - 48, w: 96, h: 96 }; }
+    else if (target) {
+      const p = locate(target);
+      // a pad or building under the top bar, the card or the screen's edge: the map slides it into the free part
+      // once per card, so the box lies on it and never on a button (clarity fix 10, review 10: the Mortar card's box
+      // lay on Hold waves). Not after the player moves the map.
+      if (p && !cur.slid && locate.bring) {
+        cur.slid = true;
+        const f = freeArea();
+        if (p.x < f.l || p.x > f.r || p.y < f.t || p.y > f.b) locate.bring(target, (f.l + f.r) / 2, (f.t + f.b) / 2);
+      }
+      if (p) r = { x: p.x - 48, y: p.y - 48, w: 96, h: 96 };
+    }
     hole.hidden = !r;
     if (r) Object.assign(hole.style, { left: Math.round(r.x) + 'px', top: Math.round(r.y) + 'px', width: Math.round(r.w) + 'px', height: Math.round(r.h) + 'px' });
     // the card sits at the foot of the screen, over the goods strip, unless it would cover the spotlight; at the top
@@ -160,6 +179,8 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     skipAll() { for (const e of EXPLAINERS) seen[e.id] = true; api.dismiss(); },
     /* Take the cards down without marking the open one seen (switching towns); it shows again later. */
     destroy() { off = true; hush(); offSpeech(); if (cur) { cur = null; pause(false); } layer.remove(); },
+    /* What the open card spotlights ({ plot }, { spot }, { el }...), or null (for the tools). */
+    target: () => (cur && cur.e.at ? cur.e.at(helper(town, game)) : null),
     /* What the speaker button reads for the open card (for the tools). */
     words: () => (cur ? words() : null),
   };

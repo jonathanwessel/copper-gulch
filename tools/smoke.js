@@ -1009,6 +1009,12 @@ async function run() {
         // two goals done (the Stone Camp to level 2, the Crossbow): Done shows, then the Copper Camp, its tag spotlit
         await wait(300); out.goalDone = gl.classList.contains('done');
         await wait(1800);
+        // before wave 1 the next step costs nothing: Call now, with the spotlight on it (clarity fix 4)
+        if (t.wave === 1 && t.waves.phase === 'break') {
+          const cb = document.getElementById('callWave'), mr0 = mk.getBoundingClientRect(), cr = cb.getBoundingClientRect();
+          out.goalCall = gt() === 'Tap Call now to start wave 1 and get bonus coins' && !mk.hidden && mr0.left <= cr.left + 1 && mr0.right >= cr.right - 1 && mr0.top <= cr.top + 1 && mr0.bottom >= cr.bottom - 1;
+          cb.click(); await wait(300); await wait(1800);
+        } else out.goalCall = true; // wave 1 came on its own first: the step is done
         // with the lot's price as have / need (clarity pass)
         out.goalNext = /^Tap the Copper Camp lot, then tap Build( · \d+ \/ \d+)?$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
@@ -1068,6 +1074,28 @@ async function run() {
         return cur !== 'orders' ? 'no card (' + cur + ')' : lit ? '' : 'no spotlight on Goods';
       });
       if (ordCard) bad.push('the orders explainer: ' + ordCard);
+      // the Mortar's card spotlights a pit that the map first leaves under the top bar: the map slides the pit into
+      // the free part, and the box lies on the pit, never on Hold waves (clarity fix 10, review 10). Seen red with the
+      // slide taken out: the box lay on the top bar.
+      const pitCard = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, B = t.def.board;
+        const pit = B.spots.findIndex((_, k) => (B.pits ? B.pits.includes(k) : k >= (B.far ?? B.spots.length)));
+        if (pit < 0) return 'no pit';
+        const hb = document.getElementById('holdWaves').getBoundingClientRect();
+        CG.town.bring({ spot: pit }, hb.left + hb.width / 2, hb.top + hb.height / 2); await wait(900); // the pit now lies under Hold waves
+        const keep = !!t.flags['open:mortar'];
+        delete CG.game.shared.seen.mortar; t.flags['open:mortar'] = true;
+        for (let i = 0; i < 40 && CG.coach.current !== 'mortar'; i++) await wait(100);
+        if (CG.coach.current !== 'mortar') { if (!keep) delete t.flags['open:mortar']; return 'no card (' + CG.coach.current + ')'; }
+        await wait(1200); // the map slides
+        const tg = CG.coach.target(), p = CG.town.projectSpot(tg.spot), hn = document.querySelector('#coach .hole'), h = hn.getBoundingClientRect(), hw = document.getElementById('holdWaves').getBoundingClientRect();
+        const on = !hn.hidden && p && p.x >= h.left && p.x <= h.right && p.y >= h.top && p.y <= h.bottom;
+        const meet = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+        const onHold = !hn.hidden && meet(h, hw);
+        CG.coach.dismiss(); if (!keep) delete t.flags['open:mortar'];
+        return on && !onHold ? '' : 'box on the pit ' + on + ', on Hold waves ' + onHold;
+      });
+      if (pitCard) bad.push('the Mortar card spotlight: ' + pitCard);
       // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
       const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');

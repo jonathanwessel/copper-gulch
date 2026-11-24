@@ -3,9 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
-import { goalNow, goalsOf, goalContext, goalText } from '../src/core/goals.js';
+import { goalNow, goalsOf, goalContext, goalText, goalCoins } from '../src/core/goals.js';
 import { winOutpost } from '../src/core/outpost.js';
-import { buildTower } from '../src/core/defense.js';
+import { buildTower, callEarly } from '../src/core/defense.js';
 import { build } from '../src/core/economy.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
 import { GOALS } from '../src/data/goals.js';
@@ -24,6 +24,12 @@ test('a new game shows the first Crossbow goal, and building one moves the strip
   assert.ok(buildTower(g, t, 0, 'crossbow'));
   step(g);
   assert.deepEqual(seen, ['dc-tower']);
+  // nothing pays before wave 1, so the next step costs no coins: Call now (clarity fix 4)
+  assert.equal(goalNow(g).id, 'dc-first');
+  assert.deepEqual(goalNow(g).at(goalContext(g, t)), { el: '#callWave' });
+  assert.equal(goalCoins(g, t, goalNow(g)), null);
+  callEarly(g, t); step(g);
+  assert.deepEqual(seen, ['dc-tower', 'dc-first', 'dc-call'], 'the later Call now goal is done too: the button is known');
   assert.equal(goalNow(g).id, 'dc-stone2');
   assert.deepEqual(goalNow(g).at(goalContext(g, t)), { plot: 'quarry' });
 });
@@ -36,6 +42,7 @@ test('goals count in any order, and a goal that is not ready yet is passed over'
   assert.equal(goalNow(g).id, 'dc-tower');
   assert.ok(g.shared.goals.done['dc-stone2']);
   buildTower(g, t, 0, 'crossbow'); step(g);
+  t.waves.phase = 'wave'; step(g); // wave 1 came on its own: the Call now step is done too
   assert.equal(goalNow(g).id, 'dc-mine', 'skips the Stone Camp goal already done');
   // Go to Copper Gulch waits for the win
   assert.ok(!GOALS.find(x => x.id === 'dc-go').ready(goalContext(g, t)));
@@ -74,7 +81,7 @@ test('the save keeps the goals done, and save v10 skips them for a game already 
   rich(t); buildTower(g, t, 0, 'crossbow'); step(g);
   const back = loadGame(JSON.parse(JSON.stringify(g.toJSON())));
   assert.ok(back.shared.goals.done['dc-tower']);
-  assert.equal(goalNow(back).id, 'dc-stone2');
+  assert.equal(goalNow(back).id, 'dc-first');
   assert.ok(SAVE_VERSION >= 10);
   // a v9 game in the Gulch, before its first war wagon: Dry Creek's goals are done, the Gulch's still show
   const early = migrate({ v: 9, at: 0, game: { towns: { gulch: { id: 'gulch', bestWave: 4 } }, shared: {} } });

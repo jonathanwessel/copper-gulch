@@ -5,10 +5,10 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { boomNow, sellMode, setSellMode } from '../core/market.js';
-import { explainMade, explainTower, explainEmpireIncome, incomeSnap, paysEach, usedBy } from '../core/explain.js';
+import { explainMade, explainTower, explainWindow, incomeWindow, paysEach, usedBy } from '../core/explain.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords, hurtWords } from '../data/towers.js';
-import { forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
+import { vaultMax, forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
 import { WAVE_TYPES, FOES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
@@ -28,7 +28,7 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '..
    2026.11.19-13: two rows of up to 10 goods covered a quarter of a 400 px high screen). */
 const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
 const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
-import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords, earnRate, readyIn, readyWords } from '../core/goals.js';
+import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords, readyIn, readyWords } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
 import { waveSheet, waveBar, waveTitle } from './wave.js';
@@ -50,6 +50,12 @@ const rate = n => fmtLive(n) + '/s';
 export const crowdLine = town => { const n = normalTowers(town); return n >= crowdOf(town) ? 'You have ' + n + ' towers here. Each new tower costs more.' : ''; };
 /* A good's square, in its color (GOODS[g].color). */
 const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
+
+/* The toast when a research item ends: its name and level, and the vault's new heart count when it adds hearts. */
+export function researchDoneWords(town, e) {
+  const R = RESEARCH[e.id], walls = (R.effects || []).some(x => x.stat === 'vault');
+  return R.name + ' level ' + e.level + ' is done.' + (walls ? ' The vault has ' + vaultMax(town) + ' hearts now.' : '');
+}
 
 export function mountPlay(root, game, viewApi, shell = {}) {
   const town = game.town, ui = el('section', 'play'); ui.id = 'play-ui';
@@ -551,7 +557,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
     // not over the open Research sheet, whose rows already show it (review of 2026.11.23-9)
-    game.bus.on('research:done', e => { if (e.town === town.id && sheets.current !== 'research') toast(RESEARCH[e.id].name + ' level ' + e.level + ' is done.', 3000, { kind: 'here' }); }),
+    // an item that adds hearts says so, since the heart count at the top jumps (clarity fix 10, review: "hearts above 20 with no reason")
+    game.bus.on('research:done', e => { if (e.town === town.id && sheets.current !== 'research') toast(researchDoneWords(town, e), 3000, { kind: 'here' }); }),
     game.bus.on('research:new', e => { if (e.town === town.id && sheets.current !== 'research') toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000, { kind: 'here' }); }),
     game.bus.on('breach', e => {
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
@@ -581,7 +588,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // a goal that saves coins adds have / need, written with the top bar; heldText changes the words once the waves are held
   // meter: the empire's next step counts a wave or deeds the same way (src/core/goals.js, nextStep)
   // a coin goal also says how soon it is ready if you save, at the empire's income over the last minute (clarity fix 2)
-  const earnHist = []; let earnPer = 0;
+  let earnPer = 0;
   const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ' · ' + w : ''; };
   /* A place's name never breaks across lines on the strip (review of 2026.11.23-6: "Save coins to open Iron / Ridge"). */
   const NAMES = Object.values(TOWNS).map(t => t.name).filter(n => n.includes(' ')).concat(['the Capital']);
@@ -725,6 +732,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     { const onPad = !!(r && tg && !tg.el && !tg.plot && tg.spot !== undefined && shell.locate && shell.locate.foot); if (mark.classList.contains('onpad') !== onPad) mark.classList.toggle('onpad', onPad); }
     const over = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     if (r && !tg.el && stripBox && over(r, stripBox)) r = null; // the thing is under the strip: show the words, not the frame
+    // a pad under the top bar or off the screen: no frame on the buttons above it (clarity fix 10, review 10: a frame
+    // lay on Hold waves); the strip's words stay, and a tap on them opens the pad's card, which slides it into view
+    if (r && !tg.el && !tg.plot) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2; if (cy < hudTop || cy > innerHeight || cx < 0 || cx > innerWidth) r = null; }
     if (mark.hidden !== !r) mark.hidden = !r;
     if (!r) return;
     const onTag = !!(tg.plot && !tg.el); if (mark.classList.contains('ontag') !== onTag) mark.classList.toggle('ontag', onTag);
@@ -743,12 +753,13 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       if (h) setText(h, haveWords(have)); n.classList.toggle('low', have < need);
     }
   }
-  // income: coins earned over the last few seconds
-  const hist = []; let acc = .2, cardAcc = 0; // the top bar paints on the first frame, never blank (review of 2026.11.19-7)
+  // income: coins earned over the last minute of play (incomeWindow)
+  let acc = .2, cardAcc = 0; // the top bar paints on the first frame, never blank (review of 2026.11.19-7)
   // the Income sheet explains the same few seconds as the number at the top
   // the Income sheet shows the very numbers the top bar last wrote, so the two never disagree (screenshot review 2026-11-19: +28/s and +25/s)
   let lastIncome = null;
-  const incomeNow = () => { const h = hist[0], now = incomeSnap(game); return explainEmpireIncome(game, h ? h[1] : now, now, h ? town.t - h[0] : 0, shell.meter ? shell.meter.income : null); };
+  // the minute of play the strip's "about 4 min to go" counts with too (clarity fix 10: a 5-second window read +0/s between waves)
+  const incomeNow = () => explainWindow(game);
   const income = () => lastIncome || (lastIncome = incomeNow());
   // a card or sheet that grows or shrinks (a stat row opened, a sheet scrolled in) is measured again before the next
   // frame places the tags, so no tag shows cut under it in between the 5-a-second measures (smoke, tower card)
@@ -829,9 +840,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     });
     if (acc < .2) return;
     acc = 0;
-    hist.push([town.t, incomeSnap(game)]); while (hist.length > 25) hist.shift();
+    incomeWindow(game);
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
-    earnPer = earnRate(game, earnHist);
+    earnPer = per; // the strip's time to go and the top bar's rate are one number
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
     if (goalCur && (goalCur.need || goalCur.meter || goalCur.heldText || goalCur.count) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
     paintStrip(); paintCoinCosts();
