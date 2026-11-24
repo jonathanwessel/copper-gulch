@@ -26,6 +26,16 @@ export const CAPITAL_DEF = {
     influence: { 1: 4, 2: 8 },
     least: { 1: 20, 2: 5 },
     retry: 10,
+    // Two kinds of contract open as the Capital fills them (clarity fix 3b part 3a, 2026-11-23: the careful bots went
+    // 54-70 minutes with nothing new between the third institution and Call to arms, while the Ridge climbed waves
+    // 39-47; contracts fill about every 6-8 minutes in every strategy, so a count lands at the same time for each).
+    //   at: contracts filled before the kind opens. chance: a new offer is this kind when none is on the board or
+    //   running. minutes: its own ask. influence and pay: times a plain one's Influence and coins for the same minutes.
+    //   time (rush only): the deadline, this many times the ask at the town's spare rate when it is drawn.
+    kinds: {
+      rush: { at: 6, chance: .5, minutes: [2, 3], influence: 1.25, pay: 1, time: 1.6 },
+      big: { at: 15, chance: .5, minutes: [14, 20], influence: 1, pay: 1 },
+    },
   },
 };
 

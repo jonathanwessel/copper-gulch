@@ -61,6 +61,8 @@ export function helper(town, game = null) {
     back: game ? game.back : null, // the place the back button goes to
     next: game ? nextTowns(game).map(n => n.id) : [], // towns in sight but not founded (src/core/empire.js)
     capitalSight: !!game && !!capitalNext(game), capitalOpen: !!game && capitalOpen(game), // src/core/capital.js
+    // the contract kinds the Capital has opened (rush, big; clarity fix 3b part 3a)
+    contractKinds: (game && capitalOpen(game) && game.shared.capital.opened) || {},
     // the Capital can found an institution or buy an upgrade (src/core/tree.js)
     treeReady: !!game && capitalOpen(game) && !!game.shared.tree && (game.shared.purse.coins >= foundCost(game) || (game.shared.capital.influence >= NODE_COST[0] && game.shared.tree.founded.length > 0)),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0 && town.starved[id] === true) || null,

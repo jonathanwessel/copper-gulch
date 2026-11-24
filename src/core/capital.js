@@ -10,14 +10,19 @@
    A full contract pays its coins into the purse, as the making town's own earnings ('contract' in the income
    explained), and its Influence. Taking another offer while one runs drops the one running, and its goods are kept by
    the Capital. Events: 'capital:found' { coins }, 'contract:take' { id, good }, 'contract:drop' { id, good },
-   'contract:done' { id, good, town, coins, influence }. */
+   'contract:done' { id, good, town, coins, influence }.
+   Kinds (CAPITAL_DEF.contracts.kinds, clarity fix 3b part 3a): once the Capital has filled `at` contracts, a kind
+   opens for good ('contract:new' { kind }, once, kept in c.opened). A new offer is that kind, by chance, while none
+   of it is on the board or running. A rush contract asks for less, pays twice the Influence and has a clock that starts
+   when it is taken ('contract:miss' { id, good, town } when it runs out; the goods sent stay at the Capital). A big one
+   asks for much more and pays a little more for each minute. contract.kind is 'rush', 'big' or absent. */
 import { CAPITAL_DEF } from '../data/capital.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { Rng } from './rng.js';
 import { demand, output, isOutpost, importers, KEEP_SECONDS } from './economy.js';
 
-const C = CAPITAL_DEF.contracts;
+const C = CAPITAL_DEF.contracts, KINDS = C.kinds;
 export const capitalOf = game => game.shared.capital;
 export const capitalOpen = game => !!(game.shared.capital && game.shared.capital.open);
 
@@ -88,14 +93,21 @@ function offer(game) {
   const rng = Rng.from(c.rng);
   const w = Object.fromEntries(list.map((x, i) => [i, GOODS[x.good].tier])); // finished goods come up twice as often
   const x = list[+rng.weighted(w)], tier = GOODS[x.good].tier;
-  const minutes = Math.round(rng.range(C.minutes[0], C.minutes[1]) * 2) / 2;
+  // a kind that is open and has no offer on the board or running comes up by chance
+  const has = k => c.offers.some(o => o.kind === k) || (c.active && c.active.kind === k);
+  const can = Object.keys(KINDS).filter(k => (c.opened || {})[k] && !has(k)).filter(k => rng.chance(KINDS[k].chance));
+  const kind = can.length ? can[0] : null, K = kind ? KINDS[kind] : null, span = K ? K.minutes : C.minutes;
+  const minutes = Math.round(rng.range(span[0], span[1]) * 2) / 2;
   c.rng = rng.state;
   const need = Math.max(C.least[tier], nice(x.rate * 60 * minutes));
   const o = {
     id: c.n++, good: x.good, town: x.town, need, got: 0, minutes,
-    coins: Math.round(need * GOODS[x.good].price * C.pay),
-    influence: Math.max(1, Math.round(C.influence[tier] * minutes / C.per)),
+    coins: Math.round(need * GOODS[x.good].price * C.pay * (K ? K.pay : 1)),
+    influence: Math.max(1, Math.round(C.influence[tier] * minutes / C.per * (K ? K.influence : 1))),
   };
+  if (kind) o.kind = kind;
+  // a rush contract's clock: its ask at the spare rate it was drawn at, times `time`, in whole seconds
+  if (kind === 'rush') o.time = Math.ceil(need / x.rate * K.time / 10) * 10;
   c.offers.push(o);
   return o;
 }
@@ -112,6 +124,7 @@ export function takeContract(game, id) {
   if (!c.open || i < 0) return false;
   if (c.active) dropContract(game);
   c.active = c.offers.splice(i, 1)[0];
+  if (c.active.kind === 'rush') c.active.left = c.active.time;
   game.bus.emit('contract:take', { id, good: c.active.good });
   fill(game);
   return true;
@@ -140,17 +153,36 @@ export function claim(game, town) {
   }
 }
 
+/* A rush contract whose clock ran out: it ends, and what it got stays at the Capital, unpaid. */
+function miss(game) {
+  const c = capitalOf(game), a = c.active;
+  c.active = null; c.missed = (c.missed || 0) + 1;
+  game.bus.emit('contract:miss', { id: a.id, good: a.good, town: a.town });
+  fill(game);
+}
+/* Open each kind once the Capital has filled enough contracts. An old save already past the count opens it on its
+   first step, which is its news too. */
+function openKinds(game) {
+  const c = capitalOf(game);
+  c.opened ||= {};
+  for (const [k, K] of Object.entries(KINDS)) if (!c.opened[k] && c.filled >= K.at) { c.opened[k] = true; game.bus.emit('contract:new', { kind: k }); }
+}
+
 export const capital = {
   id: 'capital',
   setup(game) {
-    if (!game.shared.capital) game.shared.capital = { open: false, influence: 0, earned: 0, filled: 0, offers: [], active: null, rng: new Rng(game.seed + ':capital').state, n: 1, wait: 0 };
+    if (!game.shared.capital) game.shared.capital = { open: false, influence: 0, earned: 0, filled: 0, missed: 0, opened: {}, offers: [], active: null, rng: new Rng(game.seed + ':capital').state, n: 1, wait: 0 };
   },
   tick(dt, game) {
     const c = capitalOf(game);
     // the Capital's gate passed, once: its paying town beat its wave and only the coins are left (clarity fix 3b part
     // 2b: the strip turned to "Tap Hold waves while you save for the Capital" with no word of why)
     if (!c.open) readyOnce(game);
-    if (!c.open || c.offers.length >= C.board) return;
+    if (!c.open) return;
+    openKinds(game);
+    const a = c.active;
+    if (a && a.kind === 'rush' && (a.left -= dt) <= 1e-9) miss(game);
+    if (c.offers.length >= C.board) return;
     if ((c.wait -= dt) <= 0) fill(game);
   },
   claim,

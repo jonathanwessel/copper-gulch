@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-1',
+    lines: [
+      'After 6 contracts the Capital posts rush contracts. They ask for less and pay more Influence, but they have a clock.',
+      'After 15 contracts the Capital posts big contracts that run up to 20 minutes.',
+      'The To arms button no longer gets wider when its clock shows.',
+    ],
+  },
+  {
     v: '2026.11.23-13',
     lines: [
       'The boss bar shows what fell off the boss and an arrow for its speed.',

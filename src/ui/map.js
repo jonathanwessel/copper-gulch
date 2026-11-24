@@ -12,7 +12,7 @@ import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
-import { capitalPanel, contractDone, sentWords, influenceWords } from './capital.js';
+import { capitalPanel, contractDone, contractMissed, sentWords, influenceWords } from './capital.js';
 import { treeCalls } from '../core/tree.js';
 import { retryState } from '../core/automation.js';
 
@@ -181,6 +181,7 @@ export function mountMap(root, game, view, shell) {
   // a town that loses while the player is on the map holds its waves: say so here too (owner rule, 2026-11-17)
   const offLost = game.bus.on('breach', e => { if (e.held && !game.catching && game.towns[e.town] && shell.toast) shell.toast(lostToast(game.towns[e.town], false, game, true), 6000); });
   const offDone = game.bus.on('contract:done', e => { if (!game.catching && shell.toast) shell.toast(contractDone(e), 5000); });
+  const offMiss = game.bus.on('contract:miss', e => { if (!game.catching && shell.toast) shell.toast(contractMissed(e), 5000); });
   const ui = el('section', 'play mapui'); ui.id = 'map-ui';
   const hud = el('header', 'hud');
   const title = el('div', 'townname', 'Map');
@@ -464,6 +465,6 @@ export function mountMap(root, game, view, shell) {
       }
       if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)
     },
-    destroy() { offLost(); offDone(); ui.remove(); },
+    destroy() { offLost(); offDone(); offMiss(); ui.remove(); },
   };
 }

@@ -10,6 +10,7 @@ import { INSTITUTIONS, boughtText, outpostWords } from '../data/institutions.js'
 import { isOutpost } from '../core/economy.js';
 import { treeOf, founded, nodesOf, nextNode, nodeCost, foundCost, foundBlock, nodeBlock, foundInstitution, buyNode, influenceFor } from '../core/tree.js';
 import { fmt, haveWords, priceOver } from './format.js';
+import { span, clock } from './sheets.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 /* A line with a small label chip in front ("Next" and what it does), so no dot stands where a colon would go (review of 2026.11.20-5). */
@@ -25,11 +26,13 @@ const pays = (game, o) => 'Pays ' + fmt(o.coins) + ' coins and ' + influenceFor(
 let tab = 'contracts';
 export const capitalTab = t => { if (t) tab = t; return tab; };
 /* About how long the rest takes at the town's spare rate now, in words. */
-function eta(game, o) {
+// "Done in", so it is never read as a deadline beside a rush contract's clock (review of 2026.11.24-1); "Waiting" only
+// on the contract running, not on an offer nobody has taken
+function eta(game, o, running = false) {
   const t = game.towns[o.town], r = t ? spareRate(game, t, o.good) : 0, left = Math.max(0, o.need - o.got);
-  if (!(r > 1e-6)) return 'Waiting. ' + townName(o.town) + ' has no spare ' + lower(o.good) + '. Make more ' + lower(o.good) + ' there.';
+  if (!(r > 1e-6)) return (running ? 'Waiting. ' : '') + townName(o.town) + ' has no spare ' + lower(o.good) + '. Make more ' + lower(o.good) + ' there.';
   const m = left / r / 60;
-  return m < 1 ? 'Under a minute' : 'About ' + Math.round(m) + ' min';
+  return m < 1 ? 'Done in under a minute' : 'Done in about ' + Math.round(m) + ' min';
 }
 
 /* The toast when a contract is full. */
@@ -38,6 +41,11 @@ function eta(game, o) {
 export const sentWords = a => 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) + ' ' + lower(a.good);
 /* The toast when the Capital's town first beats its wave (clarity fix 3b part 2b). */
 export const capitalReadyWords = e => (TOWNS[e.town] || { name: e.town }).name + ' beat wave ' + CAPITAL_DEF.found.wave + '. The Capital costs ' + fmt(e.coins) + ' coins.';
+/* The toast when a rush contract's clock runs out (clarity fix 3b part 3a). */
+export const contractMissed = e => 'The rush contract for ' + lower(e.good) + ' ran out of time. The ' + lower(e.good) + ' sent stay at the Capital.';
+/* A kind's tag in front of a contract's name, as town orders show Rush (src/ui/sheets.js). */
+export const KIND_WORDS = { rush: 'Rush', big: 'Big' };
+const named = (o, text) => { const b = el('b'); if (o.kind) b.append(el('i', 'lbl', KIND_WORDS[o.kind])); b.append(document.createTextNode(text)); return b; };
 export const contractDone = e => GOODS[e.good].name + ' delivered. You got ' + fmt(e.coins) + ' coins and ' + e.influence + ' Influence.';
 
 /* Two taps for something that throws work away: the first changes the label, the second does it. */
@@ -75,16 +83,22 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
   const a = c.active;
   if (a) {
     box.append(el('h3', '', 'Working on'));
-    const row = el('div', 'option running'), txt = el('div'), name = el('b', '', fmt(a.need) + ' ' + lower(a.good) + ' from ' + townName(a.town));
+    const row = el('div', 'option running'), txt = el('div'), name = named(a, fmt(a.need) + ' ' + lower(a.good) + ' from ' + townName(a.town));
     const got = el('small'), bar = el('i', 'depth'), fill = el('i'), when = el('span');
-    bar.append(fill); txt.append(name, el('span', '', pays(game, a)), got, bar, when);
+    // a rush contract's time left sits beside its name in a fixed cell, as a town order's does (the live-numbers rule)
+    const left = el('small', 'oleft'); left.id = 'contractLeft';
+    let head = name;
+    if (a.kind === 'rush') { head = el('div', 'gnamerow'); head.append(name, left); }
+    bar.append(fill); txt.append(head, el('span', '', pays(game, a)), got, bar, when);
     const drop = el('button', 'btn small', 'Give up'); drop.id = 'contractDrop'; // review of 2026.11.20-14: "Drop" was unclear
     confirmTap(drop, () => lostAsk(a), () => { if (dropContract(game)) changed(); });
     row.append(txt, drop); box.append(row);
     live.push(() => {
       setText(got, 'Sent ' + fmt(Math.floor(a.got)) + ' so far'); // the heading above names the amount and the good (review of 2026.11.20-4)
       const w = Math.round(100 * Math.min(1, a.got / a.need)) + '%'; if (fill.style.width !== w) fill.style.width = w;
-      setText(when, eta(game, a));
+      // a rush contract shows its clock, in a fixed-width box (the live-numbers rule)
+      if (a.kind === 'rush') setText(left, clock(a.left) + ' left');
+      setText(when, eta(game, a, true));
     });
   } else box.append(el('p', 'uses', 'No contract running.')); // a state, not a how-to in warning red (review of 2026.11.19-10)
   box.append(el('h3', '', 'Offers')); // not Contracts again under the Contracts tab (review of 2026.11.20-7)
@@ -94,7 +108,8 @@ export function capitalPanel(game, { changed = () => {}, toast = () => {}, influ
   if (!c.offers.length) list.append(el('p', 'uses', 'No contracts right now. Build new kinds of buildings in your towns.'));
   for (const o of c.offers) {
     const row = el('div', 'option'), txt = el('div'), when = el('small');
-    txt.append(el('b', '', fmt(o.need) + ' ' + lower(o.good) + ' from ' + townName(o.town)), el('span', '', pays(game, o)), when);
+    txt.append(named(o, fmt(o.need) + ' ' + lower(o.good) + ' from ' + townName(o.town)), el('span', '', pays(game, o)), when);
+    if (o.kind === 'rush') txt.append(el('small', '', 'Must arrive in ' + span(o.time) + ' or it is lost'));
     const take = el('button', 'btn small build', a ? 'Switch' : 'Take'); take.dataset.contract = o.id;
     const go = () => { if (takeContract(game, o.id)) changed(); };
     if (a) confirmTap(take, () => lostAsk(a), go); else take.addEventListener('click', go); // says what the running one loses (review of 2026.11.20-2)

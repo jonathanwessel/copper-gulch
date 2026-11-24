@@ -32,7 +32,7 @@ import { INSTITUTIONS } from '../src/data/institutions.js';
 import { perksToPick, deedsFor } from '../src/core/charter.js';
 
 const SAMPLE = 20; // steps: 5 seconds of play
-const UNLOCKS = ['town:open', 'town:found', 'tower:open', 'research:open', 'research:new', 'orders:open', 'capital:found', 'institution:found', 'charter:offer', 'route:open', 'outpost:won'];
+const UNLOCKS = ['contract:new', 'town:open', 'town:found', 'tower:open', 'research:open', 'research:new', 'orders:open', 'capital:found', 'institution:found', 'charter:offer', 'route:open', 'outpost:won'];
 const NEWS = ['goal:done', 'research:done', 'milestone'];
 const instIds = () => (Array.isArray(INSTITUTIONS) ? INSTITUTIONS.map(x => x.id) : Object.keys(INSTITUTIONS));
 

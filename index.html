@@ -524,6 +524,10 @@ html.flat .tag { position: static; transform: none !important; }
 .side .btn { pointer-events: auto; min-height: 36px; min-width: 76px; padding: 4px 10px; }
 .side .btn .btime { display: block; font-size: .72rem; line-height: 1; margin-top: 1px; }
 .side .btn .btime[hidden] { display: none; }
+/* To arms keeps one width while its clock comes and goes: an unseen line as wide as its longest clock (2026.11.24-1:
+   "Back in 0:39" grew the button from 76 to 91 px, and smoke's width check had failed since 2026.11.23-13) */
+#armsBtn::before { content: "Ready in 0:00"; display: block; height: 0; overflow: hidden; visibility: hidden; font-size: .72rem; line-height: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#armsBtn .btime { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .side .btn.undersheet { visibility: hidden; } /* an open sheet would cut it in half (src/ui/play.js, measure) */
 .play .scrim, .play .sheet { pointer-events: auto; }
 .scrim { position: absolute; inset: 0; background: rgba(14, 9, 6, .45); z-index: 24; animation: fade .2s both; }

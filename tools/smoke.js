@@ -77,7 +77,10 @@ export async function dotsSeen(page) {
         const ps = getComputedStyle(p); if (ps.overflowX === 'visible' && ps.overflowY === 'visible') continue;
         const pr = p.getBoundingClientRect(); if (d.l < pr.left - .5 || d.r > pr.right + .5 || d.t < pr.top - .5 || d.b > pr.bottom + .5) bad.push(id + ' dot clipped by ' + (p.id || p.className));
       }
-      for (const [x, y] of [[(d.l + d.r) / 2, (d.t + d.b) / 2], [d.l + 2, d.t + 2], [d.r - 2, d.b - 2]]) {
+      // points inside the round dot: its middle and two points halfway out toward its edge (the corners of its box lie
+      // outside the circle, where the browser finds what is under it, 2026.11.24-1)
+      const cx = (d.l + d.r) / 2, cy = (d.t + d.b) / 2, q = Math.min(w, h) / 4;
+      for (const [x, y] of [[cx, cy], [cx - q * .7, cy - q * .7], [cx + q * .7, cy + q * .7]]) {
         const hit = document.elementFromPoint(x, y);
         if (hit && hit !== b && !b.contains(hit)) { bad.push(id + ' dot covered by ' + (hit.id || hit.className || hit.tagName)); break; }
       }
@@ -1269,6 +1272,19 @@ async function run() {
         await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
         if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
         bad.push(...(await check(page)).map(b => 'capital contract: ' + b));
+        // a rush contract (clarity fix 3b part 3a): its offer says Rush, its clock sits in a fixed cell that keeps one
+        // width while it counts, and when it runs out the card ends it and a toast says so
+        await page.evaluate(() => { const c = CG.game.shared.capital; c.opened = { rush: true, big: true }; CG.game.shared.seen['contract-rush'] = CG.game.shared.seen['contract-big'] = true; const o = c.offers[0]; o.id = c.n++; o.kind = 'rush'; o.time = 75; CG.mapui.openSite('capital'); });
+        await sleep(500);
+        const rushOffer = await page.evaluate(() => { const b = document.querySelector('#mapCard [data-contract]'); const row = b && b.closest('.option'); return row ? row.textContent : ''; });
+        if (!/^Rush/.test(rushOffer) || !/Must arrive in .* or it is lost/.test(rushOffer)) bad.push('a rush offer does not say Rush and its time (' + rushOffer.slice(0, 80) + ')');
+        await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(600);
+        const box = () => page.evaluate(() => { const n = document.getElementById('contractLeft'); if (!n) return null; const r = n.getBoundingClientRect(); return { text: n.textContent, w: Math.round(r.width), x: Math.round(r.left) }; });
+        const r1 = await box(); await sleep(2200); const r2 = await box();
+        if (!r1 || !r2 || !/^1:[0-9][0-9] left$/.test(r1.text) || r1.text === r2.text || r1.w !== r2.w || r1.x !== r2.x) bad.push('the rush clock is missing, stuck or moves (' + JSON.stringify([r1, r2]) + ')');
+        await page.evaluate(() => { CG.game.shared.capital.active.left = .5; });
+        if (!await waitFor(page, () => !CG.game.shared.capital.active && [...document.querySelectorAll('.toast')].some(n => /ran out of time/.test(n.textContent)), 4000)) bad.push('a rush contract that ran out did not end or say so');
+        bad.push(...(await check(page)).map(b => 'rush contract: ' + b));
         // Institutions: the tab lists every institution with have / need coins; Found pays from the purse, then the
         // row offers its first upgrade for Influence, and Buy puts the bonus on every town
         await page.evaluate(() => document.getElementById('capTabInst').click()); await sleep(500);
@@ -1431,7 +1447,8 @@ async function run() {
       const page = await bA.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [], bad = [];
       page.on('pageerror', e => errs.push(e.message));
       await page.goto(srvA.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
-      await page.evaluate(() => { localStorage.clear(); document.getElementById('play').click(); });
+      // the page before this one left a save, so What's new is up on the title: close it as a player would
+      await page.evaluate(() => { const ok = document.getElementById('newsOk'); if (ok) ok.click(); localStorage.clear(); document.getElementById('play').click(); });
       await waitFor(page, () => CG.town && CG.town.frames > 3);
       if (await page.evaluate(() => !document.getElementById('autoBtn').hidden)) bad.push('Auto showed before the War Office');
       await page.evaluate(async () => {
@@ -1734,6 +1751,9 @@ async function run() {
       await page.evaluate(() => { if (CG.coach && CG.coach.skipAll) CG.coach.skipAll(); document.getElementById('mapBtn').click(); });
       if (!await waitFor(page, () => CG.map && CG.map.frames > 5, 8000)) bad.push('Map did not open the map');
       else {
+        // the map's camera flies in when it opens and the labels follow it: let it settle first, so a label still
+        // off screen at rest fails and one caught mid-flight on a busy machine does not (2026.11.24-1: 1 run in 3)
+        await waitFor(page, () => [...document.querySelectorAll('#mapBadges .mapbadge')].filter(b => !b.hidden).every(b => { const r = b.getBoundingClientRect(); return r.left >= -1 && r.right <= innerWidth + 1; }), 4000);
         await fills('map portrait');
         await page.setViewportSize({ width: 900, height: 400 }); await fills('map landscape');
         await page.setViewportSize({ width: 400, height: 800 }); await fills('map back to portrait');

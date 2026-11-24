@@ -30,7 +30,7 @@ import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
 import { TOWNS } from '../src/data/towns/index.js';
 import { canFound, foundTown } from '../src/core/empire.js';
-import { canFoundCapital, foundCapital, capitalOf, takeContract } from '../src/core/capital.js';
+import { canFoundCapital, foundCapital, capitalOf, takeContract, spareRate as capSpare } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
 import { foundCost, foundBlock, foundInstitution, nodeBlock, nodeCost, buyNode, founded } from '../src/core/tree.js';
 import { armsBlock, callToArms, armsOpen } from '../src/core/arms.js';
@@ -606,10 +606,19 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
     if (foundCapital(g)) {
       out.capital = now(); out.capHeld = out.capSave.saving === undefined ? 0 : out.capSave.until - out.capSave.saving;
       setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
-      const c = capitalOf(g), took = {}, tr = out.tree = { founded: [], nodes: [] }, at = () => now() - out.capital;
+      const c = capitalOf(g), took = {}, takenAt = {}, tr = out.tree = { founded: [], nodes: [] }, at = () => now() - out.capital;
       const nextInst = () => TREE_ORDER.find(id => !founded(g, id));
       const pick = (g2, t, r) => {
-        if (!c.active && c.offers.length) { const o = c.offers.slice().sort((a, b) => b.influence - a.influence || b.coins - a.coins)[0]; if (takeContract(g, o.id)) took[o.good] = (took[o.good] || 0) + 1; }
+        // the offer that pays the most Influence for each minute it asks (rush, then big, then plain; clarity fix 3b
+        // part 3a), and a rush one only when its town can fill it in time at its spare rate now
+        // a contract still running at STUCK times its ask (its town's spare went to its own workshops: a pig iron one
+        // ran 65 minutes on seed 2) is switched for the best offer, as a player who reads "Waiting" on its card would
+        const stuck = c.active && c.offers.length && now() - (takenAt[c.active.id] ??= now()) > STUCK * 60 * c.active.minutes;
+        if ((!c.active || stuck) && c.offers.length) {
+          const fits = o => o.kind !== 'rush' || capSpare(g, g.towns[o.town], o.good) * o.time >= RUSH_ROOM * o.need;
+          const o = c.offers.filter(fits).sort((a, b) => b.influence / b.minutes - a.influence / a.minutes || b.coins - a.coins)[0];
+          if (o && takeContract(g, o.id)) { took[o.kind ? o.kind + ' ' + o.good : o.good] = (took[o.kind ? o.kind + ' ' + o.good : o.good] || 0) + 1; if (stuck) took.switched = (took.switched || 0) + 1; }
+        }
         const n = nextInst();
         if (n && !r.noInst && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
         for (;;) {
@@ -929,6 +938,8 @@ export function towerBalance(rows, where = '', lead = true) {
    one that pays the most a minute of its time, but only one it can fill with room to spare: its spare output of the
    good over the order's time at least ORDER_ROOM times the ask. game.botOrders counts what came of them. */
 export const ORDER_ROOM = 1.2;
+export const STUCK = 3; // a contract running this many times its ask is switched (clarity fix 3b part 3a)
+export const RUSH_ROOM = 1.2; // the same room for a rush contract at the Capital (clarity fix 3b part 3a)
 export function tendOrders(g) {
   if (!g.botOrders) {
     const b = g.botOrders = { took: 0, filled: 0, missed: 0, rush: 0, coins: 0, top: {} };

@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 27;
+export const SAVE_VERSION = 28;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -207,6 +207,15 @@ export const MIGRATIONS = {
     g.shared = g.shared || {};
     g.shared.orders = g.shared.orders || { wait: 60, towns: {} };
     return { ...s, v: 27, game: g };
+  },
+  // v28: rush and big contracts at the Capital (src/core/capital.js, kinds): no kind is open yet and none was missed.
+  // A save already past a kind's count opens it on its first step, with its card, so it is news there too.
+  27: s => {
+    const g = s.game || {};
+    g.shared = g.shared || {};
+    const c = g.shared.capital;
+    if (c) { c.opened = c.opened || {}; c.missed = c.missed || 0; }
+    return { ...s, v: 28, game: g };
   },
 };
 

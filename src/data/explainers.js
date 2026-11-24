@@ -340,6 +340,19 @@ export const EXPLAINERS = [
     text: 'The Capital wants goods from your towns. Tap Map, then Capital, and take a contract. The town on the contract sends the goods by itself. A finished contract pays coins and Influence.',
     when: h => h.capitalOpen && h.t > 3, at: () => ({ el: '#mapBtn' }),
   },
+  // the contract kinds that open as the Capital fills contracts (src/data/capital.js, kinds)
+  {
+    id: 'contract-rush', covers: ['contract:rush'],
+    title: 'Rush contracts',
+    text: 'The Capital now posts rush contracts. They are small and pay extra Influence. Each has a clock. If it runs out, the goods you sent are lost.',
+    when: h => !!h.contractKinds.rush, at: () => ({ el: '#mapBtn' }),
+  },
+  {
+    id: 'contract-big', covers: ['contract:big'],
+    title: 'Big contracts',
+    text: 'The Capital now posts big contracts. They ask for many more goods and take up to 20 minutes.',
+    when: h => !!h.contractKinds.big, at: () => ({ el: '#mapBtn' }),
+  },
   {
     id: 'tree', covers: ['system:tree', 'institution'],
     title: 'Capital buildings',
