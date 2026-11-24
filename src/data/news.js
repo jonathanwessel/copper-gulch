@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-2',
+    lines: [
+      'A Frost Lens at level 20 now picks one more upgrade. Blizzard reaches much farther. Cold Snap slows raiders much more.',
+      'Both new Frost Lens upgrades have their own look.',
+    ],
+  },
+  {
     v: '2026.11.24-1',
     lines: [
       'After 6 contracts the Capital posts rush contracts. They ask for less and pay more Influence, but they have a clock.',

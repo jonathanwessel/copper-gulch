@@ -33,8 +33,8 @@ test('a Still at level 19 needs one of its two forks to reach 20, and keeps its 
   assert.equal(x.level, FORK_LEVEL); assert.equal(x.fork, 'a'); assert.equal(x.path, 'b');
   assert.ok(upgradeTower(g, t, 0)); assert.equal(x.level, 21); assert.equal(x.fork, 'a', 'the fork stays');
   // a kind with no second fork passes level 20 as any other level
-  const c = tower(t, 1, 'frost', 19);
-  assert.ok(!forkNext(c) && upgradeTower(g, t, 1)); assert.equal(c.fork, null);
+  const pit = t.def.board.spots.findIndex((_, i) => isPit(t, i)), c = tower(t, pit, 'mortar', 19);
+  assert.ok(!forkNext(c) && upgradeTower(g, t, pit)); assert.equal(c.fork, null);
 });
 
 test('Slow Rot trades its normal poison and some hit for a poison that never wears off', () => {
@@ -97,8 +97,8 @@ test('the bots weigh both forks, and Auto-towers leaves the choice to the player
   assert.deepEqual(ups.map(o => o.path).sort(), ['a', 'b']);
   const n = nextTowerUp(t);
   assert.equal(n.tower, null); assert.equal(n.needPath, 1);
-  tower(t, 1, 'frost', 19);
-  assert.equal(nextTowerUp(t).tower.kind, 'frost');
+  tower(t, t.def.board.spots.findIndex((_, i) => isPit(t, i)), 'mortar', 19);
+  assert.equal(nextTowerUp(t).tower.kind, 'mortar');
 });
 
 test('save v22: old towers have taken no fork and no raider rots', () => {

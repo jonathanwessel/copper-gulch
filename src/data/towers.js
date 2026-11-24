@@ -104,7 +104,19 @@ export const FORKS = {
     a: { name: 'Piercing Bolts', about: 'Each bolt goes through up to 3 raiders. Softer hits.', bestText: 'Raiders in a row', pierce: true, dmg: .7 },
     b: { name: 'Sharpshooter', about: 'Aims at the toughest raider. Much harder, slower hits.', bestText: 'Brutes and {boss}', sharp: true, dmg: 3, rate: .45 },
   },
+  /* The Frost Lens (part 3, 2026-11-24), on top of Deep Freeze or Brittle Ice. The lens led the late damage (30-37%,
+     limit 36%), so both sides trade its own hits for a bigger job for the towers around it:
+       Blizzard (range) chills a much longer stretch of road, with softer hits. It wants a pad where the road bends
+         round it, and it spreads Deep Freeze or Brittle Ice over every tower that reaches that stretch.
+       Cold Snap (slow) slows raiders much more, {boss} too, over a short reach with softer hits. It wants other towers
+         close by, which get far longer to shoot at each raider. Its slow is capped at SLOW_MOST. */
+  frost: {
+    a: { name: 'Blizzard', about: 'Reaches much farther. Softer hits.', range: 1.5, dmg: .55 },
+    b: { name: 'Cold Snap', about: 'Slows raiders much more. Softer hits.', slow: 1.4, range: .8, dmg: .5 },
+  },
 };
+/* The most a slow takes off a raider's speed (Cold Snap). */
+export const SLOW_MOST = .8;
 /* Piercing Bolts: a bolt hits its raider and goes on along the same line, through the next raiders it meets within
    PIERCE.width of that line and PIERCE.depth past the first, up to PIERCE.count raiders in all. */
 export const PIERCE = { count: 3, width: .45, depth: 2.4 };

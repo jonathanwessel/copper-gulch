@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, hurtFactor, foeStatus } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, forkOf, hurtFactor, foeStatus } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -135,8 +135,23 @@ export function lineShare(town, spot, hi) {
   }
   return m.get(key);
 }
+/* Cold Snap (FORKS.frost.b): the slow a lens has over a normal lens and over the strongest other lens on its road is
+   its own, and a careful player counts it SLOW_EXTRA times (set from tools/fork-runs.js: raiders held back there are hit by every tower round
+   them, not only the ones the lens reaches). */
+export let SLOW_EXTRA = 7;
+/* Blizzard: see ALONE_SLOW in worth (set from tools/fork-runs.js). */
+export let ALONE_SLOW = 4;
+/* The share of the road in a lens's reach that none of the other lenses near it reaches (lane 0, every 0.4). */
+export function aloneShare(town, spot, hi, near) {
+  const r = lanesOf(town)[0], b = town.def.board, p = b.spots[spot], others = near.map(o => [b.spots[o.spot], towerStats(town, o).range]);
+  let n = 0, own = 0;
+  for (let s = 0; s <= r.length; s += .4) { const q = pointAt(r, s); if (dist(p, q) > hi) continue; n++; if (!others.some(([o, R]) => dist(o, q) <= R)) own++; }
+  return n ? own / n : 0;
+}
+/* The most raiders a careful player counts in one frost pulse (4 to 8 made no pad change sides, 2026.11.24-2). */
+export let PULSE_CAP = 4;
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
+export const tune = (k, v) => { if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
    below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
@@ -153,20 +168,26 @@ export const eatSoon = (t, st) => st.eat || ((st.poison || st.rot) && PLAN.level
 export function worth(town, t, support = true) {
   const st = towerStats(town, t), targets = r => Math.max(1, 2 * r / SPACING);
   // a raider carries one dose of poison and one chill, so towers of the same kind that reach the same road share it
-  const share = 1 + town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range).length;
+  const near = town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range), share = 1 + near.length;
+  // a raider walks at the strongest slow on it, so a lens that slows more than the others there (Cold Snap, 2026.11.24-2)
+  // has the extra to itself and shares only the common part
+  const top = st.slow ? Math.max(0, ...near.map(o => towerStats(town, o).slow)) : 0, slowPart = (st.slow > top ? st.slow - top + top / share : st.slow / share) + (SLOW_EXTRA - 1) * Math.max(0, st.slow - Math.max(top, TOWERS[t.kind].slow || 0)),
+    // Blizzard (a fork that reaches farther than the tower would without it): road in its reach that no other lens
+    // near it reaches is chilled by it alone, and a careful player counts that share's slow ALONE_SLOW times
+    far = st.slow && forkOf(t).range > 1 ? ALONE_SLOW * aloneShare(town, t.spot, st.range, near) * st.slow : 0;
   const at = st.hurt || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
   let dps = st.dmg * st.rate * (st.sharp ? ahead(town, 'sharp', town.wave, false, 0, SHARP_BOSS) : ahead(town, t.kind, town.wave, false, 0, st.boss)) * (st.pierce ? 1 + (st.pierce - 1) * Math.min(1, PIERCE_LINE * lineShare(town, t.spot, st.range)) : 1) * (st.sharp ? Math.max(.5, 1 + SHARP_COVER * (cover(town, t.spot, st.minRange, st.range) - SHARP_FROM)) : 1) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
   if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
-  if (st.pulse) dps *= Math.min(4, targets(st.range) / 2);
+  if (st.pulse) dps *= Math.min(PULSE_CAP, targets(st.range) / 2);
   else if (st.rockets) dps *= st.rockets * targets(st.splash) * ROCKET_HITS;
   else if (st.splash) dps *= targets(st.splash);
   if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
-  if (st.slow) dps *= 1 + st.slow * 2 / share; // slowed raiders take longer to pass every tower
+  if (st.slow) dps *= 1 + (slowPart + far) * 2; // slowed raiders take longer to pass every tower
   if (st.fire) dps *= 1.35;
   let w = dps * cover(town, t.spot, st.minRange, st.range);
   // a slowing tower also gives the towers around it more time to shoot
-  if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += st.slow * .5 * worth(town, o, false) / share;
+  if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += (slowPart + far) * .5 * worth(town, o, false);
   // poison eats armor: the towers around it land more on armored raiders (its own hit is left out, as a careful guess)
   const eat = eatSoon(t, st);
   if (eat && support) {

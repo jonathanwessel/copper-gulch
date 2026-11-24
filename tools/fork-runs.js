@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import * as BAL from './balance.js';
 const { empire, options } = BAL;
 import { Town } from '../src/core/town.js';
-import { fight, startWave, fitsSpot, roadOf, towerOpen } from '../src/core/defense.js';
+import { fight, startWave, fitsSpot, roadOf, towerOpen, lanesOf } from '../src/core/defense.js';
 import { STEP } from '../src/core/clock.js';
 import { FORKS, FORK_LEVEL, PATHS } from '../src/data/towers.js';
 import { pointAt, dist } from '../src/core/path.js';
@@ -35,16 +35,20 @@ export function runs(town, spot, kind, path, fork, waves = WAVES) {
   c.towers = c.towers.filter(x => x.spot !== spot).concat([{ spot, kind, level: FORK_LEVEL, path, fork, cd: 0, spent: 0, pulses: 0 }]);
   for (const t of c.towers) t.cd = 0;
   Object.assign(c.waves, { phase: 'break', timer: 0, hold: false, queue: [], foes: [], shells: [], fires: [], bossLeaked: false });
-  let leaks = 0;
-  const g = { active: c.id, catching: false, dealt: {}, bus: { emit(type) { if (type === 'leak') leaks++; } } };
+  let leaks = 0, fell = 0, kills = 0;
+  // fell: how far along its lane each raider got before it fell (0 at the entrance, 1 at the vault), for the support
+  // forks (the Frost Lens's, 2026.11.24-2), whose worth is in the raiders the other towers bring down sooner
+  const g = { active: c.id, catching: false, dealt: {}, bus: { emit(type, e) { if (type === 'leak') leaks++; if (type === 'kill') { const x = c.waves.foes.find(y => y.id === e.foe); if (x) { fell += x.s / lanesOf(c)[x.lane || 0].length; kills++; } } } } };
   for (let w = 0; w < waves; w++) {
     if (!startWave(g, c)) break;
     for (let n = 0; c.waves.phase === 'wave' && n < 40000; n++) fight(g, c, STEP);
   }
   const d = g.dealt[c.id] || {}, all = Object.values(d).reduce((a, b) => a + b, 0);
-  return { own: d[kind] || 0, all, leaks };
+  return { own: d[kind] || 0, all, leaks, fell: kills ? fell / kills : 1 };
 }
 
+/* Kinds whose fork trades the tower's own hits for help to the others: judged by the whole defense, not its own damage. */
+export const SUPPORT = new Set(['frost']);
 export function forkRuns(e, kind = KIND) {
   const rows = [];
   for (const id of ['ridge', 'falls']) {
@@ -54,13 +58,14 @@ export function forkRuns(e, kind = KIND) {
       if (!fitsSpot(t, i, kind)) continue;
       for (const path of PATH ? [PATH] : Object.keys(PATHS[kind])) {
         const out = { town: id, spot: i, path, at: along(t, t.def.board.spots[i]) };
-        for (const f of [null, ...Object.keys(FORKS[kind])]) out[f || 'none'] = NORUNS ? { own: 0, all: 0, leaks: 0 } : runs(t, i, kind, path, f);
+        for (const f of [null, ...Object.keys(FORKS[kind])]) out[f || 'none'] = NORUNS ? { own: 0, all: 0, leaks: 0, fell: 0 } : runs(t, i, kind, path, f);
         const keep = t.towers;
         t.towers = keep.filter(x => x.spot !== i).concat([{ spot: i, kind, level: FORK_LEVEL - 1, path, fork: null, cd: 0, spent: 0, pulses: 0 }]);
         const o = options(t).filter(o => o.up && o.spot === i).sort((a, b) => b.value - a.value)[0];
         t.towers = keep;
         out.guess = o ? o.path : '-';
-        out.best = Object.keys(FORKS[kind]).sort((a, b) => out[b].own - out[a].own || out[a].leaks - out[b].leaks)[0];
+        // a support fork (SUPPORT) wins by the fewest raiders through, then by raiders falling nearest the entrance
+        out.best = Object.keys(FORKS[kind]).sort(SUPPORT.has(kind) ? (a, b) => out[a].leaks - out[b].leaks || out[a].fell - out[b].fell : (a, b) => out[b].own - out[a].own || out[a].leaks - out[b].leaks)[0];
         rows.push(out);
       }
     }
@@ -76,7 +81,7 @@ if (process.argv[1].endsWith('fork-runs.js')) {
   for (const kv of set.split(',').filter(Boolean)) { const [key, v] = kv.split('='), [side, stat] = key.split('.'); if (stat) FORKS[KIND][side][stat] = +v; else BAL.tune(side, +v); }
   if (set) console.log('set ' + set);
   const rows = forkRuns(e), F = Object.keys(FORKS[KIND]), N = k => FORKS[KIND][k].name, M = n => (n / 1e6).toFixed(2) + 'M';
-  for (const r of rows) console.log(`seed ${SEED} | ${r.town} pad ${r.spot} ${r.path} at ${r.at.toFixed(2)} | none ${M(r.none.own)} ${r.none.leaks} | ${F.map(k => N(k) + ' ' + M(r[k].own) + ' ' + r[k].leaks).join(' | ')} | runs ${N(r.best)} | guess ${r.guess === '-' ? '-' : N(r.guess)}`);
+  for (const r of rows) console.log(`seed ${SEED} | ${r.town} pad ${r.spot} ${r.path} at ${r.at.toFixed(2)} | none ${M(r.none.own)} ${r.none.leaks} | ${F.map(k => N(k) + ' ' + M(r[k].own) + ' ' + r[k].leaks + (SUPPORT.has(KIND) ? ' fell ' + r[k].fell.toFixed(3) : '')).join(' | ')} | runs ${N(r.best)} | guess ${r.guess === '-' ? '-' : N(r.guess)}`);
   for (const id of ['ridge', 'falls']) {
     const rs = rows.filter(r => r.town === id);
     if (!rs.length) continue;

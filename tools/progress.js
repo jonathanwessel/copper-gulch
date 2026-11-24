@@ -21,8 +21,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Game } from '../src/core/game.js';
 import { cost, unlocked, isOutpost } from '../src/core/economy.js';
-import { towerCost, canPay, towerAt, towerOpen, fitsSpot } from '../src/core/defense.js';
-import { TOWERS } from '../src/data/towers.js';
+import { towerCost, canPay, towerAt, towerOpen, fitsSpot, forkNext } from '../src/core/defense.js';
+import { TOWERS, FORKS } from '../src/data/towers.js';
 import { tabs } from '../src/core/reveal.js';
 import { itemsOf, researchBlock } from '../src/core/research.js';
 import { nextTowns, canFound } from '../src/core/empire.js';
@@ -68,6 +68,15 @@ function rec(g) {
   REC.set(g, r);
   for (const ev of UNLOCKS) g.bus.on(ev, e => { r.unlocks.push([Math.round(now()), ev + (e && (e.town || e.id || e.kind) ? ' ' + (e.town || e.id || e.kind) + (e.kind && e.town ? ' ' + e.kind : '') : '')]); r.lastNews = now(); if (ev === 'town:open' && e.town) r.openAt[e.town] ??= now(); });
   for (const ev of NEWS) g.bus.on(ev, () => { r.lastNews = now(); });
+  // a kind's level-20 choice, the first time any tower of it is one level short (its tip card and a new pick show then;
+  // clarity fix 3b part 3b, 2026.11.24-2: the Crossbow's and the Cannon's came in the stretch before Silver Falls and
+  // were never counted)
+  const forks = new Set();
+  g.bus.on('tower:upgrade', e => {
+    const t = g.towns[e.town], x = t && t.towers.find(y => y.spot === e.spot);
+    if (!x || !FORKS[x.kind] || forks.has(x.kind) || !forkNext(x)) return;
+    forks.add(x.kind); r.unlocks.push([Math.round(now()), 'fork ' + e.town + ' ' + x.kind]); r.lastNews = now();
+  });
   g.bus.on('wave:clear', e => { ((r.reach[e.town] ||= {})[e.wave]) ??= now(); });
   g.bus.on('charter:sign', e => { r.charters.push({ town: e.town, wave: e.wave, deeds: e.deeds, at: now(), first: (r.reach[e.town] || {})[e.wave] - (r.openAt[e.town] || 0), back: null }); });
   return r;

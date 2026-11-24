@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER, SLOW_MOST } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -65,7 +65,7 @@ export function towerStats(town, t) {
     dmg: d.dmg * (d.grow || PER_LEVEL.dmg) ** (L - 1) * (p.dmg || 1) * (k.dmg || 1) * town.mods.factor('towerDmg'),
     rate: d.rate * PER_LEVEL.rate ** (L - 1) * (p.rate || 1) * (k.rate || 1) * town.mods.factor('towerRate'),
     range: (d.range + PER_LEVEL.range * (L - 1)) * (p.range || 1) * (k.range || 1) * town.mods.factor('towerRange'),
-    splash: (d.splash || 0) * (p.splash || 1) * (k.splash || 1) * town.mods.factor('blast'), slow: d.slow || 0, pulse: !!d.pulse,
+    splash: (d.splash || 0) * (p.splash || 1) * (k.splash || 1) * town.mods.factor('blast'), slow: Math.min(SLOW_MOST, (d.slow || 0) * (k.slow || 1)), pulse: !!d.pulse,
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
     minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, hurt: !!k.hurt, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1, pierce: k.pierce ? PIERCE.count : 0, sharp: !!k.sharp,
@@ -435,7 +435,8 @@ export function fight(game, town, dt) {
         game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to: pos.get(line[line.length - 1]), pierce: line.length });
         continue;
       } else hurt(game, town, target, st.dmg, false, t.kind);
-      game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to });
+      // a frost pulse carries its reach, so its ring is drawn as wide as it chills (Blizzard, Cold Snap)
+      game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, ...(st.pulse ? { ring: st.range } : {}) });
     }
   }
   // Call to arms (src/core/arms.js): every built building's workers shoot the raider nearest the vault in their reach

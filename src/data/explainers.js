@@ -230,6 +230,12 @@ export const EXPLAINERS = [
     when: h => h.forkCrossbow != null, at: h => ({ tower: h.forkCrossbow }),
   },
   {
+    id: 'fork-frost', covers: ['fork:frost'],
+    title: 'One more choice',
+    text: 'At level 20 you pick one more upgrade for this Frost Lens. Blizzard reaches much farther. Cold Snap slows raiders much more. Tap the Frost Lens to pick.',
+    when: h => h.forkFrost != null, at: h => ({ tower: h.forkFrost }),
+  },
+  {
     id: 'boss', town: 'gulch', covers: ['boss'],
     title: 'The war wagon',
     text: 'Every 10th wave brings the war wagon. It is slow and heavily armored. At half health its crew jumps off and runs for the vault. If the wagon gets there, the wave is lost.',

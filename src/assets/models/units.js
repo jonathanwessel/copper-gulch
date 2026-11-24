@@ -178,7 +178,11 @@ export function makeTower(type, br, lvl, fk = null) {
     else if (type === 'mortar') { k.cyl(0, 0, 0, .36, .08, 'woodD', { seg: 10 }); for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283; k.ball(Math.cos(a) * .36, .1, Math.sin(a) * .36, .1, 'sand', { sy: .55, ry: -a }); }
       k.box(-.06, .08, 0, .22, .12, .3, 'woodD'); if (br === 'b') k.box(.18, .08, .18, .1, .1, .1, 'paintR'); }
     else if (type === 'cannon') { k.cyl(0, 0, 0, .36, .3, 'stone', { r2: .32, seg: 10, jit: .1 }); for (let i = 0; i < 8; i++) k.box(Math.cos(i * .785) * .3, .3, Math.sin(i * .785) * .3, .12, .1, .12, 'stoneL', { ry: -i * .785 }); }
-    else if (type === 'frost') { k.cyl(0, 0, 0, .3, .12, 'stoneL', { seg: 6 }); k.cyl(0, .12, 0, .14, .42, 'stone', { r2: .1, seg: 6 }); k.cyl(0, .54, 0, .2, .05, 'glowI', { seg: 6, mat: 'glow' }); }
+    else if (type === 'frost') { k.cyl(0, 0, 0, .3, .12, 'stoneL', { seg: 6 }); k.cyl(0, .12, 0, .14, .42, 'stone', { r2: .1, seg: 6 }); k.cyl(0, .54, 0, .2, .05, 'glowI', { seg: 6, mat: 'glow' });
+      // the level-20 fork: Blizzard three tall white shards leaning out round the pillar under a wide pale ring; Cold Snap
+      // a low crown of thick ice spikes round the foot, snow piled between them
+      if (fk === 'a') { for (let i = 0; i < 3; i++) { const a = i * 2.094 + .5; k.cone(Math.cos(a) * .2, .1, Math.sin(a) * .2, .045, .62, 'white', { seg: 4, rz: -Math.cos(a) * .28, rx: Math.sin(a) * .28 }); } k.torus(0, .6, 0, .3, .025, 'glowI', { rx: Math.PI / 2, mat: 'glow', ts: 12 }); }
+      if (fk === 'b') { for (let i = 0; i < 6; i++) { const a = i * 1.047; k.cone(Math.cos(a) * .3, .04, Math.sin(a) * .3, .08, .26 + (i % 2) * .1, 'glowI', { seg: 5, mat: 'glow', rz: -Math.cos(a) * .35, rx: Math.sin(a) * .35 }); } k.cyl(0, .1, 0, .3, .04, 'white', { seg: 8 }); } }
     else if (type === 'still') { k.cyl(0, 0, 0, .32, .1, 'stoneD', { seg: 8 }); for (let i = 0; i < 5; i++) k.log(Math.cos(i * 1.26) * .12, .1, Math.sin(i * 1.26) * .12, .22, .03, 'log', { ry: i * 1.26 }); k.ball(0, .14, 0, .07, 'glowO', { mat: 'fire' });
       k.ball(0, .36, 0, .24, 'copper', { det: 1, sy: .9, mat: 'metal' }); k.cyl(0, .55, 0, .06, .22, 'copper', { r2: .03, mat: 'metal' }); k.cyl(.12, .75, 0, .025, .3, 'copper', { rz: -1.2, mat: 'metal' });
       for (let i = 0; i < 4; i++) k.torus(.32, .3 + i * .07, 0, .07, .015, 'copper', { rx: Math.PI / 2, mat: 'metal', ts: 8 }); k.cyl(.32, 0, .18, .09, .26, 'glowT', { seg: 8, mat: 'glow' }); k.cyl(.32, .26, .18, .05, .05, 'woodD', { seg: 6 });

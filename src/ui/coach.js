@@ -86,6 +86,7 @@ export function helper(town, game = null) {
     forkReady: (() => { const t = (town.towers || []).find(x => x.kind === 'still' && forkNext(x)); return t ? t.spot : null; })(),
     forkCannon: (() => { const t = (town.towers || []).find(x => x.kind === 'cannon' && forkNext(x)); return t ? t.spot : null; })(),
     forkCrossbow: (() => { const t = (town.towers || []).find(x => x.kind === 'crossbow' && forkNext(x)); return t ? t.spot : null; })(),
+    forkFrost: (() => { const t = (town.towers || []).find(x => x.kind === 'frost' && forkNext(x)); return t ? t.spot : null; })(),
   };
 }
 
