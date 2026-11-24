@@ -17,12 +17,12 @@ import { makeBuilding, makeVault, makeStockpile, PROPS } from '../assets/models/
 import { makeTower } from '../assets/models/units.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { TOWNS } from '../data/towns/index.js';
-import { DIORAMA } from '../data/empire.js';
+import { DIORAMA, CAPITAL } from '../data/empire.js';
 import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
 import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
-import { rectDist, gateDist, polyDist, blockers, routeLine, mesaPlan, flavor, camp, routeKind, duneHeight } from './empire-plan.js';
+import { rectDist, gateDist, polyDist, blockers, routeLine, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint } from './empire-plan.js';
 import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
@@ -102,8 +102,11 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   v.scene.fog.near = 60; v.scene.fog.far = 150; v.cam.far = 260; v.cam.updateProjectionMatrix();
   v.sky.scale.setScalar(2.2);
   const sites = mapSites(game), at = Object.fromEntries(sites.map(s => [s.id, s.at]));
-  const xs = sites.map(s => s.at[0]), zs = sites.map(s => s.at[1]);
-  const x0 = Math.min(...xs) - 4, x1 = Math.max(...xs) + 4, z0 = Math.min(...zs) - 4, z1 = Math.max(...zs) + 4.5;
+  // the map's box: every board as turned and every entrance's far end, kept even round the Capital so it sits in the
+  // middle of the first view (the ring, owner 2026-11-22)
+  const ext = sites.flatMap(s => { const d = TOWNS[s.id]; if (!d) return [s.at]; const B = d.board; return [[0, 0], [B.cols, 0], [0, B.rows], [B.cols, B.rows]].map(p => toMap(s.id, p)).concat(footprint(s.id).gates.map(g => g.b)); });
+  const xs = ext.map(p => p[0] - CAPITAL[0]), zs = ext.map(p => p[1] - CAPITAL[1]), hx = Math.max(...xs.map(Math.abs)) + 1.5;
+  const x0 = CAPITAL[0] - hx, x1 = CAPITAL[0] + hx, z0 = CAPITAL[1] + Math.min(...zs) - 8, z1 = CAPITAL[1] + Math.max(...zs) + 3.5; // north and south as far as the land goes, so a phone gets no empty band, with room past the far and near places for their labels
   const center = new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2);
   const root = new THREE.Group(); root.name = 'empire'; v.scene.add(root);
   const mats = mapMaterials(), add = o => { root.add(mats.apply(o)); return o; };
@@ -182,14 +185,15 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
         const sig = signature(town), cur = dio[s.id];
         if (cur && cur.sig === sig) continue;
         if (cur) { root.remove(cur.obj); disposeTree(cur.obj); }
-        const obj = diorama(town), TB = town.def.board;
-        obj.position.set(s.at[0] - TB.cols / 2 * S, 0, s.at[1] - TB.rows / 2 * S);
+        const board = diorama(town), TB = town.def.board, obj = new THREE.Group();
+        // turned so its entrance faces away from the Capital (empire-plan.js, turnOf)
+        board.position.set(-TB.cols / 2 * S, 0, -TB.rows / 2 * S); obj.add(board); obj.position.set(s.at[0], 0, s.at[1]); obj.rotation.y = turnOf(s.id);
         add(obj); dio[s.id] = { obj, sig };
       } else if (s.capital && capitalOpen(game)) {
         if (plots[s.id]) { root.remove(plots[s.id]); disposeTree(plots[s.id]); delete plots[s.id]; }
         placeCity(s);
       } else if (!plots[s.id]) {
-        const o = surveyed(s.capital, camp([0, 0])); o.position.set(s.at[0], 0, s.at[1]);
+        const o = surveyed(s.capital, camp([0, 0])); o.position.set(s.at[0], 0, s.at[1]); if (TOWNS[s.id]) o.rotation.y = turnOf(s.id);
         // a town with a river shows it running across its plot already, so the river from the falls ends somewhere
         const TB = TOWNS[s.id] && TOWNS[s.id].board;
         if (TB && TB.river) { const w = riverRibbon(TB.river.path.concat([TB.vault]).map(p => [(p[0] - TB.cols / 2) * S, (p[1] - TB.rows / 2) * S]), TB.look, (TB.river.width || 1.1) * S); w.position.y = .004; o.add(w);
@@ -285,7 +289,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   let selected = null;
 
   // the camera: the whole map at home; tap a town to open its card
-  const rig = new CameraRig(v.cam, canvas, { center, size: Math.max(x1 - x0, z1 - z0) * 1.1, pads: [], fitCover: true, onTap: (x, y) => onTap(api.siteAt(x, y), x, y) });
+  const rig = new CameraRig(v.cam, canvas, { center, size: Math.max(x1 - x0, z1 - z0) * 1.1, pads: [], fitCover: true, tallPitch: 1.22, widePitch: 1, onTap: (x, y) => onTap(api.siteAt(x, y), x, y) });
   rig.min = 5; rig.max = 110;
   rig.frame(center.x, center.z, x1 - x0, z1 - z0);
   let raf = 0, last = performance.now(), frames = 0, t = 0, sync = 0, opened = false;
@@ -353,15 +357,16 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
       const s = at[id], d = TOWNS[id], W = size.w || canvas.clientWidth, H = size.h || canvas.clientHeight;
       const hx = d ? d.board.cols * S / 2 : id === 'capital' ? CITY.plaza : 2.2, hz = d ? d.board.rows * S / 2 : hx, hy = id === 'capital' && dio.capital ? 2.4 : d ? .5 : 0;
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      const tn = d ? turnOf(id) : 0, c = Math.cos(tn), sn = Math.sin(tn);
       for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of hy ? [0, hy] : [0]) {
-        _v.set(s[0] + dx * hx, y, s[1] + dz * hz).project(v.cam);
+        _v.set(s[0] + dx * hx * c + dz * hz * sn, y, s[1] + dz * hz * c - dx * hx * sn).project(v.cam);
         if (_v.z > 1) return null;
         const x = (_v.x + 1) / 2 * W, yy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
       }
       // an open town's entrance stands past its board: it is part of the town (review of 2026.11.21-6: the Gulch's label sat
       // on its canyon road, over Dry Creek)
       if (d && dio[id]) for (const e of [d.board.entrance, d.board.river && d.board.river.entrance].filter(Boolean)) for (const dx of [-1, 1]) for (const y of [0, 1]) {
-        _v.set(s[0] + (e.mouth[0] + dx * e.width / 2 - d.board.cols / 2) * S, y, s[1] + (Math.min(e.portal[1], e.mouth[1]) - d.board.rows / 2) * S).project(v.cam);
+        const [ex, ez] = toMap(id, [e.mouth[0] + dx * e.width / 2, Math.min(e.portal[1], e.mouth[1])]); _v.set(ex, y, ez).project(v.cam);
         if (_v.z > 1) continue;
         const x = (_v.x + 1) / 2 * W, yy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
       }
@@ -417,6 +422,9 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     // short and the roads, a few hundredths above the ground, sink into it
     const near = Math.max(.3, rig.c.dist * .2);
     if (Math.abs(v.cam.near - near) > near * .05) { v.cam.near = near; v.cam.updateProjectionMatrix(); }
+    // the haze starts past the far side of the map from wherever the camera is, so a phone that sees the whole ring
+    // from high up sees it clear (the ring, 2026-11-24: the fixed 60-150 washed out the north half on a phone)
+    v.scene.fog.near = Math.max(60, rig.c.dist * 1.1); v.scene.fog.far = Math.max(150, rig.c.dist * 2.6);
     v.render(); frames++;
     onFrame(dt);
   }

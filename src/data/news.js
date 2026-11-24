@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-4',
+    lines: [
+      'The Map now has the Capital in the middle with your towns in a ring around it.',
+      'Every town turns so its raiders come in from the outside edge of the map.',
+      'Town names on the Map sit beside each town.',
+    ],
+  },
+  {
     v: '2026.11.24-3',
     lines: [
       'A level 20 tower card now says which tower it is, under its new name.',

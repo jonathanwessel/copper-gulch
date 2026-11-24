@@ -48,7 +48,9 @@ export function coverSide(cv, el) {
 }
 
 export class CameraRig {
-  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false, fitCover = false }) {
+  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false, fitCover = false, tallPitch = 1.08, widePitch = 0 }) {
+    this.tallPitch = tallPitch; // how steeply a tall screen looks down (the empire map looks down more, so its far side shrinks less)
+    this.widePitch = widePitch; // the same for a wide screen (0: the town's own .72 or .8)
     this.fitCover = fitCover; // the empire map: an open card shrinks the home view to the space it leaves
     this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads; this.onZoomOut = onZoomOut; this.flyIn = flyIn; this.pull = 0;
     this.view = { top: 0, cover: null }; // the top bar's lower edge and the open card's box, in client pixels
@@ -115,7 +117,7 @@ export class CameraRig {
     // a wide screen and a tall town: look from the west, so the town's length runs left to right
     const turn = aspect > 1.2 && fd > fw * 1.15;
     const cx = this.fx ?? this.home.x, cz = this.fz ?? this.home.z;
-    const s = { x: cx, z: cz, yaw: turn ? -Math.PI / 2 : 0, pitch: tall ? 1.08 : aspect > 1.5 ? .72 : .8, dist: 19 };
+    const s = { x: cx, z: cz, yaw: turn ? -Math.PI / 2 : 0, pitch: tall ? this.tallPitch : this.widePitch || (aspect > 1.5 ? .72 : .8), dist: 19 };
     const m = 8, top = Math.min(H * .45, this.view.top) + m, R = { l: r.left + m, r: r.left + W - m, t: r.top + top, b: r.top + H - m };
     // the goods strip at the bottom: the frame ends above it, so no pad sits under it at home (review of 2026.11.20-17)
     const lw = this.view.low; if (lw && lw.t > R.t + H * .4) R.b = Math.min(R.b, lw.t - 4);

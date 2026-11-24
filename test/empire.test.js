@@ -72,3 +72,21 @@ test('routes are roads until the Rail Office is founded, then rails', () => {
   assert.equal(routeKind({ shared: {} }), 'road');
   assert.equal(routeKind({ shared: { tree: { founded: ['bank', 'transport'] } } }), 'rail');
 });
+
+/* The ring (owner, 2026-11-22: "raiders always come from the perimeter"): every lane's entrance on the map runs away
+   from the Capital, and every town's vault sits nearer the Capital than its board's middle. Seen red: before the turn the
+   Gulch's, Dry Creek's, Silver Falls' and Sandy Bend's entrances faced the Capital. */
+test('every entrance on the map points away from the Capital, and every vault faces in', async () => {
+  const { toMap } = await import('../src/render/empire-plan.js');
+  for (const id of Object.keys(SITES)) {
+    const [sx, sz] = SITES[id], out = [sx - CAPITAL[0], sz - CAPITAL[1]], L = Math.hypot(...out);
+    for (const g of footprint(id).gates) {
+      const d = [g.b[0] - g.a[0], g.b[1] - g.a[1]], cos = (d[0] * out[0] + d[1] * out[1]) / (Math.hypot(...d) * L);
+      assert.ok(cos > .9, `${id}: an entrance points ${Math.round(Math.acos(cos) * 180 / Math.PI)} degrees off outward`);
+    }
+    // an outpost's loop road ends by its entrance, so only a town's vault is checked
+    if (TOWNS[id].kind === 'outpost') continue;
+    const [vx, vz] = toMap(id, TOWNS[id].board.vault);
+    assert.ok(Math.hypot(vx - CAPITAL[0], vz - CAPITAL[1]) < L, `${id}: its vault faces away from the Capital`);
+  }
+});

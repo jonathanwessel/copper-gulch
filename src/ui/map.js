@@ -101,7 +101,7 @@ const clip = (q, W, H) => ({ l: Math.max(0, q.l), t: Math.max(0, q.t), r: Math.m
 export const gapTo = (a, b) => Math.hypot(Math.max(0, a.l - b.r, b.l - a.r), Math.max(0, a.t - b.b, b.t - a.b));
 /* A label reads best over its town's far side, as all of them did before (review of 2026.11.21-6: Copper Gulch was
    clearer at its top); the other sides cost a little more, so they win only when the far side is covered. */
-const SIDE_COST = { far: 0, above: 0, aboveleft: 100, aboveright: 100, below: 300, belowleft: 400, belowright: 400 };
+const SIDE_COST = { far: 0, above: 0, aboveleft: 100, aboveright: 100, below: 300, belowleft: 400, belowright: 400, left: 250, right: 250 };
 /* The share (0-1) of a site's box on screen that a label covers. */
 export function coverShare(label, box, W = Infinity, H = Infinity) {
   const c = clip(box, W, H), A = Math.max(0, c.r - c.l) * Math.max(0, c.b - c.t);
@@ -128,6 +128,9 @@ export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid
       // the next place's name (second review of 2026.11.21-6: Copper Gulch out on the land by Silver Falls)
       const T = B.t - 2, D = B.b + r.h + 2, k = (B.r - B.l) / 4;
       Object.assign(tries, { above: [cx, T], below: [cx, D], aboveleft: [cx - k, T], aboveright: [cx + k, T], belowleft: [cx - k, D], belowright: [cx + k, D] });
+      // right beside it, its middle level with the town's: on the ring a town's own entrance runs out past it, so above
+      // can cover its canyon (2026-11-24, the Gulch on a phone)
+      Object.assign(tries, { left: [B.l - r.w / 2 - 2, cy + r.h / 2], right: [B.r + r.w / 2 + 2, cy + r.h / 2] });
     }
     return [r, { B, cx, cy, tries }];
   }));

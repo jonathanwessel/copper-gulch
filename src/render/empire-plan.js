@@ -20,7 +20,12 @@ const ENT_LEN = 9.5;       // how far an entrance model reaches past its mouth o
 export function seeded(seed) { let s = (seed * 9301 + 49297) % 233280 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 const lerp = (a, b, t) => a + (b - a) * t;
 
-export const toMap = (id, [bx, bz]) => { const B = TOWNS[id].board, [x, z] = SITES[id]; return [x + (bx - B.cols / 2) * S, z + (bz - B.rows / 2) * S]; };
+/* Each board is turned on the map so its raiders' entrance (every entrance runs toward -z from its mouth) faces away
+   from the Capital, and its vault inward (owner, 2026-11-22: "raiders always come from the perimeter"). The turn is
+   three.js's rotation.y: a board point (x, z) from its middle lands at (x cos t + z sin t, z cos t - x sin t). */
+export const turnOf = id => { const [x, z] = SITES[id], dx = x - CAPITAL[0], dz = z - CAPITAL[1]; return dx || dz ? Math.atan2(-dx, -dz) : 0; };
+export const spin = (t, [x, z]) => { const c = Math.cos(t), s = Math.sin(t); return [x * c + z * s, z * c - x * s]; };
+export const toMap = (id, [bx, bz]) => { const B = TOWNS[id].board, [x, z] = SITES[id], [dx, dz] = spin(turnOf(id), [(bx - B.cols / 2) * S, (bz - B.rows / 2) * S]); return [x + dx, z + dz]; };
 
 /* How far each entrance model reaches on its board, from its mouth (board units: x left and right of the mouth, z
    back from it), measured from src/assets/models/entrances.js on 2026-11-21. The wash and the chute spread wide, the
@@ -35,17 +40,20 @@ export const ENT_BOX = {
    model covers. Every entrance runs toward -z from its mouth. */
 export function footprint(id) {
   const B = TOWNS[id].board, [x, z] = SITES[id];
-  const rect = { x, z, hx: B.cols / 2 * S, hz: B.rows / 2 * S };
+  const rot = turnOf(id), rect = { x, z, hx: B.cols / 2 * S, hz: B.rows / 2 * S, rot };
   const gates = [B.entrance, B.river && B.river.entrance].filter(Boolean).map(e => {
     const [mx, mz] = e.mouth, E = ENT_BOX[e.kind] || { l: e.width / 2 + 2.2, r: e.width / 2 + 2.2, back: ENT_LEN }, back = E.back * SQUASH;
-    const [ax, az] = toMap(id, [mx - E.l, mz - back]), [bx, bz] = toMap(id, [mx + E.r, mz + .3]);
-    return { a: toMap(id, [mx, mz]), b: toMap(id, [mx, mz - back]), box: { x: (ax + bx) / 2, z: (az + bz) / 2, hx: (bx - ax) / 2, hz: (bz - az) / 2 } };
+    // the box's middle on the map, and its half sizes in the board's own frame (it turns with the board)
+    const [cx, cz] = toMap(id, [mx + (E.r - E.l) / 2, mz + (.3 - back) / 2]);
+    return { a: toMap(id, [mx, mz]), b: toMap(id, [mx, mz - back]), box: { x: cx, z: cz, hx: (E.l + E.r) / 2 * S, hz: (back + .3) / 2 * S, rot } };
   });
   return { rect, gates };
 }
 export const gateDist = (x, z, g) => rectDist(x, z, g.box, .4);
 
 export function rectDist(px, pz, r, round = 1) {
+  // a turned rect (a turned board): the point in the rect's own frame
+  if (r.rot) { const [lx, lz] = spin(-r.rot, [px - r.x, pz - r.z]); px = r.x + lx; pz = r.z + lz; }
   const rr = Math.min(round, r.hx, r.hz), qx = Math.abs(px - r.x) - (r.hx - rr), qz = Math.abs(pz - r.z) - (r.hz - rr);
   return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - rr;
 }
@@ -58,13 +66,15 @@ export const polyDist = (px, pz, pts) => { let d = Infinity; for (let i = 0; i <
 /* The river that comes over the falls (a cliff out east) and runs west, then south into Silver Falls' own river where
    it leaves the board's misty bend. Map units, from the falls to the town. */
 export function fallsRiver() {
-  const [sx, sz] = toMap('falls', TOWNS.falls.board.river.path[0]);
-  return { pts: [[sx + 8.6, sz - 1.9], [sx + 6.4, sz - 2.5], [sx + 4.2, sz - 2.9], [sx + 2.2, sz - 2.6], [sx + .6, sz - 1.7], [sx, sz - .4], [sx, sz + .3]], cliff: [sx + 9.2, sz - 1.9], width: .8 };
+  // laid out in the board's own frame (the falls off to its right, the river into its bend) and turned with it
+  const [sx, sz] = toMap('falls', TOWNS.falls.board.river.path[0]), t = turnOf('falls'), at = ([x, z]) => { const [dx, dz] = spin(t, [x, z]); return [sx + dx, sz + dz]; };
+  return { pts: [[8.6, -1.2], [6.4, -1.6], [4.2, -1.8], [2.2, -1.6], [.6, -1.1], [0, -.4], [0, .3]].map(at), cliff: at([9.2, -1.2]), width: .8 };
 }
 /* The dry creek bed: out of Dry Creek's wash to the west and off toward the map's edge. */
 export function creekBed() {
-  const g = footprint('drycreek').gates[0], [ex, ez] = g.b;
-  return { pts: [[ex, ez + .4], [ex - .3, ez - .8], [ex - 1.4, ez - 1.9], [ex - 3.2, ez - 2.2], [ex - 5.2, ez - 1.6], [ex - 7.4, ez - 2.1], [ex - 10, ez - 1.5], [ex - 13, ez - 1.9]], width: .9 };
+  // in the board's own frame, turned with it
+  const g = footprint('drycreek').gates[0], [ex, ez] = g.b, t = turnOf('drycreek'), at = ([x, z]) => { const [dx, dz] = spin(t, [x, z]); return [ex + dx, ez + dz]; };
+  return { pts: [[0, .4], [-.3, -.8], [-1.4, -1.9], [-3.2, -2.2], [-5.2, -1.6], [-7.4, -2.1], [-10, -1.5], [-13, -1.9]].map(at), width: .9 };
 }
 
 /* What routes and props keep off: { site: [[id, rect]], gates: [gate], plaza, river }. dist(x, z) is the distance to
@@ -167,8 +177,9 @@ export function flavor(id, free, seed = 7) {
   for (let i = 0; i < F.n * 30 && out.length < F.n; i++) {
     const a = R() * Math.PI * 2, d = F.from + R() * (F.to - F.from);
     // a point d out from the rect's edge in direction a (pushed out from the nearest edge point)
-    const ex = rect.x + Math.max(-rect.hx, Math.min(rect.hx, Math.cos(a) * (rect.hx + 3))), ez = rect.z + Math.max(-rect.hz, Math.min(rect.hz, Math.sin(a) * (rect.hz + 3)));
-    const x = ex + Math.cos(a) * d, z = ez + Math.sin(a) * d;
+    // in the board's own frame, then turned with it
+    const ex = Math.max(-rect.hx, Math.min(rect.hx, Math.cos(a) * (rect.hx + 3))), ez = Math.max(-rect.hz, Math.min(rect.hz, Math.sin(a) * (rect.hz + 3)));
+    const [lx, lz] = spin(rect.rot || 0, [ex + Math.cos(a) * d, ez + Math.sin(a) * d]), x = rect.x + lx, z = rect.z + lz;
     const m = F.kind === 'dune' ? 1.2 : F.kind === 'crag' || F.kind === 'hoodoo' ? .8 : .35;
     if (!free(x, z, m)) continue;
     if (out.some(p => Math.hypot(p.x - x, p.z - z) < (F.kind === 'pine' ? .55 : F.kind === 'dune' ? 2.2 : 1.1))) continue;
