@@ -150,6 +150,11 @@ export function routeLine(a, b, B, step = .3, { own: keepOff = false } = {}) {
    plaza's edge. Goods between two places ride one spoke in, round the plaza and the other spoke out, so every road on
    the map runs from a vault through the middle and none crosses a raider road. */
 const DEPOT_OUT = .55;  // how far past the board's inner edge a depot stands (board units)
+/* How far a road or rail bed reaches each side of its middle (map units), and how far land props keep from a route's
+   middle besides their own size: past the bed with a little dirt between (the ring, part 1b review: the Ridge's rocks
+   touched its rail when props kept .6 against a bed of .66). */
+export const BED = .66;
+export const ROUTE_CLEAR = .85;
 export const STATION_R = () => CITY.plaza + .8; // a station's distance from the Capital's middle (map units): a rail bed reaches .66 each side of its middle, so it clears the plaza
 export function depotOf(id) {
   const B = TOWNS[id].board, x0 = TOWNS[id].kind === 'outpost' ? B.cols / 2 : Math.max(.8, Math.min(B.cols - .8, B.vault[0]));

@@ -54,3 +54,22 @@ test('a label sits nearer its own place than any other, so it never reads as the
     for (const [id, q] of Object.entries(boxes)) if (id !== r.id) assert.ok(gapTo(me, q) >= own, r.id + ' sits nearer ' + id);
   }
 });
+
+// the ring, part 1c (2026-11-24): labels keep to the outside of the ring, off the middle where every spoke meets
+test('a town label takes the side away from the Capital when both are free', async () => {
+  const { inwardness } = await import('../src/ui/map.js');
+  // a town below the Capital on screen, nothing else near: its old place over its far side points straight at the
+  // Capital (seen red: with no hub the label takes it, inwardness 1)
+  const hub = { x: 200, y: 250 }, boxes = { ridge: box(150, 400, 250, 460), capital: box(180, 235, 220, 265) };
+  const rs = [{ id: 'ridge', x: 200, y: 400, w: 110, h: 24 }];
+  spotBadges(rs, boxes, { W: 400, H: 800, hub });
+  assert.ok(inwardness({ x: rs[0].x, y: rs[0].y - 12 }, boxes.ridge, hub) <= .5, 'ridge took ' + rs[0].side);
+});
+
+test('a place mostly off the screen or under the card counts as out of view', async () => {
+  const { inView } = await import('../src/ui/map.js');
+  assert.equal(inView(box(100, 100, 200, 200), 400, 800), 1);
+  assert.equal(inView(box(-100, 100, 100, 200), 400, 800), .5);
+  assert.ok(inView(box(100, 450, 200, 550), 400, 800, { l: 10, t: 480, r: 390, b: 800 }) < .5);
+  assert.equal(inView(box(100, 100, 200, 200), 400, 800, { l: 10, t: 480, r: 390, b: 800 }), 1);
+});

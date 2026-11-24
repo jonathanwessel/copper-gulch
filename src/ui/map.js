@@ -107,6 +107,13 @@ export function coverShare(label, box, W = Infinity, H = Infinity) {
   const c = clip(box, W, H), A = Math.max(0, c.r - c.l) * Math.max(0, c.b - c.t);
   return A > 0 ? area(label, c) / A : 0;
 }
+/* The share (0-1) of a place's box on the screen and not under the open card (cover, or null). */
+export function inView(box, W, H, cover = null) {
+  const A = Math.max(0, box.r - box.l) * Math.max(0, box.b - box.t);
+  if (!(A > 0)) return 0;
+  const on = clip(box, W, H);
+  return Math.max(0, area(box, { l: 0, t: 0, r: W, b: H }) - (cover ? area(on, cover) : 0)) / A;
+}
 /* A badge (x center, y bottom, w, h) as a box. */
 export const badgeBox = r => ({ l: r.x - r.w / 2, t: r.y - r.h, r: r.x + r.w / 2, b: r.y });
 /* Where each label sits beside its town, so it covers as little of the towns as it can (two fresh-eyes reviews of
@@ -117,7 +124,17 @@ export const badgeBox = r => ({ l: r.x - r.w / 2, t: r.y - r.h, r: r.x + r.w / 2
    last side unless another is clearly better, so labels do not flip as the map moves.
    rs: [{ id, x, y, w, h }] (x, y: its old place); boxes: { id: { l, t, r, b, x, y } } (x, y: the middle); last: { id:
    side }, updated. Sets x, y and side on each label and returns rs. */
-export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid = [], first = null, last = {}, passes = 3 } = {}) {
+/* How much a label on the Capital's side of its town costs at most: on the ring the middle is where every spoke meets,
+   so labels there piled up and read as the Capital's (the ring, part 1c, 2026-11-24). Sideways or outward costs
+   nothing. */
+export const INWARD_COST = 1400;
+/* The share (-1 to 1) of a label's way from its town's middle that points at the hub (the Capital on screen): over .5
+   the label sits on the Capital's side of its town. */
+export function inwardness(label, mid, hub) {
+  const ux = label.x - mid.x, uy = label.y - mid.y, vx = hub.x - mid.x, vy = hub.y - mid.y, n = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+  return n > 1e-6 ? (ux * vx + uy * vy) / n : 0;
+}
+export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid = [], first = null, last = {}, passes = 3, hub = null } = {}) {
   const on = Object.values(boxes).filter(Boolean).map(q => ({ q, c: clip(q, W, H) }));
   const order = rs.slice().sort((a, b) => (b === first) - (a === first) || b.y - a.y);
   // each label's places to try, worked out once from its old place and its town's box
@@ -149,6 +166,8 @@ export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid
         // over the Gulch's loop, the Capital inside Iron Ridge's ring, Copper Gulch on Dry Creek)
         if (q !== B) { const d = gapTo(me, q); if (d < own + 14) cost += 4000 + (own + 14 - d) * 150; }
       }
+      // outside the ring: a label on the Capital's side of its town costs more, the more it points at the Capital
+      if (hub && B && r.id !== 'capital') cost += Math.max(0, inwardness({ x, y: y - r.h / 2 }, B, hub)) * INWARD_COST;
       for (const o of others) cost += area(pad, badgeBox(o)) * 40;
       for (const a of avoid) cost += area(me, a) * 40;
       if (last[r.id] === side) cost = cost * .8 - 600;
@@ -396,11 +415,25 @@ export function mountMap(root, game, view, shell) {
   // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
   // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
   // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
-  const widths = {}, heights = {}, full = {}, sides = {}; let bar = [], cardBox = null, boxes = {}, placed = [];
+  const widths = {}, heights = {}, full = {}, sides = {}; let bar = [], cardBox = null, boxes = {}, placed = [], hub = null;
+  // with a card open, a label that found no place off another place's middle hides until the card closes (the ring,
+  // part 1c: Pine Hollow's label on Iron Ridge with the Ridge's card open in landscape)
+  // It also hides when it touches the open place at all, or covers a fifth of any other place (fresh-eyes read of
+  // 2026.11.24-6: Pine Hollow's name on the lower part of the tapped Iron Ridge read as the Ridge's name)
+  const overMiddle = (r, bx) => { const m = badgeBox(r); return Object.entries(bx).some(([id, q]) => id !== r.id && q && ((q.x > m.l && q.x < m.r && q.y > m.t && q.y < m.b) || (id === openId ? area(m, q) > 0 : coverShare(m, q) > .2))); };
   function placeBadges() {
     const W = innerWidth, H = innerHeight, shown = [];
+    boxes = {}; for (const s of view.sites) boxes[s.id] = view.siteBox ? view.siteBox(s.id) : null;
     for (const s of view.sites) {
-      const B = badge[s.id], p = view.badgePoint(s.id);
+      const B = badge[s.id], p = view.badgePoint(s.id), m = boxes[s.id];
+      // a place with less than half of it in view (off the screen or under the open card) has no label: pushed in from the
+      // edge or out from under the card, it sat on the next town and read as that town's name (the ring, part 1c: Pine
+      // Hollow's label on Iron Ridge with the Ridge's card open, the Gulch's on the Capital with Pine Hollow's)
+      if (s.id !== openId && m && inView(m, W, H, cardBox) < .5) { B.b.hidden = true; continue; }
+      // a card across the bottom (a phone held upright) leaves the map a small strip above it: only the open place keeps its
+      // label there, and the others come back when the card closes (the ring, part 1c: Silver Falls' label on Iron Ridge
+      // and Sandy Bend's on Silver Falls with the Gulch's card open)
+      if (cardBox && s.id !== openId && openId && badge[openId] && cardBox.l < W * .35) { B.b.hidden = true; continue; }
       // a town off the screen has no label: clamped to the edge, they piled up under the coins (review of 2026.11.20-3, the
       // Capital close-up)
       if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }
@@ -416,16 +449,20 @@ export function mountMap(root, game, view, shell) {
     }
     // crowded labels show only their name, judged at full size so a label does not flip between the two
     const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
-    shown.forEach((r, i) => { const c = crowd.has(i); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
+    // with a town's card open, the other labels show only their name and state: the map shrinks into the space the card
+    // leaves, and full labels piled onto each other and the Capital (the ring, part 1c, phone and landscape)
+    const carded = !!(cardBox && openId && badge[openId]);
+    shown.forEach((r, i) => { const c = crowd.has(i) || (carded && r.B !== badge[openId]); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
     // each label beside its town, off the towns' middles and the Capital's dome (reviews of 2026.11.21-5)
-    boxes = {}; for (const s of view.sites) boxes[s.id] = view.siteBox ? view.siteBox(s.id) : null;
     const first = shown.find(r => r.B === badge[openId]), avoid = bar.map(q => ({ l: q.l, t: 0, r: q.r, b: q.b }));
     if (cardBox) avoid.push(cardBox);
-    spotBadges(shown, boxes, { W, H, gap: BADGE_GAP, avoid, first, last: sides });
+    // the Capital on screen: each label keeps to the outside of the ring, off the middle where the spokes meet
+    hub = boxes.capital ? { x: boxes.capital.x, y: boxes.capital.y } : null;
+    spotBadges(shown, boxes, { W, H, gap: BADGE_GAP, avoid, first, last: sides, hub });
     placed = shown;
     for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
-      const c = cardBox, under = c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t;
+      const c = cardBox, under = (c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t) || (c && r.B !== badge[openId] && overMiddle(r, boxes));
       if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;
       if (under) continue;
       const tr = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px) translate(-50%, -100%)`;
@@ -448,6 +485,15 @@ export function mountMap(root, game, view, shell) {
         const me = { l: q.left, t: q.top, r: q.right, b: q.bottom }, own = boxes[id] ? gapTo(me, clip(boxes[id], W, H)) : 0;
         for (const [o, m] of Object.entries(boxes)) if (o !== id && m && m.r > 0 && m.l < W && m.b > 0 && m.t < H && gapTo(me, clip(m, W, H)) < own) out.near.push(id + ' nearer ' + o);
       }
+      // town labels on the Capital's side of their own town (the ring, part 1c): over .5 points at the middle
+      out.inward = [];
+      if (hub) for (const { id, q } of rects) if (id !== 'capital' && boxes[id]) { const k = inwardness({ x: (q.left + q.right) / 2, y: (q.top + q.bottom) / 2 }, boxes[id], hub); if (k > .5) out.inward.push(id + ' ' + k.toFixed(2)); }
+      // the open card's town: its middle in the free part of the screen, not under the top bar or the card (review of
+      // 2026.11.24-4: Silver Falls under the top bar as its card opened on a phone)
+      out.hid = '';
+      out.onOpen = openId && boxes[openId] ? rects.filter(({ id, q }) => id !== openId && area({ l: q.left, t: q.top, r: q.right, b: q.bottom }, boxes[openId]) > 0).map(x => x.id) : [];
+      { const m = openId && boxes[openId], hb = hud.getBoundingClientRect().bottom, c = cardBox;
+        if (m) { if (m.y < hb) out.hid = openId + ' under the top bar'; else if (m.y > H || m.x < 0 || m.x > W) out.hid = openId + ' off the screen'; else if (c && m.x > c.l && m.x < c.r && m.y > c.t && m.y < c.b) out.hid = openId + ' under its card'; } }
       return out;
     },
     frame(dt) {

@@ -22,7 +22,7 @@ import { mapSites, mapRoutes, wagonsFor } from '../core/map.js';
 import { capitalOpen } from '../core/capital.js';
 import { makeCity, makeInstitution, cityState } from '../assets/models/capital.js';
 import { CITY } from '../data/capital.js';
-import { rectDist, gateDist, polyDist, blockers, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint, spokeLine, plazaArc, STATION_R } from './empire-plan.js';
+import { rectDist, gateDist, polyDist, blockers, mesaPlan, flavor, camp, routeKind, duneHeight, turnOf, toMap, footprint, spokeLine, plazaArc, STATION_R, ROUTE_CLEAR } from './empire-plan.js';
 import { CLOUD, cloudy, mapMaterials, mesas, flavorModels, fallsModels, creekModels, entranceModels, surveyed, roadModel, railModel, routeBridges, depotModel, DECK_Y, engineGeometry, carGeometry, merged } from './empire-land.js';
 import '../assets/models/ridge.js';
 
@@ -159,7 +159,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   add(ground);
   // the land: varied mesas round the edge, the land that fits each town, the river and the falls, the dry creek, and
   // scenery between the towns, merged into a few meshes
-  const free = (x, z, m) => !B.hit(x, z, m) && !pathPts.some(pts => polyDist(x, z, pts) < .6 + m) && !(river && polyDist(x, z, river.pts) < river.width * .6 + m) && !(creek && polyDist(x, z, creek.pts) < creek.width * .6 + m * .5);
+  const free = (x, z, m) => !B.hit(x, z, m) && !pathPts.some(pts => polyDist(x, z, pts) < ROUTE_CLEAR + m) && !(river && polyDist(x, z, river.pts) < river.width * .6 + m) && !(creek && polyDist(x, z, creek.pts) < creek.width * .6 + m * .5);
   const land = [...mesas(mesaPlan({ x0, x1, z0, z1 }, sites))];
   for (const s of sites) if (TOWNS[s.id]) land.push(...flavorModels(flavor(s.id, free).map(p => ({ ...p, y: Math.max(0, height(p.x, p.z)) - .02 }))));
   if (river) land.push(...fallsModels(river));
@@ -393,7 +393,8 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
        selected site clear of the card. */
     setView(top, cover) {
       rig.setView(top, cover);
-      if (selected) rig.keep({ x: at[selected][0], y: 0, z: at[selected][1] }, selected);
+      // the whole place clear of the card, not only its middle (the ring, part 1c: Pine Hollow half under it on a phone)
+      if (selected) rig.keep({ x: at[selected][0], y: 0, z: at[selected][1] }, selected, siteRadius(selected) * 1.3);
     },
     /* Fly down into a site, then call done (the town view takes over and finishes the dive). */
     fly(id, done) {

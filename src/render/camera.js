@@ -227,7 +227,9 @@ export class CameraRig {
     const inside = a => q.x >= a.l && q.x <= a.r && q.y >= a.t && q.y <= a.b;
     // clear by a building's half width beside the card and its height above the strip, not just its point (review of
     // 2026.11.20-13: in landscape a selected Glassworks sat half under the card's edge, just above the strip)
-    const clear = (q.x < cv.l - CLEAR || q.x > cv.r + CLEAR || q.y < cv.t - CLEAR || q.y > cv.b + CLEAR) && !(lw && q.x > lw.l - 20 && q.x < lw.r + 20 && q.y > lw.t - 40 && q.y < lw.b + 20);
+    // with a reach (a site's own size on the map), clear by the whole of it: an outpost's middle just above the card left
+    // half of it under the card (the ring, part 1c, Pine Hollow on a phone)
+    const clear = (q.x < cv.l - CLEAR - e.r || q.x > cv.r + CLEAR + e.l || q.y < cv.t - CLEAR - e.d || q.y > cv.b + CLEAR + e.u) && !(lw && q.x > lw.l - 20 && q.x < lw.r + 20 && q.y > lw.t - 40 && q.y < lw.b + 20);
     // a circle that fits in no part even after the step back: its middle goes to the middle of the roomiest part, so it
     // runs off both sides alike (review of 2026.11.20-7: an empty pit's Mortar circle on a desktop ran off the left edge
     // only, with the map at its farthest)

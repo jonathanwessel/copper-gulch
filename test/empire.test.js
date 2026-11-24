@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TOWNS } from '../src/data/towns/index.js';
 import { SITES, CAPITAL, DIORAMA } from '../src/data/empire.js';
-import { ENT_BOX, footprint, blockers, routeLine, spokeLine, fallsRiver, creekBed, flavor, FLAVOR, mesaPlan, camp, routeKind, polyDist, rectDist } from '../src/render/empire-plan.js';
+import { ENT_BOX, footprint, blockers, routeLine, spokeLine, fallsRiver, creekBed, flavor, FLAVOR, mesaPlan, camp, routeKind, polyDist, rectDist, ROUTE_CLEAR, BED } from '../src/render/empire-plan.js';
 
 const sites = [{ id: 'capital', at: CAPITAL, capital: true }, ...Object.entries(SITES).map(([id, at]) => ({ id, at }))];
 const B = blockers(sites);
@@ -40,11 +40,14 @@ test('every town has land that fits it, and none of it stands on a board, an ent
   const river = fallsRiver(), creek = creekBed(), roads = [];
   // the roads the map draws: every place's spoke in to the Capital (the ring, part 1b)
   for (const id of Object.keys(SITES)) roads.push(spokeLine(id, B).pts);
-  const free = (x, z, m) => !B.hit(x, z, m) && !roads.some(p => polyDist(x, z, p) < .6 + m) && polyDist(x, z, river.pts) > river.width * .6 + m && polyDist(x, z, creek.pts) > creek.width * .6 + m * .5;
+  const free = (x, z, m) => !B.hit(x, z, m) && !roads.some(p => polyDist(x, z, p) < ROUTE_CLEAR + m) && polyDist(x, z, river.pts) > river.width * .6 + m && polyDist(x, z, creek.pts) > creek.width * .6 + m * .5;
   for (const id of Object.keys(SITES)) {
     const list = flavor(id, free);
     assert.ok(list.length >= FLAVOR[id].n * .6, `${id}: ${list.length} of ${FLAVOR[id].n}`);
     for (const p of list) assert.ok(free(p.x, p.z, 0), `${id}: a ${p.kind} on something`);
+    // a rock or tree keeps its own size plus a little dirt off every rail bed (the ring, part 1c)
+    const m = { dune: 1.2, crag: .8, hoodoo: .8 }[FLAVOR[id].kind] || .35;
+    for (const p of list) for (const r of roads) assert.ok(polyDist(p.x, p.z, r) >= BED + m + .15, `${id}: a ${p.kind} touches a rail bed`);
     assert.ok(list.every(p => p.kind === FLAVOR[id].kind));
   }
   assert.equal(FLAVOR.pinehollow.kind, 'pine'); assert.equal(FLAVOR.ridge.kind, 'crag'); assert.equal(FLAVOR.falls.kind, 'reed');

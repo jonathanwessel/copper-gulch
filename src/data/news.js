@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-6',
+    lines: [
+      'Town names on the Map keep to the outside of the ring, away from the Capital.',
+      'Tap a town on the Map and its card no longer covers that town.',
+      'On a phone, the other names hide while a card is open and come back when you close it.',
+      'Rocks and trees on the Map keep clear of the rails.',
+    ],
+  },
+  {
     v: '2026.11.24-5',
     lines: [
       'On the Map every road now starts at a small depot by a town vault and runs in to the Capital.',

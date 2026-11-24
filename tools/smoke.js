@@ -1222,6 +1222,24 @@ async function run() {
       // the labels covered the Capital, the falls and most of Iron Ridge)
       { const cv = await page.evaluate(() => CG.mapui.cover()), big = Object.entries(cv.share).filter(([, v]) => v > 1 / 3);
         if (big.length || cv.mids.length) bad.push('map labels cover their towns (' + JSON.stringify(cv) + ')'); }
+      // the ring, part 1c: at home no label sits nearer another place than its own (it reads as that place's name), and with
+      // each open place's card open, that place is in the free part of the screen (not under the top bar or the card) and no
+      // label covers another place's middle (seen red before 1c: Pine Hollow's label on Iron Ridge with the Ridge's card open)
+      { const cv = await page.evaluate(() => CG.mapui.cover());
+        if (cv.near.length) bad.push('map labels read as another place (' + cv.near.join(', ') + ')');
+        const cards = await page.evaluate(async () => {
+          const out = [], wait = ms => new Promise(r => setTimeout(r, ms)), r = CG.map.rig;
+          for (const id of Object.keys(CG.game.towns)) {
+            CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(300);
+            CG.mapui.openSite(id); await wait(1600);
+            const c = CG.mapui.cover(), other = c.mids.filter(m => !m.startsWith(m.split(' under ')[1] + ' '));
+            const on = c.onOpen.map(o => o + ' on the open town');
+            if (c.hid || other.length || on.length) out.push(id + ': ' + [c.hid].concat(other, on).filter(Boolean).join(', '));
+          }
+          CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(900);
+          return out;
+        });
+        if (cards.length) bad.push('map cards hide their town or labels sit on towns (' + cards.join('; ') + ')'); }
       // the ground under the finger stays under it
       const pan = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), cv = document.getElementById('view'), rig = CG.map.rig, W = innerWidth, H = innerHeight;

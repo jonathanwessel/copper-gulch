@@ -72,10 +72,18 @@ const MAPVIEWS = [
   ['falls-bridges', () => { const f = CG.map.sites.find(x => x.id === 'falls'); if (!f || !CG.game.towns.falls) return false; const r = CG.map.rig, v = { x: f.at[0], z: f.at[1], yaw: .4, pitch: .75, dist: 7 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['bridge-low', () => { const c = CG.map.crossings[0]; if (!c) return false; const r = CG.map.rig, v = { x: c[0], z: c[1], yaw: .4, pitch: .4, dist: 4 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['home', () => { const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; }],
+  // a town's card open from the home view: the camera slides it clear of the card, and the labels keep to their towns
+  // (the ring, part 1c: a side card pushed labels onto the next town, a town slid under the top bar)
+  ['card-gulch', () => { if (!CG.game.towns.gulch) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('gulch'); }],
+  ['card-ridge', () => { if (!CG.game.towns.ridge) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('ridge'); }],
+  ['card-falls', () => { if (!CG.game.towns.falls) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('falls'); }],
+  ['card-pinehollow', () => { if (!CG.game.towns.pinehollow) return false; const r = CG.map.rig; Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; CG.mapui.openSite('pinehollow'); }],
   ['low', () => { const r = CG.map.rig, v = { x: 0, z: 4, yaw: .4, pitch: .5, dist: 22 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['near', () => { const r = CG.map.rig, v = { x: -7, z: 12, yaw: -.3, pitch: .7, dist: 13 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
   ['north', () => { const r = CG.map.rig, v = { x: 7, z: -12, yaw: 0, pitch: .7, dist: 14 }; Object.assign(r.t, v); Object.assign(r.c, v); r.flick = null; }],
 ];
+// LOOK_VIEWS works on the map's views too (map-home only: LOOK_VIEWS=home)
+if (process.env.LOOK_VIEWS) { const keep = process.env.LOOK_VIEWS.split(','); for (let i = MAPVIEWS.length - 1; i >= 0; i--) if (!keep.some(k => MAPVIEWS[i][0].startsWith(k))) MAPVIEWS.splice(i, 1); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 fs.mkdirSync(dir, { recursive: true });
 const srv = await start(0), b = await chromium.launch(), wrote = [], errs = [];
@@ -94,10 +102,11 @@ try {
     await p.evaluate(() => { for (const k of Object.keys(CG.meter.flow)) CG.meter.flow[k] = 4; });
     for (const [name, go] of MAPVIEWS) {
       if (state !== 'full' && name === 'north') continue;
+      await p.evaluate(() => CG.mapui.close());
       if ((await p.evaluate(go)) === false) continue; await sleep(1500);
       const f = path.join(dir, `map-${state}-${name}-${size}.png`); await p.screenshot({ path: f }); wrote.push(f);
       // how much of each town its label covers, and any town's middle under a label (M6a, map labels on a phone)
-      const cv = await p.evaluate(() => CG.mapui.cover()); console.log(`map-${state}-${name}-${size}`, JSON.stringify(cv.share), cv.mids.concat(cv.near).join(", "));
+      const cv = await p.evaluate(() => CG.mapui.cover()); console.log(`map-${state}-${name}-${size}`, JSON.stringify(cv.share), cv.mids.concat(cv.near).join(", "), cv.inward.length ? "inward " + cv.inward.join(", ") : "", cv.hid, (cv.onOpen || []).length ? "on open " + cv.onOpen.join(", ") : "");
     }
     await p.close();
   }
