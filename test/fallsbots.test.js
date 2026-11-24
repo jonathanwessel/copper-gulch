@@ -89,3 +89,16 @@ test('Silver Falls costs Ridge wave 52, 1M coins and 5 deeds (tuned by the Falls
   const f = TOWNS.falls.found;
   assert.deepEqual([f.wave, f.coins, f.deeds], [52, 1e6, 5]);
 });
+
+/* The Silver Falls floor (2026-11-24): the Falls must come after every Ridge-era first; a first after it, or never,
+   is a miss. Seen red: the progress run of that day had the Still's choice after the Falls on 5 of 6 seeds. */
+test('the Falls floor fails a Ridge-era first that comes after it or never', async () => {
+  const { eraMissing, ERA_FIRSTS, FALLS_AT } = await import('../tools/balance.js');
+  const era = Object.fromEntries(ERA_FIRSTS.map((k, i) => [k, 15000 + i * 600]));
+  assert.deepEqual(eraMissing({ fallsFound: 22000, era }), []);
+  assert.deepEqual(eraMissing({ fallsFound: 17000, era }), ERA_FIRSTS.filter(k => era[k] > 17000));
+  const { arms, ...noArms } = era;
+  assert.deepEqual(eraMissing({ fallsFound: 22000, era: noArms }), ['arms']);
+  assert.deepEqual(eraMissing({ fallsFound: null, era: {} }), [], 'a Falls never founded is its own miss');
+  assert.ok(FALLS_AT[0] >= 330, 'the time floor is a backstop under the era gate, never under 5.5 h');
+});

@@ -369,10 +369,17 @@ async function run() {
         // on a short landscape screen both Choose buttons show without scrolling (review of 2026.11.21-8, fork-land)
         CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]); CG.play.openSpot(2); await wait(150);
         const c2 = document.querySelector('#card'), r2 = c2 && c2.getBoundingClientRect(), hidden = [...document.querySelectorAll('#card .option .btn')].filter(b => { const r = b.getBoundingClientRect(); return r.bottom > r2.bottom + 1 || r.top < r2.top - 1 || r.bottom > innerHeight; }).length;
+        // short of every good: each short good has its own line under the price, in view beside the gray Choose
+        // buttons, and the buttons stay in view too (review of 2026.11.24-2: gray buttons with no reason in view)
+        const D = await import(new URL('src/core/defense.js', location.href).href), needs = Object.keys(D.towerCost(t, kind, 19).goods).filter(g => D.towerCost(t, kind, 19).goods[g] > 0);
+        for (const g of Object.keys(t.goods)) t.goods[g] = 0;
+        CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]); CG.play.openSpot(2); await wait(150);
+        const c3 = document.querySelector('#card'), r3 = c3.getBoundingClientRect(), inView = el => { const r = el.getBoundingClientRect(); return r.height > 0 && r.top >= r3.top - 1 && r.bottom <= Math.min(r3.bottom, innerHeight) + 1; };
+        const notes = [...c3.querySelectorAll('.pathnotes > p')].filter(inView).length, gray = [...c3.querySelectorAll('.option .btn')], shortOk = notes >= needs.length && gray.every(b => b.disabled && inView(b));
         CG.play.close(); t.towers = JSON.parse(keep); const was = JSON.parse(goods); for (const g of Object.keys(t.goods)) t.goods[g] = was[g] || 0; t.coins = coins; CG.town.pause('smoke', false);
-        return { opts, took, name, hidden };
+        return { opts, took, name, hidden, notes, needs: needs.length, shortOk };
       }, kind);
-      if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
+      if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden || !fork.shortOk) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
       }
       // nothing half under a tower card's price bar (reviews of 2026.11.21-7 to -9): Sell is in the head and whole, and
       // every stat row sits above the pinned bar, on level-20 cards short of goods (the tallest) and a plain one
@@ -1037,8 +1044,14 @@ async function run() {
         if (CG.coach.current !== 'boom') return 'no card';
         const hole = document.querySelector('#coach .hole').getBoundingClientRect(), c = chip.getBoundingClientRect(), text = document.querySelector('#coach .coachcard p').textContent;
         const lit = !document.querySelector('#coach .hole').hidden && hole.left <= c.left && hole.right >= c.right && hole.top <= c.top && hole.bottom >= c.bottom;
+        // a spotlight at the foot of the screen: the card covers neither it nor the place's name in the top bar
+        // (review of 2026.11.24-2: on a short landscape screen the tip card covered "Dry" of Dry Creek)
+        const cr = document.querySelector('#coach .coachcard').getBoundingClientRect(), pb = document.getElementById('placeBar').getBoundingClientRect();
+        const meet = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+        // (on a phone held upright the card has no side to go to, so it takes the top there)
+        const over = [meet(cr, hole) && 'the spotlight', innerWidth > innerHeight && pb.height && meet(cr, pb) && 'the place name'].filter(Boolean);
         CG.coach.dismiss(); Object.assign(m, keep);
-        return lit && text.includes(chip.title.split(',')[0]) ? '' : 'spotlight ' + lit + ' text ' + text;
+        return lit && text.includes(chip.title.split(',')[0]) && !over.length ? '' : 'spotlight ' + lit + ' text ' + text + (over.length ? ' card covers ' + over.join(' and ') : '');
       });
       if (boomCard) bad.push('the boom explainer: ' + boomCard);
       // town orders: their explainer shows once, with the spotlight on Goods (Market depth, part 2)

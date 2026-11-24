@@ -582,7 +582,18 @@ export function playFalls(seed, g, strategy, minutes, out) {
 export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false, falls = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
   const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
-  const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null };
+  const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null, era: {} };
+  // the Ridge era's firsts (ERA_FIRSTS, the Silver Falls floor box, 2026-11-24): when each first happens, in play time
+  if (falls) {
+    const era = out.era;
+    g.bus.on('contract:new', e => { era[e.kind] ??= now(); });
+    g.bus.on('node:buy', () => { if (era.arms == null && armsOpen(g)) era.arms = now(); });
+    g.bus.on('charter:sign', e => { if (e.town === 'ridge') era.charter ??= now(); });
+    g.bus.on('tower:upgrade', e => {
+      const t = g.towns[e.town], x = t && t.towers.find(y => y.spot === e.spot);
+      if (x && FORKS[x.kind] && forkNext(x)) era['fork ' + x.kind] ??= now();
+    });
+  }
   out.dc = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won });
   out.dc.won = g.town.won ? out.dc.until : null;
   if (!g.town.won) { off(); return out; }
@@ -834,7 +845,15 @@ export function capitalCheck(runs) {
    wave 10 is within 25% of the best one; every tower kind is bought in the Falls by some strategy, and no one kind
    does the most damage in every wave there. Without a charter the Falls never opens (it needs 5 deeds, and the first
    charter pays 1), which is the "at least 2.5 times later" half of the M5 target. Returns { rows, misses }. */
-export const FALLS_AT = [360, 600], SB_MAX = 20, FALLS_W10 = [7, 10], WIRE_RUN = .9;
+/* The floor (decided 2026-11-24, PLAN.md "Silver Falls at its 6 h floor"): what it guards is that the Ridge era is
+   played before a third town opens, so the Falls must come after each of ERA_FIRSTS on every seed (the Capital's rush
+   and big contracts, Call to arms, the Ridge's charter, the Crossbow's and the Cannon's level-20 choice). The time floor
+   stays as a backstop, 5.5 h: 6 h was set when the bots reached the Falls at 6.9-7.6 h through 1-3.5 h with nothing
+   new, and the clarity fixes took that dead time out on purpose. */
+export const FALLS_AT = [330, 600], SB_MAX = 20, FALLS_W10 = [7, 10], WIRE_RUN = .9;
+export const ERA_FIRSTS = ['rush', 'big', 'arms', 'charter', 'fork crossbow', 'fork cannon'];
+/* The Ridge-era firsts that came after the Falls (or never), for one active run. */
+export const eraMissing = e => e.fallsFound == null ? [] : ERA_FIRSTS.filter(k => !e.era || e.era[k] == null || e.era[k] > e.fallsFound);
 export function fallsCheck(actives, strat) {
   const misses = [], m = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';
   const med = a => { const b = a.filter(x => x != null).sort((x, y) => x - y); return b.length * 2 <= a.length ? null : b[Math.floor(b.length / 2)]; };
@@ -843,6 +862,12 @@ export function fallsCheck(actives, strat) {
     nearWin(`seed ${s}: Silver Falls founded at ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} (window ${FALLS_AT[0] / 60}-${FALLS_AT[1] / 60} h)`, e.fallsFound, FALLS_AT.map(x => x * 60));
     if (f) nearWin(`seed ${s}: Silver Falls wave 10 at ${m(f.w10)} (window ${FALLS_W10.join('-')} min)`, f.w10, FALLS_W10.map(x => x * 60));
     if (e.fallsFound == null || e.fallsFound < FALLS_AT[0] * 60 || e.fallsFound > FALLS_AT[1] * 60) misses.push(`seed ${s}: Silver Falls founded at ${e.fallsFound == null ? 'never' : (e.fallsFound / 3600).toFixed(2) + ' h'} of play (want ${FALLS_AT[0] / 60}-${FALLS_AT[1] / 60} h)`);
+    const late = eraMissing(e);
+    if (late.length) misses.push(`seed ${s}: Silver Falls opened before ${late.join(', ')} (want every Ridge-era first before it)`);
+    else if (e.fallsFound != null) {
+      const last = ERA_FIRSTS.reduce((a, k) => e.era[k] > e.era[a] ? k : a);
+      console.log(`seed ${s}: last Ridge-era first ${last} at ${(e.era[last] / 3600).toFixed(2)} h, ${Math.round((e.fallsFound - e.era[last]) / 60)} min before Silver Falls`);
+    }
     if (!e.sb || e.sb.won == null || e.sb.won > SB_MAX * 60) misses.push(`seed ${s}: Sandy Bend won at ${m(e.sb && e.sb.won)} after getting there (want within ${SB_MAX} min)`);
     if (!f) continue;
     if (f.w10 == null || f.w10 < FALLS_W10[0] * 60 || f.w10 > FALLS_W10[1] * 60) misses.push(`seed ${s}: Silver Falls wave 10 at ${m(f.w10)} after getting there (want ${FALLS_W10.join('-')} min)`);

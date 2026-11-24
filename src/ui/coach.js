@@ -114,8 +114,10 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
   ok.addEventListener('click', () => api.dismiss());
   go.addEventListener('click', () => { const to = cur && cur.e.go; api.dismiss(); if (to) onGo(to); });
 
+  // a two-word name (Cold Snap, Frost Lens, Iron Ridge) never breaks across two lines (review of 2026.11.24-2)
+  const keepNames = s => String(s).replace(/\b([A-Z][a-z]+) (?=[A-Z][a-z]+\b)/g, '$1' + String.fromCharCode(160));
   function show(e) {
-    cur = { e }; title.textContent = e.title; text.textContent = (e.say && e.say(helper(town, game))) || e.text; layer.hidden = false; layer.dataset.id = e.id;
+    cur = { e }; title.textContent = e.title; text.textContent = keepNames((e.say && e.say(helper(town, game))) || e.text); layer.hidden = false; layer.dataset.id = e.id;
     go.hidden = !e.go; go.textContent = e.button || ''; ok.textContent = e.go ? 'Stay here' : 'Got it'; ok.classList.toggle('primary', !e.go);
     pause(true); place();
     hush(); paintSpeak();
@@ -132,7 +134,13 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
     // it covers the top bar (review of 2026.11.23-10: the workers card lay over the boss bar and the goal, with its
     // spotlight in the middle of the screen)
     const low = r && r.y + r.h > innerHeight - card.offsetHeight - 32;
-    card.classList.toggle('top', !!low);
+    // on a wide screen it moves to the side away from the spotlight instead, so it covers neither the spotlight nor
+    // the top bar (review of 2026.11.24-2: on a short landscape screen the tip card covered "Dry" of Dry Creek)
+    const w = card.offsetWidth + 32, mid = r ? r.x + r.w / 2 : 0, left = mid > innerWidth / 2;
+    const side = low && innerWidth > innerHeight && (left ? r.x >= w : r.x + r.w <= innerWidth - w);
+    card.classList.toggle('top', !!low && !side);
+    card.classList.toggle('left', !!side && left);
+    card.classList.toggle('right', !!side && !left);
   }
   const api = {
     get current() { return cur ? cur.e.id : null; },

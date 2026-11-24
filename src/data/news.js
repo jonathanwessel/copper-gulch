@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-3',
+    lines: [
+      'A level 20 tower card now says which tower it is, under its new name.',
+      'When you are short of goods for a tower upgrade choice, the card says what to build, right under the price.',
+      'The level 20 tip card names the tower and keeps two-word names on one line.',
+    ],
+  },
+  {
     v: '2026.11.24-2',
     lines: [
       'A Frost Lens at level 20 now picks one more upgrade. Blizzard reaches much farther. Cold Snap slows raiders much more.',

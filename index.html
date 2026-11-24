@@ -341,6 +341,8 @@ html.flat .tag { position: static; transform: none !important; }
 .vaultbtn { display: inline-flex; flex-direction: row; justify-content: center; align-items: center; gap: 4px; min-height: 30px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .uses { margin: 0; color: var(--muted); font-size: .9rem; }
 .warn { margin: 0; color: var(--bad); font-size: .9rem; }
+.pathnotes { display: grid; gap: 2px; } .pathnotes:empty { display: none; }
+.pathnotes > p { margin: 0; font-size: .85rem; line-height: 1.3; } /* why the Choose buttons are gray, under the price (review of 2026.11.24-2) */
 .card > p.uses, .card > p.warn { font-size: .85rem; line-height: 1.3; } /* a tower card's short-of-goods note stays whole over the pinned price (2026.11.21-10: three lines on a Rocket Battery card ran under it) */
 .card .row { justify-content: stretch; }
 /* the Build or Upgrade row never scrolls out of view: it sticks to the card's bottom edge while the card scrolls */
@@ -388,7 +390,7 @@ html.flat .tag { position: static; transform: none !important; }
   .card .row > .btn.small { min-height: 34px; }
   .card > p.uses { font-size: .82rem; line-height: 1.25; }
   .card > p > .more { display: none; } /* only how long, not which building: the red have in the price bar says what is short */
-  .card > p:is(.short, .soon) ~ p:is(.short, .soon) { display: none; } /* and only the first good that is short, for the same reason */
+  .pathnotes > p { font-size: .8rem; line-height: 1.2; } /* every short good keeps its line on a choice card: its buttons say nothing else */
   /* a building's switches side by side, each label free to take two lines, and the foreman's line small beside its
      switch, so a level-10 card fits over the pinned price (review of 2026.11.23-7: the foreman row sat under it at 860x400) */
   .card .switchrow { flex-wrap: nowrap; gap: 6px; }
@@ -423,7 +425,8 @@ html.flat .tag { position: static; transform: none !important; }
      map stays the bigger half (review of 2026.11.20-12: landscape cards covered the right half) */
   .card:has(> .pathbar), .card:has(> .cardhead > .sellhead) { width: min(54%, 480px); } /* a tower card too: its name and three stats a row fit on one line each (2026.11.21-10) */
   .card > .pathbar { grid-template-columns: 1fr 1fr; }
-  .card > .pathbar > .pathhead { grid-column: 1 / -1; }
+  .card > .pathbar > .pathhead, .card > .pathbar > .pathnotes { grid-column: 1 / -1; }
+  .pathnotes > p > .more { display: none; } /* how long or what to build, one line a good: which building to upgrade is the red have's job */
   .card > .pathbar > .option { flex-direction: column; align-items: stretch; gap: 4px; }
   .card > .pathbar > .option > .btn { min-height: 32px; }
   /* Choose sits beside the name, the words under both, and Can't be undone beside Pick an upgrade, so both Choose
@@ -737,6 +740,8 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
   animation: riseX .25s both;
 }
 .coachcard.top { bottom: auto; top: max(16px, env(safe-area-inset-top)); }
+.coachcard.left { left: max(16px, env(safe-area-inset-left)); transform: none; animation-name: rise; } /* beside a low spotlight on a wide screen (coach.js place) */
+.coachcard.right { left: auto; right: max(16px, env(safe-area-inset-right)); transform: none; animation-name: rise; }
 .coachcard b { color: var(--copper-hi); font-size: 1.1rem; }
 .coachhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .coachhead b { padding-top: 6px; }

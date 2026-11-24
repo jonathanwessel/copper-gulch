@@ -446,7 +446,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const sellHead = el('button', 'btn small sellhead', 'Sell '); sellHead.id = 'sellTowerHead'; // the coin square is the unit (review of 2026.11.21-2: "Sell 60" had none)
     sellHead.append(el('span', 'coin'), fmt(Math.floor(t.spent * SELL_BACK)));
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
-    const nm = el('div', 'namecol'); nm.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level)); // the level drops under a long name (review of 2026.11.23-6: the Sharpshooter card scrolled sideways on a phone)
+    // a path or fork name says which tower it is too, as its tip card names the tower (review of 2026.11.24-2: "Brittle
+    // Ice" on the card, "Frost Lens" on the tip card)
+    const nm = el('div', 'namecol'); nm.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', (fk || p ? d.name + ' · ' : '') + 'Level ' + t.level)); // the level drops under a long name (review of 2026.11.23-6: the Sharpshooter card scrolled sideways on a phone)
     head.append(nm, sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
@@ -519,14 +521,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // what the buy is short of sits in the card over the pinned bar, never in it, so the bar stays one price and one
     // button and covers no stat (reviews of 2026.11.21-7 to -9: in landscape the bar took half the card)
     const sh = shortText(c); pathNext = path;
-    const lines = card;
+    // on a choice card the note sits under the price, beside the two gray Choose buttons it explains, not at the card's
+    // foot under the stats (review of 2026.11.24-2: the Choose buttons looked gray with no reason in view)
+    const lines = path ? el('div', 'pathnotes') : card;
+    if (path) bar.querySelector('.pathhead').after(lines);
     // the first sentence (how long) and the rest (which building to upgrade) apart: a short landscape screen shows only
     // the first, so the note stays whole over the pinned price (2026.11.21-10)
     if (sh.length) for (const s of sh) { const p = el('p', soon(s) ? 'uses soon' : 'warn short'), k = s.indexOf('. ') + 1; if (k > 0) p.append(s.slice(0, k), el('span', 'more', s.slice(k))); else p.textContent = s; lines.append(p); }
     // the kept goods line sits over the pinned bar, not in it, so the bar stays short and the stats stay in view (review
     // of 2026.11.19-9: in landscape the Cannon card's Blast row was cut by its cost row)
     // only while the buy is still short of something: once it can be paid the line says nothing (screenshot review of 2026.11.20-3)
-    else if (!canPay(town, c) && keepText(c)) card.append(el('p', 'uses', keepText(c)));
+    else if (!canPay(town, c) && keepText(c)) lines.append(el('p', 'uses', keepText(c)));
     if (!path) {
       bar.append(row); card.append(bar);
       // on a short landscape screen a note that would sit half under the pinned price is left out: the red have in the

@@ -376,6 +376,7 @@ try {
     for (let i = 0; i < 100 && !(await q.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
     for (const [name, go] of OUTPOST) {
       await q.evaluate(go); if (name === 'goal-call') for (let i = 0; i < 40 && await q.evaluate(() => document.getElementById('goalMark').hidden); i++) await sleep(100); await sleep(name === 'outpost' ? 3000 : name === 'goal-done' ? 450 : name === 'goal' ? 2000 : name === 'outpost-entry' ? 3500 : name === 'outpost-fight' ? 9000 : name === 'bandits' ? 150 : name === 'won' ? 2500 : 1500);
+      if (process.env.SHOT_NAMES && !process.env.SHOT_NAMES.split(',').includes(name)) continue; // as in the Gulch run
       const f = path.join(dir, `${name}-${size}.png`); await shot(q, f, size);
       if (process.env.SHOT_PROBE) console.log(name, size, JSON.stringify(await q.evaluate(new Function('return (' + process.env.SHOT_PROBE + ')'))));
     }
