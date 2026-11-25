@@ -44,7 +44,7 @@ import { loadGame } from '../src/core/setup.js';
 const ARMS_BOT = !process.argv.includes('--noarms');
 const ORDERS_BOT = !process.argv.includes('--noorders');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
-const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 3);
+const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 6);
 // the Iron Ridge strategy gate: a median over 6 seeds (2026.11.22-3: over 3 it moved about 10% with any change, and booms
 // and busts tipped economy's Ridge wave 10 from 12% to 30% behind; over 6 they read 12% and 15%)
 const RIDGE_SEEDS = arg('ridge-seeds', 6);
@@ -277,10 +277,18 @@ export const RETRY = 20;
 export const BOSS = { prep: 1, retry: 1 };
 const bossExtra = (t, r, S = {}) => (bossWave(t, t.wave) ? S.prep ?? BOSS.prep : 0) + BOSS.retry * (r.bossLost || 0);
 const guard = (w, r) => (r && w - r.leakAt <= GUARD.waves ? GUARD.levels : 0);
+/* A boss wave among the next n waves (the coming one counts). */
+export const bossSoon = (t, n) => { for (let k = 0; k < n; k++) if (bossWave(t, t.wave + k)) return true; return false; };
 export const STRATEGIES = {
   active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
-  minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2, one: ['cannon', 'frost', 'still'] },
-  swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
+  // bossSave: from this many waves before a boss the towers come before the town, and it keeps its coins for the
+  // upgrade it wants when it cannot pay yet (PLAN.md M6a, minmax's wave 20: with the town first it bought buildings
+  // through waves 16-19, met the war wagon with 854 coins and its Cannons a level short at 895, and lost on 2 of 6 seeds)
+  minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2, one: ['cannon', 'frost', 'still'], bossSave: 3 },
+  // full: once every pad holds a tower, a swarm player has nowhere to put a new one and raises them all evenly on this
+  // curve (PLAN.md M6a, the swarm's Ridge wall: at 1 + w / 4 its 23 Ridge towers stopped at level 13-15 by wave 46
+  // with 300-700K coins in the purse, and it never opened Silver Falls on any of 6 seeds)
+  swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true, full: w => 1.4 + w / 2.9 },
   // callAge: a coins-first player calls the next wave early for its bonus sooner than the others (PLAN.md M6a, the
   // economy box: with CALL_AGE it called 2-4 waves by wave 10 against 5-7 for defense and sat 24% behind at wave 10)
   economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1.3 + w / 3.3 + r.bump, eco: true, callAge: .55 },
@@ -365,7 +373,10 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   // also waits until a raider got through in the last two waves, once it has its first towers)
   // urgent: short of towers, a tower more than a level behind, or the vault below 60%
   const defend = (urgent = false) => {
-    const w = t.wave, want = S.want(w) + (r.bossLost || 0), lv = S.level(w, r) + bossExtra(t, r, S);
+    const w = t.wave, want = S.want(w) + (r.bossLost || 0);
+    let lv = S.level(w, r) + bossExtra(t, r, S);
+    // every pad full (no tower can be built anywhere): a strategy with a `full` curve raises its towers on it instead
+    if (S.full && !options(t).some(o => !o.up)) lv = Math.max(lv, S.full(w) + bossExtra(t, r, S));
     PLAN.level = lv; // what a Still will eat once its level target reaches EATS_ARMOR.from (eatSoon)
     // the goal strip asks for a kind it has not built yet (after the first boss): it builds one once it can pay, even
     // with all the towers it wants (seed 4 had a Mortar's coins and goods from minute 25 and its pads full, and built
@@ -399,6 +410,12 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
       const ready = options(t).filter(o => !o.can && !o.up && t.towers.length < want && towerCost(t, o.kind, 0).coins <= t.coins + SAVE_GAP
         && Object.entries(towerCost(t, o.kind, 0).goods).every(([k, n]) => t.has(k, n)))[0];
       if (ready && (!pick || ready.value > SAVE_FOR * pick.value)) return true;
+    }
+    // a min-max player saves for the boss: with a boss among the next waves it keeps its coins for the upgrade it wants
+    // once that upgrade's goods are in the yard (returns true: the town does not spend them either)
+    if (!pick && S.bossSave && bossSoon(t, S.bossSave)) {
+      const up = options(t).filter(o => o.up && o.level < lv && Object.entries(towerCost(t, o.kind, o.level).goods).every(([k, n]) => t.has(k, n)))[0];
+      if (up) return true;
     }
     if (!pick) return false;
     const ok =pick.up ? upgradeTower(g, t, pick.spot, pick.path) : buildTower(g, t, pick.spot, pick.kind);
@@ -448,7 +465,9 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // on old ground (waves the town beat before its charter) it calls as soon as the road is clear
     // a called wave comes bigger the earlier it is called (RUSH): it calls once the last wave's time, scaled up by that,
     // still fits under CALL_AGE
-    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge * (1 + RUSH.more * rushOf(t)) <= (S.callAge ?? CALL_AGE) || oldGround(t));
+    // (the town's own rush: the Ridge's called waves grow twice as much, rushMore 4; with the default 2 here the bot
+    // called 7 of the Ridge's first 9 waves on seed 2 and its wave 10 sat at 7.05 min, window 7-10, PLAN.md M6a)
+    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge * (1 + (wavesOf(t).rushMore ?? RUSH.more) * rushOf(t)) <= (S.callAge ?? CALL_AGE) || oldGround(t));
   };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
@@ -495,7 +514,8 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     }
     // a building that pays for itself within the strategy's payback time comes before the towers
     pickBuilding();
-    const boss = (bossWave(t, t.wave) && (S.prep ?? BOSS.prep) > 0) || r.bossLost > 0; // a boss is next, or beat it last time: the towers come first
+    // a boss is next (or among the next S.bossSave waves), or beat it last time: the towers come first
+    const boss = (bossWave(t, t.wave) && (S.prep ?? BOSS.prep) > 0) || (S.bossSave && bossSoon(t, S.bossSave)) || r.bossLost > 0;
     const safe = t.towers.length > 0 && t.wave - r.leakAt > 2 && !boss;
     const pays = saving = t.towers.length > 0 && t.wave - r.leakAt > 1 && !boss && bv * PAYBACK[strategy] > 1; // not right after a leak
     if (((S.eco && safe) || pays) && grow()) continue;

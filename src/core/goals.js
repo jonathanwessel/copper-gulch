@@ -122,12 +122,16 @@ const heldAway = game => Object.values(game.towns).find(t => t.id !== game.activ
 /* With nothing else on the strip, a town at its wall: "Tap Map, Copper Gulch, then upgrade its towers". */
 export const WALL_WORDS = { go: town => 'Tap Map, ' + town + ', then upgrade its towers' };
 /* The trip to a town at its wall (PLAN.md M6a, "How long a town waits at its wall"): once it has held WALL_WAIT since
-   its last loss and the purse can pay for its WALL_UPS cheapest upgrades, the strip sends the player there between other
+   its last loss and the purse can pay for its WALL_READY cheapest upgrades, the strip sends the player there between other
    steps (and its map label gets the red dot, needsYou 'wall'). On every seed of the build before, the newcomer's Gulch
    sat at its wall 5.5-7 hours with most towers at level 1, while each of its upgrades cost under 100 coins. A trip that
    ends in another loss at the same wave waits again: the loss moves town.lost.at. */
 export const WALL_WAIT = 30 * 60;
-export const wallCost = t => (t.towers || []).map(x => towerCost(t, x.kind, x.level).coins).sort((a, b) => a - b).slice(0, WALL_UPS).reduce((a, b) => a + b, 0);
+/* The trip is ready once the purse pays for this many of its cheapest upgrades; there the strip still counts up to
+   WALL_UPS, made while the purse can pay (2026.11.25-6: at 8 for both, the newcomer's Ridge waited 75 minutes after
+   Silver Falls with 1.53M in the purse and 289K its cheapest upgrade, since its 8 cheapest cost about 3M). */
+export const WALL_READY = 5;
+export const wallCost = t => (t.towers || []).map(x => towerCost(t, x.kind, x.level).coins).sort((a, b) => a - b).slice(0, WALL_READY).reduce((a, b) => a + b, 0);
 export const wallReady = (game, t) => !!t && t.id !== game.active && atWall(t) && (t.towers || []).length > 0
   && t.t - ((t.lost && t.lost.at) || 0) >= WALL_WAIT && game.shared.purse.coins + 1e-9 >= wallCost(t);
 export function wallStep(game, ready = false) {

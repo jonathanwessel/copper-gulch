@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.25-5",
-  "notes": "A town stuck on one wave sends you back after 30 minutes to upgrade its towers"
+  "version": "2026.11.25-6",
+  "notes": "Levels past 20 cost fewer coins, so a few very high towers can win too"
 }

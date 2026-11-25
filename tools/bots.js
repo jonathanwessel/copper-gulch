@@ -10,7 +10,7 @@ import { root } from './serve.js';
 const [dir, ...pick] = process.argv.slice(2);
 if (!dir) { console.error('usage: node tools/bots.js <dir> [balance firstplay idle]'); process.exit(2); }
 fs.mkdirSync(dir, { recursive: true });
-const names = pick.length ? pick : ['balance', 'firstplay', 'idle', 'climb-probe'];
+const names = pick.length ? pick : ['balance', 'firstplay', 'idle', 'climb-probe', 'strategy-empire'];
 const runs = names.map(name => new Promise(done => {
   const file = path.join(dir, name + '.txt'), out = fs.openSync(file, 'w'), t0 = Date.now();
   const p = spawn(process.execPath, [path.join(root, 'tools', name + '.js')], { cwd: root, stdio: ['ignore', out, out] });

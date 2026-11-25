@@ -187,3 +187,22 @@ test('at its wall the spotlight is on a tower until the upgrades are made, then 
   t.lost.ups = WALL_UPS;
   assert.equal(at().el, '#holdWaves', 'then Resume waves');
 });
+
+test('the trip is ready once the purse pays for the 5 cheapest upgrades, and there the strip still counts up to 8', async () => {
+  const { WALL_READY } = await import('../src/core/goals.js');
+  const { towerCost } = await import('../src/core/defense.js');
+  const g = empire('w12'), t = g.towns.gulch;
+  towers(g, t, 10);
+  lose(g, 31); setHold(g, t, false); lose(g, 31);
+  t.t += WALL_WAIT;
+  const ups = t.towers.map(x => towerCost(t, x.kind, x.level).coins).sort((a, b) => a - b);
+  const five = ups.slice(0, WALL_READY).reduce((a, b) => a + b, 0), eight = ups.slice(0, WALL_UPS).reduce((a, b) => a + b, 0);
+  assert.equal(WALL_READY, 5);
+  assert.ok(WALL_UPS > WALL_READY && eight > five);
+  g.shared.purse.coins = five;
+  assert.equal(goalNow(g).id, 'wall:gulch', 'the 5 cheapest are enough to go');
+  g.shared.purse.coins = five - 1;
+  assert.notEqual(goalNow(g).id, 'wall:gulch');
+  g.shared.purse.coins = five; g.go('gulch');
+  assert.equal(meterWords(RESUME_WALL, g), '0 / ' + WALL_UPS + ' upgrades');
+});

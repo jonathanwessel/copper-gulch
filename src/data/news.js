@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-6',
+    lines: [
+      'Upgrading a tower past level 20 now costs fewer coins.',
+      'A town stuck on one wave gets its red dot on the map sooner.',
+    ],
+  },
+  {
     v: '2026.11.25-5',
     lines: [
       'A town that keeps losing the same wave now waits 30 minutes, then Goal sends you back there.',

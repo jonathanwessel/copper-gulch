@@ -162,3 +162,7 @@ export const SELL_BACK = .6;           // share of the coins spent that selling 
 /* Per level after the first: damage x1.3 (the Cannon and the Frost Lens 1.24, the Mortar 1.19: grow), poison x1.15 (one high Still must not carry a town: its poison grows
    slower than a hit), rate x1.04, range +0.05. Costs: coins x1.55 and goods x1.35 per level. */
 export const PER_LEVEL = { dmg: 1.3, poison: 1.15, rate: 1.04, range: .05, coins: 1.55, goods: 1.35 };
+/* Past HIGH_LEVEL.from (the second fork's level) each level's coins grow HIGH_LEVEL.coins times instead (PLAN.md M6a,
+   2026-11-25): at 1.55 a level cost 15% more per hit than the last, so the min-max bot's seven Ridge towers at levels
+   22-27 bought damage at about twice the active player's price and opened Silver Falls 29% behind the best strategy. */
+export const HIGH_LEVEL = { from: 20, coins: 1.45 };

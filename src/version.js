@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.25-5';
-export const GAME_NEWS = 'A town stuck on one wave sends you back after 30 minutes to upgrade its towers';
+export const GAME_VERSION = '2026.11.25-6';
+export const GAME_NEWS = 'Levels past 20 cost fewer coins, so a few very high towers can win too';

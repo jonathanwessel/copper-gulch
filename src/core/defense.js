@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, FIRE, FREEZE, EXTRA_TOWER, SLOW_MOST } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, HIGH_LEVEL, FIRE, FREEZE, EXTRA_TOWER, SLOW_MOST } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -79,7 +79,7 @@ export function towerStats(town, t) {
 export function towerCost(town, kind, L = 0) {
   const d = TOWERS[kind], goods = {}, crowd = L ? 1 : crowdFactor(town, kind); // a new tower past board.crowd costs more coins and goods (in an outpost the goods are what limit it)
   for (const [g, n] of Object.entries(d.goods[town.id] || {})) goods[g] = Math.ceil(n * PER_LEVEL.goods ** L * crowd);
-  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** L * town.mods.factor('cost') * town.mods.factor(L ? 'cost:towerUp' : 'cost:towerNew') * crowd), goods };
+  return { coins: Math.ceil(d.coins * PER_LEVEL.coins ** Math.min(L, HIGH_LEVEL.from) * HIGH_LEVEL.coins ** Math.max(0, L - HIGH_LEVEL.from) * town.mods.factor('cost') * town.mods.factor(L ? 'cost:towerUp' : 'cost:towerNew') * crowd), goods };
 }
 /* Normal towers the town has, and how many of them cost the list price (board.crowd, the pads it had before more were
    added). A new normal tower past that costs EXTRA_TOWER times more coin per tower over (src/data/towers.js). */

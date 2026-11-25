@@ -1378,7 +1378,8 @@ async function run() {
             for (const low of [false, true]) {
               if (low) { T.vault.hp = Math.max(1, Math.floor(T.vault.max * .3)); await wait(1300); }
               const mc = document.getElementById('mapCard'), pb = document.getElementById('mapPlay');
-              if (pb) { mc.scrollTop = 0; await wait(50); const a = mc.getBoundingClientRect(), b = pb.getBoundingClientRect(); if (b.top < a.top - 1 || b.bottom > a.bottom + 1 || b.bottom > innerHeight || b.height < 20) out.push(id + (low ? ' (vault low)' : '') + ': Play is not whole in view (' + Math.round(b.top) + '-' + Math.round(b.bottom) + ' in ' + Math.round(a.top) + '-' + Math.round(a.bottom) + ')'); }
+              // (looked up again after the wait: the card repaints, and a node it replaced measures 0-0; 2026.11.25-6 under load)
+              if (pb) { mc.scrollTop = 0; await wait(50); const a = document.getElementById('mapCard').getBoundingClientRect(), b = (document.getElementById('mapPlay') || pb).getBoundingClientRect(); if (b.top < a.top - 1 || b.bottom > a.bottom + 1 || b.bottom > innerHeight || b.height < 20) out.push(id + (low ? ' (vault low)' : '') + ': Play is not whole in view (' + Math.round(b.top) + '-' + Math.round(b.bottom) + ' in ' + Math.round(a.top) + '-' + Math.round(a.bottom) + ')'); }
             }
             T.vault.hp = Math.max(T.vault.hp, hp);
             // every card leads with its state, a lost town too (clarity fix 8c: a lost town's card had its line at the
