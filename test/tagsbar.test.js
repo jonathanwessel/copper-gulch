@@ -24,9 +24,9 @@ test('the raiders card says when the wave comes, a boss, and which raiders can r
   assert.ok(lines.some(l => /A boss wave\. The war wagon comes last/.test(l)));
   assert.ok(lines.some(l => /^Can bring Bandits, Horsemen and Brutes\.$/.test(l)));
   Object.assign(t.waves, { phase: 'wave', type: 'swarm', queue: ['raider', 'raider', 'runner'], foes: [{ kind: 'raider' }] });
-  assert.deepEqual(waveLines(t), ['4 raiders left.', '3 Bandits', '1 Horseman']);
+  assert.deepEqual(waveLines(t), ['1 on the road, 3 still to come.', '3 Bandits', '1 Horseman']);
   Object.assign(t.waves, { queue: ['raider', 'raider'], foes: [] });
-  assert.deepEqual(waveLines(t), ['2 Bandits']);
+  assert.deepEqual(waveLines(t), ['2 still to come, none on the road yet.', '2 Bandits']);
   for (const l of waveLines(t)) assert.deepEqual(textIssues(l), []);
 });
 

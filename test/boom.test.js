@@ -8,7 +8,7 @@ import * as M from '../src/core/market.js';
 import { BOOM, boomNow, boomable, sellMode, setSellMode, sellsNow, eventFactor, price, quote, marginal, SELL_MODES } from '../src/core/market.js';
 import { sellSurplus } from '../src/core/economy.js';
 import { explainPrice } from '../src/core/explain.js';
-import { goodsSwitch, boomWord, MODE_WORDS } from '../src/ui/format.js';
+import { goodsSwitch, boomWord, MODE_LINES } from '../src/ui/format.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { GOODS } from '../src/data/goods.js';
 
@@ -168,10 +168,10 @@ test('save v26: an old save gets the boom clock of a new game; a game with a boo
 });
 
 test('the words: modes, the time left and the explainer', () => {
-  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · ' + MODE_WORDS.always);
-  assert.equal(goodsSwitch({ selling: false }), 'Sell spare · ' + MODE_WORDS.off);
-  assert.equal(goodsSwitch({ mode: 'skip' }), 'Sell spare · Stops selling while the price has crashed.'); // no name, its line (clarity fix 8d)
-  for (const w of Object.values(MODE_WORDS)) { assert.ok(w.length <= 10, w); assert.doesNotMatch(w, /[:;]/); }
+  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · ' + MODE_LINES.always);
+  assert.equal(goodsSwitch({ selling: false }), 'Sell spare · ' + MODE_LINES.off);
+  assert.equal(goodsSwitch({ mode: 'skip' }), 'Sell spare · Stops selling while the price is down.'); // its line (clarity fix 8h)
+  for (const w of Object.values(MODE_LINES)) assert.doesNotMatch(w, /[:;]/);
   assert.equal(boomWord(BOOM.up, 72), 'Boom 1:12'); assert.equal(boomWord(BOOM.down, 44.2), 'Bust 0:45');
   assert.equal(boomWord(BOOM.up, 90).length, boomWord(BOOM.up, 5).length, 'one width');
   const e = EXPLAINERS.find(x => x.id === 'boom');

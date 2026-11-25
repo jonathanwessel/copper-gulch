@@ -204,6 +204,12 @@ export function trialClash(r, all, boxes, avoid = [], gap = BADGE_GAP) {
   }
   return avoid.some(a => area(me, a) > 0);
 }
+/* Whether a label (x center, y bottom, w, h) lies on its own place: over its middle or over a fifth of its box on screen. */
+export function onOwn(r, box, W = Infinity, H = Infinity) {
+  if (!box) return false;
+  const me = badgeBox(r);
+  return (box.x > me.l && box.x < me.r && box.y > me.t && box.y < me.b) || coverShare(me, box, W, H) > .2;
+}
 /* Which badges are crowded: those whose town sits within a full-size badge of another shown badge's town. They show only
    their name, so they cover less of the map. rs: [{ x, y, w, h, keep }] at full size (keep: the open card's place,
    never shrunk). Returns a Set of indexes. Decided from the towns' points, not from where the badges land, so a badge
@@ -462,7 +468,9 @@ export function mountMap(root, game, view, shell) {
       // a card across the bottom (a phone held upright) leaves the map a small strip above it: only the open place keeps its
       // label there, and the others come back when the card closes (the ring, part 1c: Silver Falls' label on Iron Ridge
       // and Sandy Bend's on Silver Falls with the Gulch's card open)
-      if (cardBox && s.id !== openId && openId && badge[openId] && cardBox.l < W * .35) { B.b.hidden = true; continue; }
+      // Across the bottom means most of the screen's width: a desktop's card sits low in the middle, a third of the width,
+      // and read as across, so every other label hid with room all round it (clarity fix 8g)
+      if (cardBox && s.id !== openId && openId && badge[openId] && cardBox.r - cardBox.l > W * .7) { B.b.hidden = true; continue; }
       // a town off the screen has no label: clamped to the edge, they piled up under the coins (review of 2026.11.20-3, the
       // Capital close-up)
       if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }
@@ -491,16 +499,19 @@ export function mountMap(root, game, view, shell) {
       spotBadges(trial, boxes, { W, H, gap: BADGE_GAP, avoid, first: first ? trial[shown.indexOf(first)] : null, last: trialSides, hub });
       crowd = new Set([...crowd].filter(i => trialClash(trial[i], trial, boxes, avoid)));
     }
-    // with a town's card open, the other labels show only their name and state: the map shrinks into the space the card
-    // leaves, and full labels piled onto each other and the Capital (the ring, part 1c, phone and landscape)
-    const carded = !!(cardBox && openId && badge[openId]);
-    shown.forEach((r, i) => { const c = crowd.has(i) || (carded && r.B !== badge[openId]); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
+    // with a card open the full-size trial above decides too, as with none open: every other label showed only its name
+    // (the ring, part 1c, when full labels piled onto each other and the Capital), and in landscape that hid the wave and
+    // coins of labels with room round them (clarity fix 8g; the trial came later, in clarity fix 8c)
+    shown.forEach((r, i) => { const c = crowd.has(i); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
     // each label beside its town, off the towns' middles and the Capital's dome (reviews of 2026.11.21-5)
     spotBadges(shown, boxes, { W, H, gap: BADGE_GAP, avoid, first, last: sides, hub });
     placed = shown;
     for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first })) {
       // a label the open card would cut in half hides under it (review of 2026.11.19-5: Dry Creek and Sandy Bend cut off)
-      const c = cardBox, under = (c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t) || (c && r.B !== badge[openId] && overMiddle(r, boxes));
+      // and the open place's own label hides where its only room is on its own town: its card names it and its ring marks
+      // it, as a building's tag hides while its card is open (clarity fix 8g: on a phone Iron Ridge's label lay over 60% of
+      // the Ridge, its middle too, with its card open)
+      const c = cardBox, under = (c && r.x - r.w / 2 < c.r && r.x + r.w / 2 > c.l && r.y - r.h < c.b && r.y > c.t) || (c && r.B !== badge[openId] && overMiddle(r, boxes)) || (c && r.B === badge[openId] && Object.values(boxes).some(q => onOwn(r, q, W, H))); // or on another place (Pine Hollow's on 42% of Iron Ridge)
       if (r.B.b.hidden !== !!under) r.B.b.hidden = !!under;
       if (under) continue;
       const tr = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px) translate(-50%, -100%)`;

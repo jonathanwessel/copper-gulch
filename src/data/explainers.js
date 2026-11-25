@@ -147,7 +147,9 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', now: true, covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through hits the vault. The heart at the top counts the hits the vault can still take. Each wave you beat gives some hits back. At 0 you lose coins and go back two waves.',
+    // the Vault sheet's own words, gets in and hits left, and the spotlight on the heart ties it to the vault (clarity
+    // fix 8g: "The heart at the top counts the hits the vault can still take" read as a manual)
+    text: 'Each raider that gets in hits your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.',
     // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
     // 2026.11.23-11: on a phone the card lay over the top bar and its heart)
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ el: '#vaultBtn' }),

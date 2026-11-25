@@ -675,7 +675,7 @@ export function shortfall(town, c) {
 
 /* Hits the vault mends for each wave beaten: a share of its full strength (a 25-hit vault mends 2.5). The battle and
    the Vault sheet's row both read it. Whole hits were tried (3 for a 25-hit vault) and tipped two bot gates on one
-   seed each, so the sheet shows the half instead. */
+   seed each, so the mend stays a tenth and the sheet says it in words (clarity fix 8g). */
 export const mendHits = town => town.vault.max * (wavesOf(town).mend || 0);
 /* The vault's full strength: research (Thick Walls) raises it. */
 export const vaultMax = town => Math.round(wavesOf(town).vault * town.mods.factor('vault'));

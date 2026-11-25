@@ -139,6 +139,8 @@ export const mendText = n => { const w = Math.floor(n + 1e-9), half = Math.abs(n
 /* The Hits left row: Full when the Can take row above already says the number (clarity fix 8e: "Can take 25 hits" right
    above "Hits left 25 hits"), otherwise the hits left. */
 export const hitsLeftWords = ex => (ex.rows.length > 1 && ex.left >= ex.value - 1e-9 ? 'Full' : unitText('hits', ex.left));
+/* What a beaten wave does to the vault, on the Vault sheet and in its tip card (clarity fix 8g). */
+export const mendLine = town => 'Each wave you beat mends the ' + ((town.def && town.def.store) || 'vault') + ' a little.';
 /* The Vault sheet (a stockpile's too): its strength and what adds to it, the hits left, and what each raider takes. */
 export function vaultSheet(town) {
   return body => {
@@ -164,8 +166,9 @@ export function vaultSheet(town) {
       const hits = el('b', 'hitsleft');
       hits.append(heart(), el('span', null, hitsLeftWords(ex))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
       left.append(el('span', null, HITS_LEFT), hits);
-      const mend = el('div', 'total'); mend.append(el('span', null, 'Each wave you beat'), el('b', null, '+' + mendText(ex.mend)));
-      box.append(left, mend); top.replaceChildren(box);
+      // the mend in words, not a number: "+2½ hits" beside a heart that counts whole hits was flagged twice (fresh-eyes
+      // reads of 2026.11.25-6 and -7), and whole mends tipped two bot gates (GDD.md, Vault), so the control changed
+      box.append(left); top.replaceChildren(box, el('p', 'uses mendline', mendLine(town)));
       each.replaceChildren(...ex.raiders.map(r => { const d = el('div'); d.append(el('span', null, r.label), el('b', null, unitText('hits', r.hits))); return d; }));
     };
     paint();

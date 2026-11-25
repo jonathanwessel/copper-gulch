@@ -46,7 +46,7 @@ test('a town that loses twice with no new best wave between is at its wall, and 
   assert.equal(atWall(t), true);
   assert.equal(needsYou(g, 'gulch'), null, 'no red dot on the map');
   assert.notEqual(goalNow(g).id, 'resume-gulch', 'the strip no longer sends you there');
-  assert.match(lostLine(t), /Back to wave \d+\. Play it, upgrade its towers, then tap Resume waves\.$/); // clarity fix 8f: no "again", and "Play it" points at its button
+  assert.match(lostLine(t), /Back to wave \d+\. Play it, upgrade its towers 8 times, then tap Resume waves\.$/); // clarity fix 8f: no "again", and "Play it" points at its button
   g.go('gulch');
   assert.equal(goalNow(g), RESUME_WALL, 'there it asks for upgrades');
 });
@@ -119,7 +119,7 @@ test('in play a fallen vault holds the waves only at the wall, and its card asks
   assert.equal(goalNow(g), RESUME_WALL);
   const c = lostCard(r, g);
   assert.match(c.lines[0], /^Your vault fell again\. You dropped back to wave 43/);
-  assert.equal(c.lines[1], 'Your waves are on hold. Tap towers and upgrade them, then tap Resume waves.');
+  assert.equal(c.lines[1], 'Your waves are on hold. Upgrade your towers 8 times, then tap Resume waves.');
 });
 
 test('with every goal done and no place left to open, the strip names the next mark of ten waves', () => {

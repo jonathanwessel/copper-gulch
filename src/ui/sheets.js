@@ -18,7 +18,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, modePic, modeState, boomClock } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_LINES, modePic, modeState, boomClock } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -201,7 +201,7 @@ export function goodsSheet(game, town, focus = null) {
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
         // each mode with a picture of the price, lit where the mode sells (review of 2026.11.23-6)
-        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(modePic(k), ...(MODE_WORDS[k] ? [el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])] : [el('b', 'modeline', MODE_LINES[k])])); /* Always and Off keep the name their switch shows (fresh-eyes read of 2026.11.25-4: with no names, nothing tied the switch's Always to a row) */ b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(modePic(k), el('b', 'modeline', MODE_LINES[k])); /* every mode one line, and the switch shows the same picture (clarity fix 8h) */ b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(row, pick)); });
         row.append(txt, sw); list.append(row, pick);
@@ -243,7 +243,7 @@ export function goodsSheet(game, town, focus = null) {
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
         // an arrow up or down and the time it has left (the stylesheet draws the arrow; review of 2026.11.23-7: a bare time said nothing of what it counts)
-        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left), ex.value < .0095) : '';
+        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left)) : '';
         // the arrow's label is the line's own words (clarity fix 8e: it said Price up while the line said rising)
         { const al = ew; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.hidden !== !on) r.ev.hidden = !on;
@@ -330,8 +330,8 @@ const keep = s => s.replace(/ /g, '\u00a0');
 /* The research button while it runs (review of 2026.11.19-3: it read "Working"): the time left, short. */
 export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.round(s / 60) + ' min';
 /* A boom or bust on the Goods sheet in words, with its clock (clarity fix 8b). */
-/* low: the price is still under 1 coin, so a boom says it is rising, not up (clarity fix 8e). */
-export const boomWords = (f, clock, low = false) => (f > 1 ? (low ? 'Price rising for ' : 'Price up for ') : 'Price down for ') + clock + ' more';
+/* One pair of words, up and down, here and in the sell modes' lines (clarity fix 8h: "rising" beside "way up" and "crashed"). */
+export const boomWords = (f, clock) => (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more';
 export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 

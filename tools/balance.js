@@ -43,6 +43,9 @@ import { loadGame } from '../src/core/setup.js';
 
 const ARMS_BOT = !process.argv.includes('--noarms');
 const ORDERS_BOT = !process.argv.includes('--noorders');
+// Market depth part 2b: how a bot picks each good's sell mode, run every 10 seconds of play (null: every good stays on
+// Always, as the release bots play). tools/mode-probe.js sets it for an A/B of the modes.
+export const SELL_BOT = { policy: null };
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 90), SIGN_AT = arg('sign', 1), EMPIRE_SEEDS = arg('empire-seeds', 6);
 // the Iron Ridge strategy gate: a median over 6 seeds (2026.11.22-3: over 3 it moved about 10% with any change, and booms
@@ -476,6 +479,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // the active player calls the workers to arms once a boss is on the road (ARMS_BOT; --noarms for an A/B run)
     if (ARMS_BOT && t.waves.phase === 'wave' && t.waves.foes.some(f => FOES[f.kind].boss) && !armsBlock(g, t) && callToArms(g, t)) { r.arms.calls++; r.armsWave = t.wave; }
     if (ORDERS_BOT && s % 40 === 0) tendOrders(g);
+    if (SELL_BOT.policy && s % 40 === 0) SELL_BOT.policy(g);
     if (s % (60 * 4) === 0 || s === minutes * 240 - 1) { r.waveAt[Math.round(s / 240)] = t.wave; r.life[Math.round(s / 240)] = [t.bestWave, Math.round(t.lifetime), deedsFor(t)]; }
     if (watch && s % 240 === 0) watch(g, t, r);
     if (s % 4) continue;

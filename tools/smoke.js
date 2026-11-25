@@ -403,6 +403,33 @@ async function run() {
         return out;
       });
       bad.push(...under);
+      // beside a side or low card the selected tower stays in view with at least half its ring on screen and clear of the
+      // card: a Mortar's level-5 path card and a level-19 Still's choice card, opened from the home view (clarity fix 8g:
+      // in landscape the refit as the card opened undid the step back, and the Mortar's ring showed 4% of its circle)
+      if (name !== 'phone') {
+        const beside = await page.evaluate(async () => {
+          const t = CG.game.town, B = t.def.board, keep = JSON.stringify(t.towers), flag = t.flags['open:mortar'], wait = ms => new Promise(r => setTimeout(r, ms)), out = [];
+          CG.town.pause('smoke', true); t.flags['open:mortar'] = true;
+          // a full goods strip, as a player has it by then: in landscape it takes the room beside the card (fresh-eyes read
+          // of 2026.11.25-8: with seven goods the Still stayed under its card, and smoke had checked with two)
+          const gk = JSON.stringify(t.goods); for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 30); await wait(300);
+          t.towers = t.towers.filter(x => x.spot !== B.far && x.spot !== 2).concat([{ spot: B.far, kind: 'mortar', level: 4, path: null, fork: null, cd: 0, spent: 900, pulses: 0 }, { spot: 2, kind: 'still', level: 19, path: 'a', fork: null, cd: 0, spent: 5000, pulses: 0 }]);
+          for (const s of [B.far, 2]) {
+            CG.play.close(); CG.town.rig.reset(); await wait(500); CG.play.openSpot(s); await wait(1600);
+            const c = document.getElementById('card').getBoundingClientRect(), p = CG.town.projectSpot(s), cv = document.getElementById('view'), W = cv.clientWidth, H = cv.clientHeight;
+            const top = Math.max(...[...document.querySelectorAll('.hud .hudleft, .hud .hudright')].map(n => n.getBoundingClientRect().bottom));
+            const free = q => q.x > 0 && q.x < W && q.y > top && q.y < H && !(q.x > c.left && q.x < c.right && q.y > c.top && q.y < c.bottom);
+            const v = CG.town.view, V = v.cam.position.constructor, [x, z] = B.spots[s], rad = CG.town.selection.reach || 0;
+            let ring = 0; for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, q = new V(x + Math.cos(a) * rad, .05, z + Math.sin(a) * rad).project(v.cam); if (free({ x: (q.x + 1) / 2 * W, y: (1 - q.y) / 2 * H })) ring++; }
+            // the Still keeps half its ring in view; a Mortar's ring (twice a tower's reach) cannot fit the 107 px a full goods strip
+            // leaves beside a landscape card, so its bar is its point in view and a sixth of the ring (2 of 24 before 8g)
+            if (!p || !free(p) || ring < (s === 2 ? 12 : 4)) out.push((s === 2 ? 'the Still' : 'the Mortar') + ' beside its card: ' + (p && free(p) ? 'in view' : 'under the card or off the screen') + ', ' + ring + ' of 24 ring points in view');
+          }
+          CG.play.close(); t.towers = JSON.parse(keep); t.goods = Object.assign(t.goods, JSON.parse(gk)); if (flag === undefined) delete t.flags['open:mortar']; else t.flags['open:mortar'] = flag; CG.town.pause('smoke', false); CG.town.rig.reset();
+          return out;
+        });
+        bad.push(...beside);
+      }
       // Call now is never locked (owner rule): with the whole wait still ahead it is lit and starts the wave, paying for the wait
       const callGate = await page.evaluate(async () => {
         const t = CG.game.town, ws = t.waves, keep = JSON.stringify(ws), bw = t.bestWave, b = document.getElementById('callWave');
@@ -782,9 +809,12 @@ async function run() {
           out.opens = (out.opens ?? true) && !pick.hidden && btns.length === 4;
           out.fits = (out.fits ?? true) && btns.every(x => { const r = x.getBoundingClientRect(); return r.height >= 30 && r.left >= sheet.left - 1 && r.right <= sheet.right + 1 && x.scrollWidth <= x.clientWidth + 1; });
           btns.find(x => x.dataset.mode === mode).click(); await wait(80);
-          // Always and Off by name, the other two by their picture (clarity fix 8d: their names were flagged three times)
+          // every mode by its picture, and every row of the picker is one line beside its picture (clarity fix 8h: Always
+          // and Off had a name and a line while the other two had one line)
           const pic = b.querySelector('.modepic');
-          out[mode] = t.sell.timber === want && pick.hidden && (mode === 'always' || mode === 'off' ? b.textContent.includes(mode === 'always' ? 'Always' : 'Off') && !pic : !!pic && pic.dataset.key === mode && /\S/.test(pic.getAttribute('aria-label') || ''));
+          out[mode] = t.sell.timber === want && pick.hidden && !!pic && pic.dataset.key === mode && /\S/.test(pic.getAttribute('aria-label') || '');
+          out.offWord = (out.offWord ?? true) && (mode !== 'off' || / Off$/.test(b.textContent)); // Off says so beside its picture (read of 2026.11.25-8)
+          out.oneLine = (out.oneLine ?? true) && btns.every(x => x.querySelectorAll('.modeline').length === 1 && !x.querySelector('small') && x.querySelectorAll('b').length === 1);
           out.noNames = (out.noNames ?? true) && !/Skip busts|Booms only/.test(pick.textContent + b.textContent);
         }
         if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
@@ -797,7 +827,7 @@ async function run() {
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
         // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
         const evl = document.querySelector('#sheet [data-why="timber"] .evline');
-        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price (up|rising) for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && (row.getAttribute('aria-label') || '') === evl.textContent; // rising while still under 1 coin (clarity fix 8e), and the arrow's label is the line's words
+        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price up for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && (row.getAttribute('aria-label') || '') === evl.textContent; // rising while still under 1 coin (clarity fix 8e), and the arrow's label is the line's words
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
         out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && /^Price down for 0:\d\d more$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
         Object.assign(m, keep); await wait(450);
@@ -1371,6 +1401,23 @@ async function run() {
             const c = CG.mapui.cover(), other = c.mids.filter(m => !m.startsWith(m.split(' under ')[1] + ' '));
             const on = c.onOpen.map(o => o + ' on the open town');
             if (c.hid || other.length || on.length) out.push(id + ': ' + [c.hid].concat(other, on).filter(Boolean).join(', '));
+            // clarity fix 8g: the open place's own label never lies on a place (its middle or a fifth of it: on a phone Iron
+            // Ridge's lay over 60% of the Ridge); a label showing its name alone with its card open would clash at full size
+            // (landscape hid every wave and coins with room round them); a desktop's low middle card is not one across
+            // the bottom, so a place on screen and clear of it keeps its label (every other label hid)
+            { const R = n => n.getBoundingClientRect(), mc = R(document.getElementById('mapCard')), boxOf = s => CG.map.siteBox(s);
+              const hitR = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+              const share = (q, m) => { const l = Math.max(0, m.l), t = Math.max(0, m.t), r2 = Math.min(innerWidth, m.r), b2 = Math.min(innerHeight, m.b), A = Math.max(0, r2 - l) * Math.max(0, b2 - t); return A > 0 ? Math.max(0, Math.min(q.right, r2) - Math.max(q.left, l)) * Math.max(0, Math.min(q.bottom, b2) - Math.max(q.top, t)) / A : 0; };
+              const ob = document.querySelector('.mapbadge[data-site="' + id + '"]');
+              if (ob && !ob.hidden) { const q = R(ob); for (const s of CG.map.sites) { const m = boxOf(s.id); if (m && ((m.x > q.left && m.x < q.right && m.y > q.top && m.y < q.bottom) || share(q, m) > .2)) out.push(id + ': its own label lies on ' + s.id + ' with its card open'); } }
+              const shown = [...document.querySelectorAll('.mapbadge')].filter(b => b.dataset.site !== id && !b.hidden);
+              if (innerWidth > innerHeight) for (const b of shown.filter(x => x.classList.contains('small'))) {
+                b.classList.remove('small'); const q = R(b); b.classList.add('small');
+                const bars = [...document.querySelectorAll('.mapui .hudleft, .mapui .hudright')].map(R).map(x => ({ left: x.left, right: x.right, top: 0, bottom: x.bottom }));
+                const clash = hitR(q, mc) || bars.some(x => hitR(q, x)) || q.top < 0 || q.left < 0 || q.right > innerWidth || shown.some(o => o !== b && hitR(q, R(o))) || (ob && !ob.hidden && hitR(q, R(ob))) || CG.map.sites.some(s => { const m = boxOf(s.id); return m && s.id !== b.dataset.site && ((m.x > q.left && m.x < q.right && m.y > q.top && m.y < q.bottom) || share(q, m) > .2); });
+                if (!clash) out.push(id + ': ' + b.dataset.site + ' shows its name alone with room for its full label');
+              }
+              if (innerWidth >= 1200) for (const s of CG.map.sites) { const m = boxOf(s.id), b = document.querySelector('.mapbadge[data-site="' + s.id + '"]'); if (s.id !== id && m && b && b.hidden && m.x > 40 && m.x < innerWidth - 40 && m.y > 120 && m.y < mc.top - 40 && !(m.x > mc.left && m.x < mc.right)) out.push(id + ': ' + s.id + ' has no label on a desktop with room for it'); } }
             // its Play button whole and in view with the card scrolled to the top (clarity fix 8b: a long outpost card in
             // landscape had Play half under its foot)
             // the long case too: its vault under half adds a warning line (seen red that way on the old card; short cards fit)

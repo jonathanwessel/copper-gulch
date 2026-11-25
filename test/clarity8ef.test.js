@@ -14,26 +14,26 @@ import { hitsLeftWords } from '../src/ui/explain.js';
 import { HITS_LEFT } from '../src/ui/format.js';
 import fs from 'node:fs';
 
-test('8e (1): a boom on a low price says rising, and a bust does not say the price comes back twice', () => {
+test('8e (1): a boom on a low price says why it is low, and a bust does not say the price comes back twice', () => {
   const low = .00005;
-  assert.equal(boomWords(1.6, '1:11', true), 'Price rising for 1:11 more');
   assert.equal(boomWords(1.6, '1:11'), 'Price up for 1:11 more');
-  assert.equal(boomWords(.6, '0:47', true), 'Price down for 0:47 more');
+  assert.equal(boomWords(.6, '0:47'), 'Price down for 0:47 more');
   const inBoom = priceNote({ have: 50, price: low, boom: true }), inBust = priceNote({ have: 50, price: low, bust: true });
-  assert.equal(inBoom, 'Low because you sold a lot lately.', 'says why it is low, beside the rising price');
-  assert.doesNotMatch(inBoom, /up/);
+  assert.equal(inBoom, null, 'in a boom the rows say it, no sentence under Price up (8h, read of 2026.11.25-8)');
   assert.equal(inBust, 'You sold a lot of it lately.');
   assert.doesNotMatch(inBust, /comes back/, 'the bust clock already says it ends');
   assert.match(priceNote({ have: 50, price: low }), /comes back over time/, 'with no boom or bust it still says it comes back');
 });
 
-test('8e (4): one kind of raider on the road: its row carries the count and no total repeats it', () => {
+test('8e (4) and 8h (4): the card leads with one line in every case, never a count a row says', () => {
   const t = newGame('c8e4', 'gulch').town;
   Object.assign(t.waves, { phase: 'wave', queue: ['raider', 'raider'], foes: [] });
-  assert.deepEqual(waveInfo(t), { lines: [], kinds: [{ kind: 'raider', n: 2 }] });
-  assert.deepEqual(waveLines(t), ['2 Bandits']);
-  Object.assign(t.waves, { queue: ['raider', 'raider', 'runner'], foes: [] });
-  assert.deepEqual(waveLines(t), ['3 raiders left.', '2 Bandits', '1 Horseman'], 'with more kinds the total leads');
+  assert.deepEqual(waveInfo(t), { lines: ['2 still to come, none on the road yet.'], kinds: [{ kind: 'raider', n: 2 }] });
+  assert.deepEqual(waveLines(t), ['2 still to come, none on the road yet.', '2 Bandits']);
+  Object.assign(t.waves, { queue: ['raider', 'runner'], foes: [{ kind: 'raider' }] });
+  assert.deepEqual(waveLines(t), ['1 on the road, 2 still to come.', '2 Bandits', '1 Horseman'], 'with more kinds the same lead line');
+  Object.assign(t.waves, { queue: [], foes: [{ kind: 'raider' }] });
+  assert.deepEqual(waveLines(t), ['All of them are on the road.', '1 Bandit']);
 });
 
 test('8f (3): at its wall the map line says back once and leaves Play to its button', () => {

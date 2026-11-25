@@ -49,6 +49,9 @@ export const BEST_LABEL = 'Weak to';
 export const bestView = (town, kind) => { const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null }; };
 export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : ''; };
 
+/* The raiders card's lead line during a wave: how many are on the road and how many are still to come out. */
+export const roadLine = (road, queued) => (!queued ? 'All of them are on the road.' : !road ? queued + ' still to come, none on the road yet.' : road + ' on the road, ' + queued + ' still to come.');
+
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
 export function waveInfo(town) {
@@ -57,12 +60,11 @@ export function waveInfo(town) {
     const n = {};
     for (const k of ws.queue) n[k] = (n[k] || 0) + 1;
     for (const f of ws.foes) n[f.kind] = (n[f.kind] || 0) + 1;
-    const left = Object.values(n).reduce((a, b) => a + b, 0);
     const kinds = Object.entries(n).sort((a, b) => b[1] - a[1]);
-    // one kind: its row says how many, with no total above it (clarity fix 8e: "2 bandits left." beside a Bandit row
-    // with no count; a total equal to its one row says the number twice)
-    if (kinds.length === 1) return { lines, kinds: [{ kind: kinds[0][0], n: left }] };
-    lines.push(plural(left, 'raider') + ' left.');
+    // one lead line in every case, and never a count a row already says: how many are on the road and how many are
+    // still to come (clarity fix 8h: "3 raiders left." led a card with more kinds, while one kind had no line at all;
+    // 8e had dropped the total there since it said its one row's count twice)
+    lines.push(roadLine(ws.foes.length, ws.queue.length));
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
   if (town.won) lines.push(WON_LINE); // the map card's words (state.js)

@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { oldWavesLabel } from '../src/core/explain.js';
 import { STOCK_LABEL, STOCK_CHOICES, stockWords } from '../src/ui/sheets.js';
-import { splitLive, MODE_WORDS, goodsSwitch, rateWords, rateShort } from '../src/ui/format.js';
+import { splitLive, MODE_LINES, goodsSwitch, rateWords, rateShort } from '../src/ui/format.js';
 import { textIssues } from '../tools/audit.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
@@ -26,8 +26,8 @@ test('the words on screen today', async () => {
   assert.deepEqual(['116', '2/min'].map(rateWords), ['116 a second', '2 a minute']);
   assert.deepEqual(['116', '2/min'].map(rateShort), ['+116/s', '+2/min']);
   // clarity fix 8d: the two names flagged three times are gone; those modes show their picture and their line
-  assert.deepEqual(MODE_WORDS, { always: 'Always', off: 'Off' });
-  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Always');
+  assert.deepEqual(MODE_LINES, { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price is down.', boom: 'Sells only while the price is up.', off: 'Never sells spare goods.' });
+  assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Sells spare goods whenever you have some.');
   // the raider card (owner, 2026-11-22)
   assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Extra damage' });
   assert.equal(fxLeft(null), 'No end'); assert.equal(fxLeft(3.2), '4s');
@@ -58,7 +58,7 @@ test('the words on screen today', async () => {
   assert.deepEqual(priceRow(.5, 1.3), ['Under 1 coin each', 'Up 30%']);
   // the speaker button reads the card's own words (owner, 2026-11-22)
   assert.equal(sayable('Big Shell', 'Hits x2 · slower'), 'Big Shell. Hits 2 times, slower.');
-  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Up next', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Up next', 'Coins a second', ...Object.values(MODE_LINES)]) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('the explainers name the controls by their words on screen', async () => {
@@ -70,7 +70,9 @@ test('the explainers name the controls by their words on screen', async () => {
   assert.match(by('stock'), /^Tap Lots/);
   assert.match(by('mortar'), /A dark spot shows where each one will land/);
   assert.match(by('map'), /Under each town you see if it is fighting/);
-  assert.match(by('vault'), /The heart at the top counts the hits the vault can still take/); // words read of 2026.11.23-11: tie the vault to the heart
+  // the Vault sheet's words (gets in, hits left), with no line about the screen (clarity fix 8g); its spotlight on the heart ties the two
+  assert.equal(by('vault'), 'Each raider that gets in hits your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.');
+  assert.equal(EXPLAINERS.find(e => e.id === 'vault').at().el, '#vaultBtn');
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
 });
 
@@ -92,9 +94,9 @@ test('shots just under one a second never read "One every 1 seconds"', async () 
 test('the sell modes say what each does, and a boom never reads as a drop (review of 2026.11.23-1)', async () => {
   const { MODE_LINES, priceNote } = await import('../src/ui/format.js');
   const { slotWords } = await import('../src/ui/sheets.js');
-  assert.deepEqual(MODE_LINES, { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' });
-  for (const k of Object.keys(MODE_WORDS)) { assert.ok(MODE_LINES[k], k); assert.deepEqual(textIssues(MODE_LINES[k]), [], k); assert.ok(MODE_LINES[k].split(' ').length <= 8, k); }
-  assert.equal(priceNote({ have: 50, price: .00005, boom: true }), 'Low because you sold a lot lately.', 'the boom line says rising (clarity fix 8e)');
+  assert.deepEqual(MODE_LINES, { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price is down.', boom: 'Sells only while the price is up.', off: 'Never sells spare goods.' });
+  for (const k of Object.keys(MODE_LINES)) { assert.ok(MODE_LINES[k], k); assert.deepEqual(textIssues(MODE_LINES[k]), [], k); assert.ok(MODE_LINES[k].split(' ').length <= 8, k); }
+  assert.equal(priceNote({ have: 50, price: .00005, boom: true }), null, 'in a boom the rows say why it is low, never a sentence under Price up (read of 2026.11.25-8)');
   assert.ok(!/comes back/.test(priceNote({ have: 0, price: .00005, boom: true })));
   assert.equal(slotWords({ town: 'gulch', wave: 12, coins: 4321 }, true), 'Copper Gulch · Wave 12 · 4.32K coins');
 });

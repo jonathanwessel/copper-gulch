@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-8',
+    lines: [
+      'With a town card open on the map, the other towns keep their full labels where there is room.',
+      'A Mortar you tap in landscape shows its whole range beside its card.',
+      'After two lost waves in a row, the card says how many tower upgrades to make.',
+      'Each way to sell shows its own picture, and price words read up or down everywhere.',
+    ],
+  },
+  {
     v: '2026.11.25-7',
     lines: [
       'A town card on the map shows Hits left, the same as the Vault sheet.',

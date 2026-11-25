@@ -63,13 +63,15 @@ export const priceLabel = price => { const s = each(price); return s[0].toUpperC
 /* Only Always and Off have a word: "Skip busts" and "Booms only" were flagged three times (reviews of 2026.11.23-1,
    2026.11.23-6 and 2026.11.25-2), so by the twice-flagged rule the names went, and those two modes show their picture
    (modeState) with their line in the picker (clarity fix 8d). */
-export const MODE_WORDS = { always: 'Always', off: 'Off' };
-/* What each mode does, one short line under its name in the Goods sheet's picker (review of 2026.11.23-1: "Skip busts"
-   and "Booms only" were flagged twice, so the picker says what each does instead of a third wording). */
-export const MODE_LINES = { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' };
+/* Clarity fix 8h: Always and Off had a name and a line in the picker while the other two had one line, so every mode
+   is now one line with its picture, and every switch shows the picture (the picture ties a switch to its row). */
+/* What each mode does, one short line beside its picture in the Goods sheet's picker (review of 2026.11.23-1: "Skip busts"
+   and "Booms only" were flagged twice, so the picker says what each does instead of a third wording). The price words
+   are the boom line's own, up and down (clarity fix 8h: "crashed" and "way up" beside "Price up" and "Price down"). */
+export const MODE_LINES = { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price is down.', boom: 'Sells only while the price is up.', off: 'Never sells spare goods.' };
 /* The Goods sheet's button for a good: Sell spare, then its mode. selling false is Off (the old switch). */
 export function goodsSwitch({ selling = true, mode = selling ? 'always' : 'off' }) {
-  return 'Sell spare · ' + (MODE_WORDS[mode] || MODE_LINES[mode]); // spare: what the towers do not keep (review of 2026.11.20-6); a mode with no word reads as its line to a screen reader
+  return 'Sell spare · ' + MODE_LINES[mode]; // spare: what the towers do not keep (review of 2026.11.20-6); the mode reads as its line to a screen reader
 }
 /* A sell mode's picture: low, normal and high price, lit where it sells. label: read out in place of the picture. */
 export function modePic(mode, label = null) {
@@ -78,8 +80,15 @@ export function modePic(mode, label = null) {
   for (const [i, on] of MODE_SELLS[mode].entries()) { const b = document.createElement('i'); b.className = (on ? 'on ' : '') + ['low', 'mid', 'high'][i]; p.append(b); }
   return p;
 }
-/* What a Sell spare switch shows: Always or Off, or the picture of a mode with no word (clarity fix 8d). */
-export const modeState = mode => MODE_WORDS[mode] || modePic(mode, MODE_LINES[mode]);
+/* What a Sell spare switch shows: the picture of its mode, read out as its line (clarity fix 8h). */
+/* Off also says Off beside its dark picture (fresh-eyes read of 2026.11.25-8: with the picture alone "Sell spare" read
+   as selling while it never sold). */
+export const modeState = mode => {
+  if (mode !== 'off') return modePic(mode, MODE_LINES[mode]);
+  const s = document.createElement('span'); s.className = 'modeoff'; s.append(modePic(mode, MODE_LINES[mode]), document.createTextNode(' ' + OFF_WORD));
+  return s;
+};
+export const OFF_WORD = 'Off';
 /* A boom or bust on a good's price bar: "Boom 1:12", "Bust 0:45" (the time left, at most 4 characters). */
 export function boomWord(f, left) {
   const s = Math.min(599, Math.max(0, Math.ceil(left || 0)));
@@ -106,7 +115,9 @@ export function priceNote({ have, kept = 0, price = 0, boom = false, bust = fals
   // clarity fix 8e: beside the boom's "Price rising" the low price says only why ("still low" beside "Price up" read as up
   // and low at once), and beside a bust's clock it does not also say the price comes back (one fact twice)
   // beside Price rising it says why it is still low (fresh-eyes read of 2026.11.25-7: "You sold a lot" under "rising" read as opposite facts)
-  if (price < .0095 && boom) return 'Low because you sold a lot lately.';
+  // in a boom the rows say it (the boom's lift and the drop from selling a lot), not a sentence: "Low because..." under
+  // "Price up" was flagged three times (8e, and the reads of 2026.11.25-7 and -8), so by the twice-flagged rule it went
+  if (price < .0095 && boom) return null;
   if (price < .0095 && bust) return 'You sold a lot of it lately.';
   if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';

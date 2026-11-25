@@ -5,6 +5,14 @@ import { FOES } from '../data/foes.js';
 import { fmt } from './format.js';
 import { willRetry, retryState, autoOf } from '../core/automation.js';
 import { bossWave, atWall } from '../core/defense.js';
+import { WALL_UPS } from '../core/goals.js';
+
+/* The upgrades a town at its wall still asks for, as the strip counts them (RESUME_WALL): "8 times", "3 more times"
+   (clarity fix 8g: the card said "Tap towers and upgrade them" while the strip right under it counted 0 / 8 upgrades). */
+export function wallUpsWords(town) {
+  const done = Math.min(WALL_UPS, (town.lost && town.lost.ups) || 0), n = WALL_UPS - done;
+  return n <= 0 ? '' : n + (done ? ' more' : '') + (n === 1 ? ' time' : ' times');
+}
 
 /* Keep trying the boss never holds: it climbs back to the wave before the one lost and plays there until a tower goes
    up a level. The line says what brings the boss back, with no wave number (review of 2026.11.23-7: "goes back up to
@@ -37,7 +45,7 @@ export function lostCard(town, game = null) {
   return {
     title: 'Wave ' + l.wave + ' lost',
     lines: [what + ' You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
-      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. ' + (atWall(town) ? 'Tap towers and upgrade them' : 'Build more towers') + ', then tap Resume waves.'],
+      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. ' + (atWall(town) ? 'Upgrade your towers ' + (wallUpsWords(town) || 'again') : 'Build more towers') + ', then tap Resume waves.'],
   };
 }
 /* The line on the town's map card while it tries its boss again (Keep trying the boss): playing the last wave it beat
@@ -61,6 +69,6 @@ export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
   // at its wall (lost twice with no new best wave between) it asks for upgrades first, as the strip there does
   // clarity fix 8f: "Back to wave 18 again" said back twice, and "Tap Play Copper Gulch" sat right above that button, so "Play it" points at it
-  if (atWall(town)) return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Play it, upgrade its towers, then tap Resume waves.';
+  if (atWall(town)) { const n = wallUpsWords(town); return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + (n ? ' Play it, upgrade its towers ' + n + ', then tap Resume waves.' : ' Play it and tap Resume waves.'); }
   return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
 }

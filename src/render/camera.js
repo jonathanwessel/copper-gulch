@@ -111,6 +111,9 @@ export class CameraRig {
     if (key === this.fitKey) return;
     const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
     this.fitKey = key; this.aspect = aspect;
+    // a refit puts the home view back, so a selection's step back (keep) may run again: in landscape the top bar and the
+    // goods strip change as a card opens, the refit undid the step back, and a Mortar's ring showed 4% of it (clarity fix 8g)
+    this.zoomKey = null;
     const tall = aspect < .8, fov = tall ? 50 : 36;
     if (this.cam.fov !== fov) { this.cam.fov = fov; this.cam.updateProjectionMatrix(); }
     const fw = this.fw || this.size - .5, fd = this.fd || this.size * .75;
@@ -218,9 +221,11 @@ export class CameraRig {
       this.zoomKey = key;
       let f = Infinity;
       for (const a of raw) if (a.r - a.l >= 120 && a.b - a.t >= 120) f = Math.min(f, Math.max((e.l + e.r + 16) / (a.r - a.l), (e.u + e.d + 16) / (a.b - a.t)));
-      if (f <= 1.8 && this.t.dist < this.max) {
+      // up to 2.6 times as far, and as far as it goes when that is still not enough: at 1.8 a Mortar's ring (twice a tower's
+      // reach) beside a landscape card showed 4% of its circle, so the map did not step back at all (clarity fix 8g)
+      if (isFinite(f) && f > 1 && this.t.dist < this.max) {
         if (!this.slid || this.slid.g !== this.gestures) this.slid = { x: this.t.x, z: this.t.z, dist: this.t.dist, g: this.gestures };
-        this.t.dist = Math.min(this.max, this.t.dist * f * 1.08);
+        this.t.dist = Math.min(this.max, this.t.dist * Math.min(f, 2.6) * 1.08);
         return; // the next call slides it into place from the new distance
       }
     }
@@ -252,7 +257,9 @@ export class CameraRig {
     for (const a of parts) {
       // too small to show the thing and its label in (review of 2026.11.20-6: on the landscape map the town slid into the
       // thin strip above a side card, near the horizon, and the screen filled with mesas)
-      if (a.w < 120 || a.h < 120) continue;
+      // a part beside the card may be shorter (80): in landscape the goods strip left 107 px above it beside a choice
+      // card, so no part was big enough and the selected Still stayed under the card (fresh-eyes read of 2026.11.25-8)
+      if (a.w < 120 || a.h < (a === parts[0] ? 120 : 80)) continue;
       if (rad > 0 && !a.o && parts.some(b => b.o && b.w >= 120 && b.h >= 120)) continue; // a part its circle fits in comes first (review of 2026.11.20-7: a pit inside the thin part left of a desktop card stayed with its circle off the edge)
       if (inside(a)) return;
       const x = a.r < a.l ? (a.l + a.r) / 2 : Math.min(a.r, Math.max(a.l, q.x)), y = a.b < a.t ? (a.t + a.b) / 2 : Math.min(a.b, Math.max(a.t, q.y));
