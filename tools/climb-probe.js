@@ -10,21 +10,29 @@
 // strip step stays up more than STEP_MAX in a row. A step that counts coins with the time to go (a save) is left out:
 // it changes as the coins come. Before the fix the newcomer opened the Falls on 2 of 6 seeds in 10 hours, after filling
 // every Ridge pad with Crossbows right after its charter. It prints only the summary lines unless --lines is given.
+// Two more gates (the Gulch's loss loop box, PLAN.md M6a): the median over the seeds of the coins lost to falls between
+// the Ridge's charter and Silver Falls stays under LOSS_MAX (half the 350K median of the build before the fix, where the
+// strip sent the newcomer back to resume its Gulch after every loss and the Gulch fell 32-63 times), and from the
+// Capital on the strip is never blank longer than BLANK_MAX (it was for 6-9 minutes once Silver Falls stood, while the
+// Falls' next goals waited on a locked lot).
 import { newcomer } from './firstplay.js';
 import { goalNow, meterWords } from '../src/core/goals.js';
 import { deedsHeld } from '../src/core/charter.js';
 import { isOutpost } from '../src/core/economy.js';
 import { towerCost } from '../src/core/defense.js';
+import { capitalOpen } from '../src/core/capital.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 420), ONE = arg('seed', 0), FROM = arg('from', 200) * 60, EVERY = arg('every', 10) * 60;
 const QUIET = !process.argv.includes('--lines');
-export const FALLS_BY = 600 * 60, FALLS_MOST = 2 / 3, STEP_MAX = 30 * 60;
+export const FALLS_BY = 600 * 60, FALLS_MOST = 2 / 3, STEP_MAX = 30 * 60, LOSS_MAX = 175e3, BLANK_MAX = 120;
+/* The coins the newcomer lost to falls in every town between the Ridge's charter and Silver Falls (or the run's end). */
+export const climbLoss = rec => rec.lost.filter(x => rec.signed != null && x.at >= rec.signed && (rec.falls == null || x.at <= rec.falls)).reduce((a, x) => a + (x.lost || 0), 0);
 const mm = s => s == null ? 'never' : Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const k = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
 
 export function climb(seed, minutes = MINUTES, onLine = null) {
-  const rec = { falls: null, spend: {}, lost: [], step: { text: null, from: 0, longest: 0, at: 0, which: null }, peak: {} };
+  const rec = { blank: { from: null, longest: 0, at: 0 }, falls: null, spend: {}, lost: [], step: { text: null, from: 0, longest: 0, at: 0, which: null }, peak: {} };
   let lastLine = -1e9;
   const r = newcomer(seed, minutes, (g, at) => {
     if (!rec.hooked) {
@@ -38,7 +46,13 @@ export function climb(seed, minutes = MINUTES, onLine = null) {
       g.bus.on('charter:sign', e => { if (e.town === 'ridge') rec.signed ??= g.stats.steps * .25; });
     }
     if ((g.stats.steps % 4) !== 0) return false;
-    const gn = goalNow(g), text = gn ? (gn.need ? null : gn.text) : '(none)';
+    // a step with a count ("Reach wave 52 in Iron Ridge", wave 44 / 52) is the same step only while its count stays: a
+    // count that rises is the climb moving, as a save's coins are (the Gulch's loss loop box: the step read as one for
+    // 42-73 minutes while the Ridge climbed from wave 41 to 52; before, the trips back to the Gulch had split it)
+    const gn = goalNow(g), text = gn ? (gn.need ? null : gn.text + (gn.meter ? ' [' + meterWords(gn, g) + ']' : '')) : '(none)';
+    // a blank strip from the Capital on (the Gulch's loss loop box: once seen inside Silver Falls)
+    const bl = rec.blank;
+    if (capitalOpen(g) && text === '(none)') { bl.from ??= at; if (at - bl.from > bl.longest) { bl.longest = at - bl.from; bl.at = bl.from; } } else bl.from = null;
     const st = rec.step, climbing = rec.signed != null && rec.falls == null;
     if (!climbing || text !== st.text) { st.text = climbing ? text : null; st.from = at; }
     if (st.text && at - st.from > st.longest) { st.longest = at - st.from; st.at = st.from; st.which = st.text; }
@@ -63,16 +77,20 @@ export function climb(seed, minutes = MINUTES, onLine = null) {
 }
 
 if (process.argv[1] && process.argv[1].split(String.fromCharCode(92)).join('/').endsWith('tools/climb-probe.js')) {
-  const at = [], miss = [];
+  const at = [], miss = [], loss = [];
   for (let seed = ONE || 1; seed <= (ONE || SEEDS); seed++) {
     if (!QUIET) console.log('seed ' + seed);
     const rec = climb(seed, Math.max(MINUTES, FALLS_BY / 60));
     const st = rec.step;
-    at.push(rec.falls);
-    console.log(`seed ${seed}: Ridge charter ${mm(rec.signed)}, Silver Falls ${mm(rec.falls)}, Ridge peak wave ${rec.peak.ridge || 0}, lost ${rec.lost.filter(x => x.town === 'ridge' && x.at >= FROM).length} times in the Ridge after ${mm(FROM)}, longest strip step ${Math.round(st.longest / 60)} min at ${mm(st.at)} "${st.which}"`);
+    at.push(rec.falls); loss.push(climbLoss(rec));
+    console.log(`seed ${seed}: Ridge charter ${mm(rec.signed)}, Silver Falls ${mm(rec.falls)}, Ridge peak wave ${rec.peak.ridge || 0}, lost ${rec.lost.filter(x => x.town === 'ridge' && x.at >= FROM).length} times in the Ridge after ${mm(FROM)}, longest strip step ${Math.round(st.longest / 60)} min at ${mm(st.at)} "${st.which}", lost ${k(loss[loss.length - 1])} to falls on the climb, longest blank strip ${Math.round(rec.blank.longest)} s at ${mm(rec.blank.at)}`);
+    if (rec.blank.longest > BLANK_MAX) miss.push(`seed ${seed}: the strip was blank ${Math.round(rec.blank.longest)} s in a row from ${mm(rec.blank.at)} (want under ${BLANK_MAX} s from the Capital on)`);
     if (st.longest > STEP_MAX) miss.push(`seed ${seed}: "${st.which}" stayed up ${Math.round(st.longest / 60)} min in a row from ${mm(st.at)} (want under ${STEP_MAX / 60})`);
   }
   const inTime = at.filter(x => x != null && x <= FALLS_BY).length, med = at.map(x => x == null ? Infinity : x).sort((a, b) => a - b)[Math.floor(at.length / 2)];
+  const lossMed = loss.slice().sort((a, b) => a - b)[Math.floor(loss.length / 2)];
+  console.log('coins lost to falls on the climb ' + loss.map(k).join(' ') + ', median ' + k(lossMed) + ' (limit ' + k(LOSS_MAX) + ')');
+  if (lossMed > LOSS_MAX) miss.push(`the newcomer lost a median ${k(lossMed)} coins to falls between the Ridge's charter and Silver Falls (want under ${k(LOSS_MAX)})`);
   console.log('Silver Falls opened at ' + at.map(x => x == null ? 'never' : Math.round(x / 60)).join(' ') + ' min');
   if (inTime < Math.ceil(FALLS_MOST * at.length) || med > FALLS_BY) miss.push(`the newcomer opened Silver Falls on ${inTime} of ${at.length} seeds within ${FALLS_BY / 60} min (want ${Math.ceil(FALLS_MOST * at.length)} and the median)`);
   console.log(miss.length ? miss.map(m => 'FAIL ' + m).join(String.fromCharCode(10)) : 'ok');

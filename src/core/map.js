@@ -16,7 +16,7 @@ import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
 import { retryState } from './automation.js';
-import { waitsAway } from './defense.js';
+import { waitsAway, atWall } from './defense.js';
 import { savingFor } from './goals.js';
 
 /* Why a place wants the player now, or null. One source for the Map button's dot, the back button's dot, the map
@@ -31,7 +31,9 @@ export function needsYou(game, id) {
   if (!t || !t.waves) return null;
   const r = retryState(game, t);
   if (r === 'stuck') return 'stuck';
-  if (t.waves.hold && r !== 'again' && r !== 'climb') return t.waves.autoHold ? 'lost' : savingFor(game, t) ? null : 'hold';
+  // a town at its wall (atWall) holds with no dot: the strip no longer sends the player back to resume it, and its card
+  // says to upgrade its towers first (the Gulch's loss loop, PLAN.md M6a)
+  if (t.waves.hold && r !== 'again' && r !== 'climb') return t.waves.autoHold ? (atWall(t) ? null : 'lost') : savingFor(game, t) ? null : 'hold';
   if (waitsAway(game, t)) return 'wait';
   if (game.active !== id && (t.breaches || 0) > ((t.flags && t.flags.breachSeen) || 0)) return 'raided';
   return null;

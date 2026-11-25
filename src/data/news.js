@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-3',
+    lines: [
+      'Lose the same wave twice and that town stops its waves.',
+      'Tap a tower and upgrade it, then tap Resume waves to go on.',
+      'Goal does not send you to a town that keeps losing.',
+      'If a goal needs a building you cannot build yet, Goal says which one to upgrade.',
+      'After all goals, Goal shows the next wave to beat.',
+    ],
+  },
+  {
     v: '2026.11.25-2',
     lines: [
       'Help cards sit above your goods, so you can still see your counts.',

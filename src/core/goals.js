@@ -5,7 +5,7 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall } from './defense.js';
 import { FOES } from '../data/foes.js';
 import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
@@ -69,6 +69,9 @@ const lostBossAway = town => !!(town.waves && town.waves.autoHold && town.lost &
 export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at: () => ({ el: '#holdWaves' }), done: () => false };
 /* After a loss the lost card says to build more towers first (review of 2026.11.19-1), so the strip says the same. */
 export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
+/* A town at its wall (atWall in src/core/defense.js: it lost twice with no new best wave between) asks for upgrades:
+   its pads are full by then, and more of the same towers at level 1 lost twice already. */
+export const RESUME_WALL = { ...RESUME, text: 'Tap a tower and upgrade it, then tap Resume waves' };
 const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
   return { id: 'resume-' + id, away: true, text: 'Tap Map, ' + name + ', then tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
@@ -108,8 +111,16 @@ export const savingFor = (game, town) => nextTowns(game).some(n => n.from === to
 // while the Capital's save is on, a town held after a loss stays held too: its waves would only cost the save
 const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && (!town.waves.autoHold || capitalNext(game) || townSaveNext(game))));
 /* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
+// not a town at its wall (atWall): sent back each time, the newcomer's Gulch fell 32-63 times during the Ridge's climb
 const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
-  && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry) && !capitalSaving(game, t));
+  && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry) && !capitalSaving(game, t) && !atWall(t));
+/* With nothing else on the strip, a town at its wall: "Tap Map, Copper Gulch, then upgrade its towers". */
+export const WALL_WORDS = { go: town => 'Tap Map, ' + town + ', then upgrade its towers' };
+export function wallStep(game) {
+  const t = Object.values(game.towns).find(x => x.id !== game.active && atWall(x));
+  if (!t) return null;
+  return { id: 'wall:' + t.id, away: true, text: WALL_WORDS.go(TOWNS[t.id].name), at: c => ({ el: c.back === t.id ? '#backBtn' : '#mapBtn', go: t.id }), done: () => false };
+}
 
 /* The goal the strip shows for the town in play, or null when its goals are all done (or the strip is off).
    held false: leave out the Resume waves steps (the careful bots tap Resume waves by their own rules and read the
@@ -147,7 +158,7 @@ function ownTower(game, town) {
 export function goalNow(game, held = true) {
   const sh = game.shared.goals, town = game.town;
   if (!sh || sh.off || !town) return null;
-  if (held && heldHere(game, town)) return town.waves.autoHold ? RESUME_LOST : RESUME;
+  if (held && heldHere(game, town)) return town.waves.autoHold ? (atWall(town) ? RESUME_WALL : RESUME_LOST) : RESUME;
   if (held && bossFight(game, town)) return fightStep(town, ownTower(game, town));
   // the Capital comes first once only its coins are missing (clarity fix 3): the newcomer of seed 1 reached the Ridge's
   // wave 30 at 93 min and then followed the Ridge's own goals (a Rolling Mill to level 5 for 23 minutes), which spend
@@ -172,13 +183,40 @@ export function goalNow(game, held = true) {
   if (again) return again;
   const fed = feedStep(game, town);
   if (fed) return fed;
-  let c = null;
+  let c = null, shut = null;
   for (const g of GOALS) {
     if (g.town !== town.id || sh.done[g.id]) continue;
     c = c || goalContext(game, town);
     if (!g.ready || g.ready(c)) return stepFor(game, town, g);
+    shut = shut || lockedStep(game, town, g);
   }
-  return firstInstitution(game) || nextStep(game) || playStep(game);
+  return firstInstitution(game) || nextStep(game) || playStep(game) || shut || wallStep(game) || climbStep(game, town);
+}
+
+/* With every goal done and no place left to open (the end of the content so far), the town in play's next mark of ten
+   waves ("Reach wave 60 in Silver Falls", wave 53 / 60): a higher wave pays more deeds at its next charter. A won outpost
+   sends the player to the newest town. The Gulch's loss loop box: on seed 6 every goal was done 34 minutes after Silver
+   Falls opened, and the strip was blank in every town from then on. */
+export const CLIMB_EVERY = 10;
+export function climbStep(game, town) {
+  if (isOutpost(town) && town.won) {
+    const last = TOWN_ORDER.filter(id => game.towns[id] && !isOutpost(game.towns[id])).pop();
+    return last ? { id: 'play:' + last, away: true, text: REBUILD_WORDS.play(TOWNS[last].name), at: () => ({ el: game.back === last ? '#backBtn' : '#mapBtn', go: last }), done: () => false } : null;
+  }
+  const best = town.bestWave || 0, mark = (Math.floor(best / CLIMB_EVERY) + 1) * CLIMB_EVERY;
+  return { id: 'climb:' + town.id + ':' + mark, text: 'Reach wave ' + mark + ' in ' + TOWNS[town.id].name, meter: g2 => [(g2.towns[town.id] || town).bestWave || 0, mark], pre: 'wave ', meterTown: town.id, done: () => false };
+}
+
+/* A goal held back by its own locked lot ("Tap the Glassworks lot, then tap Build", ready once the lot opens): the step
+   that opens the lot ("Tap the Sand Pit and upgrade it to level 6 to open the Glassworks"), or null. The Gulch's loss
+   loop box: once Silver Falls stood, its next goals all waited on a locked lot, no other place had a goal, and the strip
+   was blank in every town for 6-9 minutes at a time. Only when nothing else is on the strip. */
+function lockedStep(game, town, g) {
+  if (typeof g.at !== 'function' || g.away || g.there) return null;
+  let at = null; try { at = g.at(goalContext(game, town)) || {}; } catch (e) { return null; }
+  if (!at.plot || !BUILDINGS[at.plot] || unlocked(town, at.plot)) return null;
+  const s = stepFor(game, town, g);
+  return s !== g && s.step ? s : null;
 }
 
 /* After a charter the strip asks for each tower the town had back on its old pad, highest level first (the newcomer's
@@ -234,7 +272,8 @@ export function playStep(game) {
     const has = GOALS.some(g => {
       if (g.town !== id || sh.done[g.id]) return false;
       c = c || goalContext(game, t);
-      return !g.ready || g.ready(c);
+      // or a goal that waits on its locked lot, which the strip there turns into the step that opens it (lockedStep)
+      return !g.ready || g.ready(c) || !!lockedStep(game, t, g);
     });
     if (has) return { id: 'play:' + id, away: true, text: REBUILD_WORDS.play(TOWNS[id].name), at: () => ({ el: game.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
   }

@@ -489,10 +489,23 @@ export function fall(game, town, why = 'vault') {
   const from = town.wave;
   town.wave = Math.max(1, town.wave - wavesOf(town).breachBack);
   Object.assign(ws, { phase: 'break', timer: wavesOf(town).rest * 2, queue: [], foes: [], shells: [], fires: [], bossLeaked: false });
-  const gone = away(game, town), held = gone || why === 'boss';
-  if (held) { ws.hold = true; ws.autoHold = true; town.lost = { why, wave: from, back: town.wave, coins: lost, at: town.t, away: gone }; }
+  // n: the losses in a row with no new best wave between them, in play or away (town.wall; best: the town's best wave
+  // at the loss); see atWall. The second one holds the town in play too, so it stops losing while the player raises
+  // towers: in play a fallen vault never held, and the newcomer's Ridge fell 17-33 times on its climb to wave 52.
+  const w = town.wall, best = town.bestWave || 0, n = w && w.best === best ? (w.n || 1) + 1 : 1;
+  town.wall = { best, n };
+  const gone = away(game, town), held = gone || why === 'boss' || n >= WALL;
+  if (held) { ws.hold = true; ws.autoHold = true; town.lost = { why, wave: from, back: town.wave, coins: lost, at: town.t, away: gone, best, n }; }
   game.bus.emit('breach', { town: town.id, wave: from, lost, why, back: town.wave, held, away: gone });
 }
+
+/* A town at its wall (the Gulch's loss loop, PLAN.md M6a): it holds after a loss, and it lost WALL times in a row
+   with no new best wave between. On seed 5 the newcomer's Gulch fell 58 times at waves 30-33 during the Ridge's climb,
+   about 355K coins: each time the strip sent the player back to resume it, a few upgrades went in, and it fell again
+   a few minutes later. A town at its wall still makes and sells its goods; the strip stops sending the player to
+   resume it, and there it asks for upgrades first. A new best wave starts the count again. */
+export const WALL = 2;
+export const atWall = town => !!(town && !town.won && town.waves && town.waves.hold && town.waves.autoHold && town.lost && (town.lost.n || 1) >= WALL);
 
 /* The last raider is gone. A boss that got through means the wave is lost (boss waves are gates); otherwise the wave
    is beaten and the next one comes after the wave pace. */

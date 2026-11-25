@@ -4,7 +4,7 @@
 import { FOES } from '../data/foes.js';
 import { fmt } from './format.js';
 import { willRetry, retryState, autoOf } from '../core/automation.js';
-import { bossWave } from '../core/defense.js';
+import { bossWave, atWall } from '../core/defense.js';
 
 /* Keep trying the boss never holds: it climbs back to the wave before the one lost and plays there until a tower goes
    up a level. The line says what brings the boss back, with no wave number (review of 2026.11.23-7: "goes back up to
@@ -22,6 +22,8 @@ export function lostToast(town, here = false, game = null, onMap = false) {
   if (here) return (l.why === 'boss' ? 'The ' + bossName(town) + ' got through while you were away.' : 'Your ' + storeOf(town) + ' fell while you were away.')
     + ' You dropped back to wave ' + l.back + '. Tap Resume waves when you are ready.';
   // which town and where to go, not what happened: the map card says that (review of 2026.11.20-15: one loss told three ways)
+  // at its wall nothing calls the player there (no dot, no strip step), so the toast only says it
+  if (atWall(town)) return town.def.name + ' lost ' + (l.wave ? 'wave ' + l.wave : 'a wave') + ' again. Its waves are on hold.' + (onMap ? ' Tap ' + (town.def.short || town.def.name) + ' to see it.' : '');
   return town.def.name + ' lost ' + (l.wave ? 'wave ' + l.wave : 'a wave') + '.'
     + (onMap ? ' Tap ' + (town.def.short || town.def.name) + ' to see it.' : ' Tap Map to go there.'); // one step: the map card says the rest (lostLine). Review of 2026.11.19-9: four steps in one toast
 }
@@ -30,10 +32,12 @@ export function lostToast(town, here = false, game = null, onMap = false) {
 export function lostCard(town, game = null) {
   const l = town.lost || { wave: town.wave, back: town.wave, coins: 0 };
   const again = game && willRetry(game, town);
+  // a fallen vault holds the town in play only at its wall (atWall: the second loss in a row with no new best wave)
+  const what = l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'Your ' + storeOf(town) + ' fell again.';
   return {
     title: 'Wave ' + l.wave + ' lost',
-    lines: ['The ' + bossName(town) + ' got through. You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
-      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. Build more towers, then tap Resume waves.'],
+    lines: [what + ' You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
+      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. ' + (atWall(town) ? 'Tap a tower and upgrade it' : 'Build more towers') + ', then tap Resume waves.'],
   };
 }
 /* The line on the town's map card while it tries its boss again (Keep trying the boss): playing the last wave it beat
@@ -55,5 +59,7 @@ export function retryLine(game, town) {
 const whatHappened = town => ((town.lost || {}).why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'The ' + storeOf(town) + ' fell.');
 export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
+  // at its wall (lost twice with no new best wave between) it asks for upgrades first, as the strip there does
+  if (atWall(town)) return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + ' again.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', upgrade its towers, then tap Resume waves.';
   return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
 }

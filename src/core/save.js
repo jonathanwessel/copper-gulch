@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 29;
+export const SAVE_VERSION = 30;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -223,6 +223,13 @@ export const MIGRATIONS = {
     const g = s.game || {};
     for (const t of Object.values(g.towns || {})) if (t && !Array.isArray(t.plan)) t.plan = [];
     return { ...s, v: 29, game: g };
+  },
+  // v30: a town's last loss counts the losses in a row with no new best wave between (town.lost.n and best, atWall in
+  // src/core/defense.js). A loss saved before this version counts as the first.
+  29: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t && t.lost && t.lost.n === undefined) { t.lost.n = 1; t.lost.best = t.bestWave || 0; }
+    return { ...s, v: 30, game: g };
   },
 };
 

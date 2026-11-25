@@ -174,6 +174,10 @@ const SCREENS = [
   }],
   ['rebuild-sell', () => { CG.play.openSpot(window.__rebuildSpot); }],
   ['boss-lost', async () => { CG.play.close(); const m = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; t.wave = 20; t.bestWave = 19; t.recent = Math.max(t.recent || 0, 600); m.fall(CG.game, t, 'boss'); }],
+  // the Gulch's loss loop box: a second fall in a row with no new best wave holds the town in play, and its card asks for upgrades
+  ['wall-lost', async () => { const o = document.getElementById('lostCard'); if (o) o.remove(); for (const x of document.querySelectorAll('.toast')) x.remove(); const m = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town; Object.assign(t.waves, { hold: false, autoHold: false, phase: 'break', queue: [], foes: [] }); t.wave = 26; t.bestWave = 26; t.wall = { best: 26, n: 1 }; t.recent = Math.max(t.recent || 0, 600); m.fall(CG.game, t, 'vault'); }],
+  // the card closed: the goal strip says the same
+  ['wall-strip', () => { const b = document.getElementById('lostOk'); if (b) b.click(); }],
 ];
 // a new game, which starts in Dry Creek Outpost (cards on, so the win card can be shown)
 const OUTPOST = [
@@ -304,6 +308,8 @@ const RIDGE = [
   ['map-raids', () => { CG.mapui.openSite('drycreek'); }],
   ['map-capital', () => { CG.mapui.openSite('capital'); }],
   ['map-lost', () => { CG.mapui.openSite('gulch'); }],
+  // the same Gulch at its wall: it lost twice with no new best wave, so its card asks for upgrades and the label has no red
+  ['map-wall', () => { const G = CG.game.towns.gulch; G.lost = { ...(G.lost || { why: 'vault', wave: 20, back: 18, coins: 900 }), n: 2, best: G.bestWave || 0 }; Object.assign(G.waves, { hold: true, autoHold: true }); CG.mapui.openSite('gulch'); }],
   // the Capital: ready to build, then its contracts with one running
   ['capital-ready', () => { const r = CG.game.towns.ridge; r.bestWave = 30; CG.game.town.coins = 4e5; CG.mapui.openSite('capital'); }],
   ['capital', async () => { document.getElementById('mapFound').click(); await new Promise(r => setTimeout(r, 300)); const c = CG.game.shared.capital; if (c.offers[0]) { document.querySelector('#mapCard [data-contract]').click(); const a = c.active; if (a) a.got = a.need * .4; } }],

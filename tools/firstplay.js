@@ -19,10 +19,10 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, FIGHT_LOW } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, RESUME_WALL, FIGHT_LOW } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
-import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold, sellTower } from '../src/core/defense.js';
+import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold, sellTower, atWall } from '../src/core/defense.js';
 import { itemsOf, researchBlock, startResearch } from '../src/core/research.js';
 import { PERKS } from '../src/data/perks.js';
 import { perkState, pickPerk, deedsFor, signCharter } from '../src/core/charter.js';
@@ -39,7 +39,8 @@ export const WAIT = [3, 8], WRONG = .3, FOLLOW = .7;
 export const STUCK_LIMIT = 180;
 /* Waves on hold (Evaluation 2, 2026-11-19): from about an hour in, every seed's Gulch and Ridge sat on hold for the
    rest of the run (the Gulch held to save for the Ridge, the Ridge's vault fell while away). No town may hold its waves
-   longer than HELD_LIMIT seconds at a stretch while the strip is not asking it to save for its next town. */
+   longer than HELD_LIMIT seconds at a stretch while the strip is not asking it to save for its next town, unless it is
+   at its wall (atWall, 2026.11.25-3: it lost twice with no new best wave, and its card and strip ask for upgrades). */
 export const HELD_LIMIT = 600;
 /* The newcomer cannot see how strong the next wave is. It adds a tower when it has none, when a raider reached the
    vault in this wave or the last one, when the vault bar is below VAULT_LOW, and about every WAVES_PER_TOWER waves
@@ -50,8 +51,9 @@ export const VAULT_LOW = .7, WAVES_PER_TOWER = 4;
    it would: it buys a tower only when raiders get through, and nothing else. */
 export const GOAL_SAVE = 600, LOST_BUYS = 3;
 /* "Build more towers, then tap Resume waves": true while the newcomer still builds first (it has bought fewer than
-   LOST_BUYS towers or upgrades since the loss and can pay for one more), so it does both acts the strip names. */
-export const buildFirst = (game, town, rng, bought) => goalNow(game) === RESUME_LOST && bought < LOST_BUYS && choices(game, town, rng).some(c => c.what === 'tower' || c.what === 'upgrade');
+   LOST_BUYS towers or upgrades since the loss and can pay for one more), so it does both acts the strip names. At its
+   wall ("Upgrade your towers, then tap Resume waves") only an upgrade counts. */
+export const buildFirst = (game, town, rng, bought) => { const g = goalNow(game), wall = g === RESUME_WALL; return (g === RESUME_LOST || wall) && bought < LOST_BUYS && choices(game, town, rng).some(c => c.what === 'upgrade' || (!wall && c.what === 'tower')); };
 /* The coins a goal counts: its need on the strip, or for a goal to upgrade a building, the next level's price, which its
    card shows as have / need (a tap on the strip opens it; clarity fix 3b part 2: "Tap the Rolling Mill and upgrade it
    to level 5" sat 10-14 minutes after the Capital while the newcomer spent each coin as it came). */
@@ -163,7 +165,8 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     if (s % 4 === 0) earnPer = earnRate(g, earnHist);
     if (s % 4 === 0) { const gn = goalNow(g); if (gn) { const b = gn.id.split('>')[0]; r.goalHeld[b] = (r.goalHeld[b] || 0) + 1; } }
     if (s % 4 === 0) for (const x of Object.values(g.towns)) {
-      const held = x.waves && x.waves.hold && !x.won && !savingFor(g, x);
+      // a town at its wall holds by design, its card and strip saying to upgrade its towers (the Gulch's loss loop box)
+      const held = x.waves && x.waves.hold && !x.won && !savingFor(g, x) && !atWall(x);
       if (!held) { delete heldFrom[x.id]; continue; }
       heldFrom[x.id] ??= at;
       if (at - heldFrom[x.id] > r.held2.longest) r.held2 = { longest: at - heldFrom[x.id], town: x.id, at: heldFrom[x.id] };
@@ -185,13 +188,16 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     // then resumes (clarity fix 3b part 2: it tapped Resume at once, and the newcomer's Ridge lost its wave-10 boss for
     // 30 minutes with every tower at level 1)
     if (!t.waves.autoHold) delete lostBuys[t.id];
-    if (goal && goal.what === 'resume' && buildFirst(g, t, rng, lostBuys[t.id] || 0)) goal = null;
+    // it builds first even while it saves: the strip asks for it (the Gulch's loss loop box: on seed 2 it sat in a held
+    // Gulch for five hours, since its saving rules bought nothing and the resume waited for a buy)
+    const lostBuild = !!(goal && goal.what === 'resume' && buildFirst(g, t, rng, lostBuys[t.id] || 0)), wallBuild = lostBuild && goalNow(g) === RESUME_WALL;
+    if (lostBuild) goal = null;
     const gn = goalNow(g), need = goalNeed(g, t, gn), eta = need ? readyIn(t.coins, need, earnPer) : null;
     const goalSaving = !saving && eta !== null && eta <= GOAL_SAVE;
     if (goalSaving) r.goalSaved = (r.goalSaved || 0) + 1;
     if (goal && (goal.what === 'go' || rng.chance(FOLLOW))) { tap = goal; r.goalTaps++; }
     if (!tap) {
-      const all = choices(g, t, rng).filter(c => !(saving || goalSaving) || c.what === 'tower' || c.what === 'upgrade');
+      const all = choices(g, t, rng).filter(c => lostBuild ? c.what === 'upgrade' || (!wallBuild && c.what === 'tower') : !(saving || goalSaving) || c.what === 'tower' || c.what === 'upgrade');
       if (!all.length) { next = at + 1; continue; } // nothing it can pay for: it looks again in a second
       // while it holds the waves no raider comes, so only too few towers for the wave number makes it buy one
       // saving for a goal, only a vault under VAULT_LOW makes it buy (not a raider or two, nor towers against the wave)
@@ -201,7 +207,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
     // saving for the Capital's first building, only a vault at the strip's own fight line (FIGHT_LOW, where it turns to
     // "Stop the war wagon") makes it buy (clarity fix 3b part 2d: at VAULT_LOW, 17 of 25 hearts with "about 1 min to go"
     // took 42K of a 43.5K save on seed 1, and the save broke at every wave of a wall on seeds 5 and 6)
-    const weak = saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t, gn && gn.next === 'institution' ? FIGHT_LOW : VAULT_LOW) && !goalTower(g, t, gn) : short(t, lastLeak[t.id]);
+    const weak = lostBuild || (saving ? t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER) : goalSaving ? hurting(t, gn && gn.next === 'institution' ? FIGHT_LOW : VAULT_LOW) && !goalTower(g, t, gn) : short(t, lastLeak[t.id]));
       const pool = weak ? all.filter(c => c.what === 'tower' || c.what === 'upgrade') : all.filter(c => c.what === 'building' || c.what === 'research');
       const best = (pool.length ? pool : all).slice().sort((a, b) => b.value - a.value)[0];
       if (weak && !pool.length) { next = at + 1; continue; } // it wants a tower and waits for the coins

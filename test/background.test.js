@@ -80,16 +80,20 @@ test('a weak town away loses its vault once, holds its own waves, and starts aga
   assert.equal(h.G.waves.phase, 'wave');
 });
 
-test('in play a fallen vault does not hold the waves', () => {
+// in play the first fall does not hold; the second in a row with no new best wave does (the Gulch's loss loop box,
+// PLAN.md M6a: the newcomer's Ridge fell 17-33 times in play on its climb to wave 52)
+test('in play a fallen vault holds the waves only on the second fall in a row with no new best wave', () => {
   const { g, G } = setup('b4', [tower(0, 'crossbow', 1)]);
   g.go('gulch');
   G.wave = 12; G.bestWave = 12;
   const ev = g.bus.record();
   run(g, 10 * 60);
   const br = ev.filter(([n, e]) => n === 'breach' && e.town === 'gulch');
-  assert.ok(br.length >= 1);
+  assert.ok(br.length >= 2);
   assert.equal(br[0][1].held, false);
-  assert.equal(!!G.waves.autoHold, false);
+  assert.equal(br[1][1].held, true);
+  assert.equal(br.length, 2, 'held after the second, so no third');
+  assert.equal(!!G.waves.autoHold, true);
 });
 
 test('away, a boss that gets through loses the wave: back two waves and held', () => {

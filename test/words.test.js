@@ -121,3 +121,14 @@ test('the strip lines of the newcomer climb fix', async () => {
   ];
   for (const [got, want] of lines) { assert.equal(got, want); assert.deepEqual(textIssues(got), [], got); }
 });
+
+test('the strip lines of the Gulch loss loop fix', async () => {
+  const { RESUME_WALL, WALL_WORDS } = await import('../src/core/goals.js');
+  const { lostCard } = await import('../src/ui/lost.js');
+  const lines = [
+    [RESUME_WALL.text, 'Tap a tower and upgrade it, then tap Resume waves'],
+    [WALL_WORDS.go('Copper Gulch'), 'Tap Map, Copper Gulch, then upgrade its towers'],
+    [lostCard({ def: { name: 'Iron Ridge', boss: 'train' }, lost: { why: 'vault', wave: 45, back: 43, coins: 0 }, waves: {} }).lines[0], 'Your vault fell again. You dropped back to wave 43.'],
+  ];
+  for (const [got, want] of lines) { assert.equal(got, want); assert.deepEqual(textIssues(got), [], got); }
+});
