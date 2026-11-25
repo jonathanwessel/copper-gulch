@@ -206,7 +206,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', titled('Auto'), autoSheet(game, town, () => openResearch())); };
   const openArms = () => sheets.open('arms', titled('To arms'), armsSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', titled('Perks'), perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
-  const openIncome = () => sheets.open('income', 'Coins a second', incomeSheet(income));
+  const openIncome = () => sheets.open('income', 'Where coins come from', incomeSheet(income)); // its rows say a second or a minute (fresh-eyes read of 2026.11.24-11)
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
   const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id), capital: openCapital }));
@@ -363,7 +363,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const kr = el('div', 'row keeprow switchrow');
     if (!isGrid(b.makes)) kr.append(sell); // power is never sold
     if (L && selling && Object.entries(TOWERS).some(([k, t]) => towerIn(town, k) && (t.goods[town.id] || {})[b.makes])) {
-      const ks = setSwitch(el('button', 'btn small'), STOCK_LABEL, keepOn ? 'On' : 'Off', keepOn); // one name with the Goods sheet (review of 2026.11.20-15)
+      const ks = setSwitch(el('button', 'btn small'), 'Save ' + g.name.toLowerCase() + ' for towers', keepOn ? 'On' : 'Off', keepOn); // its good named, since the Goods sheet's Save for towers picks how much for the whole town (clarity fix 8a) // one name with the Goods sheet (review of 2026.11.20-15)
       ks.id = 'keepTowers';
       ks.addEventListener('click', () => { setReserve(town, b.makes, !keepOn); paintCard(); });
       kr.append(ks);
@@ -414,18 +414,18 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   };
   const haveSig = c => Object.keys(c.goods).map(g => Math.floor(town.goods[g] || 0)).join('/') + ',' + (town.coins >= c.coins);
   /* What a tower buy is short of, in words: "Copper 6 of 10, about 40 s. Upgrade the Smelter to speed it up." */
-  const time = s => { const n = s < 90 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 90 ? ' second' : ' minute') + (n === 1 ? '' : 's'); };
+  const time = s => { const n = s < 60 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 60 ? ' second' : ' minute') + (n === 1 ? '' : 's'); }; // not 84 seconds (fresh-eyes read of 2026.11.24-11)
   const shortText = c => shortfall(town, c).map(s => {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
     if (!b || !town.level(s.maker)) return 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
-    const when = 'You will have enough ' + name.toLowerCase() + (s.seconds < 5 ? ' in a moment.' : ' in about ' + time(s.seconds) + '.');
+    const when = 'Enough ' + name.toLowerCase() + (s.seconds < 5 ? ' in a moment.' : ' in about ' + time(s.seconds) + '.'); // a status, not a narrator (clarity fix 8a: "You will have enough" on the level-20 cards)
     return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
   });
   // names the goods, not amounts: the cost row above has them (review of 2026.11.19-9: "20 copper and 20 bricks are set aside" said the cost twice)
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; return keepLine(g.map(k => GOODS[k].name.toLowerCase()), pathNext ? 'path' : 'upgrade'); };
   // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
-  const soon = s => s.startsWith('You will have enough');
+  const soon = s => s.startsWith('Enough ');
   const bossWords = s => (s || '').replace('{boss}', 'the ' + bossName(town));
   let pathNext = false;
   function paintSpot(i, force) {
@@ -597,13 +597,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // meter: the empire's next step counts a wave or deeds the same way (src/core/goals.js, nextStep)
   // a coin goal also says how soon it is ready if you save, at the empire's income over the last minute (clarity fix 2)
   let earnPer = 0;
-  const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ' · ' + w : ''; };
+  const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ', ' + w : ''; };
+  /* The strip's step, then each fact as its own sentence (clarity fix 8a: "Tap Map, then add a building to the Capital · 21.0K / 40K coins · about 6 min to go" joined three facts with dots). */
+  const joinFact = (t, x) => (x ? t.replace(/[.]?$/, '. ') + x[0].toUpperCase() + x.slice(1) : t);
   /* A place's name never breaks across lines on the strip (review of 2026.11.23-6: "Save coins to open Iron / Ridge"). */
   const NAMES = Object.values(TOWNS).map(t => t.name).filter(n => n.includes(' ')).concat(['the Capital']);
-  const keepNames = s => NAMES.reduce((a, n) => a.split(n).join(n.replace(/ /g, '\u00a0')), s);
+  const NB = String.fromCharCode(160);
+  // and "wave 1" or "level 5" stays on one line too (clarity fix 8a: "start wave / 1" on a phone)
+  const keepNames = s => NAMES.reduce((a, n) => a.split(n).join(n.replace(/ /g, NB)), s).replace(/(wave|level|Wave|Level) (?=[0-9])/g, '$1' + NB);
   // a goal for several towers counts them, "2 of 5", and a coin count names coins (review of 2026.11.23-7)
-  const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return ' · ' + Math.min(a, b) + ' of ' + b; };
-  const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(t) + (g.meter ? (meterWords(g, game) ? ' · ' + meterWords(g, game) : '') : g.need && town.coins < g.need ? ' · ' + fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g)); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
+  const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return Math.min(a, b) + ' of ' + b; };
+  const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(joinFact(t, g.meter ? meterWords(g, game) : g.need && town.coins < g.need ? fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g))); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };

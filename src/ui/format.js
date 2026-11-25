@@ -146,7 +146,15 @@ export function perSecond(n, good) {
    written as fmtLive writes it, rounding down; the rows share its last digit's steps by the largest remainder, so the
    written rows always sum to the written total. A row too small for one step reads "a little", never 0 (review of
    2026.11.20-15: "under 1/s" on a phone and "under 0.1/s" in landscape for the same row, as the total had grown). */
-export const LITTLE = 'a little';
+/* Clarity fix 8a: "a little" beside numbers was flagged twice, so by the twice-flagged rule a row too small for one
+   step says its own number: a second when it is at least 1, else a minute ("2/min"). splitLive marks those rows
+   in under, and they are left out of the sum, which they change by less than its last digit. */
+export const underRate = v => (v >= 1 ? fmtLive(v) : Math.max(1, Math.round(v * 60)) + '/min');
+const perMin = s => /\/min$/.test(s);
+/* A rate row as a bar or a label writes it, "+4.8/s" or "+2/min". */
+export const rateShort = v => '+' + v + (perMin(v) ? '' : '/s');
+/* A rate in a card, in words (clarity fix 8a: "116/s" in a card was flagged twice; the top bar keeps "/s"). */
+export const rateWords = v => (perMin(v) ? v.replace('/min', ' a minute') : v + ' a second');
 const liveStep = n => {
   if (n < 1000) return 1;
   const i = Math.min(SUFFIX.length - 1, Math.floor(Math.log10(n) / 3)), v = n / 10 ** (i * 3);
@@ -163,6 +171,5 @@ export function splitLive(total, values) {
   while (left < 0) { const i = got.indexOf(Math.max(...got)); got[i]--; left++; } // only from float slack
   // whole coins from 10 to 999 are written as whole numbers (the 2026.11.19-6 map read "+9.0/s" and "under 1.0/s" beside +37/s)
   const write = u => (tenths ? (u / 10).toFixed(1) : step === 1 ? String(u) : fmtLive(u * step * (1 + 1e-9)));
-  const under = LITTLE;
-  return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? under : null)) };
+  return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? underRate(values[i]) : null)), under: got.map((u, i) => !(u > 0) && raw[i] > 0) };
 }

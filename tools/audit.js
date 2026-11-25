@@ -99,7 +99,7 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...tapRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules());
   return { problems, unlisted };
 }
 
@@ -215,6 +215,47 @@ export function textRules(debug) {
   p.push(...choiceRules());
   return p;
 }
+/* Every button a card names exists by that name (clarity fix 8a: a map card said "until you tap Resume waves there",
+   and older cards said "Sell" and "Off" for buttons that read Sell spare and Always). Reads every "Tap X" in the
+   explainers, the goals and the quoted strings of src/ui and the strip's code, with each "then Y" or ", Y" after it,
+   and fails a name that is not a word on a button or label in src/ui, or the name of a thing in the world. */
+export const TAP_WORLD = ['stone pad', 'pad', 'mortar pit', 'pair of workers', 'raider', 'tower', 'town', 'good', 'goods', 'button', 'boss bar', 'it', 'coins', 'Share', 'Add to Home Screen', 'new town', 'Capital', 'Back to', 'building', '◂'];
+const worldStart = s => TAP_WORLD.find(w => s.toLowerCase().startsWith(w.toLowerCase()) && w.includes(' ') && !/^[a-z]/i.test(s.slice(w.length, w.length + 1)));
+const TAP_STOP = /[.,!?]| (?:to|and|then|when|if|or|so|for|until|on|while|in|at|there|below|here|again|right|with|from)\b/;
+export function tapNames(text) {
+  const out = [];
+  const name = s => {
+    const w = worldStart(s.trim().replace(/^(?:the|a|an|its|any|your|this|each)\s+/i, ''));
+    if (w) { out.push(w); return; }
+    let n = s.split(TAP_STOP)[0].trim().replace(/^(?:the|a|an|its|any|your|this|each)\s+/i, '').replace(/^level \d+ /, '').replace(/ lot$/, '');
+    if (n && !/^to\b/.test(n)) out.push(n);
+  };
+  for (const sent of text.split(/(?<=[.!?])\s+/)) {
+    const i = sent.search(/\b[Tt]ap /);
+    if (i < 0) continue;
+    const rest = sent.slice(i + 4);
+    name(rest);
+    // what comes after in the same sentence: ", then Y", " then tap Y", " and then Y", ", Y," (a place on the way)
+    for (const m of rest.matchAll(/(?:,| and)? then (?:tap )?([A-Z][^.,!?]*)|, ([A-Z][^.,!?]*)(?=,)/g)) name(m[1] || m[2]);
+  }
+  return out;
+}
+export function tapRules() {
+  const known = new Set(TAP_WORLD.map(s => s.toLowerCase()));
+  const add = s => { if (s) known.add(s.trim().toLowerCase()); };
+  for (const file of [...walk('src/ui'), 'src/main.js'].filter(x => x.endsWith('.js'))) for (const m of stripComments(read(file)).matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) if (m[1].trim().split(/\s+/).length <= 4) add(m[1]);
+  for (const x of [...Object.values(BUILDINGS), ...Object.values(TOWERS), ...Object.values(GOODS), ...Object.values(TOWNS)]) { add(x.name); add(x.short); }
+  for (const set of [...Object.values(PATHS), ...Object.values(FORKS)]) for (const q of Object.values(set)) add(q.name);
+  for (const e of EXPLAINERS) add(e.button);
+  const texts = [];
+  for (const e of EXPLAINERS) texts.push(['explainer ' + e.id, e.text]);
+  for (const g of GOALS) texts.push(['goal ' + g.id, g.text]);
+  for (const file of [...walk('src/ui'), 'src/core/goals.js', 'src/core/stall.js'].filter(x => x.endsWith('.js'))) for (const m of stripComments(read(file)).matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) texts.push([file, m[1]]);
+  const p = [];
+  for (const [where, t] of texts) for (const n of tapNames(t || '')) if (!known.has(n.toLowerCase())) p.push(where + ': names "' + n + '", which is no button or thing on screen, in "' + t + '"');
+  return p;
+}
+
 /* Choices say what they do, not how to use them (games/CLAUDE.md; owner, 2026-11-22: "The strategy should be implied, not
    direct ... AI slop wordy"): each side of a level-5 path or a level-20 fork is at most CHOICE_WORDS words, and never
    advice on where or when to use it. */

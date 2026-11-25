@@ -8,7 +8,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
-import { fmt, fmtLive, splitLive, vaultCount, LITTLE } from './format.js';
+import { fmt, fmtLive, splitLive, vaultCount, rateShort, rateWords } from './format.js';
 import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
@@ -34,7 +34,7 @@ export function badgeRates(total, infos) {
   const sp = splitLive(total, ids.map(id => (sendsOnly(infos[id]) ? 0 : infos[id].income))), out = {}, nums = {};
   ids.forEach((id, i) => {
     const v = sp.rows[i]; nums[id] = v || '0';
-    out[id] = v ? (v === LITTLE ? v : '+' + v + '/s') : sendsOnly(infos[id]) ? 'Sends goods' : '+0/s';
+    out[id] = v ? rateShort(v) : sendsOnly(infos[id]) ? 'Sends goods' : '+0/s';
   });
   return { words: out, nums, total: '+' + sp.total + '/s' };
 }
@@ -283,7 +283,7 @@ export function mountMap(root, game, view, shell) {
       const ss = siteState(game, id);
       for (const line of stateLines(ss, { lost: info.alert === 'lost' || info.alert === 'retry' })) kids.push(el('p', 'note state', line)); // the waves now, in words, as its label shows them
       const vs = stat(store + ' can take', vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
-      grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rates.words[id] || '+0/s'));
+      grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rateWords(rates.nums[id] || '0')));
       // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);

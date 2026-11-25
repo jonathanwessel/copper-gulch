@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-11',
+    lines: [
+      'Cards only name buttons that are really there, and say each thing once.',
+      'The map says Wave in 0:43, and a town card uses the same clock.',
+      'Cards show coins as 116 a second, and small amounts show their own number.',
+      'The boss bar shows Health 99% beside its armor.',
+      'A building card switch now names its good, like Save timber for towers.',
+    ],
+  },
+  {
     v: '2026.11.24-10',
     lines: [
       'Tip cards come one at a time, with time to play between them.',

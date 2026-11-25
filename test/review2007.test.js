@@ -9,6 +9,7 @@ import { newGame } from '../src/core/setup.js';
 import { buildTower, towerCost, reserves, setStock, RESERVE } from '../src/core/defense.js';
 import { oldWavesLabel } from '../src/core/explain.js';
 import { priceRow } from '../src/ui/sheets.js';
+import { pctWord } from '../src/ui/explain.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { goodsLine, priceLabel } from '../src/ui/format.js';
@@ -49,7 +50,8 @@ test('the price bar starts with the price in one form, and its end word is only 
   for (const s of [1, .7, .5, .2, .02]) assert.ok(['Full price', 'Down 30%', 'Down 50%', 'Down 80%', 'Down 98%'].includes(priceWord(s)));
   const sheets = read('src/ui/sheets.js');
   assert.equal(priceRow(2, 1)[0], priceLabel(2), 'the row starts with the price'); // what the row shows, not its source (PLAN.md, word tests)
-  assert.match(sheets, /explainBox\(ex, \{ total: null \}\)/);
+  // an opened price says each move as a share, never a bare factor (clarity fix 8a)
+  assert.deepEqual([.66, 1.15, .004].map(pctWord), ['Down 34%', 'Up 15%', 'Down 99%']); void sheets;
 });
 
 test('the old-wave damage row says why the wave is easier, short beside × 3', () => {

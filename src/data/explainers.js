@@ -10,6 +10,7 @@
 import { TOWNS } from './towns/index.js';
 import { ARMS } from './arms.js';
 import { GOODS } from './goods.js';
+import { BUILDINGS } from './buildings.js';
 import { BOOM } from '../core/market.js';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
@@ -48,7 +49,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-won', town: 'drycreek', now: true, covers: ['outpost:won'], go: 'gulch', button: 'Play Copper Gulch',
     title: 'Copper Gulch is open',
-    text: 'You beat wave 10 at Dry Creek. Tap Play Copper Gulch to start building there. Dry Creek keeps making coins while you are away.',
+    text: 'You beat wave 10 at Dry Creek. Tap Play Copper Gulch to start building there. Small raids keep coming to Dry Creek, and its Crossbows hold them off.',
     when: h => h.won,
   },
   // any town: the raider card (owner, 2026-11-22), the first time a raider out on the road carries an effect, or from wave 4
@@ -62,14 +63,14 @@ export const EXPLAINERS = [
   {
     id: 'worker-tap', now: true, covers: ['workercard'],
     title: 'Your workers',
-    text: 'Your workers are fighting by the road, and their buildings make nothing until they go back. Tap a pair of workers to see when they go back.',
+    text: 'Your workers are fighting by the road. Their buildings make nothing while they are out. Tap a pair of workers to see their time left.',
     when: h => !!h.workerOut, at: h => (h.workerOut ? { worker: h.workerOut } : null),
   },
   // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
   {
     id: 'boss-bar', now: true, covers: ['bossbar'],
     title: 'The boss bar',
-    text: 'A boss changes when it is badly hurt. Tap this bar to see it.',
+    text: 'Bosses change when they are badly hurt. Tap the boss bar to see what your towers did to it.',
     when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch
@@ -108,7 +109,9 @@ export const EXPLAINERS = [
   {
     id: 'reserve', covers: ['reserve'],
     title: 'Saved for towers',
-    text: "Your town saves goods for the next two upgrades of every tower and two new towers. It does not sell them, and other buildings leave them alone. To use all of a good, tap its building and switch Save for towers off.",
+    text: 'Your town keeps goods for the next upgrades of every tower and for new towers. Kept goods are never sold or used by other buildings. To sell all of a good, tap its building and switch Save for towers off.',
+    // the switch on the card names its good (clarity fix 8a: one name, Save for towers, was on two different controls)
+    say: h => { const b = BUILDINGS[h.keptPlot], g = b && GOODS[b.makes]; return g ? 'Your town keeps goods for the next upgrades of every tower and for new towers. Kept goods are never sold or used by other buildings. To sell all of your ' + g.name.toLowerCase() + ', tap the ' + b.name + ' and switch Save ' + g.name.toLowerCase() + ' for towers off.' : null; },
     when: h => h.towers.length > 0 && h.keptPlot !== null && h.t > 45, at: h => ({ plot: h.keptPlot }),
   },
   {
@@ -120,7 +123,7 @@ export const EXPLAINERS = [
   {
     id: 'waves', now: 1, covers: ['call'],
     title: 'Waves',
-    text: 'Raiders come in waves. Each raider that gets through lowers the number by the heart. Tap Call now to start the next wave early and get bonus coins. Tap it right away and the wave has more raiders.',
+    text: 'Raiders come in waves. Each raider that gets through lowers the number by the heart. Tap Call now to bring the next wave early. The sooner you call, the more raiders come and the more bonus coins you get.',
     when: h => h.towers.length > 0 || h.phase === 'wave', at: () => ({ el: '#wave' }),
   },
   {
@@ -144,7 +147,7 @@ export const EXPLAINERS = [
   {
     id: 'vault', town: 'gulch', now: true, covers: ['vault', 'breach'],
     title: 'Your vault took a hit',
-    text: 'Every raider that gets through hits the vault. The heart at the top shows how many hits it has left. Each wave you beat mends it a little. If the heart reaches 0, you lose coins and go back two waves. Build more towers or upgrade the ones you have.',
+    text: 'Every raider that gets through hits the vault. The heart at the top counts the hits the vault can still take. Each wave you beat gives some hits back. At 0 you lose coins and go back two waves.',
     // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
     // 2026.11.23-11: on a phone the card lay over the top bar and its heart)
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ el: '#vaultBtn' }),
@@ -152,7 +155,7 @@ export const EXPLAINERS = [
   {
     id: 'milestone', covers: ['milestone', 'upgrade'],
     title: 'Milestones',
-    text: 'At levels 10, 25, 50 and 100, a building makes twice as much. Tap Makes on its card to see how the number adds up.',
+    text: 'At levels 10, 25, 50 and 100, a building makes twice as much.',
     // when the first level 10 is one level away (clarity fix 7: it came at minute 4 with levels at 6)
     when: h => h.anyLevel >= 9, at: h => ({ plot: h.topBuilding }),
   },
@@ -287,7 +290,7 @@ export const EXPLAINERS = [
   {
     id: 'map', covers: ['map'],
     title: 'The map',
-    text: 'Tap Map to see all your towns. Tap a town there, then tap Play to go to it. A red dot on Map means a town needs you. The thin bar under a town fills as its wave goes on.',
+    text: 'Tap Map to see all your towns. Tap a town there, then tap Play to go to it. A red dot on Map means a town needs you. Under each town you see if it is fighting, waiting for a wave, or on hold.',
     when: h => h.towns > 1 && !h.outpost && h.t > 30, at: () => ({ el: '#mapBtn' }),
   },
   {
@@ -312,7 +315,7 @@ export const EXPLAINERS = [
   {
     id: 'best', town: 'gulch', covers: ['best'],
     title: 'Best against',
-    text: 'Each tower hits some raiders harder. Crossbows are best against horsemen. The Still is best against Brutes. Tap a tower to see what it is best against.',
+    text: 'Each tower hits some raiders harder. Crossbows are best against horsemen. The Still is best against brutes and bosses.',
     when: h => h.wave >= 6 && h.phase === 'wave' && Object.keys(h.kinds).length > 1, at: h => ({ spot: h.kinds.still ?? h.kinds.crossbow ?? Object.values(h.kinds)[0] }),
   },
   {
@@ -375,15 +378,15 @@ export const EXPLAINERS = [
     // the first boom or bust on a good this town shows on its strip (src/core/market.js, GDD.md Market)
     id: 'boom', covers: ['boom'],
     title: 'Booms and busts',
-    text: 'One good sells for more right now. That is a boom. Sometimes a good sells for less instead, a bust. Each lasts ' + BOOM.last + ' sec. Tap the good below and then Sell spare to pick when it sells.',
-    say: h => { const g = GOODS[h.boom.good].name, up = h.boom.f > 1; return g + (up ? ' sells for more right now. That is a boom. Sometimes a good sells for less instead, a bust.' : ' sells for less right now. That is a bust. Sometimes a good sells for more instead, a boom.') + ' Each lasts ' + BOOM.last + ' sec. Tap ' + g + ' below and then Sell spare to pick when it sells.'; },
+    text: 'Right now one good sells for more than usual. A price that jumps up is a boom, and one that drops is a bust. Each lasts ' + BOOM.last + ' sec. Tap the good below, then Sell spare, to pick when it sells.',
+    say: h => { const g = GOODS[h.boom.good].name, up = h.boom.f > 1; return 'The price of ' + g.toLowerCase() + (up ? ' is up right now.' : ' is down right now.') + ' A price that jumps up is a boom, and one that drops is a bust. Each lasts ' + BOOM.last + ' sec. Tap ' + g + ' below, then Sell spare, to pick when it sells.'; }, // the price is, so a plural good reads right (clarity fix 8a: "Boilers sells for less")
     when: h => !!h.boom && h.boomChip && h.t > 2, at: h => ({ el: '#goodsStrip [data-good="' + h.boom.good + '"]' }),
   },
   {
     // town orders open here (src/core/orders.js, GDD.md Market)
     id: 'orders', covers: ['system:orders'],
     title: 'Town orders',
-    text: 'Buyers in this town want goods by a set time. Tap Goods, then Take on an order. Your town sends the goods by itself. Fill it in time to get coins and reputation. Miss it and your reputation falls.',
+    text: 'Buyers in this town want goods by a set time. Tap Goods, then Take on an order. Your town sends the goods by itself. Fill it in time to get coins and reputation. More reputation brings rush orders, which pay more. Miss one and your reputation drops.',
     when: h => !!h.ordersOpen && !!h.tabs.goods && h.t > 2, at: () => ({ el: '#goodsBtn' }),
   },
   {
@@ -434,7 +437,7 @@ export const EXPLAINERS = [
   {
     id: 'found-falls', covers: ['found:falls'],
     title: 'Silver Falls',
-    text: 'Silver Falls is in sight. Tap Map, then tap the new town to see what it takes. You need 5 deeds, so sign a charter or two first.',
+    text: 'Silver Falls is in sight. Tap Map, then tap the new town to see what it takes. It needs 5 deeds. Each charter you sign gives you deeds.',
     when: h => h.next.includes('falls'), at: () => ({ el: '#mapBtn' }),
   },
   {

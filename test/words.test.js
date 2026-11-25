@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { oldWavesLabel } from '../src/core/explain.js';
 import { STOCK_LABEL, STOCK_CHOICES, stockWords } from '../src/ui/sheets.js';
-import { splitLive, LITTLE, MODE_WORDS, goodsSwitch } from '../src/ui/format.js';
+import { splitLive, MODE_WORDS, goodsSwitch, rateWords, rateShort } from '../src/ui/format.js';
 import { textIssues } from '../tools/audit.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
@@ -20,8 +20,10 @@ test('the words on screen today', () => {
   assert.equal(STOCK_LABEL, 'Save for towers');
   assert.deepEqual(STOCK_CHOICES.map(c => c[1]), ['Normal', 'Lots']);
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
-  assert.equal(LITTLE, 'a little');
-  assert.deepEqual(splitLive(5.49, [4.79, .66, .04]).rows, ['4.8', '0.6', LITTLE]);
+  // clarity fix 8a: a row too small for a step says its number, and a card says a rate in words
+  assert.deepEqual(splitLive(5.49, [4.79, .66, .04]).rows, ['4.8', '0.6', '2/min']);
+  assert.deepEqual(['116', '2/min'].map(rateWords), ['116 a second', '2 a minute']);
+  assert.deepEqual(['116', '2/min'].map(rateShort), ['+116/s', '+2/min']);
   assert.deepEqual(MODE_WORDS, { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' });
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Always');
   // the raider card (owner, 2026-11-22)
@@ -37,19 +39,19 @@ test('the words on screen today', () => {
   assert.deepEqual(priceRow(.5, 1.3), ['Under 1 coin each', 'Up 30%']);
   // the speaker button reads the card's own words (owner, 2026-11-22)
   assert.equal(sayable('Big Shell', 'Hits x2 · slower'), 'Big Shell. Hits 2 times, slower.');
-  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Up next', 'a little', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
+  for (const s of ['Won last time', 'Save for towers', BEST_LABEL, 'Read cards aloud', 'Read aloud', 'Stop reading', 'Starts the next research in this town by itself.', 'Up next', 'Coins a second', ...Object.values(MODE_WORDS)]) assert.deepEqual(textIssues(s), [], s);
 });
 
 test('the explainers name the controls by their words on screen', async () => {
   const by = id => EXPLAINERS.find(e => e.id === id).text;
   assert.match(by('reserve'), /switch Save for towers off/);
-  assert.match(by('boom'), /then Sell spare to pick when it sells/);
+  assert.match(by('boom'), /then Sell spare, to pick when it sells/);
   const { priceWord } = await import('../src/ui/sheets.js');
   assert.deepEqual([1.6, 1, .6].map(priceWord), ['Up 60%', 'Full price', 'Down 40%']);
   assert.match(by('stock'), /^Tap Lots/);
   assert.match(by('mortar'), /A dark spot shows where each one will land/);
-  assert.match(by('map'), /thin bar under a town/);
-  assert.match(by('vault'), /The heart at the top shows how many hits it has left/); // words read of 2026.11.23-11: tie the vault to the heart
+  assert.match(by('map'), /Under each town you see if it is fighting/);
+  assert.match(by('vault'), /The heart at the top counts the hits the vault can still take/); // words read of 2026.11.23-11: tie the vault to the heart
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
 });
 
@@ -91,7 +93,7 @@ test('the strip lines of clarity fix 3b part 2', async () => {
   assert.equal(CAPITAL_HOLD.text, 'Tap Hold waves while you save for the Capital');
   // part 2b: the Capital's gate passing
   const { capitalReadyWords } = await import('../src/ui/capital.js');
-  assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), 'Iron Ridge beat wave 30. The Capital costs 25K coins.');
+  assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), "Iron Ridge's best wave is 30. The Capital costs 25K coins.");
   assert.deepEqual(textIssues(capitalReadyWords({ town: 'ridge', coins: 25000 })), []);
   const text = id => GOALS.find(g => g.id === id).text;
   assert.equal(text('r-steel'), 'Tap the Steel Mill lot, then tap Build');

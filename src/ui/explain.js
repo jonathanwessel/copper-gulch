@@ -3,7 +3,7 @@
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
 import { heart } from './heart.js';
-import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive, LITTLE } from './format.js';
+import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive, rateWords } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -85,14 +85,17 @@ export function mulShown(ex) {
 }
 
 /* The breakdown box: one row per part, then the total. */
-export function explainBox(ex, { extra = {}, total = 'Total' } = {}) {
+/* A factor on a price as how far it moves it, "Down 34%" or "Up 15%" (clarity fix 8a: "Sold a lot lately × 0.66" was a
+   bare number beside the row's "Down 34%"). Never 0%, and a drop stops at 99%. */
+export const pctWord = m => (m >= 1 ? 'Up ' + Math.max(1, Math.round((m - 1) * 100)) : 'Down ' + Math.min(99, Math.max(1, Math.round((1 - m) * 100)))) + '%';
+export function explainBox(ex, { extra = {}, total = 'Total', pct = false } = {}) {
   const box = el('div', 'explain why');
   // the old-waves row's label is the wave bar's gold wave number (review of 2026.11.23-9)
   const row = (a, b, cls, old) => { const r = el('div', cls); r.append(el('span', old ? 'oldwave' : null, a), el('b', null, b)); box.append(r); };
   const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
   // a price that reads "almost 0 coins": a factor under 0.01 reads "÷ 2,000" with it
   const almost = ex.unit === 'coins' && shownNum('coins', ex.value) === 'almost';
-  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul), null, r.old);
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : pct ? pctWord(r.mul) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul), null, r.old);
   if (total && (ex.rows.length > 1 || ex.unit === 'reach')) row(total, unitText(ex.unit, ex.value, extra), 'total'); // total null: the price bar above says it
   return box;
 }
@@ -108,9 +111,9 @@ export function incomeSheet(income) {
     const paint = () => {
       // the rows add up to the total as written (review of 2026.11.19-5: 4.7 + 0.6 + 0.0 under +5.4/s)
       const ex = income(), sp = splitLive(ex.value, ex.rows.map(r => r.value));
-      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, (v === LITTLE ? v : '+' + v + '/s')]);
+      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, rateWords(v)]); // in words in a card (clarity fix 8a), the top bar keeps /s
       if (!rows.length) rows.push(['No coins in the last minute', '']);
-      else rows.push(['Total', '+' + sp.total + '/s', 'total']);
+      else rows.push(['Total', rateWords(sp.total), 'total']);
       const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), mulText(r.mul)]);
       const s = JSON.stringify([rows, b]);
       if (s === sig) return; sig = s;

@@ -59,7 +59,7 @@ export function waveInfo(town) {
     lines.push(plural(left, 'raider') + ' left.');
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
-  if (town.won) lines.push('Won. Light raids keep coming and your towers hold them.');
+  if (town.won) lines.push('Won. Small raids keep coming, and your towers hold them.'); // the map card's words (state.js)
   lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : (town.won ? 'The next raid comes in ' : 'It comes in ') + Math.ceil(ws.timer) + ' seconds.');
   if (bossWave(town, w)) lines.push('A boss wave. The ' + FOES[boss].name.toLowerCase() + ' comes last. Stop it to pass.');
   const kinds = new Set();

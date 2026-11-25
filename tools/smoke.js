@@ -436,16 +436,16 @@ async function run() {
       const reserve = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {};
         CG.play.open('camp'); await wait(100);
-        out.says = /Save for towers · On/.test(document.getElementById('card').textContent);
+        out.says = /Save timber for towers · On/.test(document.getElementById('card').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.off = !!t.reserveOff.timber && !t.keep.timber && /Off/.test(document.getElementById('keepTowers').textContent);
         document.getElementById('keepTowers').click(); await wait(50);
         out.on = !t.reserveOff.timber && t.keep.timber > 0;
         CG.town.pause('smoke', true); t.goods.timber = 0; CG.play.openSpot(3); await wait(400); // paused, so the camp makes none meanwhile
         const sh = document.querySelector('#card .short, #card .soon'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
-        out.short = !!sh && /Lumber Camp|enough timber in about/.test(sh.textContent); // a wait under 20 s has no advice
-        // "You will have enough timber in about ..." is good news: plain ink, not red (#f07067)
-        out.calm = !!sh && (/^You will have enough/.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
+        out.short = !!sh && /Lumber Camp|Enough timber in about/.test(sh.textContent); // a wait under 20 s has no advice
+        // "Enough timber in about ..." is good news: plain ink, not red (#f07067)
+        out.calm = !!sh && (/^Enough /.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
         out.haveNeed = low.some(x => /^\d+ timberhave 0$/.test(x)); // the price, then have under it, red when short (review of 2026.11.20-14)
         // coins too, kept up with the purse in place (review 2026-11-18): short shows red, enough shows plain
         // (the card is rebuilt when the coins cross the price, so the cell is looked up again each time)
@@ -932,7 +932,7 @@ async function run() {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {}, sheet = document.getElementById('sheet'), card = document.getElementById('card');
         const box = () => card.querySelector('.explain.why');
         document.getElementById('coins').click(); await wait(700);
-        out.income = !sheet.hidden && sheet.dataset.id === 'income' && /Selling timber/.test(sheet.textContent) && /^\+.*\/s$/.test(sheet.querySelector('.explain .total b')?.textContent || '');
+        out.income = !sheet.hidden && sheet.dataset.id === 'income' && /Selling timber/.test(sheet.textContent) && / a second$/.test(sheet.querySelector('.explain .total b')?.textContent || '');
         document.getElementById('sheetClose').click(); await wait(100);
         document.getElementById('vaultBtn').click(); await wait(300);
         out.vault = !sheet.hidden && sheet.dataset.id === 'vault' && /Hits left/.test(sheet.textContent) && /War wagon/.test(sheet.textContent);
@@ -993,7 +993,7 @@ async function run() {
         out.welcome = CG.coach.current === 'dc-welcome';
         CG.coach.skipAll(); await wait(100);
         // the goal strip starts on the first Crossbow, with the spotlight on a stone pad
-        const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent, mk = document.getElementById('goalMark');
+        const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent.replace(/\s/g, ' '), mk = document.getElementById('goalMark');
         out.goalFirst = /^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(gt()); // or what to wait for, until a Crossbow can be paid
         for (let i = 0; i < 10 && mk.hidden; i++) await wait(100); // the frame is placed five times a second
         out.goalMark = !mk.hidden;
@@ -1016,7 +1016,7 @@ async function run() {
           cb.click(); await wait(300); await wait(1800);
         } else out.goalCall = true; // wave 1 came on its own first: the step is done
         // with the lot's price as have / need (clarity pass)
-        out.goalNext = /^Tap the Copper Camp lot, then tap Build( · \d+ \/ \d+)?$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
+        out.goalNext = /^Tap the Copper Camp lot, then tap Build(\. \d+ \/ \d+ coins.*)?$/.test(gt()) && !!g.shared.goals.done['dc-tower'] && !!g.shared.goals.done['dc-stone2'];
         const mr = mk.getBoundingClientRect(), tr = document.querySelector('.tag[data-plot="dmine"]').getBoundingClientRect();
         out.goalMarkOnTag = !mk.hidden && mr.left <= tr.left && mr.right >= tr.right && mr.top <= tr.top && mr.bottom >= tr.bottom;
         const r = gl.getBoundingClientRect(); out.goalOnScreen = r.left >= 0 && r.right <= innerWidth + .5 && r.bottom < innerHeight / 2;
@@ -1230,7 +1230,7 @@ async function run() {
         const read = () => Object.fromEntries([...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden && CG.game.towns[b.dataset.site]).map(b => [b.dataset.site, { w: b.offsetWidth, h: b.offsetHeight, word: b.querySelector('.sword').textContent, mark: b.querySelector('.smark').dataset.mark, shown: !b.querySelector('.mstate').hidden }]));
         const a = read(); await new Promise(r => setTimeout(r, 2100)); const b = read(), out = [];
         for (const [id, x] of Object.entries(b)) {
-          if (!x.shown || !x.mark || !/^(Fighting|On hold|No towers|Retry soon|(Next|Raid) in \d:\d\d)$/.test(x.word)) out.push(id + ' shows "' + x.word + '"');
+          if (!x.shown || !x.mark || !/^(Fighting|On hold|No towers|Retry soon|(Wave|Raid) in \d:\d\d)$/.test(x.word)) out.push(id + ' shows "' + x.word + '"');
           if (CG.game.towns[id].won && !x.word.startsWith('Raid in') && x.word !== 'Fighting') out.push(id + ' is won but shows "' + x.word + '"');
           if (a[id] && (a[id].w !== x.w || a[id].h !== x.h) && a[id].word.split(' ')[0] === x.word.split(' ')[0]) out.push(id + ' changed size ' + a[id].w + 'x' + a[id].h + ' to ' + x.w + 'x' + x.h);
         }

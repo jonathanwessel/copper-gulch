@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.24-10",
-  "notes": "Tip cards come one at a time with play between them, and cards about what to do now come first"
+  "version": "2026.11.24-11",
+  "notes": "Cards name only buttons that exist, rates read 116 a second, the boss bar shows Health and the map says Wave in"
 }

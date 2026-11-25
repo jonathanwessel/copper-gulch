@@ -40,7 +40,7 @@ function eta(game, o, running = false) {
    label did not say what is sent). */
 export const sentWords = a => 'Sent ' + fmt(Math.floor(a.got)) + ' of ' + fmt(a.need) + ' ' + lower(a.good);
 /* The toast when the Capital's town first beats its wave (clarity fix 3b part 2b). */
-export const capitalReadyWords = e => (TOWNS[e.town] || { name: e.town }).name + ' beat wave ' + CAPITAL_DEF.found.wave + '. The Capital costs ' + fmt(e.coins) + ' coins.';
+export const capitalReadyWords = e => (TOWNS[e.town] || { name: e.town }).name + "'s best wave is " + CAPITAL_DEF.found.wave + '. The Capital costs ' + fmt(e.coins) + ' coins.';
 /* The toast when a rush contract's clock runs out (clarity fix 3b part 3a). */
 export const contractMissed = e => 'The rush contract for ' + lower(e.good) + ' ran out of time. The ' + lower(e.good) + ' sent stay at the Capital.';
 /* A kind's tag in front of a contract's name, as town orders show Rush (src/ui/sheets.js). */

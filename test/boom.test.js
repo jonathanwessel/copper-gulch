@@ -179,7 +179,7 @@ test('the words: modes, the time left and the explainer', () => {
   const h = f => ({ boom: { good: 'ore', f, left: 80 }, boomChip: true, t: 5 });
   assert.ok(e.when(h(BOOM.up))); assert.ok(!e.when({ ...h(BOOM.up), boomChip: false }), 'only when its good is on the strip');
   for (const f of [BOOM.up, BOOM.down]) { const s = e.say(h(f)); assert.match(s, /Copper ore/); assert.match(s, /Sell spare/); assert.doesNotMatch(s, /[:;]/); }
-  assert.match(e.say(h(BOOM.up)), /for more/); assert.match(e.say(h(BOOM.down)), /for less right now/);
+  assert.match(e.say(h(BOOM.up)), /is up right now/); assert.match(e.say(h(BOOM.down)), /is down right now/);
 });
 
 test('no boom before a second town opens: Dry Creek and the first Gulch hour play as before', () => {

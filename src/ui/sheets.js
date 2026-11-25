@@ -224,10 +224,11 @@ export function goodsSheet(game, town, focus = null) {
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1 }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null })])); }
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null, pct: true })])); }
         const sat = saturation(game, g);
         const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
-        if (r.level.textContent !== pw) r.level.textContent = pw;
+        const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
+        if (r.level.textContent !== pw1) r.level.textContent = pw1;
         if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
         setSwitch(r.sw, 'Sell spare', MODE_WORDS[mode], selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)

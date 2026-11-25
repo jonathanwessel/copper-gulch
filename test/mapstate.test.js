@@ -22,9 +22,9 @@ test('clock and time words', () => {
 test('a town counting down, fighting and on hold reads Next, Fighting and On hold, with the raiders left', () => {
   const g = newGame('ms1'), t = g.town;
   let s = siteState(g, t.id);
-  assert.equal(s.state, 'next'); assert.equal(stateWord(s), 'Next in ' + clock(t.waves.timer)); assert.equal(stateMark(s), 'clock');
+  assert.equal(s.state, 'next'); assert.equal(stateWord(s), 'Wave in ' + clock(t.waves.timer)); assert.equal(stateMark(s), 'clock');
   assert.equal(stateBar(s, t.waves.timer * 2), .5, 'the bar fills as the countdown runs');
-  assert.match(stateLines(s)[0], /^Wave 1 comes in \d+ sec\.$/);
+  assert.match(stateLines(s)[0], /^Wave 1 comes in \d+:\d\d\.$/);
   assert.ok(startWave(g, t));
   s = siteState(g, t.id);
   assert.equal(s.state, 'fight'); assert.equal(stateWord(s), 'Fighting'); assert.equal(stateMark(s), 'swords');
@@ -39,7 +39,7 @@ test('a town counting down, fighting and on hold reads Next, Fighting and On hol
   s = siteState(g, t.id);
   assert.equal(s.state, 'hold'); assert.equal(stateWord(s), 'On hold'); assert.equal(stateMark(s), 'pause');
   assert.equal(stateNeeds(s), true, 'red: the player holds it'); assert.equal(stateBar(s), null);
-  assert.equal(stateLines(s)[0], 'Wave ' + t.wave + ' is on hold until you tap Resume waves there.');
+  assert.equal(stateLines(s)[0], 'Wave ' + t.wave + ' is on hold. Tap Play, then tap Resume waves.');
   assert.deepEqual(stateLines(s, { lost: true }), [], 'a loss has its own line on the card');
 });
 
@@ -51,11 +51,11 @@ test('a won outpost reads Raids with the time to the next raid, and its card say
   assert.equal(s.state, 'raids'); assert.equal(stateMark(s), 'flag'); assert.equal(stateWord(s), 'Raid in ' + clock(s.timer));
   assert.equal(s.raid, d.def.raid);
   const lines = stateLines(s);
-  assert.equal(lines[0], 'Won. Light raids keep coming every 2 min. Your towers hold them.');
+  assert.equal(lines[0], 'Won. Small raids keep coming, and your towers hold them.');
   assert.match(lines[1], /^Next raid in .+\.$/);
   assert.equal(waveTitle(d), 'Raids', 'its own wave bar says Raids, not a stuck wave number');
   assert.equal(waveTitle(g.towns.gulch), 'Wave 1');
-  assert.ok(waveLines(d).some(l => l.startsWith('Won. Light raids')));
+  assert.ok(waveLines(d).some(l => l.startsWith('Won. Small raids')));
   // the raid comes and is fought in the background: the label says Fighting
   let seen = false;
   for (let i = 0; i < 4 * 200 && !seen; i++) { g.advance(.25); seen = siteState(g, 'drycreek').state === 'fight'; }
