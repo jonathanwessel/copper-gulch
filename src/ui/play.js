@@ -28,7 +28,9 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '..
 /* A phone turned sideways (the stylesheet's landscape max-height 500px): the strip keeps to one row there (review of
    2026.11.19-13: two rows of up to 10 goods covered a quarter of a 400 px high screen). */
 const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
-const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
+/* Beside a side card the strip takes a third row when the goods need it, so none hides behind a more box while a card
+   is open (clarity fix 8c: the Ridge in landscape showed "3 more" in place of three counts). */
+const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : strip.classList.contains('beside') ? 3 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords, readyIn, readyWords } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
@@ -39,7 +41,7 @@ import { workerCard } from './worker.js';
 import { contractDone, contractMissed, capitalSheet, capitalReadyWords } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, MODE_WORDS } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, modeState } from './format.js';
 import { heart } from './heart.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
@@ -353,7 +355,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     buy.disabled = !!miss.length || town.coins < c;
     buy.addEventListener('click', () => { if (build(game, town, id)) paintCard(); });
     row.append(buy);
-    const mode = sellMode(town, b.makes), selling = mode !== 'off', sell = setSwitch(el('button', 'btn small'), 'Sell spare ' + g.name.toLowerCase(), MODE_WORDS[mode], selling); // one line, under Upgrade when both do not fit (.sellrow); the Goods sheet picks Skip busts or Booms only
+    const mode = sellMode(town, b.makes), selling = mode !== 'off', sell = setSwitch(el('button', 'btn small'), 'Sell spare ' + g.name.toLowerCase(), modeState(mode), selling); // one line, under Upgrade when both do not fit (.sellrow); the Goods sheet picks Skip busts or Booms only
     sell.id = 'sell';
     sell.title = cap(sellsFor(paysEach(game, town, b.makes)));
     sell.addEventListener('click', () => { setSellMode(town, b.makes, selling ? 'off' : 'always'); paintCard(); });
@@ -462,7 +464,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     sellHead.addEventListener('click', () => { sellTower(game, town, i); paintCard(); });
     // a path or fork name says which tower it is too, as its tip card names the tower (review of 2026.11.24-2: "Brittle
     // Ice" on the card, "Frost Lens" on the tip card)
-    const nm = el('div', 'namecol'); nm.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', (fk || p ? d.name + ' · ' : '') + 'Level ' + t.level)); // the level drops under a long name (review of 2026.11.23-6: the Sharpshooter card scrolled sideways on a phone)
+    const nm = el('div', 'namecol'); nm.append(el('h2', null, fk ? fk.name : p ? p.name : d.name), el('span', 'lv', 'Level ' + t.level + (fk || p ? ' ' + d.name : ''))); // "Level 19 Crossbow" under "Longbow" says which name is the tower (clarity fix 8d) // the level drops under a long name (review of 2026.11.23-6: the Sharpshooter card scrolled sideways on a phone)
     head.append(nm, sellHead, x); card.append(head);
     const stats = el('div', 'explain'), ex = explainTower(town, t), whyBox = [], statRow = {};
     // Damage, Shots and Range can be tapped: what makes the number shows under the list
@@ -669,7 +671,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     let sw = '';
     // one row beside a side card only when the goods it must show fit in it (the tower goods always show, so on a wide
     // path card they ran under the card)
-    const oneFits = w => { const n = Math.max(3, Math.floor(w / 84)), f = stripFit(town, n - (gridMaker() ? 1 : 0)); return f.list.length + (f.more ? 1 : 0) + (gridMaker() ? 1 : 0) <= n; };
+    const oneFits = w => { const n = Math.max(3, Math.floor(w / 84)), f = stripFit(town, n - (gridMaker() ? 1 : 0)); return !f.more && f.list.length + (gridMaker() ? 1 : 0) <= n; }; // one row only when every good is in it: a more box there hid counts while a card was open (clarity fix 8c)
     // (a side sheet too: review of 2026.11.19-7, the Perks and Menu sheets cut "Clay 40" in landscape)
     const sheetEl = sheets.current ? document.getElementById('sheet') : null;
     if (!strip.hidden) for (const p of [openId && !card.hidden ? card : null, sheetEl]) {
@@ -682,7 +684,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     { const b = side.getBoundingClientRect(), sb = b.height ? Math.round(b.bottom + 6) : 0; if (sb !== sideBot) { sideBot = sb; ui.style.setProperty('--sidebot', sb + 'px'); } }
     { const sh0 = sheets.current && document.getElementById('sheet'), r = sh0 && sh0.getBoundingClientRect();
       for (const n of side.children) { const c = r && r.height && !n.hidden ? n.getBoundingClientRect() : null, cut = !!(c && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top); if (n.classList.contains('undersheet') !== cut) n.classList.toggle('undersheet', cut); } }
-    if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; } // three columns there, so every name and count fits
+    if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('beside', !!sw); } // three columns there, so every name and count fits
     // a phone held upright with more goods than three columns hold: four smaller chips a row, name under the count, so
     // fewer goods hide behind a more box (review of 2026.11.20-3: "more boxes hide goods")
     const dense = !sw && !shortLand() && innerWidth < 600 && stripGoods(town).length > 6;

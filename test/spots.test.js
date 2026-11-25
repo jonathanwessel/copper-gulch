@@ -73,3 +73,21 @@ test('a place mostly off the screen or under the card counts as out of view', as
   assert.ok(inView(box(100, 450, 200, 550), 400, 800, { l: 10, t: 480, r: 390, b: 800 }) < .5);
   assert.equal(inView(box(100, 100, 200, 200), 400, 800, { l: 10, t: 480, r: 390, b: 800 }), 1);
 });
+
+// clarity fix 8c: in landscape Iron Ridge and Pine Hollow sat near each other on screen, so the point rule shrank both
+// to their names, though the placer had room for both at full size; a full-size trial now decides
+test('two near towns with room around them keep full labels, and with no room they clash', async () => {
+  const { trialClash, crowdedBadges } = await import('../src/ui/map.js');
+  // the landscape map: the Ridge and Pine Hollow side by side, open land round them
+  const boxes = { ridge: box(560, 230, 660, 300), pinehollow: box(690, 270, 800, 330) };
+  const mk = () => Object.keys(boxes).map(id => ({ id, x: boxes[id].x, y: boxes[id].t, w: 150, h: 44 }));
+  let rs = mk();
+  assert.equal(crowdedBadges(rs).size, 2, 'the point rule calls them crowded');
+  spotBadges(rs, boxes, { W: 860, H: 400 });
+  assert.ok(rs.every(r => !trialClash(r, rs, boxes)), 'both fit at full size: ' + JSON.stringify(rs.map(r => [r.id, r.side])));
+  // the same towns packed in a narrow strip of screen with walls of other boxes round them: no free place
+  rs = mk();
+  const avoid = [{ l: 0, t: 0, r: 860, b: 228 }, { l: 0, t: 332, r: 860, b: 400 }, { l: 0, t: 0, r: 555, b: 400 }, { l: 805, t: 0, r: 860, b: 400 }];
+  spotBadges(rs, boxes, { W: 860, H: 400, avoid });
+  assert.ok(rs.some(r => trialClash(r, rs, boxes, avoid)), 'boxed in, a label clashes');
+});

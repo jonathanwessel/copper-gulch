@@ -303,6 +303,11 @@ html.flat .tag { position: static; transform: none !important; }
 @media (orientation: portrait), (min-height: 501px) {
   .play .card { max-height: calc(100% - var(--hudtop, 10px) - 130px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
 }
+/* a wide screen has room beside the card, where the camera puts what it is open for, so the card takes the height and
+   does not scroll (clarity fix 8c: a level 19 tower card scrolled on a desktop under 130 px of empty map) */
+@media (min-width: 1000px) and (min-height: 501px) {
+  .play .card { max-height: calc(100% - var(--hudtop, 10px) - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
+}
 .cardhead > .sellhead { display: inline-flex; white-space: nowrap; flex: none; }
 .sellhead { align-items: center; }
 .sellhead .coin { width: 10px; height: 10px; margin: 0 5px 0 6px; }
@@ -560,6 +565,14 @@ html.flat .tag { position: static; transform: none !important; }
 .stockrow .seglabel { font-weight: 700; font-size: .9rem; white-space: nowrap; }
 .seg { display: inline-flex; gap: 0; }
 .seg > .btn { white-space: nowrap; }
+.stockrow:has(> .stockseg) { flex-wrap: wrap; justify-content: flex-start; gap: 4px 10px; } /* the town's Save for towers: its name, then two choices that say what they keep (clarity fix 8d) */
+.seg.stockseg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+.seg.stockseg > .btn { display: grid; justify-items: start; align-content: start; gap: 1px; margin-left: 0; padding: 5px 8px; text-align: left; white-space: normal; }
+.seg.stockseg > .btn > small { font-weight: normal; font-size: .76rem; line-height: 1.2; opacity: .9; }
+/* rows and Orders snap below the pinned choices, now about 95 px tall (the 54 px left an open row's name under them) */
+.sheetbody:has(> .stockrow > .stockseg) .goods > .option, .sheetbody:has(> .stockrow > .stockseg) .orders { scroll-margin-top: 104px; }
+/* a short landscape sheet has no room to pin the taller choices: they scroll with the goods, so Orders shows under them */
+@media (orientation: landscape) and (max-height: 500px) { .sheetbody > .stockrow:has(> .stockseg) { position: static; margin: 0; padding: 0 0 4px; } .sheetbody:has(> .stockrow > .stockseg) .goods > .option, .sheetbody:has(> .stockrow > .stockseg) .orders { scroll-margin-top: 0; } }
 .seg > .btn + .btn { margin-left: -2px; } /* two buttons that read as one choice, the picked one gold (review of 2026.11.20-15: the copper pill did not look tappable) */
 .sheetbody.more::after { content: ''; position: sticky; bottom: calc(-1 * max(14px, env(safe-area-inset-bottom))); z-index: 3; height: 30px; margin-top: -42px; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .8)); } /* more below the edge (sheets.js moreBelow) */
 /* Sign the charter sits beside Sign now and get, above what it pays, so it shows without a scroll in landscape (clarity fix 8b) */
@@ -664,7 +677,9 @@ html.flat .tag { position: static; transform: none !important; }
 .goods > .option > .btn.switch .pip { width: 100%; box-sizing: border-box; }
 .sellpick > .btn { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; justify-items: start; gap: 2px; text-align: left; white-space: normal; min-height: 36px; padding: 5px 8px; } /* each mode's name over what it does (review of 2026.11.23-1) */
 .sellpick > .btn small { font-weight: normal; opacity: .85; grid-column: 2; }
-.sellpick > .btn .modepic { grid-row: 1 / span 2; }
+.sellpick > .btn .modepic { grid-row: 1; }
+.sellpick > .btn > b.modeline { font-size: .85rem; line-height: 1.25; } /* each mode is its picture and what it does, no name (clarity fix 8d) */
+.btn.switch .pip .modepic { vertical-align: -2px; }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
 /* a cost on a card: the coins, then each good as have / need, red when short */

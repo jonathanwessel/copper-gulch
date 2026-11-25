@@ -51,7 +51,7 @@ test('a won outpost reads Raids with the time to the next raid, and its card say
   assert.equal(s.state, 'raids'); assert.equal(stateMark(s), 'flag'); assert.equal(stateWord(s), 'Raid in ' + clock(s.timer));
   assert.equal(s.raid, d.def.raid);
   const lines = stateLines(s);
-  assert.equal(lines[0], 'Won. Small raids keep coming, and your towers hold them.');
+  assert.equal(lines[0], 'Won. Small raids still come here.');
   assert.match(lines[1], /^Next raid in .+\.$/);
   assert.equal(waveTitle(d), 'Raids', 'its own wave bar says Raids, not a stuck wave number');
   assert.equal(waveTitle(g.towns.gulch), 'Wave 1');

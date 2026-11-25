@@ -104,3 +104,26 @@ test('a finished Thick Walls says how many hearts the vault has now', () => {
   assert.match(w, /^Thick Walls level 1 is done\. The vault has \d+ hearts now\.$/);
   assert.ok(researchCost(t, 'walls') > 0);
 });
+
+// clarity fix 8c: the map's top bar, its labels and its Income card read windowRates, the town's top bar reads
+// explainWindow, and both are one sum (seen red with the map on FlowMeter's few seconds: +2.1/s on the map, +1.6/s in
+// the town, the same moment)
+test('the coin rate in a town and on the map are one number, and the map labels add up to it', async () => {
+  const { windowRates } = await import('../src/core/explain.js');
+  const g = newGame('broke8c'), dc = g.town;
+  dc.goods.stone = 1e3; dc.coins = 1e3;
+  for (const s of [0, 1, 2, 3]) buildTower(g, dc, s, 'crossbow');
+  winOutpost(g, dc); g.go('gulch'); const gt = g.town;
+  gt.coins = 500; gt.goods.timber = 100; buildTower(g, gt, 0, 'crossbow');
+  let checked = 0;
+  for (let s = 0; s < 4 * 240; s++) {
+    step(g);
+    if (s % 8) continue;
+    const ex = explainWindow(g), wr = windowRates(g);
+    assert.equal(ex.value, wr.total, 'the town and the map at ' + s);
+    const sum = Object.values(wr.towns).reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(sum - wr.total) < 1e-9, 'the towns add up to the total');
+    if (wr.total > 0 && wr.towns.drycreek > 0 && wr.towns.gulch > 0) checked++;
+  }
+  assert.ok(checked > 10, 'both places earned ' + checked);
+});

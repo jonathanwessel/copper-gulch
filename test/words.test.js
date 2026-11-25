@@ -16,7 +16,7 @@ import { priceRow, charterWords, boomWords } from '../src/ui/sheets.js';
 import { moreWord } from '../src/ui/explain.js';
 import { sayable } from '../src/audio/speech.js';
 
-test('the words on screen today', () => {
+test('the words on screen today', async () => {
   assert.equal(oldWavesLabel(), 'Wave'); assert.equal(oldWavesLabel({ wave: 7 }), 'Wave 7');
   assert.equal(STOCK_LABEL, 'Save for towers');
   assert.deepEqual(STOCK_CHOICES.map(c => c[1]), ['Normal', 'Lots']);
@@ -25,7 +25,8 @@ test('the words on screen today', () => {
   assert.deepEqual(splitLive(5.49, [4.79, .66, .04]).rows, ['4.8', '0.6', '2/min']);
   assert.deepEqual(['116', '2/min'].map(rateWords), ['116 a second', '2 a minute']);
   assert.deepEqual(['116', '2/min'].map(rateShort), ['+116/s', '+2/min']);
-  assert.deepEqual(MODE_WORDS, { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' });
+  // clarity fix 8d: the two names flagged three times are gone; those modes show their picture and their line
+  assert.deepEqual(MODE_WORDS, { always: 'Always', off: 'Off' });
   assert.equal(goodsSwitch({ selling: true }), 'Sell spare · Always');
   // the raider card (owner, 2026-11-22)
   assert.deepEqual(EFFECT_WORDS, { frozen: 'Frozen', poison: 'Poisoned', rot: 'Rotting', spread: 'Spreads poison', fire: 'On fire', slow: 'Slowed', brittle: 'Extra damage' });
@@ -42,7 +43,16 @@ test('the words on screen today', () => {
   assert.deepEqual(charterWords('Copper Gulch'), { keep: 'Copper Gulch starts over at wave 1 with no buildings, goods or research. You keep your coins, your deeds and your other towns.', deed: 'Each deed gives you 25% more coins in every town, forever.' });
   for (const v of Object.values(charterWords('Iron Ridge'))) assert.deepEqual(textIssues(v), [], v);
   // the review of 2026.11.22-12: the tower that hits a raider hardest is a labeled row, a crashed price says it once
-  assert.equal(BEST_LABEL, 'Best tower');
+  assert.equal(BEST_LABEL, 'Weak to'); // clarity fix 8d: a fact about the raider, not a pick of towers
+  // clarity fix 8d: the town's Save for towers choices say what they keep, one stat name for vault and stockpile, the won
+  // line, and the charter step's two taps
+  {
+    const { stockLine } = await import('../src/ui/sheets.js'), { CAN_TAKE } = await import('../src/ui/map.js'), { WON_LINE } = await import('../src/ui/state.js');
+    assert.deepEqual(['normal', 'lots'].map(stockLine), ['Keeps goods for 2 upgrades of every tower.', 'Keeps goods for 4 upgrades of every tower.']);
+    assert.equal(CAN_TAKE, 'Can take');
+    assert.equal(WON_LINE, 'Won. Small raids still come here.');
+    for (const s of [stockLine('normal'), stockLine('lots'), CAN_TAKE, WON_LINE]) assert.deepEqual(textIssues(s), [], s);
+  }
   assert.deepEqual(priceRow(.02, .01), ['Under 1 coin each', '']);
   assert.deepEqual(priceRow(12, .5), ['12 coins each', 'Down 50%']);
   assert.deepEqual(priceRow(.5, 1.3), ['Under 1 coin each', 'Up 30%']);

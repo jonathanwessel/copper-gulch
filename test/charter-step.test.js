@@ -77,13 +77,13 @@ test('for Silver Falls the climbing town is asked once its deeds make up all tha
   assert.ok(deedsFor(r) >= need - 1);
   const x = nextStep(g);
   assert.equal(x.id, 'charter:ridge:' + deedsFor(r));
-  assert.equal(x.text, 'Tap Perks, then tap Sign the charter for deeds to open Silver Falls', 'it says what the deeds are for, not a second count beside the meter');
+  assert.equal(x.text, 'Tap Perks, then tap Sign the charter', 'its two taps, the deeds in the meter beside it (clarity fix 8d: three things in one line)');
   assert.equal(meterWords(x, g), '1 / ' + need + ' deeds');
   assert.equal(signCharter(g, r), deedsFor({ bestWave: 40, ownEarned: DEEDS.coins * 10 }));
   assert.ok(g.shared.charter.deeds >= need);
 });
 
 test('the charter step lines follow the writing rule', () => {
-  for (const s of ['Tap Map, Copper Gulch, then sign its charter in Perks', 'Tap Perks, then tap Sign the charter to get 1 deed', 'Tap Perks, then tap Sign the charter to get 4 deeds', 'Tap Perks, then tap Sign the charter for deeds to open Silver Falls'])
+  for (const s of ['Tap Map, Copper Gulch, then sign its charter in Perks', 'Tap Perks, then tap Sign the charter to get 1 deed', 'Tap Perks, then tap Sign the charter to get 4 deeds', 'Tap Perks, then tap Sign the charter'])
     assert.deepEqual(textIssues(s), [], s);
 });

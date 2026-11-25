@@ -39,7 +39,6 @@ test('the map card says what the vault takes, and the Capital shows its figure o
   assert.equal(vaultHits({ vault: { hp: 20, max: 20 } }), '20 hits');
   assert.equal(vaultHits({ vault: { hp: 1, max: 20 } }), '1 hit');
   const map = read('src/ui/map.js');
-  assert.match(map, /stat\(store \+ ' can take', vaultHits\(t\)/);
   assert.match(map, /B\.line\.hidden = openId === 'capital'/); // the label is just its name while its card is open
   const cap = read('src/ui/capital.js');
   assert.match(cap, /'You have'/);

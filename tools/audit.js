@@ -99,10 +99,19 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...tapRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...tapRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules(), ...meterRules());
   return { problems, unlisted };
 }
 
+/* One number, one meter (clarity fix 8c): the coins a second on screen come from the income window (windowRates and
+   explainWindow in src/core/explain.js). The map's FlowMeter is for goods on the routes; its coins (meter.income,
+   meter.total) are a second meter over a few seconds, and the map's top bar read it while the town's read the window,
+   so the two showed different numbers for the same purse. No screen code reads them. */
+export function meterRules() {
+  const out = [];
+  for (const f of walk('src/ui').filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line, i) => { if (/meter\.(income|total)\b/.test(line)) out.push(f + ':' + (i + 1) + ' reads the coins of the map meter, read windowRates (one meter for coins on screen)'); });
+  return out;
+}
 /* Code after a line comment never runs. A trailing comment followed by statements ("// why ; this.x = 1") is a bug
    twice over in this repo: raiders never turned (review of 2026.11.20-10), and the raiders' shadows never joined the
    scene (2026.11.21-4). */

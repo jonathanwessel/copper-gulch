@@ -43,12 +43,14 @@ export function stateBar(s, span) {
   return null;
 }
 
+/* A won outpost's first line on its map card and wave card (clarity fix 8d: "and your towers hold them" read as a narrator). */
+export const WON_LINE = 'Won. Small raids still come here.';
 /* The map card's sentences: what the waves do now, with the wave number (the card shows it nowhere else). A loss has
    its own line on the card (src/ui/lost.js) that says why and what to tap, so a hold after a loss adds nothing here. A won outpost says its raids keep coming. */
 export function stateLines(s, { lost = false } = {}) {
   if (!s) return [];
   const out = [];
-  if (s.won) out.push('Won. Small raids keep coming, and your towers hold them.'); // the next line gives the time (fresh-eyes read of 2026.11.24-11: the timing twice)
+  if (s.won) out.push(WON_LINE); // the next line gives the time (fresh-eyes read of 2026.11.24-11: the timing twice)
   if (s.state === 'fight') out.push(s.won ? 'A raid is on now, ' + raiders(s.left) + ' left.' : 'Fighting wave ' + s.wave + ', ' + raiders(s.left) + ' left.');
   else if (s.state === 'next') out.push('Wave ' + s.wave + ' comes in ' + clock(s.timer) + '.'); // the label's clock, one format for one timer (clarity fix 8a)
   else if (s.state === 'raids') out.push('Next raid in ' + clock(s.timer) + '.');

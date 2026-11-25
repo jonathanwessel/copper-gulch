@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-4',
+    lines: [
+      'The coins a second on the map now match the number in each town.',
+      'On a wide screen a tower card fits without scrolling.',
+      'With a card open on a phone turned sideways, every good shows its count.',
+      'Each Sell spare choice shows a small price picture and what it does.',
+      'Save for towers says how much each choice keeps.',
+    ],
+  },
+  {
     v: '2026.11.25-3',
     lines: [
       'Lose the same wave twice and that town stops its waves.',

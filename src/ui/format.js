@@ -60,14 +60,26 @@ export function goodsLine({ have, kept = 0, selling = true, price = 0, open = fa
    Top or High sit). The bar's end word is only ever how high it stands (priceWord). An open breakdown has no total row. */
 export const priceLabel = price => { const s = each(price); return s[0].toUpperCase() + s.slice(1); };
 /* Each sell mode's word (src/core/market.js, SELL_MODES): on its Goods sheet button, its choice and its building card. */
-export const MODE_WORDS = { always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' };
+/* Only Always and Off have a word: "Skip busts" and "Booms only" were flagged three times (reviews of 2026.11.23-1,
+   2026.11.23-6 and 2026.11.25-2), so by the twice-flagged rule the names went, and those two modes show their picture
+   (modeState) with their line in the picker (clarity fix 8d). */
+export const MODE_WORDS = { always: 'Always', off: 'Off' };
 /* What each mode does, one short line under its name in the Goods sheet's picker (review of 2026.11.23-1: "Skip busts"
    and "Booms only" were flagged twice, so the picker says what each does instead of a third wording). */
 export const MODE_LINES = { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price has crashed.', boom: 'Sells only while the price is way up.', off: 'Never sells spare goods.' };
 /* The Goods sheet's button for a good: Sell spare, then its mode. selling false is Off (the old switch). */
 export function goodsSwitch({ selling = true, mode = selling ? 'always' : 'off' }) {
-  return 'Sell spare · ' + MODE_WORDS[mode]; // spare: what the towers do not keep (review of 2026.11.20-6)
+  return 'Sell spare · ' + (MODE_WORDS[mode] || MODE_LINES[mode]); // spare: what the towers do not keep (review of 2026.11.20-6); a mode with no word reads as its line to a screen reader
 }
+/* A sell mode's picture: low, normal and high price, lit where it sells. label: read out in place of the picture. */
+export function modePic(mode, label = null) {
+  const p = document.createElement('span'); p.className = 'modepic'; p.dataset.key = mode;
+  if (label) { p.setAttribute('role', 'img'); p.setAttribute('aria-label', label); } else p.setAttribute('aria-hidden', 'true');
+  for (const [i, on] of MODE_SELLS[mode].entries()) { const b = document.createElement('i'); b.className = (on ? 'on ' : '') + ['low', 'mid', 'high'][i]; p.append(b); }
+  return p;
+}
+/* What a Sell spare switch shows: Always or Off, or the picture of a mode with no word (clarity fix 8d). */
+export const modeState = mode => MODE_WORDS[mode] || modePic(mode, MODE_LINES[mode]);
 /* A boom or bust on a good's price bar: "Boom 1:12", "Bust 0:45" (the time left, at most 4 characters). */
 export function boomWord(f, left) {
   const s = Math.min(599, Math.max(0, Math.ceil(left || 0)));

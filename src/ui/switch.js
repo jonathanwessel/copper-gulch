@@ -3,7 +3,7 @@
    text still reads "Sell timber · On" for the tests and screen readers: the dot is only hidden. on: true lights the
    box, false darkens it, null shows a choice of two (Keep for towers · Normal or Lots) in copper. */
 export function setSwitch(b, label, state, on) {
-  const sig = label + '|' + state + '|' + on;
+  const sig = label + '|' + (typeof state === 'string' ? state : state.dataset.key) + '|' + on; // state: words, or a picture with its key
   if (b.dataset.sw === sig) return b;
   b.dataset.sw = sig;
   b.classList.add('switch');

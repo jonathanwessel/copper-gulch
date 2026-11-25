@@ -414,7 +414,7 @@ export function charterStep(game, target) {
   const p = charterAsk(game, target);
   if (!p) return null;
   const id = p.town.id, name = TOWNS[id].name, meter = target && target.f.deeds ? { meter: g2 => [deedsOf(g2), target.f.deeds], post: ' deeds' } : {};
-  if (game.active === id) return { id: 'charter:' + id + ':' + p.n, charter: id, town: id, text: target && target.f.deeds ? 'Tap Perks, then tap Sign the charter for deeds to open ' + target.name : 'Tap Perks, then tap Sign the charter to get ' + plural(p.n, 'deed'), at: () => ({ el: '#perksBtn' }), done: () => false, ...meter };
+  if (game.active === id) return { id: 'charter:' + id + ':' + p.n, charter: id, town: id, text: target && target.f.deeds ? 'Tap Perks, then tap Sign the charter' : 'Tap Perks, then tap Sign the charter to get ' + plural(p.n, 'deed'), at: () => ({ el: '#perksBtn' }), done: () => false, ...meter };
   return { id: 'charter:' + id + ':there', charter: id, away: true, text: 'Tap Map, ' + name + ', then sign its charter in Perks', at: () => ({ el: game.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
 }
 /* The strip's count for a goal with a meter: "wave 9 / 30", "2 / 5 deeds". */

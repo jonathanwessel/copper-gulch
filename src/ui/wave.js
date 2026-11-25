@@ -6,6 +6,7 @@ import { FOES, WAVE_TYPES } from '../data/foes.js'; // WAVE_TYPES: which raiders
 import { TOWERS } from '../data/towers.js';
 import { bossWave, wavesOf, towerOpen } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
+import { WON_LINE } from './state.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 // a kind's plural: its own (Horsemen), or the name with an s (review of 2026.11.20-6: "Riders" read as "raiders")
@@ -39,7 +40,10 @@ export function bestTower(town, kind) {
 /* A raider row's tower line: the tower that hits it hardest under a small label, or Any when no tower hits it harder
    (review of 2026.11.20-3: the Bandit row looked empty). A label, not a sentence (review of 2026.11.22-12: "Snake Oil
    Still works best" read as "still works best", and as advice). */
-export const BEST_LABEL = 'Best tower'; // review of 2026.11.22-13: "Hits it hardest" could read as what the raider hits
+/* Clarity fix 8d: "Best tower" was flagged a fourth time (built against, or hitting it now?), so the row says a fact
+   about the raider, the tower that does it extra damage, not a pick of towers (review of 2026.11.22-13: "Hits it
+   hardest" could read as what the raider hits). */
+export const BEST_LABEL = 'Weak to';
 /* tower null when no tower hits it harder, and then the row is left out (review of 2026.11.23-7: "Best tower · Any" was
    flagged both as an empty row in 2026.11.20-3 and as filler, so by the twice-flagged rule it goes). */
 export const bestView = (town, kind) => { const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null }; };
@@ -59,7 +63,7 @@ export function waveInfo(town) {
     lines.push(plural(left, 'raider') + ' left.');
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
-  if (town.won) lines.push('Won. Small raids keep coming, and your towers hold them.'); // the map card's words (state.js)
+  if (town.won) lines.push(WON_LINE); // the map card's words (state.js)
   lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : (town.won ? 'The next raid comes in ' : 'It comes in ') + Math.ceil(ws.timer) + ' seconds.');
   if (bossWave(town, w)) lines.push('A boss wave. The ' + FOES[boss].name.toLowerCase() + ' comes last. Stop it to pass.');
   const kinds = new Set();

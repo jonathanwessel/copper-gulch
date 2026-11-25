@@ -183,18 +183,26 @@ export function incomeWindow(game) {
   }
   return h;
 }
+/* Each town's coins a second over the income window, and their total: the one meter the top bar reads in a town and
+   on the map, the map's labels and its Income card (clarity fix 8c: the map read a second meter over a few seconds,
+   so its +N/s did not match the town's). { secs, towns: { id: rate }, total } */
+export function windowRates(game) {
+  const h = incomeWindow(game), a = h[0], b = h[h.length - 1], secs = b.t - a.t, towns = {}; // from the first sample on, as the top bar never sits blank after a load
+  let total = 0;
+  for (const [id, now] of Object.entries(b.tally)) {
+    const was = a.tally[id] || {}; let d = 0;
+    for (const k of Object.keys(now)) { const n = (now[k] || 0) - (was[k] || 0); if (n > 1e-9) d += n; }
+    towns[id] = secs > 0 ? d / secs : 0; total += towns[id];
+  }
+  return { secs, towns, total };
+}
 /* The income explained over the window: the town in play by source, then one row for each other town and outpost. */
 export function explainWindow(game) {
-  const h = incomeWindow(game), a = h[0], b = h[h.length - 1], secs = b.t - a.t, id = game.active; // from the first sample on, as the top bar never sits blank after a load
+  const h = incomeWindow(game), a = h[0], b = h[h.length - 1], secs = b.t - a.t, id = game.active, wr = windowRates(game);
   const ex = explainIncome(game.town, a.tally[id] || {}, b.tally[id] || {}, secs);
-  for (const [oid, now] of Object.entries(b.tally)) {
-    if (oid === id || secs <= 0) continue;
-    const was = a.tally[oid] || {}; let d = 0;
-    for (const k of Object.keys(now)) d += (now[k] || 0) - (was[k] || 0);
-    if (d / secs > 1e-9) ex.rows.push({ key: 'town:' + oid, label: incomeLabel('town:' + oid), value: d / secs });
-  }
+  for (const [oid, v] of Object.entries(wr.towns)) if (oid !== id && v > 1e-9) ex.rows.push({ key: 'town:' + oid, label: incomeLabel('town:' + oid), value: v });
   ex.rows.sort((x, y) => y.value - x.value);
-  ex.value = ex.rows.reduce((s, r) => s + r.value, 0);
+  ex.value = wr.total; // the same sum as the map's top bar, to the last digit
   return ex;
 }
 /* A snapshot for explainEmpireIncome: the town in play's tally and what every town has earned. */

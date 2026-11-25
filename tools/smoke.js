@@ -583,6 +583,24 @@ async function run() {
       for (const [k, v] of Object.entries(ctl)) if (!v) bad.push('Pause and Hold waves: not ' + k);
       await page.evaluate(() => CG.play.openSpot(4)); await sleep(350);
       bad.push(...(await check(page)).map(b => 'spot card: ' + b));
+      // on a desktop a tower's card does not scroll while it fits under the top bar: a level 19 Frost Lens (its upgrade
+      // choice is the longest tower card), and the tower stays in view beside it (clarity fix 8c: it scrolled under 130 px
+      // of empty map; seen red there)
+      if (name === 'desk') {
+        const tc = await page.evaluate(async () => {
+          const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, D = await import('./src/core/defense.js');
+          t.coins = Math.max(t.coins, 1e7); for (const g of ['timber', 'ore', 'copper', 'bricks', 'tools', 'planks', 'clay']) t.goods[g] = Math.max(t.goods[g] || 0, 5000);
+          const sp = t.def.board.spots.findIndex((_, i) => D.buildTower(CG.game, t, i, 'frost'));
+          const tw = t.towers.find(x => x.spot === sp); if (tw) tw.level = 19;
+          CG.play.openSpot(sp); await wait(900);
+          const c = document.getElementById('card'), top = document.querySelector('.hud .hudleft').getBoundingClientRect().bottom, room = innerHeight - top - 10 - document.getElementById('goodsStrip').getBoundingClientRect().height;
+          const [sx, sz] = t.def.board.spots[Math.max(0, sp)], p = CG.town.projectPoint(sx, .3, sz), r = c.getBoundingClientRect();
+          const under = !!p && p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom;
+          const out = { tower: !!tw, scroll: c.scrollHeight - c.clientHeight, fits: c.scrollHeight < room, under };
+          CG.play.close(); if (tw) t.towers.splice(t.towers.indexOf(tw), 1); return out;
+        });
+        if (!tc.tower || (tc.fits && tc.scroll > 1) || tc.under) bad.push('desktop tower card: ' + JSON.stringify(tc));
+      }
       // effects: cannon blasts and poison clouds fade and go back to the pool (none are left lying on the road).
       // Effect meshes are the only meshes placed straight in the battle group; once quiet, none may still show.
       const fx = await page.evaluate(async () => {
@@ -764,7 +782,10 @@ async function run() {
           out.opens = (out.opens ?? true) && !pick.hidden && btns.length === 4;
           out.fits = (out.fits ?? true) && btns.every(x => { const r = x.getBoundingClientRect(); return r.height >= 30 && r.left >= sheet.left - 1 && r.right <= sheet.right + 1 && x.scrollWidth <= x.clientWidth + 1; });
           btns.find(x => x.dataset.mode === mode).click(); await wait(80);
-          out[mode] = t.sell.timber === want && pick.hidden && b.textContent.includes(({ always: 'Always', skip: 'Skip busts', boom: 'Booms only', off: 'Off' })[mode]);
+          // Always and Off by name, the other two by their picture (clarity fix 8d: their names were flagged three times)
+          const pic = b.querySelector('.modepic');
+          out[mode] = t.sell.timber === want && pick.hidden && (mode === 'always' || mode === 'off' ? b.textContent.includes(mode === 'always' ? 'Always' : 'Off') && !pic : !!pic && pic.dataset.key === mode && /\S/.test(pic.getAttribute('aria-label') || ''));
+          out.noNames = (out.noNames ?? true) && !/Skip busts|Booms only/.test(pick.textContent + b.textContent);
         }
         if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
         // a boom on timber: the strip chip gets its arrow and keeps its box
@@ -1226,6 +1247,20 @@ async function run() {
       const cut = await page.evaluate(() => { const w = document.querySelector('#wave .winfo'); return w.scrollWidth > w.clientWidth + 1 ? w.textContent : ''; });
       if (cut) bad.push('the wave countdown is cut off in the Ridge (' + cut + ')');
       bad.push(...(await check(page)).map(b => 'ridge: ' + b));
+      // with a card open in landscape and on a desktop, every good on the strip shows its count, none behind a more box,
+      // and none under the card (clarity fix 8c: "3 more" beside the Boiler Shop's card in landscape; seen red there)
+      if (name !== 'phone') {
+        const hidden = await page.evaluate(async () => {
+          const t = CG.game.town, wait = ms => new Promise(r => setTimeout(r, ms));
+          for (const g of ['stone', 'iron', 'coal', 'pigiron', 'steel', 'rails', 'boilers', 'locos', 'bricks', 'tools', 'timber']) t.goods[g] = Math.max(t.goods[g] || 0, 5);
+          await wait(500); CG.play.open(Object.keys(t.def.board.plots)[0]); await wait(900);
+          const card = document.getElementById('card').getBoundingClientRect(), out = [];
+          const more = document.getElementById('stripMore'); if (more && more.getBoundingClientRect().width) out.push(more.textContent);
+          for (const c of document.querySelectorAll('#goodsStrip .goodchip')) { const r = c.getBoundingClientRect(); if (r.right > innerWidth || r.bottom > innerHeight || (card.width && r.left < card.right && r.right > card.left && r.top < card.bottom && r.bottom > card.top)) out.push(c.dataset.good + ' hidden'); }
+          CG.play.close(); return out.join(', ');
+        });
+        if (hidden) bad.push('ridge strip with a card open: ' + hidden);
+      }
       await page.evaluate(() => { CG.play.openPlaces(); document.getElementById('place-pinehollow').click(); });
       if (!await waitFor(page, () => CG.game.active === 'pinehollow' && CG.town && CG.town.frames > 5 && CG.town.board.group.name === 'board:pinehollow', 10000)) bad.push('Places did not go to Pine Hollow');
       await sleep(300);
@@ -1261,8 +1296,16 @@ async function run() {
       { await sleep(300); const wt1 = await waveTop(); if (wt1 !== wt0) bad.push('the wave bar moved from ' + wt0 + ' to ' + wt1 + ' px when Map appeared'); }
       // a lost toast from the town goes when the map opens (review of 2026.11.19-3: it covered the town labels)
       await page.evaluate(async () => { const { toast } = await import('./src/ui/play.js'); toast('Smoke lost line.', 6000, { kind: 'lost' }); });
+      // one coin rate (clarity fix 8c): the town's top bar and the map's read one meter. Coins come in bursts in two towns
+      // for a few seconds (a meter over a few seconds and one over a minute part there), then Pause holds the number, and
+      // the map's top bar must say the same. Seen red with the map on FlowMeter: +45/s in the town, +118/s on the map.
+      await page.evaluate(async () => { const g = CG.game; for (let i = 0; i < 30; i++) { g.towns.gulch.earn(40 + i * 9, false, 'bounty'); g.towns.ridge.earn(25, false, 'bounty'); await new Promise(r => setTimeout(r, 100)); } document.getElementById('pauseBtn').click(); });
+      await sleep(700);
+      const townRate = await page.evaluate(() => document.querySelector('#coins .inc').textContent);
       await page.evaluate(() => document.getElementById('mapBtn').click());
       if (!await waitFor(page, () => CG.map && CG.map.frames > 10 && CG.mapui, 8000)) bad.push('Map did not open the map');
+      { await sleep(700); const mapRate = await page.evaluate(() => document.querySelector('.mapui .inc').textContent); if (mapRate !== townRate || townRate === '+0/s') bad.push('coins a second: ' + townRate + ' in the town, ' + mapRate + ' on the map'); }
+      await page.evaluate(() => { const p = document.querySelector('.mapui #pauseBtn'); if (p && p.getAttribute('aria-pressed') === 'true') p.click(); });
       if (await page.evaluate(() => [...document.querySelectorAll('.toast')].some(t => t.textContent === 'Smoke lost line.'))) bad.push('the lost toast stayed over the map');
       await sleep(900);
       // a toast on the map moves off the town labels (review of 2026.11.19-4: toasts over the labels on the Capital screens)
@@ -1283,6 +1326,12 @@ async function run() {
         return Math.abs(sum - total) <= Math.max(.051, total * .002) ? '' : rows.join(' + ') + ' is not ' + document.querySelector('.mapui .inc').textContent;
       });
       if (sums) bad.push('map labels: ' + sums);
+      // in landscape, with no card open, every open town's label shows its wave and coins (clarity fix 8c: Iron Ridge and
+      // Pine Hollow showed their names alone with room around them; seen red on the release before)
+      if (name === 'land') {
+        const small = await page.evaluate(() => [...document.querySelectorAll('.mapbadge.small')].filter(b => !b.hidden && CG.game.towns[b.dataset.site]).map(b => b.dataset.site).join(', '));
+        if (small) bad.push('map labels in landscape show their names alone: ' + small);
+      }
       // every open place's label shows what its waves do (owner, 2026-11-20: "In map view it's hard to see the status of
       // the waves in each city"), a won outpost says Raids, and no label changes its size as the timers run
       const states = await page.evaluate(async () => {
@@ -1332,6 +1381,15 @@ async function run() {
               if (pb) { mc.scrollTop = 0; await wait(50); const a = mc.getBoundingClientRect(), b = pb.getBoundingClientRect(); if (b.top < a.top - 1 || b.bottom > a.bottom + 1 || b.bottom > innerHeight || b.height < 20) out.push(id + (low ? ' (vault low)' : '') + ': Play is not whole in view (' + Math.round(b.top) + '-' + Math.round(b.bottom) + ' in ' + Math.round(a.top) + '-' + Math.round(a.bottom) + ')'); }
             }
             T.vault.hp = Math.max(T.vault.hp, hp);
+            // every card leads with its state, a lost town too (clarity fix 8c: a lost town's card had its line at the
+            // foot, under the routes; seen red there)
+            const keepW = JSON.stringify(T.waves), keepL = T.lost;
+            for (const lost of [false, true]) {
+              if (lost) { Object.assign(T.waves, { hold: true, autoHold: true, phase: 'break', queue: [], foes: [] }); T.lost = { why: 'vault', wave: T.wave + 1, back: T.wave, coins: 50, at: T.t }; await wait(400); }
+              const first = document.querySelector('#mapCard .cardhead + p');
+              if (!first || !first.classList.contains('state') || first.textContent.length < 8) out.push(id + (lost ? ' (lost)' : '') + ': its card starts with "' + (first ? first.textContent : '') + '", not its state');
+            }
+            Object.assign(T.waves, JSON.parse(keepW)); T.lost = keepL;
           }
           CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(900);
           return out;

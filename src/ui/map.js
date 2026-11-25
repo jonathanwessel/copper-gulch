@@ -1,7 +1,7 @@
 /* The empire map's screen (GDD.md, Empire map), over the 3D map (src/render/empire-view.js): the coins, Pause and a
    button back to the town in play; a badge under every site (its wave, its vault, what it earns, a pulsing dot when it
    needs you); and the card a tapped site opens, with Play to fly in. Words follow the writing rule in PLAN.md. */
-import { incomeWindow } from '../core/explain.js';
+import { windowRates } from '../core/explain.js';
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -40,6 +40,9 @@ export function badgeRates(total, infos) {
 }
 /* A town's vault on its map card: Full, or the hits left as its Vault sheet counts them (review of 2026.11.20-3:
    "20 / 20 hits" read as a score). */
+/* The vault's or stockpile's stat on a map card and in its sheet: one name for one stat (clarity fix 8d: "Stockpile can
+   take" wrapped and the Gulch's card said "Vault can take"). */
+export const CAN_TAKE = 'Can take';
 export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }, n = Math.max(0, Math.ceil(v.hp)); return n + (n === 1 ? ' hit' : ' hits'); }; // beside "Vault can take" (review of 2026.11.20-4: "Vault Full" never said what a vault is)
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
@@ -186,6 +189,18 @@ export function spotBadges(rs, boxes, { W = 400, H = 800, gap = BADGE_GAP, avoid
   return rs;
 }
 
+/* Whether a label placed at full size in a trial (spotBadges) lands on trouble: another label (with the gap between),
+   another place's middle or a fifth of another place, or a box to avoid (the top bar, the open card). r and the others
+   are { id, x, y, w, h }; boxes: { id: { l, t, r, b, x, y } }. */
+export function trialClash(r, all, boxes, avoid = [], gap = BADGE_GAP) {
+  const me = badgeBox(r), pad = { l: me.l - gap, t: me.t - gap, r: me.r + gap, b: me.b + gap };
+  for (const o of all) if (o !== r && area(pad, badgeBox(o)) > 0) return true;
+  for (const [id, q] of Object.entries(boxes)) {
+    if (!q || id === r.id) continue;
+    if ((q.x > me.l && q.x < me.r && q.y > me.t && q.y < me.b) || coverShare(me, q) > .2) return true;
+  }
+  return avoid.some(a => area(me, a) > 0);
+}
 /* Which badges are crowded: those whose town sits within a full-size badge of another shown badge's town. They show only
    their name, so they cover less of the map. rs: [{ x, y, w, h, keep }] at full size (keep: the open card's place,
    never shrunk). Returns a Set of indexes. Decided from the towns' points, not from where the badges land, so a badge
@@ -270,19 +285,23 @@ export function mountMap(root, game, view, shell) {
     const kids = [];
     if (id === 'income') {
       kids.push(head('Income', 'Coins a second'));
-      const rows = Object.keys(game.towns).map(t => [t, shell.meter ? shell.meter.income[t] || 0 : 0]).sort((a, b) => b[1] - a[1]);
-      const box = el('div', 'explain why'), sp = splitLive(shell.meter ? shell.meter.total : 0, rows.map(r => r[1])); // rows add up as written
+      const cm = coins1(), rows = Object.keys(game.towns).map(t => [t, cm.income[t] || 0]).sort((a, b) => b[1] - a[1]);
+      const box = el('div', 'explain why'), sp = splitLive(cm.total, rows.map(r => r[1])); // rows add up as written
       for (const [i, [t]] of rows.entries()) { const r = el('div'); r.append(el('span', '', nameOf(t)), el('b', '', sp.rows[i] || '0')); box.append(r); }
       const tot = el('div', 'total'); tot.append(el('span', '', 'All your towns'), el('b', '', sp.total)); box.append(tot);
       kids.push(box);
     } else if (game.towns[id]) {
-      const t = game.towns[id], info = siteInfo(game, id, shell.meter), d = TOWNS[id];
+      const t = game.towns[id], info = siteInfo(game, id, coins1()), d = TOWNS[id];
       kids.push(head(d.name, '')); // no "Playing now": its label's yellow border marks it, and Play beside it read as a second answer (review of 2026.11.20-13)
       const store = d.store === 'stockpile' ? 'Stockpile' : 'Vault';
       const grid = el('div', 'statgrid');
       const ss = siteState(game, id);
       for (const line of stateLines(ss, { lost: info.alert === 'lost' || info.alert === 'retry' })) kids.push(el('p', 'note state', line)); // the waves now, in words, as its label shows them
-      const vs = stat(store + ' can take', vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
+      // a loss is the town's state: its line leads the card where the others say Fighting or Wave in (clarity fix 8c: at
+      // the foot under the routes, a lost town's card read as one with no state)
+      if (info.alert === 'lost') kids.push(el('p', 'warn state', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
+      else if (info.alert === 'retry' || info.alert === 'retrying') kids.push(el('p', 'uses state', retryLine(game, t)));
+      const vs = stat(CAN_TAKE, vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
       grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rateWords(rates.nums[id] || '0')));
       // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
@@ -292,8 +311,7 @@ export function mountMap(root, game, view, shell) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
         if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
-      if (info.alert === 'lost') kids.push(el('p', 'warn', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
-      else if (info.alert === 'retry' || info.alert === 'retrying') kids.push(el('p', 'uses', retryLine(game, t)));
+      if (info.alert === 'lost' || info.alert === 'retry' || info.alert === 'retrying') { /* its line leads the card */ }
       else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders got through to the ' + store.toLowerCase() + ' here while you were away.'));
       else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));
       else if (info.alert === 'short') {
@@ -352,6 +370,8 @@ export function mountMap(root, game, view, shell) {
   // each label's rate is its share of the top bar's +N/s, so the labels add up to it (review of 2026.11.19-6); a town on
   // hold still earns from its buildings, so it shows its rate too and says On hold after its wave
   let rates = { words: {}, nums: {} };
+  // coins a second: the town's minute of income (windowRates), the one meter in a town and here (clarity fix 8c)
+  const coins1 = () => { const w = windowRates(game); return { income: w.towns, total: w.total }; };
   // each countdown's full length, seen when it starts, so the bar fills as the time runs out
   const spans = {};
   function paintState(id, B, ss) {
@@ -372,8 +392,8 @@ export function mountMap(root, game, view, shell) {
     B.bar.dataset.state = k;
   }
   function paintBadges() {
-    const infos = {}; for (const s of view.sites) infos[s.id] = siteInfo(game, s.id, shell.meter);
-    rates = badgeRates(shell.meter ? shell.meter.total : 0, infos);
+    const infos = {}, cm = coins1(); for (const s of view.sites) infos[s.id] = siteInfo(game, s.id, cm);
+    rates = badgeRates(cm.total, infos);
     for (const s of view.sites) {
       const B = badge[s.id], info = infos[s.id];
       // the yellow border marks the place whose card is open, else the town in play (review of 2026.11.19-11: it stayed on
@@ -416,7 +436,12 @@ export function mountMap(root, game, view, shell) {
   // badges sit above their towns, kept inside the screen (their sizes are measured with the 4-a-second paint). Two
   // badges never cover each other: the one lower on screen (the nearer town) keeps its place and the other is lifted
   // just above it (the 2026.11.18-15 screenshots had the labels round the Capital piled on top of each other).
-  const widths = {}, heights = {}, full = {}, sides = {}; let bar = [], cardBox = null, boxes = {}, placed = [], hub = null;
+  const widths = {}, heights = {}, full = {}, sides = {}, trialSides = {}; let bar = [], cardBox = null, boxes = {}, placed = [], hub = null;
+  // a label's full size, measured once with small off when it was small from the start (it had none to judge by)
+  const fullOf = r => {
+    if (!full[r.id]) { const b = r.B.b, was = b.classList.contains('small'); if (was) b.classList.remove('small'); full[r.id] = [b.offsetWidth, b.offsetHeight]; if (was) b.classList.add('small'); }
+    return full[r.id];
+  };
   // with a card open, a label that found no place off another place's middle hides until the card closes (the ring,
   // part 1c: Pine Hollow's label on Iron Ridge with the Ridge's card open in landscape)
   // It also hides when it touches the open place at all, or covers a fifth of any other place (fresh-eyes read of
@@ -449,16 +474,25 @@ export function mountMap(root, game, view, shell) {
       shown.push({ B, id: s.id, w, h: heights[s.id] || 40, x: Math.max(w / 2 + 4, Math.min(p.x, R - w / 2 - 4)), y: p.y });
     }
     // crowded labels show only their name, judged at full size so a label does not flip between the two
-    const crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: (full[r.id] || [r.w])[0], h: (full[r.id] || [0, r.h])[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
+    let crowd = crowdedBadges(shown.map(r => ({ x: r.x, y: r.y, w: fullOf(r)[0], h: fullOf(r)[1], keep: r.B === badge[openId] || r.B.b.classList.contains('dot') })));
+    const first = shown.find(r => r.B === badge[openId]), avoid = bar.map(q => ({ l: q.l, t: 0, r: q.r, b: q.b }));
+    if (cardBox) avoid.push(cardBox);
+    // the Capital on screen: each label keeps to the outside of the ring, off the middle where the spokes meet
+    hub = boxes.capital ? { x: boxes.capital.x, y: boxes.capital.y } : null;
+    // towns near each other on screen keep their full labels when the placer finds each a free place at full size: a
+    // trial at full size, and only a label that lands on another label, another place's middle or a fifth of another
+    // place, or under the top bar, shows its name alone (clarity fix 8c: in landscape Iron Ridge and Pine Hollow showed
+    // no wave or coins with room to spare). The trial keeps its own sides, so it does not flip as the real labels move.
+    if (crowd.size) {
+      const trial = shown.map(r => ({ id: r.id, x: r.x, y: r.y, w: fullOf(r)[0], h: fullOf(r)[1] }));
+      spotBadges(trial, boxes, { W, H, gap: BADGE_GAP, avoid, first: first ? trial[shown.indexOf(first)] : null, last: trialSides, hub });
+      crowd = new Set([...crowd].filter(i => trialClash(trial[i], trial, boxes, avoid)));
+    }
     // with a town's card open, the other labels show only their name and state: the map shrinks into the space the card
     // leaves, and full labels piled onto each other and the Capital (the ring, part 1c, phone and landscape)
     const carded = !!(cardBox && openId && badge[openId]);
     shown.forEach((r, i) => { const c = crowd.has(i) || (carded && r.B !== badge[openId]); if (r.B.b.classList.contains('small') !== c) r.B.b.classList.toggle('small', c); });
     // each label beside its town, off the towns' middles and the Capital's dome (reviews of 2026.11.21-5)
-    const first = shown.find(r => r.B === badge[openId]), avoid = bar.map(q => ({ l: q.l, t: 0, r: q.r, b: q.b }));
-    if (cardBox) avoid.push(cardBox);
-    // the Capital on screen: each label keeps to the outside of the ring, off the middle where the spokes meet
-    hub = boxes.capital ? { x: boxes.capital.x, y: boxes.capital.y } : null;
     spotBadges(shown, boxes, { W, H, gap: BADGE_GAP, avoid, first, last: sides, hub });
     placed = shown;
     for (const r of liftBadges(shown, bar, BADGE_GAP, { W, first })) {
@@ -511,8 +545,8 @@ export function mountMap(root, game, view, shell) {
         { const k = view.capitolBox ? view.capitolBox() : null; keep.hidden = !k; if (k) Object.assign(keep.style, { left: Math.round(k.l) + 'px', top: Math.round(k.t) + 'px', width: Math.round(k.r - k.l) + 'px', height: Math.round(k.b - k.t) + 'px' }); }
         view.setView(hud.getBoundingClientRect().bottom, c && { l: c.left, t: c.top, r: c.right, b: c.bottom });
         { const cap = capitalOpen(game) ? capitalOf(game) : null; if (infl.hidden !== !cap) { infl.hidden = !cap; ui.classList.toggle('hasinfl', !!cap); } if (cap) setText(inflNum, fmtLive(Math.floor(cap.influence))); }
-        incomeWindow(game); // the play screen's minute of income keeps counting on the map (clarity fix 10)
-        setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(shell.meter ? shell.meter.total : 0) + '/s');
+        // the play screen's minute of income keeps counting on the map (clarity fix 10), and the top bar reads it as the town's does
+        setText(coinNum, fmtLive(game.town.coins)); setText(inc, '+' + fmtLive(coins1().total) + '/s');
       }
       if (openId && acc === 0) paintCard(); // with the badges, so a card and its label read the same rate (review of 2026.11.19-5: 2.5 beside +1.9/s)
     },

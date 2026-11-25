@@ -18,7 +18,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, MODE_SELLS, boomClock } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_WORDS, MODE_LINES, modePic, modeState, boomClock } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -92,7 +92,11 @@ export const STOCK_LABEL = 'Save for towers';
 /* The owner's own words for the two choices (2026-11-19, "Stock for towers: Normal / Lots"): the counts of upgrades
    were read five times and flagged again as "Save for towers · 2 upgrades" (review of 2026.11.23-9), so by the
    twice-flagged rule the numbers leave the buttons; each row's "for towers" count shows what is kept. */
-export const STOCK_CHOICES = [['normal', 'Normal'], ['lots', 'Lots']]; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
+/* Each choice also says what it keeps, one short sentence under its name, as the sell modes do (clarity fix 8d: Normal and
+   Lots said nothing of what they keep, and the same idea on the building cards was flagged before, so the control
+   changed from two bare words to two choices with their effect). */
+export const STOCK_CHOICES = [['normal', 'Normal'], ['lots', 'Lots']];
+export const stockLine = k => 'Keeps goods for ' + RESERVE.levels * (k === 'lots' ? RESERVE.lots : 1) + ' upgrades of every tower.'; // review of 2026.11.20-9: the building cards' switch says which good ("Keep timber for towers"), this one how much
 
 /* Town orders on the Goods sheet (src/core/orders.js): the town's reputation, the order running with how much is sent and
    the time left, and the offers with Take. Taking another while one runs, or Give up, takes two taps, since it costs
@@ -156,9 +160,9 @@ export function goodsSheet(game, town, focus = null) {
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
     // "Enough for 2 more levels on every tower and 2 new towers." read as a system explained)
     const stockRow = el('div', 'row stockrow'), seg = el('div', 'seg'); seg.id = 'stockTowers';
-    const segBtns = STOCK_CHOICES.map(([k, words]) => { const b = btn(words, 'btn small'); b.dataset.stock = k; b.addEventListener('click', () => { setStock(town, k); paintStock(); paint(); }); return b; });
+    const segBtns = STOCK_CHOICES.map(([k, words]) => { const b = btn('', 'btn small stockpick'); b.replaceChildren(el('b', null, words), el('small', null, stockLine(k))); b.dataset.stock = k; b.addEventListener('click', () => { setStock(town, k); paintStock(); paint(); }); return b; });
     const paintStock = () => { const cur = town.stock === 'lots' ? 'lots' : 'normal'; for (const b of segBtns) { const on = b.dataset.stock === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } };
-    seg.append(...segBtns); paintStock(); stockRow.append(el('span', 'seglabel', STOCK_LABEL), seg);
+    seg.append(...segBtns); paintStock(); seg.classList.add('stockseg'); stockRow.append(el('span', 'seglabel', STOCK_LABEL), seg);
     if (town.towers && town.def && town.def.board) body.append(stockRow);
     // town orders, once they are open here, above the goods (src/core/orders.js)
     const ordersBox = el('div'); let op = null, osig = '';
@@ -167,9 +171,10 @@ export function goodsSheet(game, town, focus = null) {
     body.append(ordersBox, list); // no how-it-works line (review of 2026.11.19-11): the bar under each good shows how far its price fell
     // a tapped good stays whole in view, below the pinned Save for towers row (review of 2026.11.20-6: the tap left
     // Timber's name under it)
-    const inView = row => {
+    // end: the last box that should show with it (the sell picker under its row), so the row's name stays above it
+    const inView = (row, end = row) => {
       if (!row.isConnected) return;
-      const b = body.getBoundingClientRect(), r = row.getBoundingClientRect(), top = (stockRow.isConnected ? stockRow.getBoundingClientRect().bottom : b.top) + 4;
+      const b = body.getBoundingClientRect(), r = { top: row.getBoundingClientRect().top, bottom: end.getBoundingClientRect().bottom }, top = (stockRow.isConnected ? stockRow.getBoundingClientRect().bottom : b.top) + 4;
       if (r.top < top) body.scrollTop -= top - r.top;
       else if (r.bottom > b.bottom - 4) body.scrollTop += Math.min(r.bottom - b.bottom + 4, r.top - top);
     };
@@ -196,9 +201,9 @@ export function goodsSheet(game, town, focus = null) {
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
         // each mode with a picture of the price, lit where the mode sells (review of 2026.11.23-6)
-        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'), pic = el('span', 'modepic'); pic.setAttribute('aria-hidden', 'true'); pic.append(...MODE_SELLS[k].map((on, i) => el('i', (on ? 'on ' : '') + ['low', 'mid', 'high'][i]))); b.replaceChildren(pic, el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])); b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(modePic(k), ...(MODE_WORDS[k] ? [el('b', null, MODE_WORDS[k]), el('small', null, MODE_LINES[k])] : [el('b', 'modeline', MODE_LINES[k])])); /* Always and Off keep the name their switch shows (fresh-eyes read of 2026.11.25-4: with no names, nothing tied the switch's Always to a row) */ b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
         pick.append(...picks);
-        sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
+        sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(row, pick)); });
         row.append(txt, sw); list.append(row, pick);
         rows[g] = { line, line2, wait, sw, why, txt, level, plabel, ev, evLine, pick, picks };
       }
@@ -233,7 +238,7 @@ export function goodsSheet(game, town, focus = null) {
         const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
         if (r.level.textContent !== pw1) r.level.textContent = pw1;
         if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
-        setSwitch(r.sw, 'Sell spare', MODE_WORDS[mode], selling);
+        setSwitch(r.sw, 'Sell spare', modeState(mode), selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }

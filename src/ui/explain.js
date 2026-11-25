@@ -157,7 +157,7 @@ export function vaultSheet(town) {
         add(r.label, (d < 0 ? '-' : '+') + mendText(Math.abs(d)));
       }
       // the map card's own words for it (review of 2026.11.23-13: "Most hits" beside the map's "Vault can take")
-      if (ex.rows.length > 1) add((ex.rows[0].label === 'Stockpile' ? 'Stockpile' : 'Vault') + ' can take', unitText('hits', ex.value), 'total');
+      if (ex.rows.length > 1) add('Can take', unitText('hits', ex.value), 'total'); // CAN_TAKE in src/ui/map.js (clarity fix 8d)
       const hits = el('b', 'hitsleft'); hits.append(heart(), el('span', null, unitText('hits', ex.left))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
       left.append(el('span', null, 'Hits left'), hits);
       const mend = el('div', 'total'); mend.append(el('span', null, 'Each wave you beat'), el('b', null, '+' + mendText(ex.mend)));
