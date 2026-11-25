@@ -893,7 +893,9 @@ async function run() {
         out.offered = CG.game.shared.charter.offered && !btn.hidden && btn.classList.contains('on');
         btn.click(); await wait(300);
         const sheet = document.getElementById('sheet');
-        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /After signing\s*25% more coins/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now and get/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
+        // clarity fix 9: the two plain lines show, and with no deeds held After signing stays hidden (it would only say the deed line again)
+        out.lines = ['charterKeep', 'charterDeed'].every(id => { const e = document.getElementById(id); return e && e.offsetHeight > 0 && e.textContent.length > 20; }) && document.getElementById('deedsAfter').hidden === !CG.game.shared.charter.deeds;
         out.pairs = [...document.querySelectorAll('#sheet .pair .pairhead')].filter(h => /^Needs/.test(h.textContent)).length === 1 && /Needs 1 deed/.test(sheet.textContent); // one locked pair at a time (review of 2026.11.20-10)
         t.lifetime = life;
         return out;

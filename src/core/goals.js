@@ -16,6 +16,7 @@ import { capitalOpen, capitalNext as capitalAhead } from './capital.js';
 import { treeOf, foundCost } from './tree.js';
 import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 import { stallOf } from './stall.js';
+import { deedsFor, charterOffered } from './charter.js';
 
 /* What a goal reads: a small view of one town. */
 export function goalContext(game, town) {
@@ -275,6 +276,38 @@ function feedStep(game, town) {
 /* When the town in play has no goal left, the strip shows the empire's next step: the next town or the Capital, the
    one that takes the lowest wave, with what it still needs (a wave, deeds, coins) counted as have / need by meter(game).
    These are never marked done; they change as each need is met. */
+/* The charter, guided (clarity fix 9, PLAN.md M6a): the newcomer was offered the charter at 75-81 minutes on every seed
+   and never signed, since no step asked, so Silver Falls (5 deeds) never opened. Once the charter is out, a town whose
+   charter pays is asked for when:
+     - it never signed before and it is not the town the next place needs to climb (the Gulch while the Ridge climbs
+       for the Capital: its deeds are free, and each one adds coins in every town), or
+     - its deeds make up all the deeds the next place still needs (the Ridge for Silver Falls), the way the careful
+       bots sign (tools/balance.js, signAt).
+   A town that signed once is not asked again for one more deed, so no town is reset in a loop. In the town that pays,
+   the step points at Perks; elsewhere it sends the player there. target is nextStep's next place (or null). */
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+export function charterAsk(game, target) {
+  if (!charterOffered(game)) return null;
+  const short = target && target.f.deeds ? Math.max(0, target.f.deeds - deedsOf(game)) : 0;
+  let pick = null;
+  for (const id of TOWN_ORDER) {
+    const t = game.towns[id];
+    if (!t || isOutpost(t)) continue;
+    const n = deedsFor(t);
+    if (n < 1) continue;
+    const free = !t.charters && !(target && target.f.from === id);
+    if (!free && !(short > 0 && n >= short)) continue;
+    if (!pick || n > pick.n || (n === pick.n && id === game.active)) pick = { town: t, n };
+  }
+  return pick;
+}
+export function charterStep(game, target) {
+  const p = charterAsk(game, target);
+  if (!p) return null;
+  const id = p.town.id, name = TOWNS[id].name, meter = target && target.f.deeds ? { meter: g2 => [deedsOf(g2), target.f.deeds], post: ' deeds' } : {};
+  if (game.active === id) return { id: 'charter:' + id + ':' + p.n, charter: id, town: id, text: target && target.f.deeds ? 'Tap Perks, then tap Sign the charter for deeds to open ' + target.name : 'Tap Perks, then tap Sign the charter to get ' + plural(p.n, 'deed'), at: () => ({ el: '#perksBtn' }), done: () => false, ...meter };
+  return { id: 'charter:' + id + ':there', charter: id, away: true, text: 'Tap Map, ' + name + ', then sign its charter in Perks', at: () => ({ el: game.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
+}
 /* The strip's count for a goal with a meter: "wave 9 / 30", "2 / 5 deeds". */
 /* A wave count shows only in the town that must climb, beside its own wave bar: in another town "9 / 30" and then
    "wave 9 / 30" were both read as that town's wave (two reviews of 2026.11.23-2), so there the line alone says it. */
@@ -293,6 +326,9 @@ export function nextStep(game) {
   const best = () => (game.towns[s.f.from] || from).bestWave || 0;
   // the Capital's card says Build the Capital and a town's card says Start, so the strip uses the same word (fresh-eyes read of 2026.11.23-4)
   const verb = s.id === 'capital' ? 'build' : 'open';
+  // a charter that pays comes before a climb the player only waits for (clarity fix 9)
+  const ch = charterStep(game, s);
+  if (ch && !(best() >= s.f.wave && !(s.f.deeds && deedsOf(game) < s.f.deeds))) return ch;
   // the count names what it counts ("wave 9 / 30"): a bare "9 / 30" in another town read as that town's wave (review of 2026.11.23-2)
   // in another town the step sends the player to the town that must climb (clarity fix 3: the newcomer of seed 1 sat
   // in the Gulch for 2 hours under "Reach wave 30 in Iron Ridge" while the Ridge climbed slowly in the background)

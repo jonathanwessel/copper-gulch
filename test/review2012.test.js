@@ -40,7 +40,7 @@ test('power has its own line, never in the list of goods each one uses', () => {
 test('the path price, the deeds and the vault bar each say what they are', () => {
   const play = read('src/ui/play.js'), sheets = read('src/ui/sheets.js'), html = read('index.html');
   assert.ok(!play.includes("'Either path'"), 'the path price has its own row (review of 2026.11.20-13)');
-  assert.ok(sheets.includes('each.hidden = !!p.total'), 'the deed line hides while After signing says it');
+  assert.ok(sheets.includes('after.r.hidden = !p.total || !c.deeds'), 'After signing shows only a new total, never the deed line again (clarity fix 9)');
   assert.ok(play.includes('vaultBtn.append(heart(), vault)'), 'the count keeps its mark, a heart since the review of 2026.11.20-14');
   assert.ok(!html.includes('.safe {'), 'the unlabeled strongbox left');
   assert.match(html, /\.card:has\(> \.pathbar\)[^{]*\{ width: min\(54%, 480px\); \}/); // a tower card shares the rule since 2026.11.21-10

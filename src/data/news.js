@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.24-12',
+    lines: [
+      'Once a charter pays a deed, the goal strip asks you to sign it and shows you where.',
+      'The Perks sheet now says in two short lines what starts over, what you keep and what a deed gives you.',
+      'Only the deeds you would really get are listed.',
+    ],
+  },
+  {
     v: '2026.11.24-11',
     lines: [
       'Cards only name buttons that are really there, and say each thing once.',

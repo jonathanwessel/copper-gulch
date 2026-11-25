@@ -13,7 +13,7 @@ import { pctWord } from '../src/ui/explain.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
 import { EXPLAINERS } from '../src/data/explainers.js';
 import { goodsLine, priceLabel } from '../src/ui/format.js';
-import { priceWord, stockWords } from '../src/ui/sheets.js';
+import { priceWord, stockWords, charterWords } from '../src/ui/sheets.js';
 import { textIssues } from '../tools/audit.js';
 
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -76,9 +76,10 @@ test('the charter rows say what earns a deed, the warning is short, and Hire for
   const s = read('src/ui/sheets.js');
   assert.match(s, /'Best wave ' \+ town\.bestWave/);
   assert.match(s, /fmt\(town\.ownEarned\) \+ ' coins earned here'/);
-  const warn = 'Copper Gulch starts over at wave 1 with nothing built. You keep your coins and get deeds.';
-  assert.ok(s.includes(" starts over at wave 1 with nothing built. You keep your coins and get deeds.'"));
-  assert.ok(warn.length < 100);
+  // the warning's words are pinned in test/words.test.js (clarity fix 9); here it stays short and plain
+  const { keep } = charterWords('Copper Gulch');
+  for (const sentence of keep.split('. ')) assert.ok(sentence.length < 75, sentence);
+  assert.deepEqual(textIssues(keep), []);
   assert.match(read('src/ui/play.js'), /'A foreman upgrades this building for you.'/);
 });
 

@@ -11,6 +11,7 @@ import { FOES } from '../src/data/foes.js';
 import { TOWERS } from '../src/data/towers.js';
 import { each, goodsLine, goodsSwitch, priceLabel, MODE_WORDS } from '../src/ui/format.js';
 import { textIssues } from '../tools/audit.js';
+import { charterWords } from '../src/ui/sheets.js';
 
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const run = (g, sec) => { for (let i = 0; i < sec * 4; i++) g.step(.25); };
@@ -94,5 +95,7 @@ test('a price reads in whole coins from 1 up and sits on the price bar, not in t
 test('the charter line says what the town starts over without', () => {
   const s = read('src/ui/sheets.js');
   assert.doesNotMatch(s, /foremen go\./);
-  assert.match(s, / over at wave 1 with nothing built\./);
+  // what starts over is named in the charter's first line (since clarity fix 9 it names buildings, goods and research)
+  const { keep } = charterWords('Copper Gulch');
+  assert.ok(keep.includes('starts over at wave 1') && keep.includes('buildings'));
 });

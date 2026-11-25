@@ -137,6 +137,8 @@ const SCREENS = [
   ['order-run', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, st = g.shared.orders.towns[t.id]; st.active = { id: 3, good: 'ore', need: 240, got: 96, coins: 505, minutes: 4, time: 480, left: 377, rush: false, age: 0 }; CG.play.sheets.close(); CG.play.openGoods(); await wait(200); }],
   ['menu', () => { CG.play.openMenu(); }],
   ['research', () => { const t = CG.game.town; t.flags['open:research'] = true; t.coins = 5000; t.research = { saws: 2 }; t.lab = { id: 'walls', left: 14, total: 20 }; CG.play.openResearch(); }],
+  // the Perks sheet the first time: no deeds yet, the charter pays 1 for the coins earned here (clarity fix 9)
+  ['perks-first', async () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 0, offered: true, perks: {} }); t.lifetime = Math.max(t.lifetime, 9e4); (await import(new URL('src/core/charter.js', location.href).href)).applyAll(g); CG.play.openPerks(); }],
   // the Perks sheet: a charter ready to sign, two deeds held, one pair picked and one open
   ['perks', async () => { CG.play.sheets.close(); const g = CG.game, t = g.town; Object.assign(g.shared.charter, { deeds: 2, offered: true, perks: { trade: 'a' } }); t.bestWave = Math.max(t.bestWave, 34); t.lifetime = Math.max(t.lifetime, 1e5); (await import(new URL('src/core/charter.js', location.href).href)).applyAll(g); CG.play.openPerks(); }],
   // tap a number: where coins come from, the vault, a tower's damage, a building's output and a good's price

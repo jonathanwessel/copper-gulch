@@ -674,6 +674,11 @@ export function menuSheet(ctx) {
 /* A save slot's line on the Menu: its place, wave and coins, and how long ago it was saved (not for the slot in play). */
 export const slotWords = (s, live) => (TOWN_NAMES[s.town] || 'Town') + ' · Wave ' + s.wave + ' · ' + fmtLive(s.coins) + ' coins' + (live ? '' : ' · ' + ago(Date.now() - s.at));
 
+/* The Charter's two plain lines on the Perks sheet (clarity fix 9): what signing takes and keeps, then what a deed does. */
+export const charterWords = name => ({
+  keep: name + ' starts over at wave 1 with no buildings, goods or research. You keep your coins, your deeds and your other towns.',
+  deed: 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins in every town, forever.',
+});
 /* The Perks sheet. ctx: { game, town, leave } where leave('charter') saves and reloads into the new charter. */
 export function perksSheet(ctx) {
   const { game, town, leave } = ctx;
@@ -690,34 +695,37 @@ export function perksSheet(ctx) {
     const r = el('div', 'row'); r.append(sign);
     // what a charter is comes first, then what signing pays under its own small heading (review of 2026.11.20-8:
     // "Charter" and "deed" were not explained and the deed rows were hard to read)
-    sec('Charter', el('p', 'uses', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and get deeds.'), now, el('small', 'pairhead', 'Sign now and get'), prog, next, r);
+    // two plain lines first (clarity fix 9, review 9: the rows alone were unreadable): what you lose and keep, then what a
+    // deed does. Only a source that pays has a row, so no row reads "0 deeds" beside the one that pays.
+    const cw = charterWords(town.def.name);
+    const keepLine = el('p', 'uses', cw.keep); keepLine.id = 'charterKeep';
+    const deedLine = el('p', 'uses', cw.deed); deedLine.id = 'charterDeed';
+    const getHead = el('small', 'pairhead', 'Sign now and get');
+    sec('Charter', keepLine, deedLine, now, getHead, prog, next, r);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';
-    const each = el('p', 'uses');
-    sec('Deeds', each, held);
+    sec('Deeds', held);
     // the perk pairs
     const pairs = el('div', 'goods perks'); body.append(pairs);
     let sig = '';
     const paint = () => {
       const p = deedParts(town), n = nextDeed(town), c = game.shared.charter;
       // what signing pays is in Deeds, as the deeds now and after (review of 2026.11.19-12); this line only says when it opens
-      const t1 = p.total ? '' : 'You can sign once you earn a deed here.';
-      set(now, t1); now.hidden = !t1;
+      // one line says when the next deed comes: the first one opens the button, a later one is worth waiting for (fresh-eyes read of clarity fix 9)
+      now.hidden = true;
       // "Best wave", so it never reads as the wave on the top bar after a lost boss (review of 2026.11.19-12)
       set(wave.l, 'Best wave ' + town.bestWave); /* "For": how deeds are earned (review of 2026.11.20-7) */ set(wave.v, plural(p.wave, 'deed'));
       set(coins.l, fmt(town.ownEarned) + ' coins earned here'); set(coins.v, plural(p.coins, 'deed'));
-      set(next, 'Next deed at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins.');
+      wave.r.hidden = !p.wave; coins.r.hidden = !p.coins; getHead.hidden = prog.hidden = !p.total;
+      set(next, (p.total ? 'Wait for wave ' + n.wave + ' or ' + fmt(n.coins) + ' coins earned here to get 1 more deed.' : 'You can sign at wave ' + n.wave + ' or at ' + fmt(n.coins) + ' coins earned here.'));
       sign.disabled = !p.total;
       const more = d => plural(d, 'deed') + ' · ' + Math.round(DEEDS.income * 100 * d) + '% more coins'; // review of 2026.11.20-13: "2 deeds, 50% more coins" ran on
       set(have.l, 'You have'); set(have.v, c.deeds ? more(c.deeds) : 'No deeds yet');
       const t = c.deeds + p.total;
       set(after.l, 'After signing'); set(after.v, p.total ? Math.round(DEEDS.income * 100 * t) + '% more coins' : ''); // the coins only: the deeds signing pays are listed just above (review of 2026.11.20-15: the deed count said twice)
-      after.r.hidden = !p.total;
-      // what a deed gives, said once (review of 2026.11.20-12: each deed, you have and after signing said it three ways):
-      // the line only while no After signing row shows it
-      set(each, 'Each deed gives you ' + Math.round(DEEDS.income * 100) + '% more coins, for good.'); each.hidden = !!p.total;
-      // always shown: it says what a deed is (review of 2026.11.20-8)
+      after.r.hidden = !p.total || !c.deeds; // with no deeds yet it only says the deed line times the deeds above (clarity fix 9)
+      // what a deed gives is said once, in the Charter's second line (review of 2026.11.20-12, clarity fix 9)
       const s = c.deeds + JSON.stringify(c.perks);
       if (s === sig) return;
       sig = s; pairs.replaceChildren();

@@ -11,7 +11,7 @@
 // through) while the strip counts coins for a goal it says is ready within GOAL_SAVE (or a building's card shows the
 // price of the upgrade the strip asks for), taps Resume waves when the strip asks
 // (or 45 s after a lost boss in play), calls a wave early only when the
-// strip asks, hires no foremen and does not sign a charter.
+// strip asks, hires no foremen and signs a charter only when the strip asks (clarity fix 9).
 // Targets (GDD.md, Pacing targets; PLAN.md M2): no town on hold over 10 min unless saving for its next town, Dry Creek won within 20 min, Copper Gulch wave 10 within 14 min after
 // it opens, and never stuck for more than 3 min in the first hour. Skill pays: the careful player of tools/balance.js,
 // who calls waves early, is at least 20% faster on both (medians over the seeds). "Stuck" is a stretch with nothing it can pay for
@@ -25,7 +25,7 @@ import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
 import { itemsOf, researchBlock, startResearch } from '../src/core/research.js';
 import { PERKS } from '../src/data/perks.js';
-import { perkState, pickPerk } from '../src/core/charter.js';
+import { perkState, pickPerk, deedsFor, signCharter } from '../src/core/charter.js';
 import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { options, buildValue, campaign } from './balance.js';
 import { nextTowns, foundTown, canFound } from '../src/core/empire.js';
@@ -101,6 +101,8 @@ export function goalTap(game, town, rng) {
   // the Capital's first building: Map, the Capital, its Buildings tab, a Build button (any of them)
   if (g.next === 'contract') { const o = game.shared.capital.offers; return o.length ? { what: 'go', label: 'contract', run: () => takeContract(game, rng.pick(o).id) } : null; }
   if (g.next === 'institution') { const ids = INSTITUTIONS.map(i => i.id).filter(id => foundBlock(game, id) === null); return ids.length ? { what: 'go', label: 'institution', run: () => foundInstitution(game, rng.pick(ids)) } : null; }
+  // the charter, once the strip asks for it in the town that pays (clarity fix 9): Perks, then Sign the charter
+  if (g.charter) return g.charter === town.id && deedsFor(town) >= 1 ? { what: 'sign', label: town.id, run: () => signCharter(game, town) > 0 } : null;
   if (g.resume) return town.waves.hold ? { what: 'resume', label: 'waves', run: () => { setHold(game, town, false); return true; } } : null;
   if (at.el && at.el.includes('holdWaves')) return town.waves.hold ? null : { what: 'hold', label: 'waves', run: () => { setHold(game, town, true); return true; } };
   if (at.el && at.el.includes('callWave')) return town.waves.phase === 'break' ? { what: 'call', label: 'wave ' + town.wave, run: () => callEarly(game, town) >= 0 } : null;
@@ -209,6 +211,7 @@ export function newcomer(seed, minutes = MINUTES, hook = null) {
       if (tap.what === 'tower') r.firstTower ??= at;
       if (tap.what === 'research') r.research++;
       if (tap.what === 'go') { if (tap.label === 'gulch') r.gulchAt ??= at; else if (tap.label === 'ridge') r.ridgeAt ??= at; else if (tap.label === 'pinehollow') r.pineAt ??= at; else if (tap.label === 'capital') r.capitalAt ??= at; news(); } // the first time: the resume step sends it back later
+      else if (tap.what === 'sign') { r.signedAt ??= at; (r.signs ||= []).push([Math.round(at), tap.label]); news(); }
       else if (tap.what === 'hold') r.held ??= at;
       else if (tap.what === 'call') r.calls = (r.calls || 0) + 1;
       else r.buys++;
@@ -252,6 +255,9 @@ export function capitalMiss(runs) {
   const words = at.map(x => x === null ? 'never' : (x / 60).toFixed(0)).join(' ');
   return inTime >= Math.ceil(CAPITAL_MOST * runs.length) && med <= CAPITAL_AT ? null : `the newcomer opened the Capital at ${words} min (want ${Math.ceil(CAPITAL_MOST * runs.length)} of ${runs.length} seeds and the median within ${CAPITAL_AT / 60} min)`;
 }
+/* The charter (clarity fix 9, PLAN.md M6a): the newcomer signs its first charter, when the strip asks, within SIGN_BY of
+   play. Before the fix it was offered at 75-81 minutes on every seed and never signed, so Silver Falls never opened. */
+export const SIGN_BY = 120 * 60;
 export function misses(r) {
   const m = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
   if (r.dcWon === null || r.dcWon > DC_WON) m.push(`seed ${r.seed}: Dry Creek won at ${mm(r.dcWon)} (want within 20 min)`);
@@ -262,16 +268,17 @@ export function misses(r) {
     if (r.pineAt == null) m.push(`seed ${r.seed}: never went to Pine Hollow (want the strip to send it there)`);
     else if (r.pineWon == null || r.pineWon - r.pineAt > PINE_WON) m.push(`seed ${r.seed}: Pine Hollow won at ${mm(r.pineWon == null ? null : r.pineWon - r.pineAt)} after getting there (want within ${PINE_WON / 60} min)`);
   }
+  if (r.end >= SIGN_BY && (r.signedAt == null || r.signedAt > SIGN_BY)) m.push(`seed ${r.seed}: signed its first charter at ${mm(r.signedAt ?? null)} of play (want within ${SIGN_BY / 60} min, when the strip asks)`);
   if (r.ridgeAt === null || r.ridgeAt > RIDGE_AT) m.push(`seed ${r.seed}: Iron Ridge founded at ${mm(r.ridgeAt)} of play (want within 2 h 15 min)`);
   return m;
 }
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/firstplay.js')) {
   const all = [], runs = [], mm = x => x === null ? 'never' : (x / 60).toFixed(1) + ' min';
-  console.log('newcomer: seed | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch) | longest hold not saving (town) | Pine Hollow (went at, won after)');
+  console.log('newcomer: seed | signed (town) | first tower | Dry Creek won | Gulch wave 10 (from when it opens) | breaches | longest stuck (from min) | buys, wrong, by the goal strip | research | buttons used | Ridge founded (waves held from) | final towers (Dry Creek / Gulch) | longest hold not saving (town) | Pine Hollow (went at, won after)');
   for (let s = 1; s <= SEEDS; s++) {
     const r = newcomer(s);
-    console.log(`${s} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'}) | ${mm(r.pineAt ?? null)}, ${r.pineWon != null && r.pineAt != null ? mm(r.pineWon - r.pineAt) : 'never'}`);
+    console.log(`${s} | ${(r.signs || []).map(x => mm(x[0]) + ' ' + x[1]).join(', ') || 'never'} | ${r.firstTower === null ? 'never' : Math.round(r.firstTower) + ' s'} | ${mm(r.dcWon)} | ${mm(r.wave10)} | ${r.breaches.join(', ') || 'none'} | ${mm(r.stuck.longest)} (${(r.stuck.at / 60).toFixed(1)}) | ${r.buys}, ${r.wrong}, ${r.goalTaps} | ${r.research} | ${r.tabsUsed.join(',') || '-'} | ${mm(r.ridgeAt)} (${mm(r.held)}) | ${r.final.drycreek.towers.join(' ')} / ${(r.final.gulch?.towers || []).join(' ')} | ${mm(r.held2.longest)} (${r.held2.town || '-'}) | ${mm(r.pineAt ?? null)}, ${r.pineWon != null && r.pineAt != null ? mm(r.pineWon - r.pineAt) : 'never'}`);
     all.push(...misses(r)); runs.push(r);
   }
   const capMiss = capitalMiss(runs);

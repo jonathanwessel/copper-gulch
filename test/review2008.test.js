@@ -68,7 +68,8 @@ test('the Capital says Influence the same way on its card and map label, and the
 
 test('Perks says what a charter does first and what a deed is always, and the win card names its button', () => {
   const s = read('src/ui/sheets.js');
-  assert.ok(s.includes("el('p', 'uses', town.def.name + ' starts over at wave 1 with nothing built. You keep your coins and get deeds.')"));
+  // what a charter does comes first, then what a deed is (words pinned in test/words.test.js since clarity fix 9)
+  assert.ok(s.indexOf('cw.keep') > 0 && s.indexOf('cw.keep') < s.indexOf('cw.deed'));
   assert.match(s, /'Sign now and get'/);
   assert.doesNotMatch(s, /each\.hidden = c\.deeds > 0/);
   const won = EXPLAINERS.find(e => e.id === 'dc-won');

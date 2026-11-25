@@ -12,7 +12,7 @@ import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
 import { EFFECT_WORDS, fxLeft } from '../src/ui/foe.js';
 import { STAGE_WORDS } from '../src/data/foes.js';
 import { BEST_LABEL } from '../src/ui/wave.js';
-import { priceRow } from '../src/ui/sheets.js';
+import { priceRow, charterWords } from '../src/ui/sheets.js';
 import { sayable } from '../src/audio/speech.js';
 
 test('the words on screen today', () => {
@@ -32,6 +32,9 @@ test('the words on screen today', () => {
   for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
   // the boss bar's stages (owner, 2026-11-22)
   assert.deepEqual(STAGE_WORDS, { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' });
+  // clarity fix 9: the Perks sheet's two plain lines
+  assert.deepEqual(charterWords('Copper Gulch'), { keep: 'Copper Gulch starts over at wave 1 with no buildings, goods or research. You keep your coins, your deeds and your other towns.', deed: 'Each deed gives you 25% more coins in every town, forever.' });
+  for (const v of Object.values(charterWords('Iron Ridge'))) assert.deepEqual(textIssues(v), [], v);
   // the review of 2026.11.22-12: the tower that hits a raider hardest is a labeled row, a crashed price says it once
   assert.equal(BEST_LABEL, 'Best tower');
   assert.deepEqual(priceRow(.02, .01), ['Under 1 coin each', '']);
