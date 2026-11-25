@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.25-8",
-  "notes": "Map labels with a card open, a Mortar ring in landscape, clearer sell and vault words"
+  "version": "2026.11.25-9",
+  "notes": "Orders pay what their load would sell for, and their goods lower the price like a sale"
 }

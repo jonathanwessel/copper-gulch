@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { newGame, loadGame } from '../src/core/setup.js';
 import { encode, decode, migrate, SAVE_VERSION } from '../src/core/save.js';
 import { ORDERS } from '../src/data/orders.js';
-import { ordersOf, ordersOpen, takeOrder, giveUpOrder, orderPay, rushOpen, marketNow } from '../src/core/orders.js';
+import { ordersOf, ordersOpen, takeOrder, giveUpOrder, orderPay, rushOpen, marketNow, loadPrice } from '../src/core/orders.js';
 import { sellSurplus, demand, KEEP_SECONDS } from '../src/core/economy.js';
 import { signCharter } from '../src/core/charter.js';
 import { GOODS } from '../src/data/goods.js';
@@ -145,9 +145,10 @@ test('reputation raises what an order pays, up to half more at 100, and a filled
   assert.equal(st.rep, ORDERS.max);
 });
 
-test('an order pays more a unit than the market does now for the same good, and less on a flooded good', () => {
+test('an order pays more than selling its load on the market over its time, a big load less a unit, and less on a flooded good', () => {
   const g = open('ord-16'), t = g.towns.gulch;
-  for (const o of ordersOf(g, t).offers) assert.ok(o.coins / o.need > marketNow(g, t, o.good), o.good);
+  for (const o of ordersOf(g, t).offers) { assert.ok(o.coins / o.need > loadPrice(g, t, o.good, o.need, o.time), o.good); assert.ok(loadPrice(g, t, o.good, o.need, o.time) <= marketNow(g, t, o.good) + 1e-9); }
+  assert.ok(loadPrice(g, t, 'timber', 1e5, 300) < loadPrice(g, t, 'timber', 100, 300) / 5, 'a load far past the market depth fetches far less a unit');
   const fresh = marketNow(g, t, 'timber');
   g.shared.market.rate.timber = 40; // flooded
   assert.ok(marketNow(g, t, 'timber') < fresh / 2);
@@ -210,4 +211,34 @@ test('an old save gets the orders clock as a new game has it', () => {
   run(l, ORDERS.first + 1);
   assert.ok(ordersOpen(l));
   assert.ok(ordersOf(l, l.towns.gulch).offers.length >= 1);
+});
+
+test('what an order takes counts on the market like a sale, so the next offer pays less a unit (the sell-mode probe)', () => {
+  const g = open('ord-flood'), t = g.towns.gulch, st = ordersOf(g, t), o = st.offers[0], m = g.shared.market;
+  // nothing of the good goes to market: only the order moves it
+  t.sell[o.good] = false;
+  const r0 = m.rate[o.good] || 0, unit0 = marketNow(g, t, o.good);
+  t.goods[o.good] = (t.goods[o.good] || 0) + o.need * 3; // a held pile, as on Off or Booms only
+  assert.ok(takeOrder(g, t, o.id));
+  run(g, 2, .25);
+  assert.equal(st.active, null, 'filled at once from the pile');
+  assert.ok((m.rate[o.good] || 0) > r0 + o.need / 400, 'its delivery raised the sales rate');
+  assert.ok(marketNow(g, t, o.good) < unit0, 'so the good is worth less a unit now');
+});
+
+test('holding goods and filling orders one after another pays no more than the order premium over selling them', () => {
+  // two games on one seed: one sells everything, one holds every good and fills orders from the pile for 30 minutes
+  const coins = hold => {
+    const g = open('ord-hold'), t = g.towns.gulch;
+    for (const k of Object.keys(t.goods)) { t.goods[k] += 5000; if (hold) t.sell[k] = false; }
+    const before = g.shared.purse.coins;
+    for (let s = 0; s < 1800; s += 5) {
+      run(g, 5, .25);
+      const st = ordersOf(g, t);
+      if (hold && st && !st.active && st.offers.length) takeOrder(g, t, st.offers[0].id);
+    }
+    return g.shared.purse.coins - before;
+  };
+  const sold = coins(false), held = coins(true), top = ORDERS.pay * (1 + ORDERS.repPay) * ORDERS.rush.pay;
+  assert.ok(held <= sold * top, 'held ' + Math.round(held) + ' against sold ' + Math.round(sold) + ' times ' + top.toFixed(2));
 });

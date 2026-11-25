@@ -17,7 +17,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { Rng } from './rng.js';
 import { isOutpost } from './economy.js';
 import { spareRate, spareNow, nice } from './capital.js';
-import { saturation } from './market.js';
+import { saturation, rateRise, averageSaturation } from './market.js';
 
 const O = game => game.shared.orders;
 /* Two towns (not outposts) have each beaten wave ORDERS.wave: the orders clock runs. */
@@ -49,7 +49,12 @@ export function orderGoods(game, town, st) {
 
 /* What a unit sells for on the market now, with no boom or bust (an order's price starts there). */
 export const marketNow = (game, town, good) => GOODS[good].price * saturation(game, good) * town.mods.factor('price');
-/* What an order pays: need x the market's price now x pay, more with reputation, and more for a rush. */
+/* What a unit of an order's load would fetch on the market if the whole load were sold over the order's time: the
+   load floods the market as a sale would, so a big load is worth less a unit (the sell-mode probe, 2026.11.25-8: priced
+   at today's price, an order for minutes of a big town's output paid far past what the market could ever take, and a
+   town that held its goods earned 30 times the coins). An order pays this times its premium. */
+export const loadPrice = (game, town, good, need, time) => { const m = game.shared.market, r0 = (m && m.rate[good]) || 0; return GOODS[good].price * averageSaturation(good, r0, r0 + rateRise(need, time)) * town.mods.factor('price'); };
+/* What an order pays: need x the market's price for its load x pay, more with reputation, and more for a rush. */
 export const orderPay = (unit, need, rep, rush) => Math.round(need * unit * ORDERS.pay * (1 + ORDERS.repPay * rep / ORDERS.max) * (rush ? ORDERS.rush.pay : 1));
 
 /* Draw one new offer onto a town's board, or null when nothing can be asked for. */
@@ -63,7 +68,7 @@ function offer(game, town, st) {
   o.rng = r.state;
   const need = Math.max(ORDERS.least[GOODS[x.good].tier] || 5, nice(x.rate * 60 * minutes));
   const time = Math.round(minutes * 60 * (rush ? ORDERS.rush.time : ORDERS.time));
-  const a = { id: st.n++, good: x.good, need, got: 0, coins: Math.max(1, orderPay(marketNow(game, town, x.good), need, st.rep, rush)), minutes, time, left: time, rush, age: 0 };
+  const a = { id: st.n++, good: x.good, need, got: 0, coins: Math.max(1, orderPay(loadPrice(game, town, x.good, need, time), need, st.rep, rush)), minutes, time, left: time, rush, age: 0 };
   st.offers.push(a);
   return a;
 }
@@ -98,11 +103,14 @@ export function giveUpOrder(game, town) {
 
 /* Send what the town has to spare toward its running order (src/core/economy.js calls this before it sells). An
    order whose time ran out (left 0) and is still short is missed here, so the goods of the step it ran out in count. */
-export function claim(game, town) {
+/* dt: the step's seconds. What an order takes counts on the market's sales rate as a sale of the same units does, so
+   the next offer's price falls as a sale's would (the sell-mode probe, 2026.11.25-8: a town that held its goods kept
+   its price at full while orders filled from the pile one after another, and earned 30 times the coins). */
+export function claim(game, town, dt = 0) {
   const st = ordersOf(game, town), a = st && st.active;
   if (!a) return;
   const n = Math.min(spareNow(town, a.good), a.need - a.got);
-  if (n > 1e-9) { town.goods[a.good] -= n; a.got += n; }
+  if (n > 1e-9) { town.goods[a.good] -= n; a.got += n; const m = game.shared.market; if (m) m.rate[a.good] = (m.rate[a.good] || 0) + rateRise(n, dt); }
   if (a.got >= a.need - 1e-6) {
     st.active = null; st.filled++;
     st.rep = Math.min(ORDERS.max, st.rep + (a.rush ? ORDERS.rushFill : ORDERS.fill));

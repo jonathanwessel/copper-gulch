@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-9',
+    lines: [
+      'Big orders pay less for each unit, the same way a big sale does.',
+      'Goods sent to an order lower the price of that good, the same as selling them.',
+    ],
+  },
+  {
     v: '2026.11.25-8',
     lines: [
       'With a town card open on the map, the other towns keep their full labels where there is room.',

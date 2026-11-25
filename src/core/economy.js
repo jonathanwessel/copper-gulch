@@ -188,7 +188,7 @@ export function ship(game, from, dt) {
    the rest. A good on Skip busts or Booms only still feeds the towns; only its sale waits (src/core/market.js). */
 export function sellSurplus(game, town, dt) {
   ship(game, town, dt);
-  for (const s of game.systems) if (s.claim) s.claim(game, town); // the Capital's running contract takes its goods next (src/core/capital.js)
+  for (const s of game.systems) if (s.claim) s.claim(game, town, dt); // the Capital's running contract takes its goods next (src/core/capital.js)
   const need = demand(town), keep = town.keep || {}, extra = {}, imports = (town.def && town.def.imports) || [];
   for (const g of Object.keys(town.goods)) {
     if (town.sell[g] === false || imports.includes(g)) continue;
