@@ -121,6 +121,8 @@ export function upgradeTower(game, town, spot, path) {
   if (!canPay(town, c)) return false;
   const fork = forkNext(t);
   pay(town, c);
+  // the upgrades made at the wall since the town held (RESUME_WALL's count in src/core/goals.js)
+  if (atWall(town)) town.lost.ups = (town.lost.ups || 0) + 1;
   t.level++; t.spent += c.coins;
   if (t.level === PATH_LEVEL) t.path = path;
   if (fork) t.fork = path;

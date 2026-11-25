@@ -50,6 +50,7 @@ export function goalContext(game, town) {
     topTower: () => by((a, b) => a.level > b.level, t => !t.path),
     upTo: lvl => by((a, b) => a.level > b.level, t => t.level < lvl), // the highest tower still under that level
     // the tower whose next level costs the fewest coins: the quickest help in a fight
+    wallUps: () => (town.lost && town.lost.ups) || 0, // the upgrades made at the wall since it held (RESUME_WALL)
     cheapUp: () => by((a, b) => towerCost(town, a.kind, a.level).coins < towerCost(town, b.kind, b.level).coins),
   };
 }
@@ -71,7 +72,11 @@ export const RESUME = { id: 'resume', text: 'Tap Resume waves', resume: true, at
 export const RESUME_LOST = { ...RESUME, text: 'Build more towers, then tap Resume waves' };
 /* A town at its wall (atWall in src/core/defense.js: it lost twice with no new best wave between) asks for upgrades:
    its pads are full by then, and more of the same towers at level 1 lost twice already. */
-export const RESUME_WALL = { ...RESUME, text: 'Tap a tower and upgrade it, then tap Resume waves' };
+/* It counts the upgrades made there since it held (town.lost.ups, src/core/defense.js upgradeTower) up to WALL_UPS
+   (PLAN.md M6a, "How long a town waits at its wall": with one upgrade asked, the newcomer's Gulch at waves 25-29 sat on
+   towers at level 1 for five hours). */
+export const WALL_UPS = 8;
+export const RESUME_WALL = { ...RESUME, wall: true, text: 'Tap towers and upgrade them, then tap Resume waves', at: c => c.wallUps() < WALL_UPS && c.cheapUp() != null ? { tower: c.cheapUp() } : { el: '#holdWaves' }, meter: g2 => [Math.min(WALL_UPS, (g2.town && g2.town.lost && g2.town.lost.ups) || 0), WALL_UPS], post: ' upgrades' };
 const goResume = id => {
   const name = (TOWNS[id] && TOWNS[id].name) || id;
   return { id: 'resume-' + id, away: true, text: 'Tap Map, ' + name + ', then tap Resume waves', at: c => ({ el: c.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
@@ -116,8 +121,17 @@ const heldAway = game => Object.values(game.towns).find(t => t.id !== game.activ
   && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry) && !capitalSaving(game, t) && !atWall(t));
 /* With nothing else on the strip, a town at its wall: "Tap Map, Copper Gulch, then upgrade its towers". */
 export const WALL_WORDS = { go: town => 'Tap Map, ' + town + ', then upgrade its towers' };
-export function wallStep(game) {
-  const t = Object.values(game.towns).find(x => x.id !== game.active && atWall(x));
+/* The trip to a town at its wall (PLAN.md M6a, "How long a town waits at its wall"): once it has held WALL_WAIT since
+   its last loss and the purse can pay for its WALL_UPS cheapest upgrades, the strip sends the player there between other
+   steps (and its map label gets the red dot, needsYou 'wall'). On every seed of the build before, the newcomer's Gulch
+   sat at its wall 5.5-7 hours with most towers at level 1, while each of its upgrades cost under 100 coins. A trip that
+   ends in another loss at the same wave waits again: the loss moves town.lost.at. */
+export const WALL_WAIT = 30 * 60;
+export const wallCost = t => (t.towers || []).map(x => towerCost(t, x.kind, x.level).coins).sort((a, b) => a - b).slice(0, WALL_UPS).reduce((a, b) => a + b, 0);
+export const wallReady = (game, t) => !!t && t.id !== game.active && atWall(t) && (t.towers || []).length > 0
+  && t.t - ((t.lost && t.lost.at) || 0) >= WALL_WAIT && game.shared.purse.coins + 1e-9 >= wallCost(t);
+export function wallStep(game, ready = false) {
+  const t = Object.values(game.towns).find(x => x.id !== game.active && atWall(x) && (!ready || wallReady(game, x)));
   if (!t) return null;
   return { id: 'wall:' + t.id, away: true, text: WALL_WORDS.go(TOWNS[t.id].name), at: c => ({ el: c.back === t.id ? '#backBtn' : '#mapBtn', go: t.id }), done: () => false };
 }
@@ -179,6 +193,9 @@ export function goalNow(game, held = true) {
   }
   const away = held && heldAway(game);
   if (away) return goResume(away.id);
+  // a town that has waited at its wall long enough, with the coins for its upgrades (WALL_WAIT), not from an outpost still being won
+  const trip = held && !(isOutpost(town) && !town.won) && wallStep(game, true);
+  if (trip) return trip;
   const again = rebuildStep(game, town);
   if (again) return again;
   const fed = feedStep(game, town);

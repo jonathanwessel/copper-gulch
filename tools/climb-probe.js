@@ -16,23 +16,27 @@
 // Capital on the strip is never blank longer than BLANK_MAX (it was for 6-9 minutes once Silver Falls stood, while the
 // Falls' next goals waited on a locked lot).
 import { newcomer } from './firstplay.js';
-import { goalNow, meterWords } from '../src/core/goals.js';
+import { goalNow, meterWords, capitalSaving } from '../src/core/goals.js';
 import { deedsHeld } from '../src/core/charter.js';
 import { isOutpost } from '../src/core/economy.js';
-import { towerCost } from '../src/core/defense.js';
+import { towerCost, atWall } from '../src/core/defense.js';
 import { capitalOpen } from '../src/core/capital.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 const SEEDS = arg('seeds', 6), MINUTES = arg('minutes', 420), ONE = arg('seed', 0), FROM = arg('from', 200) * 60, EVERY = arg('every', 10) * 60;
 const QUIET = !process.argv.includes('--lines');
 export const FALLS_BY = 600 * 60, FALLS_MOST = 2 / 3, STEP_MAX = 30 * 60, LOSS_MAX = 175e3, BLANK_MAX = 120;
+/* The wall-wait gate (PLAN.md M6a): no town waits at its wall over WALL_MAX in a row while the purse holds RICH times
+   its cheapest tower upgrade. */
+export const WALL_MAX = 60 * 60, RICH = 5;
+export const cheapUpgrade = t => (t.towers || []).reduce((m, x) => Math.min(m, towerCost(t, x.kind, x.level).coins), Infinity) || 0;
 /* The coins the newcomer lost to falls in every town between the Ridge's charter and Silver Falls (or the run's end). */
 export const climbLoss = rec => rec.lost.filter(x => rec.signed != null && x.at >= rec.signed && (rec.falls == null || x.at <= rec.falls)).reduce((a, x) => a + (x.lost || 0), 0);
 const mm = s => s == null ? 'never' : Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const k = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
 
 export function climb(seed, minutes = MINUTES, onLine = null) {
-  const rec = { blank: { from: null, longest: 0, at: 0 }, falls: null, spend: {}, lost: [], step: { text: null, from: 0, longest: 0, at: 0, which: null }, peak: {} };
+  const rec = { wall: {}, blank: { from: null, longest: 0, at: 0 }, falls: null, spend: {}, lost: [], step: { text: null, from: 0, longest: 0, at: 0, which: null }, peak: {} };
   let lastLine = -1e9;
   const r = newcomer(seed, minutes, (g, at) => {
     if (!rec.hooked) {
@@ -57,6 +61,16 @@ export function climb(seed, minutes = MINUTES, onLine = null) {
     if (!climbing || text !== st.text) { st.text = climbing ? text : null; st.from = at; }
     if (st.text && at - st.from > st.longest) { st.longest = at - st.from; st.at = st.from; st.which = st.text; }
     for (const t of Object.values(g.towns)) if (!isOutpost(t)) rec.peak[t.id] = Math.max(rec.peak[t.id] || 0, t.wave);
+    // how long each town waits at its wall (PLAN.md M6a, "How long a town waits at its wall"): every stretch in a row
+    // with atWall, and the stretch in a row at its wall while the purse holds RICH times its cheapest upgrade and no save
+    // the strip asks for holds the town (capitalSaving: the coins saved for the Capital or the next town are spoken for)
+    for (const t of Object.values(g.towns)) {
+      if (isOutpost(t)) continue;
+      const w = rec.wall[t.id] ||= { from: null, longest: 0, at: 0, rich: null, richLong: 0, richAt: 0, purse: 0, cheap: 0 };
+      const wall = atWall(t), cheap = cheapUpgrade(t), rich = wall && !capitalSaving(g, t) && cheap > 0 && g.shared.purse.coins >= RICH * cheap;
+      if (wall) { w.from ??= at; if (at - w.from > w.longest) { w.longest = at - w.from; w.at = w.from; } } else w.from = null;
+      if (rich) { w.rich ??= at; if (at - w.rich > w.richLong) { w.richLong = at - w.rich; w.richAt = w.rich; w.purse = g.shared.purse.coins; w.cheap = cheap; } } else w.rich = null;
+    }
     if (at < FROM || at - lastLine < EVERY) return false;
     lastLine = at;
     const towns = Object.values(g.towns).filter(t => !isOutpost(t)).map(t => {
@@ -84,6 +98,8 @@ if (process.argv[1] && process.argv[1].split(String.fromCharCode(92)).join('/').
     const st = rec.step;
     at.push(rec.falls); loss.push(climbLoss(rec));
     console.log(`seed ${seed}: Ridge charter ${mm(rec.signed)}, Silver Falls ${mm(rec.falls)}, Ridge peak wave ${rec.peak.ridge || 0}, lost ${rec.lost.filter(x => x.town === 'ridge' && x.at >= FROM).length} times in the Ridge after ${mm(FROM)}, longest strip step ${Math.round(st.longest / 60)} min at ${mm(st.at)} "${st.which}", lost ${k(loss[loss.length - 1])} to falls on the climb, longest blank strip ${Math.round(rec.blank.longest)} s at ${mm(rec.blank.at)}`);
+    console.log('  at the wall: ' + Object.entries(rec.wall).map(([id, w]) => `${id} longest ${Math.round(w.longest / 60)} min at ${mm(w.at)}, with ${RICH}x its cheapest upgrade in the purse ${Math.round(w.richLong / 60)} min at ${mm(w.richAt)} (purse ${k(w.purse)}, cheapest ${k(w.cheap)})`).join('; '));
+    for (const [id, w] of Object.entries(rec.wall)) if (w.richLong > WALL_MAX) miss.push(`seed ${seed}: ${id} waited at its wall ${Math.round(w.richLong / 60)} min in a row from ${mm(w.richAt)} with ${k(w.purse)} in the purse and ${k(w.cheap)} its cheapest upgrade (want under ${WALL_MAX / 60} min)`);
     if (rec.blank.longest > BLANK_MAX) miss.push(`seed ${seed}: the strip was blank ${Math.round(rec.blank.longest)} s in a row from ${mm(rec.blank.at)} (want under ${BLANK_MAX} s from the Capital on)`);
     if (st.longest > STEP_MAX) miss.push(`seed ${seed}: "${st.which}" stayed up ${Math.round(st.longest / 60)} min in a row from ${mm(st.at)} (want under ${STEP_MAX / 60})`);
   }

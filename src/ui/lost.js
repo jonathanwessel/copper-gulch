@@ -37,7 +37,7 @@ export function lostCard(town, game = null) {
   return {
     title: 'Wave ' + l.wave + ' lost',
     lines: [what + ' You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
-      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. ' + (atWall(town) ? 'Tap a tower and upgrade it' : 'Build more towers') + ', then tap Resume waves.'],
+      again ? 'The ' + bossName(town) + ' comes back after a tower goes up a level.' : 'Your waves are on hold. ' + (atWall(town) ? 'Tap towers and upgrade them' : 'Build more towers') + ', then tap Resume waves.'],
   };
 }
 /* The line on the town's map card while it tries its boss again (Keep trying the boss): playing the last wave it beat

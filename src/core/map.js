@@ -17,12 +17,13 @@ import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
 import { retryState } from './automation.js';
 import { waitsAway, atWall } from './defense.js';
-import { savingFor } from './goals.js';
+import { savingFor, wallReady } from './goals.js';
 
 /* Why a place wants the player now, or null. One source for the Map button's dot, the back button's dot, the map
    label's red word or dot and the goal strip's step to go there (clarity fix 5, one state one source):
      'lost'    it lost its vault or boss and holds its waves, and does not try again by itself;
      'hold'    the player held its waves, and no goal asks to save there;
+     'wall'    at its wall (atWall) it has waited long enough, and the purse can pay for its upgrades (wallReady);
      'stuck'   Keep trying the boss is on, but no tower here can go up a level by itself;
      'wait'    out of play with no tower, so its clock waits;
      'raided'  raiders broke in while the player was elsewhere, until the player looks. */
@@ -33,7 +34,8 @@ export function needsYou(game, id) {
   if (r === 'stuck') return 'stuck';
   // a town at its wall (atWall) holds with no dot: the strip no longer sends the player back to resume it, and its card
   // says to upgrade its towers first (the Gulch's loss loop, PLAN.md M6a)
-  if (t.waves.hold && r !== 'again' && r !== 'climb') return t.waves.autoHold ? (atWall(t) ? null : 'lost') : savingFor(game, t) ? null : 'hold';
+  // ('wall' once it has waited WALL_WAIT with the coins for its upgrades, when the strip sends the player there)
+  if (t.waves.hold && r !== 'again' && r !== 'climb') return t.waves.autoHold ? (atWall(t) ? (wallReady(game, t) ? 'wall' : null) : 'lost') : savingFor(game, t) ? null : 'hold';
   if (waitsAway(game, t)) return 'wait';
   if (game.active !== id && (t.breaches || 0) > ((t.flags && t.flags.breachSeen) || 0)) return 'raided';
   return null;

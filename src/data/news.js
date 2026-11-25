@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-5',
+    lines: [
+      'A town that keeps losing the same wave now waits 30 minutes, then Goal sends you back there.',
+      'Its name on the map gets a red dot when it is time to go.',
+      'In that town, Goal counts your tower upgrades up to 8 before you tap Resume waves.',
+    ],
+  },
+  {
     v: '2026.11.25-4',
     lines: [
       'The coins a second on the map now match the number in each town.',

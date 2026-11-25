@@ -19,7 +19,7 @@
 // Prints a table per seed and "ok" or the misses.
 import { newGame } from '../src/core/setup.js';
 import { Rng } from '../src/core/rng.js';
-import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, RESUME_WALL, FIGHT_LOW } from '../src/core/goals.js';
+import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, RESUME_WALL, WALL_UPS, FIGHT_LOW } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
 import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold, sellTower, atWall } from '../src/core/defense.js';
@@ -53,7 +53,8 @@ export const GOAL_SAVE = 600, LOST_BUYS = 3;
 /* "Build more towers, then tap Resume waves": true while the newcomer still builds first (it has bought fewer than
    LOST_BUYS towers or upgrades since the loss and can pay for one more), so it does both acts the strip names. At its
    wall ("Upgrade your towers, then tap Resume waves") only an upgrade counts. */
-export const buildFirst = (game, town, rng, bought) => { const g = goalNow(game), wall = g === RESUME_WALL; return (g === RESUME_LOST || wall) && bought < LOST_BUYS && choices(game, town, rng).some(c => c.what === 'upgrade' || (!wall && c.what === 'tower')); };
+// at its wall the strip counts WALL_UPS upgrades (town.lost.ups), and it makes them all while it can pay
+export const buildFirst = (game, town, rng, bought) => { const g = goalNow(game), wall = g === RESUME_WALL; return (g === RESUME_LOST || wall) && (wall ? ((town.lost && town.lost.ups) || 0) < WALL_UPS : bought < LOST_BUYS) && choices(game, town, rng).some(c => c.what === 'upgrade' || (!wall && c.what === 'tower')); };
 /* The coins a goal counts: its need on the strip, or for a goal to upgrade a building, the next level's price, which its
    card shows as have / need (a tap on the strip opens it; clarity fix 3b part 2: "Tap the Rolling Mill and upgrade it
    to level 5" sat 10-14 minutes after the Capital while the newcomer spent each coin as it came). */

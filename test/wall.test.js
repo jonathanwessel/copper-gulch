@@ -7,8 +7,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
-import { goalNow, RESUME_WALL, RESUME_LOST } from '../src/core/goals.js';
-import { fall, atWall, setHold } from '../src/core/defense.js';
+import { goalNow, RESUME_WALL, RESUME_LOST, WALL_WAIT, WALL_UPS, wallCost, meterWords } from '../src/core/goals.js';
+import { fall, atWall, setHold, buildTower, upgradeTower, fitsSpot } from '../src/core/defense.js';
 import { unlocked } from '../src/core/economy.js';
 import { needsYou } from '../src/core/map.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
@@ -17,6 +17,7 @@ import { TOWN_ORDER } from '../src/data/towns/index.js';
 import { lostLine } from '../src/ui/lost.js';
 import { buildFirst, choices } from '../tools/firstplay.js';
 import { Rng } from '../src/core/rng.js';
+import { GOODS } from '../src/data/goods.js';
 
 // every place open, the Capital built with one building, every goal done but the Falls' from the Glassworks on
 function empire(seed) {
@@ -70,8 +71,11 @@ test('at its wall the newcomer counts only upgrades before it resumes', () => {
   t.coins = 1e9; for (const k of Object.keys(t.goods)) t.goods[k] = 1e6;
   const rng = new Rng('w3');
   const ups = choices(g, t, rng).filter(c => c.what === 'upgrade');
-  assert.equal(buildFirst(g, t, rng, 0), ups.length > 0, 'builds first while an upgrade can be paid');
-  assert.equal(buildFirst(g, t, rng, 3), false, 'then it resumes');
+  towers(g, t, 3);
+  assert.equal(buildFirst(g, t, rng, 0), true, 'builds first while an upgrade can be paid');
+  t.lost.ups = WALL_UPS;
+  assert.equal(buildFirst(g, t, rng, 0), false, 'then it resumes once the strip counts its upgrades');
+  assert.ok(ups.length >= 0);
 });
 
 test('a goal held back by its locked lot asks for the level that opens it, in its town and from the others', () => {
@@ -115,7 +119,7 @@ test('in play a fallen vault holds the waves only at the wall, and its card asks
   assert.equal(goalNow(g), RESUME_WALL);
   const c = lostCard(r, g);
   assert.match(c.lines[0], /^Your vault fell again\. You dropped back to wave 43/);
-  assert.equal(c.lines[1], 'Your waves are on hold. Tap a tower and upgrade it, then tap Resume waves.');
+  assert.equal(c.lines[1], 'Your waves are on hold. Tap towers and upgrade them, then tap Resume waves.');
 });
 
 test('with every goal done and no place left to open, the strip names the next mark of ten waves', () => {
@@ -127,4 +131,59 @@ test('with every goal done and no place left to open, the strip names the next m
   assert.deepEqual(s.meter(g), [53, 60]);
   g.go('drycreek');
   assert.equal(goalNow(g).text, 'Tap Map, then tap Silver Falls', 'a won outpost sends you to the newest town');
+});
+
+// a few Crossbows in a town, paid from a full purse
+function towers(g, t, n) {
+  g.shared.purse.coins = 1e9; for (const k of Object.keys(GOODS)) t.goods[k] = 1e6;
+  for (let i = 0, b = 0; i < t.def.board.spots.length && b < n; i++) if (fitsSpot(t, i, 'crossbow') && buildTower(g, t, i, 'crossbow')) b++;
+}
+
+test('a town at its wall waits, then the strip sends you there once the purse can pay for its upgrades (How long a town waits at its wall)', () => {
+  const g = empire('w8'), t = g.towns.gulch;
+  towers(g, t, 3);
+  lose(g, 31); setHold(g, t, false); lose(g, 31);
+  assert.equal(atWall(t), true);
+  g.shared.purse.coins = 1e9;
+  assert.notEqual(goalNow(g).id, 'wall:gulch', 'not before it has waited');
+  assert.equal(needsYou(g, 'gulch'), null);
+  t.t += WALL_WAIT;
+  const s = goalNow(g);
+  assert.equal(s.id, 'wall:gulch', 'after the wait the strip sends you there, ahead of the Falls goals');
+  assert.equal(s.text, 'Tap Map, Copper Gulch, then upgrade its towers');
+  assert.equal(needsYou(g, 'gulch'), 'wall', 'and its map label has the dot (one source)');
+  g.shared.purse.coins = wallCost(t) - 1;
+  assert.notEqual(goalNow(g).id, 'wall:gulch', 'not while the purse cannot pay for its upgrades');
+  assert.equal(needsYou(g, 'gulch'), null);
+  g.shared.purse.coins = 1e9;
+  setHold(g, t, false); lose(g, 31);
+  assert.equal(atWall(t), true);
+  assert.notEqual(goalNow(g).id, 'wall:gulch', 'a trip that ends in another loss at the same wave waits again');
+});
+
+test('at its wall the strip counts the upgrades made there', () => {
+  const g = empire('w9'), t = g.towns.gulch;
+  towers(g, t, 3);
+  lose(g, 31); setHold(g, t, false); lose(g, 31);
+  g.go('gulch');
+  assert.equal(goalNow(g), RESUME_WALL);
+  assert.equal(meterWords(RESUME_WALL, g), '0 / ' + WALL_UPS + ' upgrades');
+  g.shared.purse.coins = 1e9;
+  const spot = t.towers[0].spot;
+  for (let i = 0; i < WALL_UPS + 2; i++) assert.ok(upgradeTower(g, t, spot, 'a'));
+  assert.equal(meterWords(RESUME_WALL, g), WALL_UPS + ' / ' + WALL_UPS + ' upgrades', 'the count stops at its mark');
+  setHold(g, t, false); lose(g, 31);
+  assert.equal(meterWords(RESUME_WALL, g), '0 / ' + WALL_UPS + ' upgrades', 'a new loss counts again');
+});
+
+test('at its wall the spotlight is on a tower until the upgrades are made, then on Resume waves (fresh-eyes read of 2026.11.25-5)', async () => {
+  const { goalContext } = await import('../src/core/goals.js');
+  const g = empire('w10'), t = g.towns.gulch;
+  towers(g, t, 3);
+  lose(g, 31); setHold(g, t, false); lose(g, 31);
+  g.go('gulch');
+  const at = () => RESUME_WALL.at(goalContext(g, t));
+  assert.equal(typeof at().tower, 'number', 'a tower first');
+  t.lost.ups = WALL_UPS;
+  assert.equal(at().el, '#holdWaves', 'then Resume waves');
 });

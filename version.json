@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.25-4",
-  "notes": "The map and town show one coins rate, cards fit wide screens, sell choices show a price picture"
+  "version": "2026.11.25-5",
+  "notes": "A town stuck on one wave sends you back after 30 minutes to upgrade its towers"
 }

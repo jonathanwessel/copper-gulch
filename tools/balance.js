@@ -281,7 +281,9 @@ export const STRATEGIES = {
   active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
   minmax: { want: w => Math.min(7, 1 + Math.ceil(w / 4)), level: w => 2 + w / 2, ups: true, most: 2, one: ['cannon', 'frost', 'still'] },
   swarm: { want: w => 2 + Math.ceil(w / 1.5), level: w => 1 + w / 4, even: true },
-  economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1.3 + w / 3.3 + r.bump, eco: true },
+  // callAge: a coins-first player calls the next wave early for its bonus sooner than the others (PLAN.md M6a, the
+  // economy box: with CALL_AGE it called 2-4 waves by wave 10 against 5-7 for defense and sat 24% behind at wave 10)
+  economy: { want: w => 1 + Math.ceil(w / 3.5), level: (w, r) => 1.3 + w / 3.3 + r.bump, eco: true, callAge: .55 },
   defense: { want: w => 1 + Math.ceil(w / 2.5), level: w => 1.5 + w / 2.8 },
 };
 
@@ -446,7 +448,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // on old ground (waves the town beat before its charter) it calls as soon as the road is clear
     // a called wave comes bigger the earlier it is called (RUSH): it calls once the last wave's time, scaled up by that,
     // still fits under CALL_AGE
-    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge * (1 + RUSH.more * rushOf(t)) <= CALL_AGE || oldGround(t));
+    return w - r.leakAt > 2 && t.vault.hp >= .6 * t.vault.max && (r.lastAge * (1 + RUSH.more * rushOf(t)) <= (S.callAge ?? CALL_AGE) || oldGround(t));
   };
   for (let s = 0; s < minutes * 60 * 4; s++) {
     g.step(.25);
