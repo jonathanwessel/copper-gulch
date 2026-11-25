@@ -4,7 +4,7 @@
    coins it pays and the tower that hits it hardest. It follows the raider live while the game runs, and when the raider
    falls or gets through it says so for a moment and closes. Every value comes from foeStatus (src/core/defense.js),
    which the bots count with too. Live numbers sit in cells of fixed width, so the card never twitches. */
-import { FOES, STAGE_WORDS } from '../data/foes.js';
+import { FOES, STAGE_LINES } from '../data/foes.js';
 import { foeStatus } from '../core/defense.js';
 import { bestView, BEST_LABEL } from './wave.js';
 import { drawFoe } from '../art/foes.js';
@@ -30,7 +30,7 @@ export function foeView(town, f, store = 'vault') {
     // 2026.11.22-9: a sentence under the bar said the row's fact again)
     armor: st.armorFull > 0 ? { text: pct(st.armor) + (st.eaten > 0 ? ', was ' + pct(st.armorFull) : ''), share: st.armor, full: st.armorFull } : null,
     // a boss's stage leads its effects, in the boss bar's words (one state, one source: both read foeStatus)
-    effects: [...(st.stage ? [{ key: 'stage', word: STAGE_WORDS[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
+    effects: [...(st.stage ? [{ key: 'stage', word: STAGE_LINES[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
     none: 'No effects.', // review of 2026.11.22-9: "Nothing on it now" read as a narrator
     worth: coins(st.worth), best: bestView(town, f.kind),
     gone: st.gone === 'down' ? F.name + ' down!' : st.gone === 'through' ? 'It got to the ' + store + '.' : null,

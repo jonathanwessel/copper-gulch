@@ -244,6 +244,9 @@ html.no3d body { background: var(--bg); }
 .foefx { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; min-height: 26px; }
 .foefx .fx { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 2px 6px; background: var(--panel-2); border: 2px solid var(--line); font-size: .85rem; }
 .foefx .fxword { flex: 1; white-space: nowrap; }
+.foefx .fx[data-fx="stage"] { grid-column: 1 / -1; } /* a boss's stage is a sentence across the card (clarity fix 8b) */
+.foefx .fx[data-fx="stage"] .fxword { white-space: normal; }
+.foefx .fx[data-fx="stage"] .fxleft { display: none; }
 .foefx .fxleft { flex: none; width: 6ch; text-align: right; color: var(--copper-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .foefx .fxnone { grid-column: 1 / -1; align-self: center; color: var(--muted); font-size: .85rem; }
 .fxmark { flex: none; display: block; width: 14px; height: 14px; }
@@ -347,7 +350,9 @@ html.flat .tag { position: static; transform: none !important; }
 .card .row { justify-content: stretch; }
 /* the Build or Upgrade row never scrolls out of view: it sticks to the card's bottom edge while the card scrolls */
 /* its top edge shows it is pinned over the lines that scroll under it (review of 2026.11.19-8: the card's last line looked cut) */
-.card > .row:has(> #buy), .card > .buybar { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px; padding: 6px 12px; background: var(--panel); border-top: 2px solid var(--line); box-shadow: 0 -3px 0 rgba(22, 15, 11, .35); }
+/* the map card's Play or Start stays whole at the card's foot while the card scrolls (clarity fix 8b: a long outpost card in
+   landscape scrolled Play half out of view) */
+.card > .row:has(> #buy), .card > .buybar, #mapCard > .row:has(> #mapPlay, > #mapFound) { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px; padding: 6px 12px; background: var(--panel); border-top: 2px solid var(--line); box-shadow: 0 -3px 0 rgba(22, 15, 11, .35); }
 .card > .buybar { display: grid; gap: 6px; }
 .card > .buybar.pathbar { position: static; margin: 0; padding: 0; border-top: 0; box-shadow: none; }
 .card > .buybar .costrow { margin-top: 0; }
@@ -423,7 +428,8 @@ html.flat .tag { position: static; transform: none !important; }
   /* a wider card for the path choice, the two paths side by side, so both show without scrolling (review of
      2026.11.20-3: Shrapnel was below the fold while most of the screen was map). Every other card keeps to 46%, so the
      map stays the bigger half (review of 2026.11.20-12: landscape cards covered the right half) */
-  .card:has(> .pathbar), .card:has(> .cardhead > .sellhead) { width: min(54%, 480px); } /* a tower card too: its name and three stats a row fit on one line each (2026.11.21-10) */
+  .card:has(> .cardhead > .sellhead) { width: min(54%, 480px); }
+  .card:has(> .pathbar), .card:has(> .pathbar):has(> .cardhead > .sellhead) { width: min(60%, 520px); } /* each side's name fits on one line beside its Choose button (clarity fix 8b) */ /* a tower card too: its name and three stats a row fit on one line each (2026.11.21-10) */
   .card > .pathbar { grid-template-columns: 1fr 1fr; }
   .card > .pathbar > .pathhead, .card > .pathbar > .pathnotes { grid-column: 1 / -1; }
   .pathnotes > p > .more { display: none; } /* how long or what to build, one line a good: which building to upgrade is the red have's job */
@@ -433,7 +439,7 @@ html.flat .tag { position: static; transform: none !important; }
      buttons show without scrolling on a short screen (review of 2026.11.21-8, fork-land: Choose was under the fold) */
   .card > .pathbar > .option { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 6px; row-gap: 2px; }
   .card > .pathbar > .option > div { display: contents; }
-  .card > .pathbar > .option > div > b { grid-column: 1; grid-row: 1; }
+  .card > .pathbar > .option > div > b { grid-column: 1; grid-row: 1; white-space: nowrap; } /* one line beside Choose (clarity fix 8b: "Rocket / Battery") */
   .card > .pathbar > .option > div > span { grid-column: 1 / -1; grid-row: 2; font-size: .8rem; line-height: 1.2; }
   .card > .pathbar > .option > .btn { grid-column: 2; grid-row: 1; min-height: 30px; padding-inline: 8px; }
   .card > .pathbar > .pathhead > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
@@ -556,6 +562,8 @@ html.flat .tag { position: static; transform: none !important; }
 .seg > .btn { white-space: nowrap; }
 .seg > .btn + .btn { margin-left: -2px; } /* two buttons that read as one choice, the picked one gold (review of 2026.11.20-15: the copper pill did not look tappable) */
 .sheetbody.more::after { content: ''; position: sticky; bottom: calc(-1 * max(14px, env(safe-area-inset-bottom))); z-index: 3; height: 30px; margin-top: -42px; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .8)); } /* more below the edge (sheets.js moreBelow) */
+/* Sign the charter sits beside Sign now and get, above what it pays, so it shows without a scroll in landscape (clarity fix 8b) */
+.sheetbody .row.signrow { justify-content: space-between; align-items: center; flex-wrap: nowrap; }
 .sheetbody::-webkit-scrollbar { width: 8px; }
 .sheetbody::-webkit-scrollbar-track { background: var(--line); }
 .sheetbody::-webkit-scrollbar-thumb { background: var(--copper); border: 2px solid var(--line); }
@@ -634,9 +642,10 @@ html.flat .tag { position: static; transform: none !important; }
 .goodchip.boom::after { border-bottom: 7px solid var(--evc); }
 .goodchip.bust::after { border-top: 7px solid var(--evc); }
 .option .gnamerow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
-.option .gnamerow .evword { flex: none; width: 7.5em; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
-.option .gnamerow .evword.bust { color: #e0503a; }
-.option .gnamerow .evword::before { content: ""; display: inline-block; width: 0; height: 0; margin-right: 5px; vertical-align: 1px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid currentColor; } /* up: the price is high (the strip's arrow, review of 2026.11.23-6) */
+.option .evline { color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.option .gnamerow .evword { flex: none; width: auto; text-align: right; color: #5fd36a; font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.option .gnamerow .evword.bust, .option .evline.bust { color: #e0503a; }
+.option .gnamerow .evword::before { content: ""; display: inline-block; width: 0; height: 0; margin-right: 0; vertical-align: 1px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid currentColor; } /* up: the price is high (the strip's arrow, review of 2026.11.23-6) */
 .option .gnamerow .evword.bust::before { border-bottom: 0; border-top: 8px solid currentColor; }
 .modepic { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; } /* a sell mode's picture: low, normal and high price, lit where it sells */
 .modepic i { display: block; width: 12px; background: #3a2a20; border: 1px solid #000; }

@@ -187,7 +187,10 @@ export function goodsSheet(game, town, focus = null) {
         const level = el('small', 'pword'), plabel = el('small', 'plabel', 'Price'), barRow = el('span', 'depthrow'), ev = el('small', 'evword'); ev.hidden = true; barRow.append(plabel, level); const head = el('div', 'gnamerow'); head.append(name, ev); // ev: a boom or bust and its time left, beside the name so the price row keeps its width on a phone // no bar: it had no label and said what the word says (review of 2026.11.20-15)
         // a stalled workshop's good says what it waits for (clarity fix 6)
         const wait = el('small', 'warn waitline'); wait.hidden = true;
-        txt.append(head, line, line2, wait, barRow, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
+        // a boom or bust's time in words under the price, and only its arrow beside the name (clarity fix 8b: "1:11 left"
+        // beside the name was flagged twice, so the control changed)
+        const evLine = el('small', 'evline'); evLine.hidden = true;
+        txt.append(head, line, line2, wait, barRow, evLine, why); txt.dataset.why = g; txt.setAttribute("role", "button"); txt.tabIndex = 0; // line2: for towers and spare, its own line (review of 2026.11.20-7: "spare" wrapped alone on a phone)
         txt.addEventListener('click', () => { open[g] = !open[g]; whySig[g] = ''; paint(); requestAnimationFrame(() => inView(row)); }); // tap a good: what makes its price
         // Sell spare opens the four modes under the row (GDD.md, Market); a pick closes them
         const sw = btn('', 'btn small'); sw.dataset.good = g;
@@ -197,7 +200,7 @@ export function goodsSheet(game, town, focus = null) {
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(pick)); });
         row.append(txt, sw); list.append(row, pick);
-        rows[g] = { line, line2, wait, sw, why, txt, level, plabel, ev, pick, picks };
+        rows[g] = { line, line2, wait, sw, why, txt, level, plabel, ev, evLine, pick, picks };
       }
       for (const g of shipped()) {
         const row = el('div', 'option good'), txt = el('div'), line = el('span');
@@ -235,11 +238,13 @@ export function goodsSheet(game, town, focus = null) {
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
         // an arrow up or down and the time it has left (the stylesheet draws the arrow; review of 2026.11.23-7: a bare time said nothing of what it counts)
-        const bm = boomNow(game), ew = bm && bm.good === g ? boomClock(bm.left) + ' left' : '';
+        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left)) : '';
         { const al = bm && bm.good === g ? (bm.f > 1 ? 'Price up for ' : 'Price down for ') + boomClock(bm.left) : ''; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
-        if (r.ev.textContent !== ew) r.ev.textContent = ew;
-        if (r.ev.hidden !== !ew) r.ev.hidden = !ew;
+        if (r.ev.hidden !== !on) r.ev.hidden = !on;
+        if (r.evLine.textContent !== ew) r.evLine.textContent = ew;
+        if (r.evLine.hidden !== !ew) r.evLine.hidden = !ew;
         if (r.ev.classList.contains('bust') !== (!!bm && bm.good === g && bm.f < 1)) r.ev.classList.toggle('bust');
+        if (r.evLine.classList.contains('bust') !== (on && bm.f < 1)) r.evLine.classList.toggle('bust');
       }
     };
     build();
@@ -318,6 +323,8 @@ const keep = s => s.replace(/ /g, '\u00a0');
 /* Seconds in words: "40 seconds", "3 minutes". */
 /* The research button while it runs (review of 2026.11.19-3: it read "Working"): the time left, short. */
 export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.round(s / 60) + ' min';
+/* A boom or bust on the Goods sheet in words, with its clock (clarity fix 8b). */
+export const boomWords = (f, clock) => (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more';
 export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
@@ -692,7 +699,6 @@ export function perksSheet(ctx) {
     const set = (e, t) => { if (e.textContent !== t) e.textContent = t; };
     const prog = el('div', 'explain why charterline'), wave = rowOf(prog), coins = rowOf(prog), next = el('p', 'uses');
     confirmTap(sign, 'Tap again to sign', () => { if (signCharter(game, town) > 0) leave('charter'); });
-    const r = el('div', 'row'); r.append(sign);
     // what a charter is comes first, then what signing pays under its own small heading (review of 2026.11.20-8:
     // "Charter" and "deed" were not explained and the deed rows were hard to read)
     // two plain lines first (clarity fix 9, review 9: the rows alone were unreadable): what you lose and keep, then what a
@@ -701,7 +707,10 @@ export function perksSheet(ctx) {
     const keepLine = el('p', 'uses', cw.keep); keepLine.id = 'charterKeep';
     const deedLine = el('p', 'uses', cw.deed); deedLine.id = 'charterDeed';
     const getHead = el('small', 'pairhead', 'Sign now and get');
-    sec('Charter', keepLine, deedLine, now, getHead, prog, next, r);
+    // the button beside Sign now and get, above what it pays (clarity fix 8b: pinned to the sheet's foot it covered the
+    // rows in landscape, fresh-eyes read)
+    const r = el('div', 'row signrow'); r.append(getHead, sign);
+    sec('Charter', keepLine, deedLine, now, r, prog, next);
     // the deeds held, and after signing
     const held = el('div', 'explain why'); held.id = 'deedsHeld';
     const have = rowOf(held), after = rowOf(held); after.r.id = 'deedsAfter';

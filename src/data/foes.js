@@ -29,6 +29,9 @@ export const FOES = {
 };
 /* What the boss bar says once a boss reaches each stage: a few words. */
 /* What happened and what it changed, in three words (review of 2026.11.23-7: the lines named only what happened). */
+/* The same stage on the raider card, in a sentence: the bar has a picture and an arrow beside its few words, the card a
+   chip with room (clarity fix 8b: "Crew off, slower" on the card read as a note). */
+export const STAGE_LINES = { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.' };
 export const STAGE_WORDS = { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */

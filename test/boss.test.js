@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
 import { startWave, fight, foeStatus, speedOf, armorOf, stageOf, waveRun } from '../src/core/defense.js';
-import { FOES, STAGE_WORDS } from '../src/data/foes.js';
+import { FOES, STAGE_WORDS, STAGE_LINES } from '../src/data/foes.js';
 import { bossOn, bossView, bossLines } from '../src/ui/boss.js';
 import { textIssues } from '../tools/audit.js';
 
@@ -114,7 +114,8 @@ test('one state, one source: the boss card shows the same stage as the bar, and 
     f.hp = f.max * (st.at - .01); fight(g, t, .25);
     const chip = foeView(t, f).effects.find(e => e.key === 'stage');
     assert.ok(chip, kind + ': the card has the stage');
-    assert.equal(chip.word, bossView(t, f).stage);
+    // one stage behind both: the bar's few words and the card's sentence for it (clarity fix 8b)
+    assert.equal(chip.word, STAGE_LINES[st.key]); assert.equal(bossView(t, f).stage, STAGE_WORDS[st.key]);
     f.hp = 0; fight(g, t, .25);
     const v = bossView(t, f);
     assert.equal(v.armor, ''); assert.equal(v.stage, '');

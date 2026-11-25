@@ -88,6 +88,9 @@ export function mulShown(ex) {
 /* A factor on a price as how far it moves it, "Down 34%" or "Up 15%" (clarity fix 8a: "Sold a lot lately × 0.66" was a
    bare number beside the row's "Down 34%"). Never 0%, and a drop stops at 99%. */
 export const pctWord = m => (m >= 1 ? 'Up ' + Math.max(1, Math.round((m - 1) * 100)) : 'Down ' + Math.min(99, Math.max(1, Math.round((1 - m) * 100)))) + '%';
+/* A bonus as how much it adds, "50% more" or "10% less" (clarity fix 8b: "Deeds × 1.5" in the Income bonuses was a bare
+   factor, the same fix as the Goods rows' "Down 34%"). */
+export const moreWord = m => (m >= 1 ? Math.max(1, Math.round((m - 1) * 100)) + '% more' : Math.min(99, Math.max(1, Math.round((1 - m) * 100))) + '% less');
 export function explainBox(ex, { extra = {}, total = 'Total', pct = false } = {}) {
   const box = el('div', 'explain why');
   // the old-waves row's label is the wave bar's gold wave number (review of 2026.11.23-9)
@@ -114,7 +117,7 @@ export function incomeSheet(income) {
       const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, rateWords(v)]); // in words in a card (clarity fix 8a), the top bar keeps /s
       if (!rows.length) rows.push(['No coins in the last minute', '']);
       else rows.push(['Total', rateWords(sp.total), 'total']);
-      const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), mulText(r.mul)]);
+      const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), moreWord(r.mul)]);
       const s = JSON.stringify([rows, b]);
       if (s === sig) return; sig = s;
       const fill = (box, list) => box.replaceChildren(...list.map(([a, v, cls]) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, v)); return r; }));

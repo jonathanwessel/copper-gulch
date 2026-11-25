@@ -369,6 +369,8 @@ async function run() {
         // on a short landscape screen both Choose buttons show without scrolling (review of 2026.11.21-8, fork-land)
         CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 2).concat([{ spot: 2, kind, level: 19, path: 'a', fork: null, cd: 0, spent: 0, pulses: 0 }]); CG.play.openSpot(2); await wait(150);
         const c2 = document.querySelector('#card'), r2 = c2 && c2.getBoundingClientRect(), hidden = [...document.querySelectorAll('#card .option .btn')].filter(b => { const r = b.getBoundingClientRect(); return r.bottom > r2.bottom + 1 || r.top < r2.top - 1 || r.bottom > innerHeight; }).length;
+        // each side's name on one line, clear of its Choose button (clarity fix 8b: "Rocket / Battery" wrapped in landscape)
+        const wraps = [...document.querySelectorAll('#card .option')].filter(o => { const b = o.querySelector('b'), go = o.querySelector('.btn'), rg = document.createRange(); rg.selectNodeContents(b); const lines = new Set([...rg.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size, br = rg.getBoundingClientRect(), gr = go.getBoundingClientRect(); return lines > 1 || br.right > o.getBoundingClientRect().right - 2 || (br.right > gr.left && br.bottom > gr.top && br.top < gr.bottom); }).map(o => o.querySelector('b').textContent);
         // short of every good: each short good has its own line under the price, in view beside the gray Choose
         // buttons, and the buttons stay in view too (review of 2026.11.24-2: gray buttons with no reason in view)
         const D = await import(new URL('src/core/defense.js', location.href).href), needs = Object.keys(D.towerCost(t, kind, 19).goods).filter(g => D.towerCost(t, kind, 19).goods[g] > 0);
@@ -377,9 +379,9 @@ async function run() {
         const c3 = document.querySelector('#card'), r3 = c3.getBoundingClientRect(), inView = el => { const r = el.getBoundingClientRect(); return r.height > 0 && r.top >= r3.top - 1 && r.bottom <= Math.min(r3.bottom, innerHeight) + 1; };
         const notes = [...c3.querySelectorAll('.pathnotes > p')].filter(inView).length, gray = [...c3.querySelectorAll('.option .btn')], shortOk = notes >= needs.length && gray.every(b => b.disabled && inView(b));
         CG.play.close(); t.towers = JSON.parse(keep); const was = JSON.parse(goods); for (const g of Object.keys(t.goods)) t.goods[g] = was[g] || 0; t.coins = coins; CG.town.pause('smoke', false);
-        return { opts, took, name, hidden, notes, needs: needs.length, shortOk };
+        return { opts, took, name, hidden, wraps, notes, needs: needs.length, shortOk };
       }, kind);
-      if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden || !fork.shortOk) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
+      if (fork.opts.join() !== want || fork.took !== 'a' || fork.name !== took || fork.hidden || fork.wraps.length || !fork.shortOk) bad.push('the level-20 fork card (' + kind + '): ' + JSON.stringify(fork));
       }
       // nothing half under a tower card's price bar (reviews of 2026.11.21-7 to -9): Sell is in the head and whole, and
       // every stat row sits above the pinned bar, on level-20 cards short of goods (the tallest) and a plain one
@@ -773,11 +775,12 @@ async function run() {
         const row = document.querySelector('#sheet [data-why="timber"] .evword');
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
         // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
-        out.row = !!row && !row.hidden && /^\d:\d\d left$/.test(row.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
+        const evl = document.querySelector('#sheet [data-why="timber"] .evline');
+        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price up for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
-        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && /^0:\d\d left$/.test(row.textContent) && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
+        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && /^Price down for 0:\d\d more$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
         Object.assign(m, keep); await wait(450);
-        out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden;
+        out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden && !!evl && evl.hidden;
         return out;
       });
       for (const [k, v] of Object.entries(goods)) if (!v) bad.push('the Goods sheet sell modes: not ' + k);
@@ -896,6 +899,8 @@ async function run() {
         out.sheet = !sheet.hidden && sheet.dataset.id === 'perks' && /Sign now and get/.test(sheet.textContent) && !document.getElementById('signCharter').disabled;
         // clarity fix 9: the two plain lines show, and with no deeds held After signing stays hidden (it would only say the deed line again)
         out.lines = ['charterKeep', 'charterDeed'].every(id => { const e = document.getElementById(id); return e && e.offsetHeight > 0 && e.textContent.length > 20; }) && document.getElementById('deedsAfter').hidden === !CG.game.shared.charter.deeds;
+        // Sign the charter whole in view without a scroll, above the scroll fade (clarity fix 8b: below the fold in landscape)
+        { const bd = sheet.querySelector('.sheetbody'), sg = document.getElementById('signCharter'); bd.scrollTop = 0; await wait(80); const a = bd.getBoundingClientRect(), b = sg.getBoundingClientRect(); out.signInView = b.height > 20 && b.top >= a.top - 1 && b.bottom <= a.bottom - 6 && b.bottom <= innerHeight; if (!out.signInView) out.signAt = [Math.round(b.top), Math.round(b.bottom), Math.round(a.top), Math.round(a.bottom)].join(); }
         out.pairs = [...document.querySelectorAll('#sheet .pair .pairhead')].filter(h => /^Needs/.test(h.textContent)).length === 1 && /Needs 1 deed/.test(sheet.textContent); // one locked pair at a time (review of 2026.11.20-10)
         t.lifetime = life;
         return out;
@@ -993,6 +998,9 @@ async function run() {
         const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, out = {};
         out.drycreek = g.active === 'drycreek' && !g.towns.gulch && CG.town.board.group.name === 'board:drycreek';
         out.welcome = CG.coach.current === 'dc-welcome';
+        // the card never covers the goods strip, so the stone the goal asks for stays in view (clarity fix 8b: the welcome
+        // card lay over the strip while the goal asked for 4 more stone)
+        { const st = document.getElementById('goodsStrip'), cc = document.querySelector('#coach .coachcard'); await wait(300); const a = st.getBoundingClientRect(), c = cc.getBoundingClientRect(); out.stripClear = st.hidden || !(a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1); }
         CG.coach.skipAll(); await wait(100);
         // the goal strip starts on the first Crossbow, with the spotlight on a stone pad
         const gl = document.getElementById('goal'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent.replace(/\s/g, ' '), mk = document.getElementById('goalMark');
@@ -1062,6 +1070,20 @@ async function run() {
         return lit && text.includes(chip.title.split(',')[0]) && !over.length ? '' : 'spotlight ' + lit + ' text ' + text + (over.length ? ' card covers ' + over.join(' and ') : '');
       });
       if (boomCard) bad.push('the boom explainer: ' + boomCard);
+      // the workers' card: its spotlight lies on the workers by the road, not on their building (clarity fix 8b)
+      const workCard = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, keep = t.arms;
+        delete CG.game.shared.seen['worker-tap']; t.arms = { t: 30, cd: 300, clock: 0 };
+        for (let i = 0; i < 60 && CG.coach.current !== 'worker-tap'; i++) await wait(100);
+        if (CG.coach.current !== 'worker-tap') { t.arms = keep; return 'no card'; }
+        await wait(600);
+        const tg = CG.coach.target(), id = tg && tg.worker, w = id && CG.town.projectWorker(id), home = id && CG.town.project(id), hb = document.querySelector('#coach .hole'), h = hb.getBoundingClientRect();
+        const inside = p => !!p && p.x >= h.left && p.x <= h.right && p.y >= h.top && p.y <= h.bottom;
+        const out = !hb.hidden && inside(w) && !inside(home) ? '' : 'box ' + [h.left, h.top, h.width, h.height].map(Math.round).join() + ' workers ' + (w ? Math.round(w.x) + ',' + Math.round(w.y) : '-') + ' building ' + (home ? Math.round(home.x) + ',' + Math.round(home.y) : '-');
+        CG.coach.dismiss(); t.arms = { t: 0, cd: 0, clock: 0 }; await wait(200);
+        return out;
+      });
+      if (workCard) bad.push('the workers card: ' + workCard);
       // town orders: their explainer shows once, with the spotlight on Goods (Market depth, part 2)
       const ordCard = await page.evaluate(async () => {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, o = CG.game.shared.orders, keep = { wait: o.wait, st: o.towns[t.id] };
@@ -1300,6 +1322,16 @@ async function run() {
             const c = CG.mapui.cover(), other = c.mids.filter(m => !m.startsWith(m.split(' under ')[1] + ' '));
             const on = c.onOpen.map(o => o + ' on the open town');
             if (c.hid || other.length || on.length) out.push(id + ': ' + [c.hid].concat(other, on).filter(Boolean).join(', '));
+            // its Play button whole and in view with the card scrolled to the top (clarity fix 8b: a long outpost card in
+            // landscape had Play half under its foot)
+            // the long case too: its vault under half adds a warning line (seen red that way on the old card; short cards fit)
+            const T = CG.game.towns[id], hp = T.vault.hp;
+            for (const low of [false, true]) {
+              if (low) { T.vault.hp = Math.max(1, Math.floor(T.vault.max * .3)); await wait(1300); }
+              const mc = document.getElementById('mapCard'), pb = document.getElementById('mapPlay');
+              if (pb) { mc.scrollTop = 0; await wait(50); const a = mc.getBoundingClientRect(), b = pb.getBoundingClientRect(); if (b.top < a.top - 1 || b.bottom > a.bottom + 1 || b.bottom > innerHeight || b.height < 20) out.push(id + (low ? ' (vault low)' : '') + ': Play is not whole in view (' + Math.round(b.top) + '-' + Math.round(b.bottom) + ' in ' + Math.round(a.top) + '-' + Math.round(a.bottom) + ')'); }
+            }
+            T.vault.hp = Math.max(T.vault.hp, hp);
           }
           CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(900);
           return out;

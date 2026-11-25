@@ -206,7 +206,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', titled('Auto'), autoSheet(game, town, () => openResearch())); };
   const openArms = () => sheets.open('arms', titled('To arms'), armsSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', titled('Perks'), perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
-  const openIncome = () => sheets.open('income', 'Where coins come from', incomeSheet(income)); // its rows say a second or a minute (fresh-eyes read of 2026.11.24-11)
+  const openIncome = () => sheets.open('income', 'Income · All your towns', incomeSheet(income)); // one purse: the sheet names its scope (clarity fix 8b) // its rows say a second or a minute (fresh-eyes read of 2026.11.24-11)
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));
   const openCapital = () => sheets.open('capital', 'The Capital', capitalSheet(game, toast));
   const openPlaces = () => sheets.open('places', 'Map', placesSheet(game, { go: id => { sheets.close(); if (shell.go) shell.go(id); }, found: id => openFound(id), capital: openCapital }));

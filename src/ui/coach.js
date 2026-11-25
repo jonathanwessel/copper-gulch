@@ -146,19 +146,30 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
         const f = freeArea();
         if (p.x < f.l || p.x > f.r || p.y < f.t || p.y > f.b) locate.bring(target, (f.l + f.r) / 2, (f.t + f.b) / 2);
       }
-      if (p) r = { x: p.x - 48, y: p.y - 48, w: 96, h: 96 };
+      // workers by the road get a smaller box, so it lies on them and not on the building behind them (clarity fix 8b)
+      // and nudged a little away from that building's point on screen (seen red: a 96 px box held the building's roof)
+      const half = target.worker !== undefined ? 22 : 48;
+      let cx = p ? p.x : 0, cy = p ? p.y : 0;
+      if (p && target.worker !== undefined) { const hp = locate({ plot: target.worker }); if (hp) { const dx = p.x - hp.x, dy = p.y - hp.y, d = Math.hypot(dx, dy) || 1; cx += dx / d * 6; cy += dy / d * 6; } }
+      if (p) r = { x: cx - half, y: cy - half, w: 2 * half, h: 2 * half };
     }
     hole.hidden = !r;
     if (r) Object.assign(hole.style, { left: Math.round(r.x) + 'px', top: Math.round(r.y) + 'px', width: Math.round(r.w) + 'px', height: Math.round(r.h) + 'px' });
-    // the card sits at the foot of the screen, over the goods strip, unless it would cover the spotlight; at the top
+    // the card sits at the foot of the screen unless it would cover the spotlight; at the top
     // it covers the top bar (review of 2026.11.23-10: the workers card lay over the boss bar and the goal, with its
     // spotlight in the middle of the screen)
-    const low = r && r.y + r.h > innerHeight - card.offsetHeight - 32;
+    // at the foot it sits above the goods strip where the two would meet, so the counts stay in view (owner rule: you
+    // can always see what you have; clarity fix 8b: the Dry Creek welcome lay over the strip while the goal asked for
+    // 4 more stone)
+    const st = document.getElementById('goodsStrip'), sr = st && !st.hidden ? st.getBoundingClientRect() : null;
+    const lift = sr && sr.height ? Math.max(0, Math.round(innerHeight - sr.top + 6 - 16)) : 0;
+    const low = r && r.y + r.h > innerHeight - card.offsetHeight - 32 - lift;
     // on a wide screen it moves to the side away from the spotlight instead, so it covers neither the spotlight nor
     // the top bar (review of 2026.11.24-2: on a short landscape screen the tip card covered "Dry" of Dry Creek)
     const w = card.offsetWidth + 32, mid = r ? r.x + r.w / 2 : 0, left = mid > innerWidth / 2;
     const side = low && innerWidth > innerHeight && (left ? r.x >= w : r.x + r.w <= innerWidth - w);
     card.classList.toggle('top', !!low && !side);
+    { const b = low && !side ? '' : lift ? 'calc(max(16px, env(safe-area-inset-bottom)) + ' + lift + 'px)' : ''; if (card.style.bottom !== b) card.style.bottom = b; }
     card.classList.toggle('left', !!side && left);
     card.classList.toggle('right', !!side && !left);
   }

@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-2',
+    lines: [
+      'Help cards sit above your goods, so you can still see your counts.',
+      'The two upgrade names at level 20 stay on one line, and Sign the charter stays in view on a short screen.',
+      'On the map, Play stays in view at the bottom of a long card.',
+      'A boss card says what happened in a sentence, like The crew jumped off.',
+      'Income bonuses say how much they add, like 50% more.',
+    ],
+  },
+  {
     v: '2026.11.25-1',
     lines: [
       'After a charter, Goal asks you to build your old towers again, each on its old pad.',
