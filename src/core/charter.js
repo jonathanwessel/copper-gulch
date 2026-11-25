@@ -59,6 +59,9 @@ export function pickPerk(game, id, side) {
    clock carry on, so a new charter never replays the old one's dice. */
 export function resetTown(game, town) {
   const keep = { id: town.id, def: town.def, rng: town.rng, t: town.t, charters: (town.charters || 0) + 1, record: Math.max(town.record || 0, town.bestWave || 0) };
+  // the towers it had, highest level first, so the strip can ask for each one back (the newcomer's Ridge wall: after
+  // its charter it filled every pad with Crossbows in two minutes and never got past wave 47 in 7 hours)
+  keep.plan = (town.towers || []).slice().sort((a, b) => b.level - a.level).map(t => ({ spot: t.spot, kind: t.kind }));
   const fresh = new Town(town.id, { def: town.def });
   for (const k of Object.keys(town)) delete town[k];
   Object.assign(town, fresh, keep);

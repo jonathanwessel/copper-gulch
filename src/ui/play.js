@@ -722,7 +722,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the card of the spotlit pad or building is open: point at its Build, Upgrade or path button instead
     const s = markTg && (markTg.spot ?? markTg.tower);
     if (markTg && openId && (openId === markTg.plot || (s !== null && s !== undefined && openId === 'spot:' + s))) {
-      const k = goalCur.kind, b = (k && card.querySelector('.build[data-kind="' + k + '"]')) || (!k && (card.querySelector('#buy') || card.querySelector('.build[data-path]')));
+      // a tower to swap back after a charter: its Sell button first, then the pad's Build button for the old kind
+      const k = goalCur.kind, b = (markTg.sell && card.querySelector('#sellTowerHead')) || (k && card.querySelector('.build[data-kind="' + k + '"]')) || (!k && (card.querySelector('#buy') || card.querySelector('.build[data-path]')));
       markTg = b ? { el: b } : null;
     } else if (openId) markTg = null; // a card for something else is open: it has the player's attention
     if (markTg && markTg.el) { const n = typeof markTg.el === 'string' ? document.querySelector(markTg.el) : markTg.el; if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); markBox = { x: b.left - 2, y: b.top - 2, w: b.width + 4, h: b.height + 4 }; } } // snug on the button, so it never covers the next one (review of 2026.11.20-6: the back button's frame sat on Map and its dot)

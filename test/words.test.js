@@ -103,3 +103,15 @@ test('the strip lines of clarity fix 3b part 2', async () => {
   assert.equal(text('r-five8'), 'Upgrade 5 towers to level 8');
   assert.equal(text('r-three10'), 'Upgrade 3 towers to level 10');
 });
+
+test('the strip lines of the newcomer climb fix', async () => {
+  const { REBUILD_WORDS } = await import('../src/core/goals.js');
+  const lines = [
+    [REBUILD_WORDS.build('stone pad', 'Frost Lens'), 'Tap the stone pad and build a Frost Lens again'],
+    [REBUILD_WORDS.build('Mortar pit', 'Mortar'), 'Tap the Mortar pit and build a Mortar again'],
+    [REBUILD_WORDS.swap('Crossbow', 'Frost Lens'), 'Tap the Crossbow, tap Sell, then build a Frost Lens there'],
+    [REBUILD_WORDS.hold('Silver Falls'), 'Tap Hold waves while you save to open Silver Falls'],
+    [REBUILD_WORDS.play('Silver Falls'), 'Tap Map, then tap Silver Falls'],
+  ];
+  for (const [got, want] of lines) { assert.equal(got, want); assert.deepEqual(textIssues(got), [], got); }
+});

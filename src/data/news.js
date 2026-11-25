@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-1',
+    lines: [
+      'After a charter, Goal asks you to build your old towers again, each on its old pad.',
+      'If a small tower stands on that pad, Goal asks you to sell it first.',
+      'To save coins for Silver Falls, Goal first asks you to tap Hold waves.',
+      'When every town is open, Goal sends you to a town that still has goals.',
+    ],
+  },
+  {
     v: '2026.11.24-12',
     lines: [
       'Once a charter pays a deed, the goal strip asks you to sign it and shows you where.',

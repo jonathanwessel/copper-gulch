@@ -7,6 +7,7 @@ import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
 import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave } from './defense.js';
 import { FOES } from '../data/foes.js';
+import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
@@ -75,6 +76,12 @@ const goResume = id => {
 /* The Capital's save is on: the empire's next step is the Capital and only its coins are missing, or it can be built
    now. Returns that step, or null. */
 const capitalNext = game => { const s = nextStep(game); return s && s.next === 'capital' && (s.need || s.id.endsWith(':go')) ? s : null; };
+/* The save for the next town once the Capital stands works like the Capital's (the newcomer's Ridge wall, PLAN.md
+   M6a): on 3 of 6 seeds the newcomer reached the Ridge's wave 52 and then saved 90 minutes for Silver Falls' 1M coins
+   without getting there, since its waves ran on and the strip sent it to the Gulch to resume its waves, which spent
+   the save on towers each time. Returns the step while only coins are missing or it can be opened now, or null. */
+export const townSaveNext = game => { if (!capitalOpen(game)) return null; const s = nextStep(game); return s && s.next && s.next !== 'capital' && (s.need || s.id.endsWith(':go')) ? s : null; };
+const holdFor = s => s.next === 'capital' ? CAPITAL_HOLD : { id: 'next:' + s.next + ':hold', next: s.next, text: REBUILD_WORDS.hold(TOWNS[s.next].name), at: () => ({ el: '#holdWaves' }), done: () => false };
 /* A town saving for the Capital: the town that pays for it once past its wave, and while the save is on, every town
    but an outpost. A player who holds its waves to save is not asked to resume them until the Capital stands (clarity
    fix 3), and neither is one that lost while saving (clarity fix 3b part 2: on seed 2 "Build more towers, then tap
@@ -86,6 +93,7 @@ export const capitalSaving = (game, town) => {
   // (clarity fix 3b part 2d: on seed 5 the Gulch lost its wave-30 war wagon every few minutes, and each time the strip
   // sent the newcomer back there to spend the save on its towers, so the building never came in 30 minutes). Only a
   // lost boss: holding a town that lost a plain wave too cost its bounties (part 2c) and seeds 2 and 6 their building.
+  if (townSaveNext(game)) return !isOutpost(town);
   if (capitalOpen(game)) return !isOutpost(town) && lostBossAway(town) && firstSave(game);
   if (town.id === f.from) return (town.bestWave || 0) >= f.wave;
   // once the Capital is in sight, a town that lost while away stays held until it stands (clarity fix 3b part 2b: on
@@ -98,7 +106,7 @@ export const capitalSaving = (game, town) => {
    next or the Capital. */
 export const savingFor = (game, town) => nextTowns(game).some(n => n.from === town.id && n.waveOk) || capitalSaving(game, town);
 // while the Capital's save is on, a town held after a loss stays held too: its waves would only cost the save
-const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && (!town.waves.autoHold || capitalNext(game))));
+const heldHere = (game, town) => !!(town.waves && town.waves.hold && !town.won && !nextTowns(game).some(n => n.from === town.id && n.waveOk) && !(capitalSaving(game, town) && (!town.waves.autoHold || capitalNext(game) || townSaveNext(game))));
 /* Another town that lost while the player was away and waits for them (Keep trying the boss off). */
 const heldAway = game => Object.values(game.towns).find(t => t.id !== game.active && t.waves && t.waves.autoHold && t.lost && t.lost.away && !t.won
   && !(game.shared.auto && game.shared.auto[t.id] && game.shared.auto[t.id].retry) && !capitalSaving(game, t));
@@ -155,11 +163,13 @@ export function goalNow(game, held = true) {
   // before the Capital stood at 216 min, and on seed 2 it sat in the Gulch for 167 minutes doing the same there. (Fix 3 tried this step before the order above and dropped it, since a resume elsewhere
   // then took the player away for good.)
   if (held && !(isOutpost(town) && !town.won)) {
-    const cap = capitalNext(game);
-    if (cap) return cap.need && !isOutpost(town) && !(town.waves && town.waves.hold) ? CAPITAL_HOLD : cap;
+    const cap = capitalNext(game) || townSaveNext(game);
+    if (cap) return cap.need && !isOutpost(town) && !(town.waves && town.waves.hold) ? holdFor(cap) : cap;
   }
   const away = held && heldAway(game);
   if (away) return goResume(away.id);
+  const again = rebuildStep(game, town);
+  if (again) return again;
   const fed = feedStep(game, town);
   if (fed) return fed;
   let c = null;
@@ -168,7 +178,67 @@ export function goalNow(game, held = true) {
     c = c || goalContext(game, town);
     if (!g.ready || g.ready(c)) return stepFor(game, town, g);
   }
-  return firstInstitution(game) || nextStep(game);
+  return firstInstitution(game) || nextStep(game) || playStep(game);
+}
+
+/* After a charter the strip asks for each tower the town had back on its old pad, highest level first (the newcomer's
+   Ridge wall, PLAN.md M6a): with a full purse after the Ridge's charter the newcomer filled 15 pads with Crossbows in two
+   minutes, since a Crossbow is the best buy at wave 1, and then stalled at waves 44-47 for hours with every pad taken.
+   Its Ridge before the charter was a mix of Frost Lenses, Stills, Mortars and Cannons. A pad another tower stands on
+   is skipped, and a kind not open yet (the Mortar until wave 12) waits until it opens. It shows only while the tower can
+   be paid for: shown while short of goods, it held the newcomer in the Gulch after its charter, in place of the step
+   that sends it to climb Iron Ridge, and the Capital never opened on 4 of 6 seeds.
+   Right after a charter only some kinds can be paid for (the Ridge has stone again before coal or iron), so the pads
+   fill with the one that can. Once the old kind can be paid, a different tower still under the path level (SWAP_BELOW,
+   so selling it loses almost nothing) is swapped back: "Tap the Crossbow, tap Sell, then build a Frost Lens there". */
+export const SWAP_BELOW = 5;
+/* The strip's words for these steps, pinned in test/words.test.js. */
+export const REBUILD_WORDS = {
+  build: (pad, name) => 'Tap the ' + pad + ' and build a ' + name + ' again',
+  swap: (now, name) => 'Tap the ' + now + ', tap Sell, then build a ' + name + ' there',
+  hold: town => 'Tap Hold waves while you save to open ' + town,
+  play: town => 'Tap Map, then tap ' + town,
+};
+export function rebuildStep(game, town) {
+  if (!town || town.won || !Array.isArray(town.plan) || !town.plan.length) return null;
+  for (const p of town.plan) {
+    if (!TOWERS[p.kind] || !towerOpen(town, p.kind) || !fitsSpot(town, p.spot, p.kind)) continue;
+    const now = towerAt(town, p.spot), c = towerCost(town, p.kind, 0);
+    if (now && (now.kind === p.kind || now.level >= SWAP_BELOW)) continue;
+    // a good nothing here makes yet: first the building that makes it (seed 6: coal came so late after the Ridge's
+    // charter that its Crossbows were past the swap level before a Frost Lens could be paid)
+    for (const good of Object.keys(c.goods)) {
+      if (town.has(good, c.goods[good]) || ((town.def && town.def.imports) || []).includes(good)) continue;
+      const makers = ((town.def && town.def.buildings) || []).filter(id => BUILDINGS[id] && BUILDINGS[id].makes === good);
+      if (!makers.length || makers.some(id => town.level(id) > 0)) continue;
+      return stepFor(game, town, { id: 'rebuild:' + p.spot + ':' + p.kind + '>' + makers[0], town: town.id, rebuild: true, text: 'Tap the ' + bname(makers[0]) + ' lot, then tap Build', done: () => false, step: true, at: () => ({ plot: makers[0] }) }, 1);
+    }
+    const back = now ? Math.floor(now.spent * SELL_BACK) : 0;
+    if (town.coins + back + 1e-9 < c.coins || !Object.entries(c.goods).every(([g, n]) => town.has(g, n))) continue;
+    const name = TOWERS[p.kind].name, pad = isPit(town, p.spot) ? 'Mortar pit' : 'stone pad';
+    if (now) return { id: 'rebuild:' + p.spot + ':' + p.kind + ':swap', kind: p.kind, swap: true, rebuild: true, town: town.id, text: REBUILD_WORDS.swap(TOWERS[now.kind].name, name), at: () => ({ tower: p.spot, sell: true }), done: () => false };
+    return { id: 'rebuild:' + p.spot + ':' + p.kind, kind: p.kind, rebuild: true, town: town.id, text: REBUILD_WORDS.build(pad, name), at: () => ({ spot: p.spot }), done: () => false };
+  }
+  return null;
+}
+
+/* Once no town is left to open, a town with no goal of its own sends the player to the first place that still has
+   one (the newcomer founded Silver Falls, went back to Iron Ridge to resume its waves, and the strip there was blank
+   for the rest of the run, so it never played the Falls). */
+export function playStep(game) {
+  const sh = game.shared.goals;
+  for (const id of TOWN_ORDER) {
+    const t = game.towns[id];
+    if (!t || id === game.active || (isOutpost(t) && t.won)) continue;
+    let c = null;
+    const has = GOALS.some(g => {
+      if (g.town !== id || sh.done[g.id]) return false;
+      c = c || goalContext(game, t);
+      return !g.ready || g.ready(c);
+    });
+    if (has) return { id: 'play:' + id, away: true, text: REBUILD_WORDS.play(TOWNS[id].name), at: () => ({ el: game.back === id ? '#backBtn' : '#mapBtn', go: id }), done: () => false };
+  }
+  return null;
 }
 
 /* Once the Capital stands, the empire's next steps are its first contract, then its first building (clarity fix 3b part
@@ -405,6 +475,8 @@ export function goalCoins(game, town, g) {
   const c = goalContext(game, town);
   let at = null; try { at = g.at(c) || {}; } catch (e) { return null; }
   if (g.kind && at.spot != null) return towerCost(town, g.kind, 0).coins;
+  // a swap shows only once the sale and the purse pay for it, so it counts no coins
+  if (g.swap) return null;
   if (at.tower != null) { const t = towerAt(town, at.tower); return t ? towerCost(town, t.kind, t.level).coins : null; }
   if (at.plot && BUILDINGS[at.plot]) return unlocked(town, at.plot) ? cost(town, at.plot) : null;
   if (at.el === '#researchBtn' && researchOpen(town) && !town.lab) { const n = cheapResearch(town); return n === null ? null : n; }

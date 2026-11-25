@@ -22,7 +22,7 @@ import { Rng } from '../src/core/rng.js';
 import { goalNow, goalContext, earnRate, readyIn, savingFor, RESUME_LOST, FIGHT_LOW } from '../src/core/goals.js';
 import { tabs, look, lookGoods, lookPerks } from '../src/core/reveal.js';
 import { build, cost, unlocked } from '../src/core/economy.js';
-import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold } from '../src/core/defense.js';
+import { buildTower, upgradeTower, towerAt, towerCost, canPay, callEarly, setHold, sellTower } from '../src/core/defense.js';
 import { itemsOf, researchBlock, startResearch } from '../src/core/research.js';
 import { PERKS } from '../src/data/perks.js';
 import { perkState, pickPerk, deedsFor, signCharter } from '../src/core/charter.js';
@@ -56,7 +56,7 @@ export const buildFirst = (game, town, rng, bought) => goalNow(game) === RESUME_
    card shows as have / need (a tap on the strip opens it; clarity fix 3b part 2: "Tap the Rolling Mill and upgrade it
    to level 5" sat 10-14 minutes after the Capital while the newcomer spent each coin as it came). */
 export function goalNeed(game, town, g) {
-  if (!g) return null;
+  if (!g || g.swap) return null;
   if (g.need) return g.need;
   if (typeof g.at !== 'function' || g.away || g.there) return null;
   let at = null; try { at = g.at(goalContext(game, town)) || {}; } catch (e) { return null; }
@@ -66,7 +66,7 @@ export function goalNeed(game, town, g) {
 const hurting = (t, low = VAULT_LOW) => !t.towers.length || t.vault.hp < low * t.vault.max;
 /* The goal names one tower to raise (its strip counts that tower's price, clarity fix 3b part 2c). */
 export function goalTower(game, town, g) {
-  if (!g || typeof g.at !== 'function' || g.away || g.there) return false;
+  if (!g || g.swap || typeof g.at !== 'function' || g.away || g.there) return false;
   try { return (g.at(goalContext(game, town)) || {}).tower != null; } catch (e) { return false; }
 }
 const short = (t, leak) => !t.towers.length || leak >= t.wave - 1 || t.vault.hp < VAULT_LOW * t.vault.max || t.towers.length < 1 + Math.floor(t.wave / WAVES_PER_TOWER);
@@ -112,6 +112,8 @@ export function goalTap(game, town, rng) {
     return items.length ? { what: 'research', label: items[0], run: () => startResearch(game, town, rng.pick(items)) } : null;
   }
   if (at.plot) return unlocked(town, at.plot) && town.coins >= cost(town, at.plot) ? { what: 'building', label: at.plot, run: () => build(game, town, at.plot) } : null;
+  // a tower back on its pad after a charter: sell what stands there (a low tower), then build the old kind (both acts)
+  if (g.swap && at.tower != null) return { what: 'tower', label: g.kind + '@' + at.tower, run: () => { sellTower(game, town, at.tower); return buildTower(game, town, at.tower, g.kind); } };
   if (g.kind && at.spot != null) return canPay(town, towerCost(town, g.kind, 0)) ? { what: 'tower', label: g.kind + '@' + at.spot, run: () => buildTower(game, town, at.spot, g.kind) } : null;
   if (at.tower != null) {
     const t = towerAt(town, at.tower);

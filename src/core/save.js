@@ -5,7 +5,7 @@
 
 import { GOALS } from '../data/goals.js';
 
-export const SAVE_VERSION = 28;
+export const SAVE_VERSION = 29;
 
 /* MIGRATIONS[n] turns a version-n save into version n+1. Version 0 is the bare game object with no wrapper. */
 export const MIGRATIONS = {
@@ -216,6 +216,13 @@ export const MIGRATIONS = {
     const c = g.shared.capital;
     if (c) { c.opened = c.opened || {}; c.missed = c.missed || 0; }
     return { ...s, v: 28, game: g };
+  },
+  // v29: a town remembers the towers it had before its last charter (town.plan, src/core/charter.js). A town signed
+  // before this version has none to remember, so its plan is empty and the strip asks for nothing.
+  28: s => {
+    const g = s.game || {};
+    for (const t of Object.values(g.towns || {})) if (t && !Array.isArray(t.plan)) t.plan = [];
+    return { ...s, v: 29, game: g };
   },
 };
 

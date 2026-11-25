@@ -1101,6 +1101,41 @@ async function run() {
       // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
       const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');
+      // after a charter the strip asks for an old tower back (the newcomer's Ridge wall): a low Crossbow stands where a
+      // Frost Lens stood. The spotlight lies on the Crossbow, then on Sell in its card, then on the Frost Lens's Build
+      const swap = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, B = t.def.board;
+        const D = await import(new URL('src/core/defense.js', location.href).href);
+        const keep = { flag: t.flags['open:frost'], plan: t.plan, coins: g.shared.purse.coins, goods: { ...t.goods }, done: { ...g.shared.goals.done } };
+        t.flags['open:frost'] = true; g.shared.purse.coins = Math.max(g.shared.purse.coins, 1e5);
+        for (const k of ['timber', 'planks', 'clay']) t.goods[k] = Math.max(t.goods[k] || 0, 200);
+        const spot = B.spots.findIndex((_, i) => !D.towerAt(t, i) && D.fitsSpot(t, i, 'crossbow'));
+        if (spot < 0 || !D.buildTower(g, t, spot, 'crossbow')) return 'no free pad';
+        t.plan = [{ spot, kind: 'frost' }];
+        CG.play.close(); CG.town.bring({ spot }, innerWidth / 2, innerHeight * .6);
+        const gl = document.getElementById('goal'), mk = document.getElementById('goalMark'), gt = () => gl.hidden ? '' : gl.querySelector('.gtext').textContent;
+        const covers = (b) => { const m = mk.getBoundingClientRect(); return !mk.hidden && m.left <= b.left + 1 && m.right >= b.right - 1 && m.top <= b.top + 1 && m.bottom >= b.bottom - 1; };
+        const holds = p => { const m = mk.getBoundingClientRect(); return !mk.hidden && p && p.x >= m.left && p.x <= m.right && p.y >= m.top && p.y <= m.bottom; };
+        const out = [];
+        for (let i = 0; i < 30 && !/Sell/.test(gt()); i++) await wait(100);
+        await wait(900);
+        if (!/^Tap the Crossbow, tap Sell, then build a Frost Lens there/.test(gt())) out.push('strip "' + gt() + '"');
+        if (!holds(CG.town.projectSpot(spot))) out.push('no spotlight on the Crossbow');
+        CG.play.openSpot(spot); await wait(500);
+        const sell = document.getElementById('sellTowerHead');
+        if (!sell || !covers(sell.getBoundingClientRect())) out.push('no spotlight on Sell');
+        if (sell) sell.click(); await wait(500);
+        const build = document.querySelector('#card .build[data-kind="frost"]');
+        if (!build || !covers(build.getBoundingClientRect())) out.push('no spotlight on the Frost Lens Build');
+        if (build) build.click(); await wait(200);
+        if (!D.towerAt(t, spot) || D.towerAt(t, spot).kind !== 'frost') out.push('no Frost Lens built');
+        CG.play.close();
+        t.towers = t.towers.filter(x => x.spot !== spot);
+        if (keep.flag) t.flags['open:frost'] = keep.flag; else delete t.flags['open:frost'];
+        t.plan = keep.plan; g.shared.purse.coins = keep.coins; t.goods = keep.goods; g.shared.goals.done = keep.done;
+        return out.join(', ');
+      });
+      if (swap) bad.push('the rebuild swap: ' + swap);
       const pg = await placeBar(page);
       if (pg.name !== 'Copper Gulch' || !pg.map || pg.back !== 'Dry Creek' || pg.label !== 'Back to Dry Creek' || !pg.oneRow || !pg.whole || !pg.inside || !pg.big) bad.push('the place bar is wrong in the Gulch (' + JSON.stringify(pg) + ')');
       if (pg.canvases !== 1) bad.push(pg.canvases + ' canvases after switching');

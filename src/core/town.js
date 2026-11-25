@@ -24,6 +24,9 @@ export class Town {
     this.wave = 0;
     this.bestWave = 0;
     this.record = 0;              // the best wave before this town's last charter (src/core/charter.js)
+    // the towers that stood before this town's last charter, highest level first: [{ spot, kind }] (save v29); the goal
+    // strip asks for each one back on its pad (src/core/goals.js, rebuildStep)
+    this.plan = [];
     this.vault = { hp: 100, max: 100 };
     this.research = {};           // item id -> level
     this.lab = null;              // the research running: { id, left, total } (src/core/research.js)
