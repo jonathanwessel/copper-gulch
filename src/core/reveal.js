@@ -69,6 +69,9 @@ export function tabs(game, town) {
 /* Which buttons carry a dot. towns: town id -> true for another town that wants a visit. Only one side button has a
    dot at a time, the first of DOT_ORDER that wants one (review of 2026.11.19-14: red dots on Goods, Research and Perks
    all at once said nothing); the next shows once that one is opened. */
+/* A town held after a loss (autoHold): Resume waves is what calls, so no side button has a dot or a glow. A hold the
+   player chose keeps them (clarity fix 8f). */
+export const heldAfterLoss = town => !!(town.waves && town.waves.hold && town.waves.autoHold);
 export const DOT_ORDER = ['perks', 'goods', 'auto', 'research']; // research last: it wants a visit most often
 export function dots(game, town) {
   const t = tabs(game, town), f = town.flags || {};
@@ -84,7 +87,9 @@ export function dots(game, town) {
     perks: t.perks && (perksToPick(game) > 0 || deedsFor(town) > (f.deedsShown || 0)),
     auto: t.auto && !((game.shared.seen || {})['auto:sheet']), // never opened yet
   };
-  const first = DOT_ORDER.find(k => want[k]), out = { towns };
+  // on hold, Resume waves (and the strip's step) is what calls, so the side buttons wait (clarity fix 8f: at its wall
+  // Perks was lit with its red dot beside the lit Resume waves)
+  const first = heldAfterLoss(town) ? null : DOT_ORDER.find(k => want[k]), out = { towns };
   for (const k of DOT_ORDER) out[k] = k === first;
   return out;
 }

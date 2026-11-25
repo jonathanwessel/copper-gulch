@@ -8,7 +8,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
-import { fmt, fmtLive, splitLive, vaultCount, rateShort, rateWords } from './format.js';
+import { fmt, fmtLive, splitLive, vaultCount, rateShort, HITS_LEFT } from './format.js';
 import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
@@ -16,6 +16,7 @@ import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
 import { capitalPanel, contractDone, contractMissed, sentWords, influenceWords } from './capital.js';
 import { treeCalls } from '../core/tree.js';
 import { retryState } from '../core/automation.js';
+import { atWall } from '../core/defense.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -38,6 +39,8 @@ export function badgeRates(total, infos) {
   });
   return { words: out, nums, total: '+' + sp.total + '/s' };
 }
+/* A town card's Coins row: the words its label shows (clarity fix 8f, one number one way). */
+export const coinsStat = (rates, id) => rateShort(rates.nums[id] || '0');
 /* A town's vault on its map card: Full, or the hits left as its Vault sheet counts them (review of 2026.11.20-3:
    "20 / 20 hits" read as a score). */
 /* The vault's or stockpile's stat on a map card and in its sheet: one name for one stat (clarity fix 8d: "Stockpile can
@@ -299,10 +302,10 @@ export function mountMap(root, game, view, shell) {
       for (const line of stateLines(ss, { lost: info.alert === 'lost' || info.alert === 'retry' })) kids.push(el('p', 'note state', line)); // the waves now, in words, as its label shows them
       // a loss is the town's state: its line leads the card where the others say Fighting or Wave in (clarity fix 8c: at
       // the foot under the routes, a lost town's card read as one with no state)
-      if (info.alert === 'lost') kids.push(el('p', 'warn state', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
+      if (info.alert === 'lost') kids.push(el('p', (atWall(t) ? 'note' : 'warn') + ' state', retryState(game, t) === 'stuck' ? retryLine(game, t) : lostLine(t)));
       else if (info.alert === 'retry' || info.alert === 'retrying') kids.push(el('p', 'uses state', retryLine(game, t)));
-      const vs = stat(CAN_TAKE, vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
-      grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', rateWords(rates.nums[id] || '0')));
+      const vs = stat(HITS_LEFT, vaultHits(t), info.alert === 'vault' ? 'low' : ''); vs.querySelector('b').prepend(heart(), ' '); // the wave bar's heart (review of 2026.11.20-15)
+      grid.append(vs, sendsOnly(info) ? stat('Goods', 'Sent to ' + shortOf(game.active)) : stat('Coins', coinsStat(rates, id)));
       // the vault in hits, as its sheet in the town counts them, and the coins as the label under the town writes them
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);

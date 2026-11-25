@@ -26,7 +26,7 @@ test('the raiders card says when the wave comes, a boss, and which raiders can r
   Object.assign(t.waves, { phase: 'wave', type: 'swarm', queue: ['raider', 'raider', 'runner'], foes: [{ kind: 'raider' }] });
   assert.deepEqual(waveLines(t), ['4 raiders left.', '3 Bandits', '1 Horseman']);
   Object.assign(t.waves, { queue: ['raider', 'raider'], foes: [] });
-  assert.deepEqual(waveLines(t), ['2 bandits left.']);
+  assert.deepEqual(waveLines(t), ['2 Bandits']);
   for (const l of waveLines(t)) assert.deepEqual(textIssues(l), []);
 });
 

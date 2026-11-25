@@ -309,7 +309,7 @@ const RIDGE = [
   ['map-capital', () => { CG.mapui.openSite('capital'); }],
   ['map-lost', () => { CG.mapui.openSite('gulch'); }],
   // the same Gulch at its wall: it lost twice with no new best wave, so its card asks for upgrades and the label has no red
-  ['map-wall', () => { const G = CG.game.towns.gulch; G.lost = { ...(G.lost || { why: 'vault', wave: 20, back: 18, coins: 900 }), n: 2, best: G.bestWave || 0 }; Object.assign(G.waves, { hold: true, autoHold: true }); CG.mapui.openSite('gulch'); }],
+  ['map-wall', () => { const G = CG.game.towns.gulch; G.lost = { ...(G.lost || { wave: 20, back: 18, coins: 900 }), why: 'vault', n: 2, best: G.bestWave || 0 }; Object.assign(G.waves, { hold: true, autoHold: true }); CG.mapui.openSite('gulch'); }],
   // the Capital: ready to build, then its contracts with one running
   ['capital-ready', () => { const r = CG.game.towns.ridge; r.bestWave = 30; CG.game.town.coins = 4e5; CG.mapui.openSite('capital'); }],
   ['capital', async () => { document.getElementById('mapFound').click(); await new Promise(r => setTimeout(r, 300)); const c = CG.game.shared.capital; if (c.offers[0]) { document.querySelector('#mapCard [data-contract]').click(); const a = c.active; if (a) a.got = a.need * .4; } }],

@@ -49,7 +49,7 @@ test('the raiders card has a picture and the best tower for each kind', () => {
   assert.ok(info.kinds.some(k => k.kind === 'wagon'), 'a boss wave lists its boss');
   assert.ok(waveLines(t).some(l => l === 'Can bring Bandits, Horsemen and Brutes.'));
   Object.assign(t.waves, { phase: 'wave', queue: ['raider', 'raider'], foes: [] });
-  assert.deepEqual(waveInfo(t), { lines: ['2 bandits left.'], kinds: [{ kind: 'raider', n: null }] });
+  assert.deepEqual(waveInfo(t), { lines: [], kinds: [{ kind: 'raider', n: 2 }] });
 });
 
 test('only one side button has a dot at a time', () => {

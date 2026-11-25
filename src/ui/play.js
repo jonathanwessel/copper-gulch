@@ -22,7 +22,7 @@ import { researchOpen, labsRunning } from '../core/research.js';
 import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
 import { autoOn, retryState } from '../core/automation.js';
 import { RESEARCH } from '../data/research.js';
-import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit } from '../core/reveal.js';
+import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit, heldAfterLoss } from '../core/reveal.js';
 /* How many chips the goods strip holds in two rows: its columns (the stylesheet's, or as many 84 px chips as fit beside
    a side card) times 2. */
 /* A phone turned sideways (the stylesheet's landscape max-height 500px): the strip keeps to one row there (review of
@@ -891,7 +891,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     armsBtn.hidden = !T.arms;
     if (T.arms) { const a = town.arms || { t: 0, cd: 0 }, s = a.t > 0 ? 'Back in ' + clock(a.t) : a.cd > 0 ? 'Ready in ' + clock(a.cd) : ''; setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s; if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0); }
     paintPlace();
-    perksBtn.classList.toggle('on', perksToPick(game) > 0 || deedsFor(town) > 0);
+    // held after a loss, Resume waves is the one lit button (clarity fix 8f: Perks was gold beside it)
+    perksBtn.classList.toggle('on', !heldAfterLoss(town) && (perksToPick(game) > 0 || deedsFor(town) > 0));
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
   }
   /* Take this town's screen down (switching towns builds a new one). */

@@ -87,6 +87,9 @@ export function boomWord(f, left) {
 }
 /* The same, as a time alone for the Goods sheet, where an arrow says up or down (review of 2026.11.23-6: "Bust",
    "Skip busts" and "Booms only" were flagged twice, so the Goods sheet shows a picture, not a third wording). */
+/* The vault's hits now, with the heart, on the Vault sheet and on a town's map card: one name for one number (clarity fix
+   8f: the map card called the hits left Can take, the Vault sheet's name for the most it holds, so 10 and 12 read as one). */
+export const HITS_LEFT = 'Hits left';
 export function boomClock(left) { const s = Math.min(599, Math.max(0, Math.ceil(left || 0))); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 /* Where on the price each sell mode sells: a low (crashed) price, a normal one, a high (boom) one. */
 export const MODE_SELLS = { always: [1, 1, 1], skip: [0, 1, 1], boom: [0, 0, 1], off: [0, 0, 0] };
@@ -95,12 +98,16 @@ export const MODE_SELLS = { always: [1, 1, 1], skip: [0, 1, 1], boom: [0, 0, 1],
    good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */
 /* One reason at a time (review of 2026.11.19-11: "towers need it all" beside "You sold a lot of it lately"). The sheet
    no longer has a header line, so the note says the price comes back. */
-export function priceNote({ have, kept = 0, price = 0, boom = false }) {
+export function priceNote({ have, kept = 0, price = 0, boom = false, bust = false }) {
   const none = have - kept < 1;
   // in a boom the price is up from where it was, so "comes back" read as a drop (review of 2026.11.23-1)
   // the price row already says under 1 coin, so only the reason (words check of 2026.11.23-2: the boom line repeated it)
   // and the words follow the boom's up arrow (review of 2026.11.23-7: "sold a lot" alone beside the arrow read as a drop)
-  if (price < .0095 && boom) return 'You sold a lot lately, so the price is still low.'; // clarity fix 8b: "lifts it, but" read as two facts at odds
+  // clarity fix 8e: beside the boom's "Price rising" the low price says only why ("still low" beside "Price up" read as up
+  // and low at once), and beside a bust's clock it does not also say the price comes back (one fact twice)
+  // beside Price rising it says why it is still low (fresh-eyes read of 2026.11.25-7: "You sold a lot" under "rising" read as opposite facts)
+  if (price < .0095 && boom) return 'Low because you sold a lot lately.';
+  if (price < .0095 && bust) return 'You sold a lot of it lately.';
   if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;

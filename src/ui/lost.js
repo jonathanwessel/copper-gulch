@@ -60,6 +60,7 @@ const whatHappened = town => ((town.lost || {}).why === 'boss' ? 'The ' + bossNa
 export function lostLine(town) {
   const l = town.lost || { why: 'vault' };
   // at its wall (lost twice with no new best wave between) it asks for upgrades first, as the strip there does
-  if (atWall(town)) return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + ' again.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', upgrade its towers, then tap Resume waves.';
+  // clarity fix 8f: "Back to wave 18 again" said back twice, and "Tap Play Copper Gulch" sat right above that button, so "Play it" points at it
+  if (atWall(town)) return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Play it, upgrade its towers, then tap Resume waves.';
   return whatHappened(town) + (l.back ? ' Back to wave ' + l.back + '.' : '') + ' Tap Play ' + (town.def.short || town.def.name) + ', then Resume waves.'; // the button under it names the town (review of 2026.11.20-15)
 }

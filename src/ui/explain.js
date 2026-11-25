@@ -3,7 +3,7 @@
    (tap the coins) and the Vault sheet (tap the wave and vault bar).
    Words follow the writing rule: plain labels, units a player knows, no colons. */
 import { heart } from './heart.js';
-import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive, rateWords } from './format.js';
+import { fmt, fmtDmg, fmtPrice, fmtLive, priceNum, splitLive, rateWords, HITS_LEFT } from './format.js';
 import { explainVault } from '../core/explain.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -136,6 +136,9 @@ export function incomeSheet(income) {
 /* Hits mended for each wave beaten: whole hits, or a half as 2½ (words read of 2026.11.23-11: "+2.5 hits" matched
    nothing on the heart, which counts whole hits). */
 export const mendText = n => { const w = Math.floor(n + 1e-9), half = Math.abs(n - w - .5) < .05; return (half ? w + '½' : String(Math.round(n))) + (n === 1 ? ' hit' : ' hits'); };
+/* The Hits left row: Full when the Can take row above already says the number (clarity fix 8e: "Can take 25 hits" right
+   above "Hits left 25 hits"), otherwise the hits left. */
+export const hitsLeftWords = ex => (ex.rows.length > 1 && ex.left >= ex.value - 1e-9 ? 'Full' : unitText('hits', ex.left));
 /* The Vault sheet (a stockpile's too): its strength and what adds to it, the hits left, and what each raider takes. */
 export function vaultSheet(town) {
   return body => {
@@ -158,8 +161,9 @@ export function vaultSheet(town) {
       }
       // the map card's own words for it (review of 2026.11.23-13: "Most hits" beside the map's "Vault can take")
       if (ex.rows.length > 1) add('Can take', unitText('hits', ex.value), 'total'); // CAN_TAKE in src/ui/map.js (clarity fix 8d)
-      const hits = el('b', 'hitsleft'); hits.append(heart(), el('span', null, unitText('hits', ex.left))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
-      left.append(el('span', null, 'Hits left'), hits);
+      const hits = el('b', 'hitsleft');
+      hits.append(heart(), el('span', null, hitsLeftWords(ex))); // the wave bar's heart (review of 2026.11.20-15: nothing tied it to the vault)
+      left.append(el('span', null, HITS_LEFT), hits);
       const mend = el('div', 'total'); mend.append(el('span', null, 'Each wave you beat'), el('b', null, '+' + mendText(ex.mend)));
       box.append(left, mend); top.replaceChildren(box);
       each.replaceChildren(...ex.raiders.map(r => { const d = el('div'); d.append(el('span', null, r.label), el('b', null, unitText('hits', r.hits))); return d; }));

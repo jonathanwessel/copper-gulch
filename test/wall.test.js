@@ -46,7 +46,7 @@ test('a town that loses twice with no new best wave between is at its wall, and 
   assert.equal(atWall(t), true);
   assert.equal(needsYou(g, 'gulch'), null, 'no red dot on the map');
   assert.notEqual(goalNow(g).id, 'resume-gulch', 'the strip no longer sends you there');
-  assert.match(lostLine(t), /again\. Tap Play Copper Gulch, upgrade its towers, then tap Resume waves\.$/);
+  assert.match(lostLine(t), /Back to wave \d+\. Play it, upgrade its towers, then tap Resume waves\.$/); // clarity fix 8f: no "again", and "Play it" points at its button
   g.go('gulch');
   assert.equal(goalNow(g), RESUME_WALL, 'there it asks for upgrades');
 });

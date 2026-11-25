@@ -59,7 +59,9 @@ export function waveInfo(town) {
     for (const f of ws.foes) n[f.kind] = (n[f.kind] || 0) + 1;
     const left = Object.values(n).reduce((a, b) => a + b, 0);
     const kinds = Object.entries(n).sort((a, b) => b[1] - a[1]);
-    if (kinds.length === 1) return { lines: [plural(left, FOES[kinds[0][0]].name).toLowerCase() + ' left.'], kinds: [{ kind: kinds[0][0], n: null }] }; // one kind: the line says how many
+    // one kind: its row says how many, with no total above it (clarity fix 8e: "2 bandits left." beside a Bandit row
+    // with no count; a total equal to its one row says the number twice)
+    if (kinds.length === 1) return { lines, kinds: [{ kind: kinds[0][0], n: left }] };
     lines.push(plural(left, 'raider') + ' left.');
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }

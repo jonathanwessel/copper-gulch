@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-7',
+    lines: [
+      'A town card on the map shows Hits left, the same as the Vault sheet.',
+      'After a lost wave only Resume waves is lit.',
+      'The raiders card shows how many of each kind are left.',
+    ],
+  },
+  {
     v: '2026.11.25-6',
     lines: [
       'Upgrading a tower past level 20 now costs fewer coins.',

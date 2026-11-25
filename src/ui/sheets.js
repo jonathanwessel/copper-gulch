@@ -230,7 +230,7 @@ export function goodsSheet(game, town, focus = null) {
         if (r.wait.textContent !== wt) r.wait.textContent = wt;
         if (r.wait.hidden !== !wt) r.wait.hidden = !wt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
-        const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1 }) : null; // none to sell, or a price of almost 0: words, not rows
+        const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1, bust: !!bm0 && bm0.good === g && bm0.f < 1 }) : null; // none to sell, or a price of almost 0: words, not rows
         const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null, pct: true })])); }
         const sat = saturation(game, g);
@@ -243,8 +243,9 @@ export function goodsSheet(game, town, focus = null) {
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
         // an arrow up or down and the time it has left (the stylesheet draws the arrow; review of 2026.11.23-7: a bare time said nothing of what it counts)
-        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left)) : '';
-        { const al = bm && bm.good === g ? (bm.f > 1 ? 'Price up for ' : 'Price down for ') + boomClock(bm.left) : ''; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
+        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left), ex.value < .0095) : '';
+        // the arrow's label is the line's own words (clarity fix 8e: it said Price up while the line said rising)
+        { const al = ew; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.hidden !== !on) r.ev.hidden = !on;
         if (r.evLine.textContent !== ew) r.evLine.textContent = ew;
         if (r.evLine.hidden !== !ew) r.evLine.hidden = !ew;
@@ -329,7 +330,8 @@ const keep = s => s.replace(/ /g, '\u00a0');
 /* The research button while it runs (review of 2026.11.19-3: it read "Working"): the time left, short. */
 export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.round(s / 60) + ' min';
 /* A boom or bust on the Goods sheet in words, with its clock (clarity fix 8b). */
-export const boomWords = (f, clock) => (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more';
+/* low: the price is still under 1 coin, so a boom says it is rising, not up (clarity fix 8e). */
+export const boomWords = (f, clock, low = false) => (f > 1 ? (low ? 'Price rising for ' : 'Price up for ') : 'Price down for ') + clock + ' more';
 export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 

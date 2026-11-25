@@ -508,7 +508,7 @@ async function run() {
         out.chip = getComputedStyle(document.getElementById('callWave')).visibility === 'hidden' && document.querySelector('#wave .winfo').textContent === 'Fighting' && Math.abs(chip() - w0) <= 1 ? true : 'break ' + w0 + ' wave ' + chip();
         // the wave number opens the raiders card
         document.getElementById('waveBtn').click(); await wait(300);
-        out.waveCard = !document.getElementById('sheet').hidden && document.getElementById('sheet').dataset.id === 'wave' && / left./.test(document.getElementById('sheet').textContent);
+        out.waveCard = !document.getElementById('sheet').hidden && document.getElementById('sheet').dataset.id === 'wave' && /^\d+ /.test(document.querySelector('#sheet .option.foe b')?.textContent || ''); // one kind on the road: its row carries the count (clarity fix 8e)
         CG.play.sheets.close();
         Object.assign(t.goods, keep.goods); t.sell = keep.sell; t.coins = keep.coins; t.wave = keep.wave; Object.assign(t.waves, JSON.parse(keep.ws));
         CG.town.pause('smoke', false); await wait(300);
@@ -797,7 +797,7 @@ async function run() {
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
         // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
         const evl = document.querySelector('#sheet [data-why="timber"] .evline');
-        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price up for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /^Price up for/.test(row.getAttribute('aria-label') || '');
+        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price (up|rising) for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && (row.getAttribute('aria-label') || '') === evl.textContent; // rising while still under 1 coin (clarity fix 8e), and the arrow's label is the line's words
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
         out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && /^Price down for 0:\d\d more$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
         Object.assign(m, keep); await wait(450);
