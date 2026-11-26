@@ -109,6 +109,9 @@ const SCREENS = [
     C.foundCapital(g); g.shared.purse.coins = Math.max(g.shared.purse.coins, 1e9); T.foundInstitution(g, 'war'); C.capitalOf(g).influence = 1e4;
     for (let i = 0; i < 3; i++) T.buyNode(g, 'war');
     for (const id of t.def.buildings) t.buildings[id] = Math.max(t.buildings[id] || 0, 12);
+    // ready to call, so the sheet shows the cost before the tap and arms-out can call (fresh-eyes read of 2026.11.26-7:
+    // a rest left from an earlier frame kept the button gray and arms-out never called anyone)
+    t.arms = { t: 0, cd: 0, clock: 0 };
     await wait(400); document.getElementById('armsBtn').click();
   }],
   ['arms-out', async () => {

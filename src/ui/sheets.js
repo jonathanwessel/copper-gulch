@@ -18,7 +18,7 @@ import { checkUpdates } from './update.js';
 import { GAME_VERSION } from '../version.js';
 import { setStock, RESERVE } from '../core/defense.js';
 import { setSwitch } from './switch.js';
-import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_LINES, modePic, modeState, boomClock } from './format.js';
+import { fmt, fmtLive, ago, goodsLine, levelsDone, priceNote, priceLabel, haveWords, priceOver, MODE_LINES, MODE_WORDS, modePic, modeState, boomClock } from './format.js';
 import { RESEARCH } from '../data/research.js';
 import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, startResearch, queueResearch, researchOpen, labsRunning } from '../core/research.js';
 import { PERKS, DEEDS } from '../data/perks.js';
@@ -213,7 +213,7 @@ export function goodsSheet(game, town, focus = null) {
         const sw = btn('', 'btn small'); sw.dataset.good = g;
         const pick = el('div', 'sellpick'); pick.hidden = true; pick.dataset.good = g;
         // each mode with a picture of the price, lit where the mode sells (review of 2026.11.23-6)
-        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(modePic(k), el('b', 'modeline', MODE_LINES[k])); /* every mode one line, and the switch shows the same picture (clarity fix 8h) */ b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
+        const picks = SELL_MODES.map(k => { const b = btn('', 'btn small'); b.replaceChildren(modePic(k), el('b', 'modeword', MODE_WORDS[k]), el('small', 'modeline', MODE_LINES[k])); /* every mode its picture, the switch's word and one line (clarity fix 8h; the word since 8o, so a row matches its switch) */ b.dataset.mode = k; b.addEventListener('click', () => { setSellMode(town, g, k); picking[g] = false; paint(); }); return b; });
         pick.append(...picks);
         sw.addEventListener('click', () => { picking[g] = !picking[g]; paint(); if (picking[g]) requestAnimationFrame(() => inView(row, pick)); });
         row.append(txt, sw); list.append(row, pick);
@@ -513,7 +513,7 @@ export function autoSheet(game, town, openResearch = null) {
     add('retry', 'Fight the ' + bossName(town) + ' again', 'After a loss, this town keeps playing and tries again by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'retry', !autoOf(game, town).retry); paint(); });
     add('research', 'Auto-research', 'Starts the next research in this town by itself.').sw.addEventListener('click', () => { setAuto(game, town, 'research', !autoOf(game, town).research); paint(); });
     // Call to arms by Auto: only at a boss or a low vault, with its own switch (owner idea, 2026-11-20)
-    add('arms', 'Call to arms', "Calls this town's workers out when the boss is on the road or the vault is low.").sw.addEventListener('click', () => { setAuto(game, town, 'arms', !autoOf(game, town).arms); paint(); });
+    add('arms', ARMS_NAME, "Calls this town's workers out when the boss is on the road or the vault is low.").sw.addEventListener('click', () => { setAuto(game, town, 'arms', !autoOf(game, town).arms); paint(); });
     // its line opens Research, so what it runs is one tap away (owner, 2026-11-20)
     if (openResearch) { const see = btn('See research', 'btn small'); see.id = 'autoSeeResearch'; see.addEventListener('click', () => openResearch()); rows.research.row.querySelector('div').append(see); rows.research.see = see; }
     const set = (x, open, on, line) => {
@@ -574,6 +574,9 @@ export function armsLine(game, town) {
     : b === 'wait' ? armsClock(town) + '.'
     : 'Ready';
 }
+/* One name for Call to arms on screen, the side button's (clarity fix 8o: "To arms" on the button, "Call to arms" on its
+   card and its tip), and the sheet's button says what it does. */
+export const ARMS_NAME = 'To arms', ARMS_GO = 'Call workers out';
 /* Call to arms (owner idea, 2026-11-20): what a call does and what it costs, before the tap, then its time. */
 export function armsSheet(game, town) {
   return body => {
@@ -584,9 +587,11 @@ export function armsSheet(game, town) {
     // the rest after a call, which counts down in its own row while it runs, so the sheet never shows two times for one wait
     // (review of 2026.11.23-6: "Call again after 5 min" beside "Ready again in 4 min")
     const restName = row('Rest after a call', '').previousSibling, rest = restName.nextSibling;
-    const go = btn('Call to arms', 'btn primary buy', 'callArms'), state = el('p', 'uses');
+    // the button says what it does, and stays pinned at the sheet's foot (clarity fix 8o: in landscape it sat half under
+    // the edge of the scrolling sheet)
+    const go = btn(ARMS_GO, 'btn primary buy', 'callArms'), state = el('p', 'uses'), foot = el('div', 'sheetfoot');
     go.addEventListener('click', () => { callToArms(game, town); paint(); });
-    body.append(state, go);
+    foot.append(go); body.append(state, foot);
     const paint = () => {
       const n = militia(town).length, l = armsLoss(game, town), b = armsBlock(game, town);
       setText(workers, n === 1 ? '1 building' : n + ' buildings');
@@ -596,8 +601,10 @@ export function armsSheet(game, town) {
       paintRest();
       setText(state, b && !waiting ? armsLine(game, town) : ''); state.hidden = !b || waiting;
     };
-    // the rest's clock is the To arms button's own (armsClock), painted every frame as the button's is (clarity fix 8m)
-    const paintRest = () => { const c = armsBlock(game, town) === 'wait' ? armsClock(town) : ''; setText(restName, c ? 'Ready in' : 'Rest after a call'); setText(rest, c ? c.replace('Ready in ', '') : span(ARMS.cooldown)); };
+    // the rest's clock is the To arms button's own (armsClock), painted every frame as the button's is (clarity fix 8m);
+    // it sits on the gray button, so the button says why it is off, and the rest row keeps its length (fresh-eyes read
+    // of 2026.11.26-7: a gray "Call workers out" read as broken, and in landscape the clock row sat under the pinned foot)
+    const paintRest = () => { const c = armsBlock(game, town) === 'wait' ? armsClock(town) : ''; setText(go, c || ARMS_GO); setText(restName, 'Rest after a call'); setText(rest, span(ARMS.cooldown)); };
     paint();
     let acc = 0;
     return dt => { paintRest(); if ((acc += dt) < .25) return; acc = 0; paint(); };

@@ -376,7 +376,7 @@ export const EXPLAINERS = [
   },
   {
     id: 'arms', covers: ['system:arms'],
-    title: 'Call to arms',
+    title: 'To arms',
     text: 'Tap To arms when raiders are about to break through. Your workers fight on the road for ' + ARMS.seconds + ' sec, and the buildings make nothing until they come back. Then you wait ' + ARMS.cooldown / 60 + ' min to call them again.',
     when: h => !!h.tabs.arms && h.t > 2, at: () => ({ el: '#armsBtn' }),
   },

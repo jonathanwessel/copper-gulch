@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-7',
+    lines: [
+      'Each Sell spare switch now says its choice in a word, and the same word starts each choice in Goods.',
+      'To arms has one name everywhere. Its button says Call workers out, or how long until it is ready, and stays in view on a turned phone.',
+      'In a boss fight the goal says when the war wagon is still coming.',
+    ],
+  },
+  {
     v: '2026.11.26-6',
     lines: [
       'Thunder Mesa now opens much sooner. It needs wave 45 in Silver Falls, 12 deeds, 3 Rail Office upgrades and 3M coins.',

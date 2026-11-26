@@ -49,7 +49,7 @@ export const GOALS = [
   { id: 'g-cannon', town: 'gulch', text: 'Tap a stone pad and build a Cannon', doneText: 'Cannon built', kind: 'cannon', done: c => c.built('cannon'), ready: c => c.lv('mine') >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-camp5', town: 'gulch', text: 'Tap the Lumber Camp and upgrade it to level 5', doneText: 'Lumber Camp is level 5', done: c => c.lv('camp') >= 5, at: () => ({ plot: 'camp' }) },
   { id: 'g-saw', town: 'gulch', text: 'Tap the Sawmill lot, then tap Build', doneText: 'Sawmill built', done: c => c.lv('saw') >= 1, ready: c => c.unlocked('saw'), at: () => ({ plot: 'saw' }) },
-  { id: 'g-research', town: 'gulch', text: 'Tap Research and start one', doneText: 'Research started', done: c => c.researched(), ready: c => c.researchOpen, at: () => ({ el: '#researchBtn' }) },
+  { id: 'g-research', town: 'gulch', text: 'Tap Research and start one', doneText: 'Research picked', done: c => c.researched(), ready: c => c.researchOpen, at: () => ({ el: '#researchBtn' }) },
   { id: 'g-pit', town: 'gulch', text: 'Tap the Clay Pit lot, then tap Build', doneText: 'Clay Pit built', done: c => c.lv('pit') >= 1, ready: c => c.unlocked('pit'), at: () => ({ plot: 'pit' }) },
   { id: 'g-frost', town: 'gulch', text: 'Tap a stone pad and build a Frost Lens', doneText: 'Frost Lens built', kind: 'frost', done: c => c.built('frost'), ready: c => c.lv('saw') >= 1 && c.lv('pit') >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-mine5', town: 'gulch', text: 'Tap the Copper Mine and upgrade it to level 5', doneText: 'Copper Mine is level 5', done: c => c.lv('mine') >= 5, ready: c => c.lv('mine') >= 1, at: () => ({ plot: 'mine' }) },

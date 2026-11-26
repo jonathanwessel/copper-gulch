@@ -586,6 +586,10 @@ html.flat .tag { position: static; transform: none !important; }
 /* a short landscape sheet has no room to pin the taller choices: they scroll with the goods, so Orders shows under them */
 @media (orientation: landscape) and (max-height: 500px) { .sheetbody > .stockrow:has(> .stockseg) { position: static; margin: 0; padding: 0 0 4px; } .sheetbody:has(> .stockrow > .stockseg) .goods > .option, .sheetbody:has(> .stockrow > .stockseg) .orders { scroll-margin-top: 0; } }
 .seg > .btn + .btn { margin-left: -2px; } /* two buttons that read as one choice, the picked one gold (review of 2026.11.20-15: the copper pill did not look tappable) */
+/* a sheet's one action stays whole at its foot while the rows scroll under it, like a card's price row (clarity fix 8o:
+   in landscape To arms' button sat half under the sheet's edge) */
+.sheetbody > .sheetfoot { position: sticky; bottom: 0; z-index: 4; display: grid; margin: 0 -12px; padding: 6px 12px max(14px, env(safe-area-inset-bottom)); background: var(--panel); border-top: 2px solid var(--line); }
+.sheetbody:has(> .sheetfoot) { padding-bottom: 0; }
 .sheetbody.more::after { content: ''; position: sticky; bottom: calc(-1 * max(14px, env(safe-area-inset-bottom))); z-index: 3; height: 30px; margin-top: -42px; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .8)); } /* more below the edge (sheets.js moreBelow) */
 /* Sign the charter sits beside Sign now and get, above what it pays, so it shows without a scroll in landscape (clarity fix 8b) */
 .sheetbody .row.signrow { justify-content: space-between; align-items: center; flex-wrap: nowrap; }
@@ -687,6 +691,7 @@ html.flat .tag { position: static; transform: none !important; }
 .sellpick[hidden] { display: none; }
 .goods > .option > .btn.switch { flex: none; display: grid; justify-items: center; gap: 3px; width: 7.6em; padding-left: 4px; padding-right: 4px; white-space: nowrap; } /* Sell spare over its mode, one width for every mode, so the row never grows past the sheet */
 .goods > .option > .btn.switch .pip { width: 100%; box-sizing: border-box; }
+.goods > .option > .btn.switch .pip .modeoff { display: grid; justify-items: center; gap: 1px; line-height: 1.1; } /* the mode word under its picture, so "Unless down" fits the fixed width (clarity fix 8o) */
 .sellpick > .btn { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; justify-items: start; gap: 2px; text-align: left; white-space: normal; min-height: 36px; padding: 5px 8px; } /* each mode's name over what it does (review of 2026.11.23-1) */
 .sellpick > .btn small { font-weight: normal; opacity: .85; grid-column: 2; }
 .sellpick > .btn .modepic { grid-row: 1; }

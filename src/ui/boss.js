@@ -7,14 +7,14 @@
    agree. */
 import { FOES, STAGE_WORDS } from '../data/foes.js';
 import { foeView } from './foe.js';
-import { foeStatus } from '../core/defense.js';
+import { foeStatus, bossOn } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const pct = x => Math.round(x * 100) + '%';
 
-/* The boss on the road now, or null: the one of this wave still standing. */
-export const bossOn = town => (town.waves.foes || []).find(f => FOES[f.kind] && FOES[f.kind].boss && f.hp > 0 && !f.leaked) || null;
+/* The boss on the road now: one source in the core, so the bar and the goal strip's fight step agree (clarity fix 8o). */
+export { bossOn };
 
 /* The stage as a picture (review of 2026.11.23-9: "Crew off, slower" and "Crew jumped off" before it were both
    flagged as shorthand, so by the twice-flagged rule the words left the bar): what fell off (the raiders it dropped,

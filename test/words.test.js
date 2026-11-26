@@ -190,3 +190,21 @@ test('the words of clarity fixes 8j and 8k', async () => {
   assert.equal(levelsDone(2, 5), 'Level 2 of 5');
   for (const s of [repLine(0), repLine(64), boomWords(1.6, '1:11', .3), roadLine(1, 0), foremanLine('flooded', 'timber', '99%')]) assert.deepEqual(textIssues(s), [], s);
 });
+
+test('the words of clarity fix 8o', async () => {
+  const { ARMS_NAME, ARMS_GO } = await import('../src/ui/sheets.js');
+  const { MODE_WORDS } = await import('../src/ui/format.js');
+  const { GOALS } = await import('../src/data/goals.js');
+  // one name for Call to arms on screen: the side button, its sheet and its tip card
+  assert.equal(ARMS_NAME, 'To arms');
+  assert.equal(ARMS_GO, 'Call workers out');
+  const tip = Object.values(EXPLAINERS).find(e => /workers fight on the road/.test(e.text || ''));
+  assert.equal(tip.title, ARMS_NAME);
+  assert.match(tip.text, /^Tap To arms /);
+  // every sell mode says a short word beside its picture, read on after "Sell spare"
+  assert.deepEqual(MODE_WORDS, { always: 'Always', skip: 'Unless down', boom: 'When up', off: 'Off' });
+  for (const w of Object.values(MODE_WORDS)) { assert.ok(w.split(' ').length <= 2, w); assert.deepEqual(textIssues('Sell spare ' + w.toLowerCase()), [], w); }
+  // a done step says what was done, never "started" beside Done
+  assert.equal(GOALS.find(g => g.id === 'g-research').doneText, 'Research picked');
+  for (const g of GOALS) if (g.doneText) assert.doesNotMatch(g.doneText, /started|starting|begun/i, g.id);
+});

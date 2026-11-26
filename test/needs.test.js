@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/core/setup.js';
 import { goalNow, goalText, goalContext, bossFight, FIGHT_LOW } from '../src/core/goals.js';
-import { setHold, fall, buildTower, towerCost, towerAt, startWave } from '../src/core/defense.js';
+import { setHold, fall, buildTower, towerCost, towerAt, startWave, fight, bossOn } from '../src/core/defense.js';
 import { needsYou, mapDot, siteState } from '../src/core/map.js';
 import { stateNeeds, stateWord } from '../src/ui/state.js';
 import { dots } from '../src/core/reveal.js';
@@ -85,12 +85,23 @@ test('a boss fight with few hits left keeps the strip on the fight, naming the c
   t.vault.hp = t.vault.max;
   assert.equal(bossFight(g, t), false, 'a full vault: the strip goes on as before');
   t.vault.hp = Math.floor(FIGHT_LOW * t.vault.max);
+  // the fight step's words follow the wagon (clarity fix 8o: "Stop the war wagon" with no wagon and no boss bar yet)
+  assert.equal(bossOn(t), null);
+  assert.equal(bossFight(g, t), true);
+  assert.equal(goalText(g, t, goalNow(g)), 'The war wagon is coming. Tap a tower and upgrade it');
+  t.waves.queue = [t.waves.queue[t.waves.queue.length - 1]];
+  for (let i = 0; i < 40 && !bossOn(t); i++) fight(g, t, .25);
+  assert.ok(bossOn(t), 'the wagon came out');
+  t.vault.hp = Math.floor(FIGHT_LOW * t.vault.max);
   assert.equal(bossFight(g, t), true);
   const s = goalNow(g);
   assert.equal(s.id, 'fight');
   assert.equal(goalText(g, t, s), 'Stop the war wagon. Tap a tower and upgrade it');
   assert.equal(s.at(goalContext(g, t)).tower, t.towers[1].spot, 'the level 2 tower costs least to raise');
   assert.equal(goalNow(g, false) && goalNow(g, false).id === 'fight', false, 'the careful bots read the strip only for what to build');
+  // the wagon falls while its wave walks on: the step names the vault, not the wagon
+  bossOn(t).hp = 0;
+  assert.equal(goalText(g, t, goalNow(g)), 'Keep raiders off the vault. Tap a tower and upgrade it');
 });
 
 test('the newcomer saving for a goal that names one tower saves for that tower, not another, when the vault is low', () => {

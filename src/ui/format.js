@@ -83,12 +83,14 @@ export function modePic(mode, label = null) {
 /* What a Sell spare switch shows: the picture of its mode, read out as its line (clarity fix 8h). */
 /* Off also says Off beside its dark picture (fresh-eyes read of 2026.11.25-8: with the picture alone "Sell spare" read
    as selling while it never sold). */
+/* Every mode shows a short word beside its picture (clarity fix 8o: the picture alone was flagged a third time, so by the
+   twice-flagged rule the switch says it in words too). Each reads on after "Sell spare". */
+export const MODE_WORDS = { always: 'Always', skip: 'Unless down', boom: 'When up', off: 'Off' };
 export const modeState = mode => {
-  if (mode !== 'off') return modePic(mode, MODE_LINES[mode]);
-  const s = document.createElement('span'); s.className = 'modeoff'; s.append(modePic(mode, MODE_LINES[mode]), document.createTextNode(' ' + OFF_WORD));
+  const s = document.createElement('span'); s.className = 'modeoff'; s.dataset.key = mode; s.append(modePic(mode, MODE_LINES[mode]), document.createTextNode(' ' + MODE_WORDS[mode]));
   return s;
 };
-export const OFF_WORD = 'Off';
+export const OFF_WORD = MODE_WORDS.off;
 /* A boom or bust on a good's price bar: "Boom 1:12", "Bust 0:45" (the time left, at most 4 characters). */
 export function boomWord(f, left) {
   const s = Math.min(599, Math.max(0, Math.ceil(left || 0)));

@@ -16,7 +16,7 @@ import { nextTowns } from '../core/empire.js';
 import { mapOpen, needsYou, mapDot } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
 import { orderDone, orderMissed } from './sheets.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, armsClock, STOCK_LABEL } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, armsClock, STOCK_LABEL, ARMS_NAME } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen, labsRunning } from '../core/research.js';
 import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
@@ -145,7 +145,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const perksBtn = el('button', 'btn small', 'Perks'); perksBtn.id = 'perksBtn'; perksBtn.hidden = true;
   const autoBtn = el('button', 'btn small', 'Auto'); autoBtn.id = 'autoBtn'; autoBtn.hidden = true;
   // Call to arms: its fight or its wait on a small fixed-width second line, like Research's time
-  const armsBtn = el('button', 'btn small', 'To arms'); armsBtn.id = 'armsBtn'; armsBtn.hidden = true;
+  const armsBtn = el('button', 'btn small', ARMS_NAME); armsBtn.id = 'armsBtn'; armsBtn.hidden = true;
   const armsLeft = el('small', 'btime'); armsLeft.hidden = true; armsBtn.append(armsLeft);
   const paintArms = () => {
     if (armsBtn.hidden) return;
@@ -229,7 +229,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const researchIn = id => { sheets.close(); if (shell.go && shell.go(id) && window.CG && window.CG.play) window.CG.play.openResearch(); };
   const openResearch = () => sheets.open('research', titled('Research'), researchSheet(game, town, researchIn));
   const openAuto = () => { (game.shared.seen ||= {})['auto:sheet'] = true; autoBtn.classList.remove('dot'); sheets.open('auto', titled('Auto'), autoSheet(game, town, () => openResearch())); };
-  const openArms = () => sheets.open('arms', titled('To arms'), armsSheet(game, town));
+  const openArms = () => sheets.open('arms', titled(ARMS_NAME), armsSheet(game, town));
   const openPerks = () => { lookPerks(town); perksBtn.classList.remove('dot'); sheets.open('perks', titled('Perks'), perksSheet({ game, town, leave: shell.leave || (() => {}) })); };
   const openIncome = () => sheets.open('income', 'Income · All your towns', incomeSheet(income)); // one purse: the sheet names its scope (clarity fix 8b) // its rows say a second or a minute (fresh-eyes read of 2026.11.24-11)
   const openFound = id => sheets.open('found', TOWNS[id].name, foundSheet(game, id, to => { sheets.close(); toast(TOWNS[to].name + ' is open.', 3000); if (shell.go) shell.go(to); }));

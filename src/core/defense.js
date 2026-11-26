@@ -26,6 +26,10 @@ import { STEP } from './clock.js';
 import { isPitSpot } from '../data/towns/index.js';
 import { ARMS } from '../data/arms.js';
 
+/* The boss on the road now, or null: the one of this wave still standing. The boss bar shows while it is there, and the
+   goal strip's fight step asks to stop it only then (clarity fix 8o: "Stop the war wagon" showed with no wagon out yet). */
+export const bossOn = town => ((town.waves && town.waves.foes) || []).find(f => FOES[f.kind] && FOES[f.kind].boss && f.hp > 0 && !f.leaked) || null;
+
 /* The wave settings for a town: WAVE (src/data/foes.js) with the town's own overrides (town.def.waves). */
 const WAVES = new WeakMap();
 export function wavesOf(town) {

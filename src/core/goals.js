@@ -5,7 +5,7 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall, bossOn } from './defense.js';
 import { FOES } from '../data/foes.js';
 import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
@@ -159,7 +159,17 @@ export const bossFight = (game, town) => !!town && game.active === town.id && !t
 const bossNameOf = town => ((FOES[(town.def && town.def.boss) || 'wagon'] || FOES.wagon).name).toLowerCase();
 /* spot: the tower the town's own goal names, so the strip never asks for two towers in turn (on seed 1 the fight's
    cheapest tower took the coins saved for the goal's level 15); else the cheapest to raise. */
-export const fightStep = (town, spot = null) => ({ id: 'fight', fight: true, text: 'Stop the ' + bossNameOf(town) + '. Tap a tower and upgrade it', at: c => ({ tower: spot != null ? spot : c.cheapUp() }), done: () => false });
+/* Its words follow the boss (clarity fix 8o: "Stop the war wagon" showed before the wagon came out, with no boss bar):
+   coming while it waits in the wave, stop it while it is on the road (bossOn, the boss bar's own test), and the vault
+   once it fell and the wave's last raiders walk on. Only the words change, so the newcomer taps as before (the first try
+   held the step back until the wagon came out, and the climb probe's newcomer lost 198K to falls against a 175K line). */
+export const fightWords = town => {
+  const name = bossNameOf(town), up = '. Tap a tower and upgrade it';
+  if (bossOn(town)) return 'Stop the ' + name + up;
+  if (((town.waves && town.waves.queue) || []).some(k => FOES[k] && FOES[k].boss)) return 'The ' + name + ' is coming' + up;
+  return 'Keep raiders off the vault' + up;
+};
+export const fightStep = (town, spot = null) => ({ id: 'fight', fight: true, text: fightWords(town), at: c => ({ tower: spot != null ? spot : c.cheapUp() }), done: () => false });
 
 /* The tower the town's own next goal names, or null. */
 function ownTower(game, town) {

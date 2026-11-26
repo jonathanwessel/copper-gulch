@@ -31,6 +31,9 @@ export async function uncovered(page) {
       // a sheet never shows a side button cut in half (review of 2026.11.19-6: the Perks sheet cut Perks and hid Menu)
       if (p.id === 'sheet') for (const n of document.querySelectorAll('.side .btn')) if (vis(n) && getComputedStyle(n).visibility !== 'hidden' && hit(R(n), r)) bad.push('a sheet cuts ' + n.textContent.trim());
     }
+    // a sheet's one action shows whole inside the sheet, never under its edge (clarity fix 8o: in landscape To arms'
+    // button sat half under the edge of its scrolling sheet)
+    for (const n of document.querySelectorAll('.sheet #callArms')) if (vis(n)) { const b = R(n), sb = R(n.closest('.sheetbody')); if (b.top < sb.top - 1 || b.bottom > sb.bottom + 1 || b.bottom > innerHeight) bad.push("the sheet's " + n.textContent.trim() + ' button is out of view'); }
     const buy = document.querySelector('#card #buy'), card = document.getElementById('card');
     // a card at the bottom opens above the goods strip, so the counts stay in view (review of 2026.11.19-4)
     const strip = document.getElementById('goodsStrip');
@@ -843,7 +846,9 @@ async function run() {
           const pic = b.querySelector('.modepic');
           out[mode] = t.sell.timber === want && pick.hidden && !!pic && pic.dataset.key === mode && /\S/.test(pic.getAttribute('aria-label') || '');
           out.offWord = (out.offWord ?? true) && (mode !== 'off' || / Off$/.test(b.textContent)); // Off says so beside its picture (read of 2026.11.25-8)
-          out.oneLine = (out.oneLine ?? true) && btns.every(x => x.querySelectorAll('.modeline').length === 1 && !x.querySelector('small') && x.querySelectorAll('b').length === 1);
+          // and since 8o every row also leads with the word its switch shows, so a row matches its switch
+          out.oneLine = (out.oneLine ?? true) && btns.every(x => x.querySelectorAll('.modeline').length === 1 && x.querySelectorAll('.modeword').length === 1);
+          out.sameWord = (out.sameWord ?? true) && b.textContent.trim().endsWith(btns.find(x => x.dataset.mode === mode).querySelector('.modeword').textContent);
           out.noNames = (out.noNames ?? true) && !/Skip busts|Booms only/.test(pick.textContent + b.textContent);
         }
         if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
@@ -1836,6 +1841,10 @@ async function run() {
       for (const [k, v] of Object.entries(arms)) if (!v) bad.push('Call to arms: not ' + k + ' ' + JSON.stringify(arms));
       bad.push(...(await check(page)).map(b => 'arms: ' + b));
       bad.push(...(await uncovered(page)).map(b => 'arms: ' + b));
+      // and with its sheet open, at its top: its button shows whole at the sheet's foot (clarity fix 8o)
+      await page.evaluate(async () => { document.getElementById('armsBtn').click(); await new Promise(r => setTimeout(r, 500)); const b = document.querySelector('.sheet .sheetbody'); if (b) b.scrollTop = 0; await new Promise(r => setTimeout(r, 100)); });
+      bad.push(...(await uncovered(page)).map(b => 'arms sheet: ' + b));
+      await page.evaluate(() => CG.play.sheets.close());
       // every side button out, waves on hold (the widest words on Hold waves): nothing in the top bar covers another
       // control, at this size and, turned sideways, on three phones' landscape screens (review of 2026.11.23-6)
       await page.evaluate(() => { const g = CG.game, t = g.town; CG.play.sheets.close(); g.shared.charter.offered = true; t.flags['open:research'] = true; g.shared.seen = { ...(g.shared.seen || {}), goods: true }; t.waves.hold = true; });
