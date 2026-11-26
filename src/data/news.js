@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-4',
+    lines: [
+      'On a phone the whole road fits on the screen, so raiders no longer walk along the edge.',
+      'When a war wagon drops its crew, a message says so.',
+      'The bar under a war wagon or train shows how much armor it has left.',
+      'Research shows its levels as little boxes by its name. A filled box is a level you have.',
+      'A button you cannot tap yet is gray.',
+    ],
+  },
+  {
     v: '2026.11.26-3',
     lines: [
       'When your vault takes its first hit, the map moves to show the vault, and the card moves out of its way.',

@@ -153,7 +153,7 @@ test('the vault has one word for its count (hits) and one for its loss (fell), c
   const { RESEARCH } = await import('../src/data/research.js');
   const t = newGame('words-8i', 'gulch').town;
   assert.match(researchDoneWords(t, { id: 'walls', level: 1 }), /^Thick Walls level 1 is done. The vault can take [0-9]+ hits now.$/);
-  assert.equal(explainVault(t).rows[0].label, 'New vault');
+  assert.equal(explainVault(t).rows[0].label, 'Starts with');
   for (const [id, r] of Object.entries(RESEARCH)) if (/vault/.test(r.about || '')) assert.ok(!/heart|break/.test(r.about), id + ': ' + r.about);
 });
 

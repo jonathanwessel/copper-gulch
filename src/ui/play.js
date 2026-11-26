@@ -10,7 +10,7 @@ import { stallOf, stallFix, shortInput, makerOf as stallMaker } from '../core/st
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
 import { TOWERS, PATHS, PATH_LEVEL, FORKS, SELL_BACK, EATS_ARMOR, eatWords, hurtWords } from '../data/towers.js';
 import { vaultMax, forkNext, buildTower, upgradeTower, sellTower, towerCost, towerStats, towerAt, canPay, callEarly, canCall, setHold, isPit, fitsSpot, towerOpen, towerIn, setReserve, shortfall, bossWave, oldGround, normalTowers, crowdOf } from '../core/defense.js';
-import { WAVE_TYPES, FOES } from '../data/foes.js';
+import { WAVE_TYPES, FOES, STAGE_LINES } from '../data/foes.js';
 import { TOWNS } from '../data/towns/index.js';
 import { nextTowns } from '../core/empire.js';
 import { mapOpen, needsYou, mapDot } from '../core/map.js';
@@ -587,6 +587,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // news from the road
   const offs = [
     game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000, { kind: 'boss' }); }),
+    // a boss's new stage says itself once, in the raider card's words, while the bar keeps the boss's name and shows the
+    // stage as its picture (clarity fix 8n: the picture alone read as nothing; the fresh-eyes read of this release found
+    // the words in the name's place read as a narrator and flipped the bar between a name and a sentence)
+    game.bus.on('stage', e => { if (e.town === town.id && STAGE_LINES[e.stage] && FOES[e.kind] && FOES[e.kind].boss) toast(STAGE_LINES[e.stage], 3000, { kind: 'boss' }); }),
     // the boss toast goes when its wave ends, won or lost (clarity fix 8i: it stayed under the Wave 20 lost card)
     game.bus.on('wave:clear', e => { if (e.town === town.id) dropToasts('boss'); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id && !isOutpost(town)) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000, { kind: 'here' }); }), // only where Perks shows (review of 2026.11.23-6: in Pine Hollow)
@@ -638,8 +642,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const NB = String.fromCharCode(160);
   // and "wave 1" or "level 5" stays on one line too (clarity fix 8a: "start wave / 1" on a phone)
   const keepNames = s => NAMES.reduce((a, n) => a.split(n).join(n.replace(/ /g, NB)), s).replace(/(wave|level|Wave|Level) (?=[0-9])/g, '$1' + NB);
-  // a goal for several towers counts them, "2 of 5", and a coin count names coins (review of 2026.11.23-7)
-  const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return Math.min(a, b) + ' of ' + b; };
+  // a goal for several towers counts them, "2 / 5", have / need like every other count on the strip (clarity fix 8n:
+  // "0 of 5" towers beside "2 / 5 deeds"), and a coin count names coins (review of 2026.11.23-7)
+  const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return Math.min(a, b) + ' / ' + b; };
   const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(joinFact(t, g.meter ? meterWords(g, game) : g.need && town.coins < g.need ? fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g))); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);

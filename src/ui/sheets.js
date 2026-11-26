@@ -337,6 +337,16 @@ export function placesSheet(game, { go, found, capital = () => {} }) {
   };
 }
 
+/* A research item's levels as pips, L of them filled (clarity fix 8n); L < 0 hides them (running, or every level done,
+   where the words say it). Its label for screen readers is the old words, "Level 2 of 5". */
+export function paintPips(p, L, max) {
+  const k = L < 0 ? '' : L + '/' + max;
+  if (p.dataset.k === k) return;
+  p.dataset.k = k; p.hidden = !k;
+  if (!k) { p.replaceChildren(); return; }
+  p.replaceChildren(...Array.from({ length: max }, (_, i) => el('i', i < L ? 'on' : null)));
+  const w = levelsDone(L, max); p.setAttribute('role', 'img'); p.setAttribute('aria-label', w); p.title = w;
+}
 /* A short phrase that never breaks across lines (a line wraps only between phrases). */
 const keep = s => s.replace(/ /g, '\u00a0');
 /* Seconds in words: "40 seconds", "3 minutes". */
@@ -432,13 +442,16 @@ export function researchSheet(game, town, goTo = null) {
     for (const id of itemsOf(town)) {
       const r = RESEARCH[id], row = el('div', 'option'), txt = el('div');
       const name = el('b'), info = el('small'), price = el('span', 'need coinneed'), bar = el('i', 'depth'), fill = el('i');
-      bar.append(fill); txt.append(name, el('span', null, r.about));
+      // the levels done as a row of pips beside the name, one per level, filled when done (clarity fix 8n: "Level 2 of 5" beside "takes
+      // 80 sec" read as done or as next, the second flag on these words after 8k, so a picture says it)
+      const pips = el('span', 'pips'), infoT = el('span'), head = el('span', 'rhead'); info.append(infoT); head.append(name, pips);
+      bar.append(fill); txt.append(head, el('span', null, r.about));
       if (r.worse) txt.append(el('span', 'worse', r.worse));
       const costs = el('span', 'costrow'); costs.append(price); txt.append(info, costs, bar);
       const go = btn('Research', 'btn small build timer'); go.dataset.research = id;
       go.addEventListener('click', () => { if (!startResearch(game, town, id) && town.lab) queueResearch(town, id); paint(); }); // while one runs: line it up next
       row.append(txt, go); list.append(row);
-      rows[id] = { row, name, info, price, costs, bar, fill, go };
+      rows[id] = { row, name, info: infoT, pips, price, costs, bar, fill, go };
     }
     const paint = () => {
       paintAway();
@@ -451,8 +464,9 @@ export function researchSheet(game, town, goTo = null) {
         // item runs it says so in place of a grayed button with no reason
         const info = lab ? 'Researching level ' + (L + 1) + ' of ' + r.max
           : block === 'max' ? 'All ' + r.max + ' levels done'
-          : [levelsDone(L, r.max), 'takes ' + span(researchTime(town, id))].map(keep).join(' · ');
+          : keep('Takes ' + span(researchTime(town, id)));
         if (x.info.textContent !== info) x.info.textContent = info;
+        paintPips(x.pips, !lab && block !== 'max' ? L : -1, r.max);
         const need = researchCost(town, id); // the price over what you have, as on every card (review of 2026.11.20-15)
         x.costs.hidden = !!lab || block === 'max';
         priceOver(x.price, need, 'coins', town.coins);
@@ -560,7 +574,7 @@ export function armsSheet(game, town) {
   return body => {
     const what = el('div', 'explain'), row = (a, b) => { const r = el('div'), v = el('b', null, b); r.append(el('span', null, a), v); what.append(r); return v; };
     body.append(el('p', 'note', 'Your workers leave the buildings and fight raiders on the road. The buildings make nothing until they come back.'), what);
-    const workers = row('Workers from', ''), lost = row('Coins you miss', ''); // coins, named as coins (clarity fix 8j: "Goods lost · About 11.6K coins" counted goods in coins)
+    const workers = row('Workers from', ''), lost = row('Income lost', ''); // coins, named as coins (clarity fix 8j: "Goods lost · About 11.6K coins" counted goods in coins)
     row('They fight for', span(ARMS.seconds));
     // the rest after a call, which counts down in its own row while it runs, so the sheet never shows two times for one wait
     // (review of 2026.11.23-6: "Call again after 5 min" beside "Ready again in 4 min")
@@ -571,7 +585,7 @@ export function armsSheet(game, town) {
     const paint = () => {
       const n = militia(town).length, l = armsLoss(game, town), b = armsBlock(game, town);
       setText(workers, n === 1 ? '1 building' : n + ' buildings');
-      setText(lost, 'About ' + fmt(l.coins));
+      setText(lost, 'About ' + fmt(l.coins) + ' coins');
       go.disabled = !!b;
       const waiting = b === 'wait';
       paintRest();

@@ -32,6 +32,8 @@ export function bossView(town, f, store = 'vault') {
   return {
     kind: f.kind, name: v.gone || v.name, health: v.health,
     armor: v.armor && !v.gone ? pct(v.armor.share) : '', // gone: only "War wagon down!" (review of 2026.11.22-10: the numbers said it again)
+    // the armor as a small fill, like the raider card's armor bar: what it blocks now, and what it blocked before poison (clarity fix 8n)
+    armorFill: v.armor && !v.gone ? { share: v.armor.share, full: v.armor.full } : null,
     stage: v.gone ? '' : st ? STAGE_WORDS[st] : '', pic: v.gone || !st ? null : stagePic(f.kind, st),
     gone: !!v.gone,
   };
@@ -43,7 +45,10 @@ export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
   const bar = el('button', 'bossbar'); bar.id = 'bossBar'; bar.hidden = true; bar.type = 'button';
   const pic = el('span', 'bosspic'), name = el('b', 'bname'), stage = el('span', 'bstage');
   const fbar = el('span', 'fbar'), fill = el('i'), armor = el('span', 'barmor'), shield = el('i', 'shield');
-  shield.setAttribute('aria-hidden', 'true'); armor.append(shield);
+  // the shield and a small bar for its armor (clarity fix 8n: the shield alone said only that it had some)
+  const abar = el('span', 'fbar abar'), afill = el('i'), aeat = el('u');
+  abar.append(aeat, afill);
+  shield.setAttribute('aria-hidden', 'true'); armor.append(shield, abar);
   fbar.append(fill);
   const top = el('span', 'brow'), low = el('span', 'brow');
   // no numbers on the bar: its fill shows the health and the shield that it has armor; the raider card a tap opens
@@ -53,14 +58,14 @@ export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
   const txt = el('span', 'btext'); txt.append(top, low);
   bar.append(pic, txt);
   let f = null, kind = null, goneFor = 0, picKey = '';
-  /* The stage's picture: the dropped raider drawn small, or a plate or a puff, then the pace arrow. */
+  /* The stage's picture: the dropped raider drawn small, or a plate or a puff. No pace arrow (clarity fix 8n: green
+     down read as health falling, then as a dropdown to tap); the toast and the raider card say the pace in words. */
   const paintStage = p => {
     const k = p ? p.pic + ':' + p.speed : '';
     if (k === picKey) return; picKey = k;
     if (!p) { stage.replaceChildren(); return; }
     const what = FOES[p.pic] ? Object.assign(drawFoe(p.pic), { className: 'foepic small' }) : el('i', 'spic ' + p.pic);
-    const arrow = el('i', 'sarrow ' + p.speed);
-    stage.replaceChildren(what, arrow);
+    stage.replaceChildren(what);
   };
   bar.addEventListener('click', () => { if (f && f.hp > 0 && !f.leaked) onTap(f.id); });
   const set = (n, s) => { if (n.textContent !== s) n.textContent = s; };
@@ -79,6 +84,10 @@ export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
     if (stage.getAttribute('aria-label') !== v.stage) { if (v.stage) { stage.setAttribute('aria-label', v.stage); stage.title = v.stage; } else { stage.removeAttribute('aria-label'); stage.title = ''; } }
     const w = (100 * (v.gone ? 0 : v.health.share)).toFixed(1) + '%'; if (fill.style.width !== w) fill.style.width = w;
     const vis = v.armor ? '' : 'hidden'; if (armor.style.visibility !== vis) armor.style.visibility = vis; // kept in place, so the bar never changes
+    if (v.armorFill) {
+      const a = (100 * v.armorFill.share).toFixed(1) + '%', e = (100 * v.armorFill.full).toFixed(1) + '%';
+      if (afill.style.width !== a) afill.style.width = a; if (aeat.style.width !== e) aeat.style.width = e;
+    }
     const label = [v.name, 'Health ' + v.health.text, v.armor && 'Armor ' + v.armor, v.stage].filter(Boolean).join('. ');
     if (bar.getAttribute('aria-label') !== label) bar.setAttribute('aria-label', label);
     if (bar.hidden) bar.hidden = false;

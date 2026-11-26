@@ -5,7 +5,9 @@ import { createScene } from './scene.js';
 import { startQuality, autoStep } from './autoquality.js';
 import { saveQuality, autoQuality } from './quality.js';
 import { Board } from './board.js';
-import { CameraRig } from './camera.js';
+import { CameraRig, ROAD_STEP } from './camera.js';
+import { lanesOf } from '../core/defense.js';
+import { pointAt } from '../core/path.js';
 import { Battle } from './battle.js';
 import { Selection } from './select.js';
 import { pickTarget, pickFoe, pickWorker, hitPx, project } from './pick.js';
@@ -21,7 +23,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   const battle = new Battle(board, game), selection = new Selection(board, battle);
   v.sun.position.set(board.center.x - 8, 12, board.center.z + 7); v.sun.target.position.copy(board.center);
   const sc = v.sun.shadow.camera; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.updateProjectionMatrix();
-  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, onZoomOut, flyIn, onTap: (x, y) => {
+  // each lane's road from where its raiders come into view, for the home view to keep on screen (the phone home view box)
+  const rig = new CameraRig(v.cam, canvas, { center: board.center, size: Math.max(town.def.board.cols, town.def.board.rows), pads: town.def.board.spots, roads: roadPoints(town), onZoomOut, flyIn, onTap: (x, y) => {
     // a raider when the finger is nearer its middle than the middle of the pad or building the tap would open (smoke,
     // 2026.11.22-9: a tap on a pad's middle opened a raider walking past it)
     // the same for the workers called to arms, who stand by the road in front of their own building
@@ -125,4 +128,11 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
   }
   raf = requestAnimationFrame(frame);
   return api;
+}
+
+/* Points along each lane, every ROAD_STEP units, from where its raiders come out of the entrance to the vault. */
+export function roadPoints(town) {
+  const B = town.def.board, hide = [(B.entrance && B.entrance.hide) || 0, (B.river && B.river.entrance && B.river.entrance.hide) || 0], out = [];
+  lanesOf(town).forEach((L, i) => { for (let s = hide[i] || 0; s <= L.length; s += ROAD_STEP) out.push(pointAt(L, s)); });
+  return out;
 }

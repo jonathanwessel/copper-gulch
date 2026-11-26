@@ -75,6 +75,9 @@ html.no3d body { background: var(--bg); }
 .btn:hover:not(:disabled) { filter: brightness(1.08); }
 .btn:disabled { opacity: .55; cursor: default; }
 .btn.primary { background: var(--copper); color: #1d120c; font-size: 1.25rem; letter-spacing: .06em; box-shadow: inset 2px 2px 0 var(--copper-hi), inset -2px -2px 0 var(--copper-lo), 2px 2px 0 var(--line); }
+/* a primary button that cannot be pressed now is flat and gray, never a dimmed bright orange (clarity fix 8n: Call to arms
+   read as pressable while its card said Ready in 4:14) */
+.btn.primary:disabled { background: #4a3f37; color: #a89a88; opacity: 1; box-shadow: inset 2px 2px 0 #5a4e45, inset -2px -2px 0 #362d27, 2px 2px 0 var(--line); }
 .btn.small { min-height: 34px; padding: 4px 12px; font-size: .85rem; }
 .btn.timer { min-width: 7.2em; font-variant-numeric: tabular-nums; }
 .install { display: contents; }
@@ -174,13 +177,13 @@ html.no3d body { background: var(--bg); }
 .bossbar .spic { display: block; flex: none; width: 14px; height: 14px; }
 .bossbar .spic.plates { background: linear-gradient(135deg, transparent 44%, var(--bad) 44%, var(--bad) 58%, transparent 58%), #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); }
 .bossbar .spic.steam { background: radial-gradient(circle at 30% 65%, #eef1f4 30%, transparent 32%), radial-gradient(circle at 62% 45%, #eef1f4 34%, transparent 36%), radial-gradient(circle at 78% 72%, #d6dbe0 24%, transparent 26%); }
-.bossbar .sarrow { display: block; flex: none; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; }
-.bossbar .sarrow.up { border-bottom: 9px solid var(--bad); }
-.bossbar .sarrow.down { border-top: 9px solid var(--good); }
 .bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
 .bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .bossbar .bnum { flex: none; width: 13.5ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: auto; white-space: nowrap; font-variant-numeric: tabular-nums; color: #c8ccd4; }
+.bossbar .abar { flex: none; width: 36px; min-width: 0; height: 10px; }
+.bossbar .abar i { background: #d6dae0; }
+.bossbar .abar u { background: repeating-linear-gradient(135deg, #5a8a3a 0 3px, #2f4a20 3px 6px); } /* what poison ate, as on the raider card */
 .bossbar .shield { display: block; width: 8px; height: 10px; background: #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); flex: none; }
 .bossbar.gone { border-color: var(--good); }
 .bossbar.gone .bname { color: var(--good); }
@@ -228,6 +231,12 @@ html.no3d body { background: var(--bg); }
 .option b { color: var(--copper-hi); }
 .option span { font-size: .85rem; font-weight: 500; }
 .option small { color: var(--gold); font-size: .8rem; }
+/* a research item's levels as pips, filled when done (clarity fix 8n) */
+.option .rhead { display: flex; align-items: center; gap: 8px; font-size: inherit; font-weight: inherit; } /* a research item's name with its level pips beside it */
+.option .pips { display: inline-flex; gap: 3px; }
+.option .pips[hidden] { display: none; }
+.option .pips i { display: block; width: 9px; height: 9px; border: 1px solid var(--gold); background: transparent; }
+.option .pips i.on { background: var(--gold); }
 .option .build { flex: none; }
 .option .foepic { flex: none; width: 28px; height: 28px; image-rendering: pixelated; } /* a raider's picture, 2x its pixels */
 /* the raider card (src/ui/foe.js): its picture and name, health and armor bars with numbers in fixed cells, the effects

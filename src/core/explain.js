@@ -131,8 +131,9 @@ export const oldWavesLabel = town => (town && town.wave ? 'Wave ' + town.wave : 
 export function explainVault(town) {
   // the start is named by the place's store, the total in the sheet is Most hits (review of 2026.11.23-11: "Full vault"
   // and "Full strength" were two names for one thing)
-  // the start row says it is the new vault's, so it never reads as the hits left (clarity fix 8i: "Vault 20 hits" over "Hits left 20 hits")
-  const rows = [{ label: town.def && town.def.store === 'stockpile' ? 'New stockpile' : 'New vault', base: wavesOf(town).vault }, ...modRows(town.mods, 'vault')];
+  // the start row says what the vault was built with, so it never reads as the hits left (clarity fix 8i: "Vault 20 hits" over
+  // "Hits left 20 hits"), nor as a buy (clarity fix 8n: "New vault" read like a new vault to buy, and "Built with" did not parse)
+  const rows = [{ label: 'Starts with', base: wavesOf(town).vault }, ...modRows(town.mods, 'vault')];
   const ex = done('hits', rows);
   ex.value = vaultMax(town); // whole hits, as the battle uses
   ex.left = Math.max(0, Math.ceil(town.vault.hp));

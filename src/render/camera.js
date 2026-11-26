@@ -24,6 +24,12 @@ const TOP_GAP = 56;
 /* The room a selection keeps from the screen's left and right edges (review of 2026.11.20-5: in landscape a selected pit
    at the left edge, half off the screen, counted as on screen). */
 const SIDE_GAP = 72;
+/* pixels a raider's middle keeps from the screen's left and right edges for it to count as on screen at home (the phone
+   home view box, 2026.11.26-4: raiders walked half off the left edge) */
+export const ROAD_EDGE = 14;
+export const ROAD_STEP = .5; // world units between the road points the home view weighs (unclip)
+/* how much a unit of road by the edge weighs against a cut pad (1: a unit of road is a pad) */
+export const ROAD_WEIGHT = .4;
 export const MIN_PAD = 31;  // pixels across the smallest stone pad at home (the touch rule is 30; 32 cut the outposts' edge pads on a phone)
 const PAD_R = .5;           // a stone pad's radius in world units (src/render/battle.js)
 const _pv = new THREE.Vector3();
@@ -48,11 +54,11 @@ export function coverSide(cv, el) {
 }
 
 export class CameraRig {
-  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], onZoomOut = null, flyIn = false, fitCover = false, tallPitch = 1.08, widePitch = 0 }) {
+  constructor(cam, el, { center, size = 12, onTap = () => {}, pads = [], roads = [], onZoomOut = null, flyIn = false, fitCover = false, tallPitch = 1.08, widePitch = 0 }) {
     this.tallPitch = tallPitch; // how steeply a tall screen looks down (the empire map looks down more, so its far side shrinks less)
     this.widePitch = widePitch; // the same for a wide screen (0: the town's own .72 or .8)
     this.fitCover = fitCover; // the empire map: an open card shrinks the home view to the space it leaves
-    this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads; this.onZoomOut = onZoomOut; this.flyIn = flyIn; this.pull = 0;
+    this.cam = cam; this.el = el; this.onTap = onTap; this.pads = pads; this.roads = roads; this.onZoomOut = onZoomOut; this.flyIn = flyIn; this.pull = 0;
     this.view = { top: 0, cover: null }; // the top bar's lower edge and the open card's box, in client pixels
     this.gestures = 0; this.atHome = true; this.slid = null; this.keepKey = null;
     this.home = { x: center.x, z: center.z, yaw: 0, pitch: .78, dist: 19 };
@@ -162,15 +168,23 @@ export class CameraRig {
   /* A town wider than the screen at its pad size (a phone, the larger towns): slide the home view sideways, at most
      3 units, so no pad is cut by the screen's left or right edge. Each one shows whole or sits a pan away (review of
      2026.11.20-17 and 2026.11.21-2: half pads at both edges looked broken). */
+  /* The road weighs in too (the phone home view box, 2026.11.26-4: the Gulch's west pass ran along the left edge and
+     raiders walked half off the screen): each ROAD_STEP of road whose raiders would stand within ROAD_EDGE of the left or
+     right edge counts like a cut pad, so a whole road beats whole edge pads. this.roads: points along each lane, every
+     ROAD_STEP units, from where raiders come into view. */
   unclip(s, left, right) {
     const ux = Math.cos(s.yaw), uz = -Math.sin(s.yaw), L = left + 2, Rr = right - 2, x0 = s.x, z0 = s.z;
+    const r = this.el.getBoundingClientRect(), W = r.width || innerWidth, H = r.height || innerHeight;
+    const px = (x, y, z) => { _pv.set(x, y, z).project(_cam); return r.left + (_pv.x + 1) / 2 * W; }; // after tmp(s)
     const cut = () => {
+      this.tmp(s, W, H);
       let n = 0;
       for (const [x, z] of this.pads) {
         let a = Infinity, b = -Infinity;
-        for (const [dx, dz] of [[PAD_R, 0], [-PAD_R, 0], [0, PAD_R], [0, -PAD_R]]) { const p = this.proj(s, x + dx, 0, z + dz); a = Math.min(a, p.x); b = Math.max(b, p.x); }
+        for (const [dx, dz] of [[PAD_R, 0], [-PAD_R, 0], [0, PAD_R], [0, -PAD_R]]) { const p = px(x + dx, 0, z + dz); a = Math.min(a, p); b = Math.max(b, p); }
         if ((a < L && b > L) || (a < Rr && b > Rr)) n++;
       }
+      for (const [x, z] of this.roads) { const p = px(x, .3, z); if (p < left + ROAD_EDGE || p > right - ROAD_EDGE) n += ROAD_STEP * ROAD_WEIGHT; }
       return n;
     };
     if (!cut()) return;
@@ -178,7 +192,7 @@ export class CameraRig {
     for (let d = -3; d <= 3.001; d += .05) {
       s.x = x0 + ux * d; s.z = z0 + uz * d;
       const score = cut() * 100 + Math.abs(d) * 4;
-      if (score < best.score) best = { d, score };
+      if (score < best.score - 1e-9) best = { d, score };
     }
     s.x = x0 + ux * best.d; s.z = z0 + uz * best.d;
   }

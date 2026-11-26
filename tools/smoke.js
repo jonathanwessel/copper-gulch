@@ -324,7 +324,12 @@ async function run() {
         for (const k of [.9, .7, .55]) { f.hp = max * k; await wait(250); widths.add(box(bar)); }
         f.hp = max * (F.stages[0].at - .05); await wait(500); widths.add(box(bar));
         // the stage is a picture now, with its words as the label (review of 2026.11.23-9); the picture must be drawn
-        const sn = bar.querySelector('.bstage'), stage = sn && sn.children.length === 2 ? sn.getAttribute('aria-label') : 'no picture', after = others();
+        const sn = bar.querySelector('.bstage'), stage = sn && sn.children.length === 1 ? sn.getAttribute('aria-label') : 'no picture', after = others();
+        // clarity fix 8n: the bar keeps the boss's name through its stage, the stage says itself in a toast (the raider
+        // card's words), no pace arrow, and an armored boss shows its armor as a fill
+        const { STAGE_LINES } = await import('./src/data/foes.js'), ui = await import(new URL('src/ui/play.js', location.href).href);
+        const said = (bar.querySelector('.bname') || {}).textContent, toasted = ui.toastsNow().includes(STAGE_LINES[F.stages[0].key]), arrow = !!bar.querySelector('.sarrow');
+        const af = bar.querySelector('.abar i'), armorFill = F.armor > 0 ? !!af && af.getBoundingClientRect().width > 0 : true;
         bar.click(); await wait(250);
         const card = document.getElementById('card'), cardName = (card.querySelector('h2') || {}).textContent, opened = !card.hidden && card.classList.contains('foecard');
         CG.play.close();
@@ -333,8 +338,9 @@ async function run() {
         await wait(2200);
         const gone = bar.hidden;
         ws.foes = ws.foes.filter(x => x.kind === F.stages[0].drop ? false : true);
-        return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone };
+        return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone, said, toasted, arrow, armorFill };
       });
+      if (bossBar.said !== bossBar.want || !bossBar.toasted || bossBar.arrow || !bossBar.armorFill) bad.push('the boss bar name, stage toast, arrow or armor fill (8n): ' + JSON.stringify({ said: bossBar.said, toasted: bossBar.toasted, arrow: bossBar.arrow, armorFill: bossBar.armorFill }));
       // the workers called to arms can be tapped too (roadmap review 2026.11.22-9): a real tap on a pair by the road
       // opens their card with their building's name and the seconds left, the ring sits on them, and it says Back to work!
       // once the call ends
@@ -1742,6 +1748,30 @@ async function run() {
     failed += bad.length ? 1 : 0;
   } finally { await b5.close(); srv5.close(); }
 
+  // The phone home view frames the road (2026.11.26-4): in every town at the phone sizes, at least 95% of each lane
+  // (from where its raiders come out) lies clear of the screen's left and right edges at home, so no raider walks half
+  // off the screen. Seen red on 2026.11.26-3's camera: the Gulch 17% off the side, the Ridge 29%, Silver Falls 28%.
+  // The top bar covering an entrance's mouth is not this check's matter (sliding sideways cannot move it); the probe
+  // (tools/road-probe.js) prints it.
+  const srvRd = await start(0), bRd = await chromium.launch();
+  try {
+    const { ROAD_CHECK } = await import('./road-probe.js'), bad = [];
+    for (const [w, h] of [[400, 860], [430, 930]]) for (const town of ['drycreek', 'gulch', 'ridge', 'pinehollow', 'falls']) {
+      const page = await bRd.newPage({ viewport: { width: w, height: h } }), errs = [];
+      page.on('pageerror', e => errs.push(e.message));
+      await page.goto(srvRd.url + '?coach=off&start=' + town); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { const ok = document.getElementById('newsOk'); if (ok) ok.click(); localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5);
+      const r = await page.evaluate(`(${ROAD_CHECK.toString()})()`);
+      if (r.side.some(x => x > .05)) bad.push(town + ' at ' + w + 'x' + h + ': road off the side ' + JSON.stringify(r.side));
+      if (r.padPx < 30) bad.push(town + ' at ' + w + 'x' + h + ': pads ' + r.padPx + ' px');
+      if (errs.length) bad.push(town + ': ' + errs[0]);
+      await page.close();
+    }
+    console.log('road', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await bRd.close(); srvRd.close(); }
+
   // Automation: once the War Office stands, the Auto button comes out with a dot and its card; the sheet has Foremen,
   // Auto-towers and Auto-research; switching Auto-towers on raises a tower; at phone, landscape and desktop sizes
   const srvA = await start(0), bA = await chromium.launch();
@@ -1791,7 +1821,7 @@ async function run() {
         if (!out.shown) return out;
         const w0 = btn.getBoundingClientRect().width;
         btn.click(); await wait(400);
-        const sh = document.getElementById('sheet'); out.sheet = !sh.hidden && sh.dataset.id === 'arms' && /Workers from/.test(sh.textContent) && /Coins you miss/.test(sh.textContent) && /About [0-9.]+[KMB]?/.test(sh.textContent);
+        const sh = document.getElementById('sheet'); out.sheet = !sh.hidden && sh.dataset.id === 'arms' && /Workers from/.test(sh.textContent) && /Income lost/.test(sh.textContent) && /About [0-9.]+[KMB]?/.test(sh.textContent);
         for (let i = 0; i < 40 && t.waves.phase !== 'wave'; i++) await wait(100);
         const go = document.getElementById('callArms'); out.lit = !!go && !go.disabled; if (go) go.click(); await wait(600);
         out.out = t.arms.t > 0 && /fighting/.test(sh.textContent) && go.disabled;
