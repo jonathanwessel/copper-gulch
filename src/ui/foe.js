@@ -28,7 +28,8 @@ export function foeView(town, f, store = 'vault') {
     health: { text: fmtLive(Math.ceil(st.hp - 1e-9)) + ' / ' + fmtLive(Math.ceil(st.max - 1e-9)), share: st.max > 0 ? Math.max(0, Math.min(1, st.hp / st.max)) : 0 },
     // the share of each hit it blocks now, and what it was before poison ate some, on its own row (review of
     // 2026.11.22-9: a sentence under the bar said the row's fact again)
-    armor: st.armorFull > 0 ? { text: pct(st.armor) + (st.eaten > 0 ? ', was ' + pct(st.armorFull) : ''), share: st.armor, full: st.armorFull } : null,
+    // what armor does, not a bare share (clarity fix 8m: "Armor 35%")
+    armor: st.armorFull > 0 ? { text: 'Blocks ' + pct(st.armor) + (st.eaten > 0 ? ', was ' + pct(st.armorFull) : ''), share: st.armor, full: st.armorFull } : null,
     // a boss's stage leads its effects, in the boss bar's words (one state, one source: both read foeStatus)
     effects: [...(st.stage ? [{ key: 'stage', word: STAGE_LINES[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
     none: 'No effects.', // review of 2026.11.22-9: "Nothing on it now" read as a narrator

@@ -77,9 +77,9 @@ FOE.bandits = () => {
   const root = G(); root.userData = {};
   root.add(part(k => {
     k.box(0, .2, -.12, .4, .07, .62, 'woodD'); for (const sx of [-1, 1]) k.box(sx * .19, .27, -.12, .03, .12, .62, 'wood');
-    k.cyl(0, .38, -.42, .19, .5, 'sand', { rx: Math.PI / 2, seg: 10 }); // the canvas cover, lying along the wagon
+    k.cyl(0, .38, -.42, .19, .5, 'paintR', { rx: Math.PI / 2, seg: 10 }); // the canvas cover, lying along the wagon, red like its picture (clarity fix 8l)
     for (const z of [-.4, -.17, .06]) k.torus(0, .38, z, .2, .012, 'woodD', { ts: 10 });
-    k.box(.19, .4, -.25, .01, .09, .1, 'paintR'); k.box(-.19, .44, -.05, .01, .08, .09, 'cloth'); // patches
+    k.box(.19, .4, -.25, .01, .09, .1, 'sand'); k.box(-.19, .44, -.05, .01, .08, .09, 'cloth'); // patches
     barrelBits(k);
     k.box(0, .3, .2, .3, .05, .12, 'wood'); // the driver's bench
     k.box(0, .3, .58, .14, .15, .32, 'woodD', { ao: false }); k.box(0, .4, .76, .08, .16, .1, 'woodD', { rx: -.5, ao: false }); k.box(0, .49, .84, .07, .07, .14, 'woodD', { ao: false });

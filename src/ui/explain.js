@@ -176,7 +176,7 @@ export function incomeSheet(income) {
 export const mendText = n => { const w = Math.floor(n + 1e-9), half = Math.abs(n - w - .5) < .05; return (half ? w + '½' : String(Math.round(n))) + (n === 1 ? ' hit' : ' hits'); };
 /* The Hits left row: Full when the Can take row above already says the number (clarity fix 8e: "Can take 25 hits" right
    above "Hits left 25 hits"), otherwise the hits left. */
-export const hitsLeftWords = ex => (ex.rows.length > 1 && ex.left >= ex.value - 1e-9 ? 'Full' : unitText('hits', ex.left));
+export const hitsLeftWords = ex => (ex.rows.length > 1 && ex.left >= ex.value - 1e-9 ? 'Full' : String(Math.max(0, Math.ceil(ex.left - 1e-9)))); // the count alone under Hits left (clarity fix 8m)
 /* What a beaten wave does to the vault, on the Vault sheet and in its tip card (clarity fix 8g). */
 export const mendLine = town => 'Each wave you beat mends the ' + ((town.def && town.def.store) || 'vault') + ' a little.';
 /* The Vault sheet (a stockpile's too): its strength and what adds to it, the hits left, and what each raider takes. */

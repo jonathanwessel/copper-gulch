@@ -55,6 +55,18 @@ export async function uncovered(page) {
         }
       }
     }
+    // a card with more below its edge shades its foot, or just above its pinned bar, and drops the shade at the end
+    // (clarity fix 8l: the Glassworks card's last switch sat half under its foot with nothing to say there was more)
+    if (vis(card)) {
+      card.dispatchEvent(new Event('scroll')); // the shade is read on a scroll and four times a second
+      const more = card.scrollHeight - card.scrollTop - card.clientHeight > 4;
+      // the shade sits where the cut is: above a buy bar pinned at the foot, or at the foot itself when the bar sits higher
+      const pin = card.querySelector(':scope > .buybar, :scope > .row:has(> #buy)');
+      const atFoot = vis(pin) && R(pin).bottom >= R(card).bottom - 4;
+      const shaded = atFoot ? (getComputedStyle(pin).boxShadow.match(/rgba?\(/g) || []).length >= 2 : getComputedStyle(card, '::after').content !== 'none';
+      if (more && !shaded) bad.push('the card has more below its edge and no shade ' + (atFoot ? 'above its pinned bar' : 'at its foot'));
+      if (!more && (card.classList.contains('more') || card.classList.contains('morepin'))) bad.push('the card is shaded with nothing more below');
+    }
     return bad;
   });
 }
@@ -983,13 +995,13 @@ async function run() {
         const sheet = document.getElementById('sheet'); out.sheet = !sheet.hidden && sheet.dataset.id === 'research';
         t.coins = 1e6; t.lab = null; const before = t.research.saws || 0;
         document.querySelector('#sheet [data-research="saws"]').click(); await wait(400);
-        out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+ (sec|min) left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
+        out.started = !!t.lab && t.lab.id === 'saws' && /Researching level/.test(sheet.textContent) && /[0-9]+:[0-5][0-9] left/.test(document.querySelector('#sheet [data-research="saws"]').textContent);
         // one runs at a time, and another lines up next with a tap (review of 2026.11.20-6: no grayed Busy), off with a second tap
         const w = document.querySelector('#sheet [data-research="walls"]');
         out.lineUp = !w.disabled && w.textContent === 'Research';
         w.click(); await wait(400); out.linedUp = t.labNext === 'walls' && w.textContent === 'Up next' && t.lab.id === 'saws';
         w.click(); await wait(400); out.offLine = t.labNext === null && w.textContent === 'Research';
-        out.label = /^Research[0-9]+ (sec|min)$/.test(btn.textContent); // the time on its own line, so the column keeps its width
+        out.label = /^Research[0-9]+:[0-5][0-9]$/.test(btn.textContent); // the time on its own line, so the column keeps its width
         out.tradeoff = /1 more timber for each copper or brick/.test(sheet.textContent);
         return out;
       });
@@ -1829,7 +1841,7 @@ async function run() {
           out.below = !own || own.hidden || own.getBoundingClientRect().top < document.getElementById('labAway').getBoundingClientRect().top;
         }
         const row = document.querySelector('#labAwayList [data-town="gulch"]');
-        out.running = id === 'gulch' ? /Researching level/.test(sh.textContent) : !!row && /Sharp Saws · [0-9]+ (sec|min) left/.test(row.textContent);
+        out.running = id === 'gulch' ? /Researching level/.test(sh.textContent) : !!row && /Sharp Saws · [0-9]+:[0-5][0-9] left/.test(row.textContent);
         // a row under Your towns opens that town's Research
         if (id === 'drycreek' && row) {
           row.click();
@@ -1848,7 +1860,7 @@ async function run() {
     const au = await page.evaluate(async () => {
       const wait = ms => new Promise(res => setTimeout(res, ms)); document.getElementById('autoBtn').click(); await wait(500);
       const text = document.getElementById('sheet').textContent, see = document.getElementById('autoSeeResearch');
-      const out = { names: /Sharp Saws · [0-9]+ (sec|min) left/.test(text), see: !!see && !see.hidden, title: /^Auto · Copper\sGulch$/.test(document.querySelector('#sheet h2').textContent), here: /in this town/.test(text) };
+      const out = { names: /Sharp Saws · [0-9]+:[0-5][0-9] left/.test(text), see: !!see && !see.hidden, title: /^Auto · Copper\sGulch$/.test(document.querySelector('#sheet h2').textContent), here: /in this town/.test(text) };
       { const n = document.querySelector('#sheet .sheetbody > p.note'), b = document.querySelector('#sheet .sheetbody').getBoundingClientRect(); out.noteShows = !!n && n.getBoundingClientRect().top >= b.top - 1 && /half your coins/.test(n.textContent); }
       if (see) { see.click(); await wait(400); out.opens = document.getElementById('sheet').dataset.id === 'research'; }
       document.getElementById('sheetClose').click();

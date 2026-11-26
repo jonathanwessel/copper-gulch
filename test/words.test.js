@@ -18,7 +18,7 @@ import { sayable } from '../src/audio/speech.js';
 
 test('the words on screen today', async () => {
   assert.equal(oldWavesLabel(), 'Wave'); assert.equal(oldWavesLabel({ wave: 7 }), 'Wave 7');
-  assert.equal(STOCK_LABEL, 'Save for towers');
+  assert.equal(STOCK_LABEL, 'Stock for towers');
   assert.deepEqual(STOCK_CHOICES.map(c => c[1]), ['Normal', 'Lots']);
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   // clarity fix 8a: a row too small for a step says its number, and a card says a rate in words

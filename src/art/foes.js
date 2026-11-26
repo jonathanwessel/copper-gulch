@@ -77,12 +77,12 @@ export const FOE_ART = {
     'kddk....kddk',
     '.kk......kk.',
   ],
-  bandits: [ // a small bandit wagon
-    '............',
-    '............',
-    '...cccccc...',
-    '..cccccccc..',
-    '..cccccccc..',
+  bandits: [ // a small bandit wagon: a red cover and a driver in a wide hat (clarity fix 8l: not the war wagon's picture)
+    '.hhhh.......',
+    'hhhhhh......',
+    '.ss.rrrrrr..',
+    '.bb.rrrrrrr.',
+    '.bb.rrrrrrr.',
     '.wwwwwwwwww.',
     '.wdwdwdwdww.',
     '.wwwwwwwwww.',

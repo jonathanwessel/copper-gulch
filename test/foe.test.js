@@ -95,8 +95,8 @@ test('the card words: plain lines, health as have / most, fixed short cells', ()
   t.waves.foes.push(f);
   const v = foeView(t, f);
   assert.equal(v.health.text, '50 / 80');
-  assert.equal(v.armor.text, Math.round(FOES.brute.armor * 50) + '%, was ' + Math.round(FOES.brute.armor * 100) + '%');
-  assert.equal(foeView(t, raider()).armor.text, Math.round(FOES.brute.armor * 100) + '%'); // nothing eaten: no "was"
+  assert.equal(v.armor.text, 'Blocks ' + Math.round(FOES.brute.armor * 50) + '%, was ' + Math.round(FOES.brute.armor * 100) + '%');
+  assert.equal(foeView(t, raider()).armor.text, 'Blocks ' + Math.round(FOES.brute.armor * 100) + '%'); // nothing eaten: no "was"
   assert.deepEqual(v.effects.map(e => e.word), [EFFECT_WORDS.poison, EFFECT_WORDS.rot, EFFECT_WORDS.slow]);
   assert.deepEqual(v.effects.map(e => e.left), ['3s', 'No end', '1s']);
   for (const e of v.effects) assert.ok(e.left.length <= 6);

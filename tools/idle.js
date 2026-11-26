@@ -34,7 +34,7 @@ import { GOODS } from '../src/data/goods.js';
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
 export const HOURS = 12;
 export const BLOCK = 3;         // hours: the last block must earn more than the first
-export const TRADE_HOLD = .9;  // every idle hour's sales reach at least this share of the first hour's. .9, not .95 (2026.11.20-12): once Auto-towers raises the Gulch's towers past their brick levels, the bricks it used to sell go into towers (towers get goods first, owner rule), a one-time step of about 5% (seed 2: 929K, then 877-882K flat for ten hours). A market that dries up falls far more.
+export const TRADE_HOLD = .9;  // every idle hour's sales reach at least this share of the first hour's. .9, not .95 (2026.11.20-12): once Auto-towers raises the Gulch's towers past their brick levels, the bricks it used to sell go into towers (towers get goods first, owner rule), a one-time step of about 5% (seed 2: 929K, then 877-882K flat for ten hours). A market that dries up falls far more. Traced on seed 1 (2026.11.26-2, tools/idle-sales.js): the Gulch's towers use no bricks, but Auto-towers takes the clay and timber the Kiln makes bricks from (clay into towers 276 an hour, then 2.6K by idle hour 3), so brick sales fall from 41K to 2K an hour and the rest of the market holds (829-851K from hour 3 on, 94% of hour 1). That step is the close line seed 1 prints; it is the towers-first rule working, so neither the floor nor the game moves.
 
 /* The most the market can pay a second for sales: every good's price times its depth (src/core/market.js: selling r a
    second pays price x r / (1 + r / depth), which never passes price x depth), with the price bonuses of the town that

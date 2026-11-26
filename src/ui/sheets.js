@@ -94,7 +94,7 @@ export const stockWords = town => RESERVE.levels * (town.stock === 'lots' ? RESE
    which goods (review of 2026.11.20-8: "Save for towers" looked like a second control for the same thing). */
 /* Review of 2026.11.20-15: "Each tower keeps goods for" read as a time span, its pill did not look tappable, and the
    building cards called the same idea Keep for towers. Now one name, Save for towers, and two plain buttons. */
-export const STOCK_LABEL = 'Save for towers';
+export const STOCK_LABEL = 'Stock for towers';
 /* The owner's own words for the two choices (2026-11-19, "Stock for towers: Normal / Lots"): the counts of upgrades
    were read five times and flagged again as "Save for towers · 2 upgrades" (review of 2026.11.23-9), so by the
    twice-flagged rule the numbers leave the buttons; each row's "for towers" count shows what is kept. */
@@ -348,7 +348,9 @@ export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.roun
    says the price is still down (clarity fix 8k: "Price up for 1:11 more" over rows that came to Down 99%). */
 export const boomWords = (f, clock, net = f) => ((f > 1) === (net >= 1) ? (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more'
   : (f > 1 ? 'Boom for ' : 'Bust for ') + clock + ' more. Price still ' + (net < 1 ? 'down.' : 'up.'));
-export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
+// research rows and their buttons say a running time as a clock, "0:13 left", and a length in words, "takes 80 sec"
+// (clarity fix 8m, the one-timer rule: "13 sec left" and "Research 1 sec" were the last countdowns in words)
+export const leftWord = s => clock(s) + ' left';
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
 /* The Research sheet: one row per item, with its next level's price and wait, and a bar on the one running. */
@@ -541,13 +543,16 @@ export function autoSheet(game, town, openResearch = null) {
 
 /* A fixed-width clock for a short wait: "0:32", "4:59" (never more than 4 characters under 10 minutes). */
 export const clock = s => { const n = Math.max(0, Math.ceil(s - 1e-9)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0'); };
+/* The To arms clock, one source for the button and its sheet (clarity fix 8m: "Ready in 4:09" beside "Ready again in
+   4:10"): "Back in 0:42" while the workers fight, "Ready in 4:10" while they rest, nothing when ready. */
+export const armsClock = town => { const a = town.arms || { t: 0 }; return a.t > 0 ? 'Back in ' + clock(a.t) : armsWait(town) > 0 ? 'Ready in ' + clock(armsWait(town)) : ''; };
 /* Where Call to arms stands, in words for its sheet and the Auto sheet. */
 export function armsLine(game, town) {
   const b = armsBlock(game, town), a = town.arms || { t: 0 };
   return b === 'closed' ? 'Buy the Armory at the War Office first.'
     : b === 'none' ? 'Build a building first. Its workers are the ones who fight.'
     : b === 'fighting' ? 'Your workers are fighting. ' + clock(a.t) + ' left.'
-    : b === 'wait' ? 'Ready again in ' + clock(armsWait(town)) + '.'
+    : b === 'wait' ? armsClock(town) + '.'
     : 'Ready';
 }
 /* Call to arms (owner idea, 2026-11-20): what a call does and what it costs, before the tap, then its time. */
@@ -569,12 +574,14 @@ export function armsSheet(game, town) {
       setText(lost, 'About ' + fmt(l.coins));
       go.disabled = !!b;
       const waiting = b === 'wait';
-      setText(restName, waiting ? 'Ready again in' : 'Rest after a call'); setText(rest, waiting ? clock(armsWait(town)) : span(ARMS.cooldown)); // the same clock as the To arms button (review of 2026.11.23-7)
+      paintRest();
       setText(state, b && !waiting ? armsLine(game, town) : ''); state.hidden = !b || waiting;
     };
+    // the rest's clock is the To arms button's own (armsClock), painted every frame as the button's is (clarity fix 8m)
+    const paintRest = () => { const c = armsBlock(game, town) === 'wait' ? armsClock(town) : ''; setText(restName, c ? 'Ready in' : 'Rest after a call'); setText(rest, c ? c.replace('Ready in ', '') : span(ARMS.cooldown)); };
     paint();
     let acc = 0;
-    return dt => { if ((acc += dt) < .25) return; acc = 0; paint(); };
+    return dt => { paintRest(); if ((acc += dt) < .25) return; acc = 0; paint(); };
   };
 }
 const setText = (n, s) => { if (n.textContent !== s) n.textContent = s; };

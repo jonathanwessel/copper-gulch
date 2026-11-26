@@ -46,7 +46,8 @@ export const coinsStat = (rates, id) => rateShort(rates.nums[id] || '0');
 /* The vault's or stockpile's stat on a map card and in its sheet: one name for one stat (clarity fix 8d: "Stockpile can
    take" wrapped and the Gulch's card said "Vault can take"). */
 export const CAN_TAKE = 'Can take';
-export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }, n = Math.max(0, Math.ceil(v.hp)); return n + (n === 1 ? ' hit' : ' hits'); }; // beside "Vault can take" (review of 2026.11.20-4: "Vault Full" never said what a vault is)
+// the count alone, since its label is Hits left (clarity fix 8m: "Hits left · 16 hits" said hits twice)
+export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }; return String(Math.max(0, Math.ceil(v.hp))); }; // beside "Vault can take" (review of 2026.11.20-4: "Vault Full" never said what a vault is)
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));

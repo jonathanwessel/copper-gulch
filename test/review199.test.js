@@ -39,9 +39,9 @@ test('the lost toast has one step', () => {
 });
 
 test('the map card writes the vault in hits and the coins as the label does', () => {
-  assert.equal(vaultHits({ vault: { hp: 19.2, max: 20 } }), '20 hits');
-  assert.equal(vaultHits({ vault: { hp: 12, max: 20 } }), '12 hits');
-  assert.equal(vaultHits({ vault: { hp: 0, max: 20 } }), '0 hits');
+  assert.equal(vaultHits({ vault: { hp: 19.2, max: 20 } }), '20');
+  assert.equal(vaultHits({ vault: { hp: 12, max: 20 } }), '12');
+  assert.equal(vaultHits({ vault: { hp: 0, max: 20 } }), '0');
   const r = badgeRates(.4, { gulch: { income: .4 } });
   assert.equal(r.words.gulch, '+0.4/s'); // the card shows this same word
 });

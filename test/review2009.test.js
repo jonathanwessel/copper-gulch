@@ -36,7 +36,7 @@ test('Goods says how much it keeps, each building card which good, and prices re
 
 test('the old-wave bonus names the wave that earns it, and research says time one way', () => {
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20);
-  assert.equal(span(80), '80 sec'); assert.equal(leftWord(13), '13 sec left'); assert.equal(span(600), '10 min');
+  assert.equal(span(80), '80 sec'); assert.match(leftWord(13), /^0:13 left$/); assert.equal(span(600), '10 min');
   assert.ok(foremanLine('flooded', 'timber').includes('timber price')); // the words: test/words.test.js
   for (const s of ['Foreman paused while the timber price is down.', 'Tap Hold waves while you save for Iron Ridge']) assert.deepEqual(textIssues(s), []);
 });

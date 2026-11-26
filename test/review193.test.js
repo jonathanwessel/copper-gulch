@@ -13,8 +13,8 @@ test('a building output names its good as the unit, singular for exactly 1', () 
   assert.equal(perSecond(.5, GOODS.ore || Object.values(GOODS).find(g => g.name === 'Copper ore')), '0.5 copper ore a second');
 });
 
-test('the research button counts down in short words', () => {
-  assert.equal(leftWord(44.2), '45 sec left');
-  assert.equal(leftWord(.2), '1 sec left');
-  assert.equal(leftWord(600), '10 min left');
+test('the research button counts down as a clock, rounded up, never 0 while it runs', () => {
+  // clarity fix 8m: a running countdown is a clock (the one-timer rule); the words are pinned in test/words.test.js
+  for (const s of [44.2, .2, 600, 3725]) assert.match(leftWord(s), /^[0-9]+:[0-5][0-9] left$/);
+  assert.ok(!leftWord(.2).startsWith('0:00'));
 });

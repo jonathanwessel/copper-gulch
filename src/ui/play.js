@@ -16,7 +16,7 @@ import { nextTowns } from '../core/empire.js';
 import { mapOpen, needsYou, mapDot } from '../core/map.js';
 import { isOutpost } from '../core/economy.js';
 import { orderDone, orderMissed } from './sheets.js';
-import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, STOCK_LABEL } from './sheets.js';
+import { createSheets, goodsSheet, menuSheet, researchSheet, perksSheet, foundSheet, placesSheet, autoSheet, armsSheet, clock, leftWord, armsClock, STOCK_LABEL } from './sheets.js';
 import { charterOffered, perksToPick, deedsFor } from '../core/charter.js';
 import { researchOpen, labsRunning } from '../core/research.js';
 import { FOREMAN_LEVEL, SHARE, canHire, hasForeman, foremanOn, hireCost, hireForeman, setForeman, foremanWait } from '../core/foremen.js';
@@ -147,6 +147,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // Call to arms: its fight or its wait on a small fixed-width second line, like Research's time
   const armsBtn = el('button', 'btn small', 'To arms'); armsBtn.id = 'armsBtn'; armsBtn.hidden = true;
   const armsLeft = el('small', 'btime'); armsLeft.hidden = true; armsBtn.append(armsLeft);
+  const paintArms = () => {
+    if (armsBtn.hidden) return;
+    const a = town.arms || { t: 0, cd: 0 }, s = armsClock(town);
+    setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s;
+    if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0);
+  };
   side.append(goodsBtn, labBtn, perksBtn, autoBtn, armsBtn, menuBtn);
   const right = el('div', 'hudright'); right.append(coins, side);
   hud.append(left, right);
@@ -198,6 +204,18 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const spotTags = town.def.board.spots.map((_, i) => { const t = el('button', 'tag spot'); t.hidden = true; t.addEventListener('click', () => openSpot(i)); tags.append(t); return t; });
   // the building card
   const card = el('div', 'card'); card.id = 'card'; card.hidden = true;
+  // a card with more below its edge darkens its foot, as a sheet does (clarity fix 8l: the Glassworks card's last switch
+  // sat half under its foot with nothing to say there was more); read on a scroll and four times a second
+  // a pinned buy bar at the foot takes the shade above it; one higher up (rows below it, as on the Glassworks card) leaves
+  // the shade at the foot, where the cut row is
+  const cardMore = () => {
+    const m = !card.hidden && card.scrollHeight - card.scrollTop - card.clientHeight > 4;
+    const pin = m && card.querySelector(':scope > .buybar, :scope > .row:has(> #buy)');
+    const atFoot = !!pin && pin.getBoundingClientRect().bottom >= card.getBoundingClientRect().bottom - 4;
+    if (card.classList.contains('more') !== (m && !atFoot)) card.classList.toggle('more', m && !atFoot);
+    if (card.classList.contains('morepin') !== (m && atFoot)) card.classList.toggle('morepin', m && atFoot);
+  };
+  card.addEventListener('scroll', cardMore, { passive: true });
   ui.append(tags, hud, strip, card, mark, banner);
   root.append(ui);
   requestAnimationFrame(placeToasts); // a toast from the switch here came before this top bar
@@ -863,6 +881,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const tw = towerAt(town, i), txt = (isPit(town, i) ? 'Mortar pit ' : 'Spot ') + (i + 1) + ' · ' + (tw ? TOWERS[tw.kind].name + ' ' + tw.level : 'empty');
       t.hidden = false; if (t.textContent !== txt) t.textContent = txt;
     });
+    // the To arms clock paints every frame, as its sheet's does, so the two never show different seconds (clarity fix
+    // 8m: "Ready in 4:09" on the button beside "Ready again in 4:10" on the card, painted 0.2 and 0.25 s apart)
+    if (!armsBtn.hidden) paintArms();
     if (acc < .2) return;
     acc = 0;
     incomeWindow(game);
@@ -899,11 +920,12 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     autoBtn.classList.toggle('on', autoOn(game, town, 'towers') || autoOn(game, town, 'research'));
     // the clock says what it counts to (review of 2026.11.23-9: "To arms 3:54" said nothing of what the time was)
     armsBtn.hidden = !T.arms;
-    if (T.arms) { const a = town.arms || { t: 0, cd: 0 }, s = a.t > 0 ? 'Back in ' + clock(a.t) : a.cd > 0 ? 'Ready in ' + clock(a.cd) : ''; setText(armsLeft, s); if (armsLeft.hidden !== !s) armsLeft.hidden = !s; if (armsBtn.classList.contains('on') !== a.t > 0) armsBtn.classList.toggle('on', a.t > 0); }
+    paintArms();
     paintPlace();
     // held after a loss, Resume waves is the one lit button (clarity fix 8f: Perks was gold beside it)
     perksBtn.classList.toggle('on', !heldAfterLoss(town) && (perksToPick(game) > 0 || deedsFor(town) > 0));
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
+    cardMore(); // five times a second, with the top bar
   }
   /* Take this town's screen down (switching towns builds a new one). */
   // a toast about this town's own things goes with it, so it never shows in the next place (review of 2026.11.23-6: Iron

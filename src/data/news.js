@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-2',
+    lines: [
+      'The bandit wagon has a red cover now, on the road and on its bar.',
+      'Normal and Lots on the Goods sheet are now called Stock for towers.',
+      'A card with more to scroll is darker at the bottom.',
+      'To arms shows one clock on its button and its card. Research counts down like a clock.',
+      'The bar for a war wagon or other big raider shows no numbers. Tap it to see its health and armor.',
+    ],
+  },
+  {
     v: '2026.11.26-1',
     lines: [
       'Tap a tower or building number and each row shows how much it adds, not a times sign.',

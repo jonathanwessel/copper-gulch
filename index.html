@@ -180,7 +180,7 @@ html.no3d body { background: var(--bg); }
 .bossbar .fbar { flex: 1 1 auto; min-width: 40px; height: 10px; }
 .bossbar .fbar i { background: var(--bad); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25); }
 .bossbar .bnum { flex: none; width: 13.5ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; color: #c8ccd4; }
+.bossbar .barmor { flex: none; display: inline-flex; align-items: center; gap: 3px; width: auto; white-space: nowrap; font-variant-numeric: tabular-nums; color: #c8ccd4; }
 .bossbar .shield { display: block; width: 8px; height: 10px; background: #a9adb5; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); flex: none; }
 .bossbar.gone { border-color: var(--good); }
 .bossbar.gone .bname { color: var(--good); }
@@ -358,6 +358,9 @@ html.flat .tag { position: static; transform: none !important; }
 /* the map card's Play or Start stays whole at the card's foot while the card scrolls (clarity fix 8b: a long outpost card in
    landscape scrolled Play half out of view) */
 .card > .row:has(> #buy), .card > .buybar, #mapCard > .row:has(> #mapPlay, > #mapFound) { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px; padding: 6px 12px; background: var(--panel); border-top: 2px solid var(--line); box-shadow: 0 -3px 0 rgba(22, 15, 11, .35); }
+/* more below a card's edge (play.js cardMore): a shade at its foot, or just above its pinned buy bar */
+.card.more::after { content: ''; position: sticky; bottom: -12px; z-index: 2; height: 18px; margin: -26px -12px 0; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .55)); }
+.card.morepin > .row:has(> #buy), .card.morepin > .buybar { box-shadow: 0 -3px 0 rgba(22, 15, 11, .35), 0 -24px 16px -8px rgba(14, 9, 6, .8); }
 .card > .buybar { display: grid; gap: 6px; }
 .card > .buybar.pathbar { position: static; margin: 0; padding: 0; border-top: 0; box-shadow: none; }
 .card > .buybar .costrow { margin-top: 0; }

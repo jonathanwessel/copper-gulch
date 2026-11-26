@@ -12,9 +12,6 @@ import { drawFoe } from '../art/foes.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const pct = x => Math.round(x * 100) + '%';
-/* Health on the bar as a share with its word, like Armor beside it (clarity fix 8a: "999K / 1.00M" had no unit). Full only
-   when it is, and never 0% while the boss stands. The raider card keeps have / most. */
-export const healthWord = share => 'Health ' + (share >= 1 ? 100 : Math.max(1, Math.floor(share * 100))) + '%';
 
 /* The boss on the road now, or null: the one of this wave still standing. */
 export const bossOn = town => (town.waves.foes || []).find(f => FOES[f.kind] && FOES[f.kind].boss && f.hp > 0 && !f.leaked) || null;
@@ -45,11 +42,14 @@ export const bossLines = (town, f, store) => { const v = bossView(town, f, store
 export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
   const bar = el('button', 'bossbar'); bar.id = 'bossBar'; bar.hidden = true; bar.type = 'button';
   const pic = el('span', 'bosspic'), name = el('b', 'bname'), stage = el('span', 'bstage');
-  const fbar = el('span', 'fbar'), fill = el('i'), num = el('span', 'bnum'), armor = el('span', 'barmor'), shield = el('i', 'shield'), apct = el('span');
-  shield.setAttribute('aria-hidden', 'true'); armor.append(shield, apct);
+  const fbar = el('span', 'fbar'), fill = el('i'), armor = el('span', 'barmor'), shield = el('i', 'shield');
+  shield.setAttribute('aria-hidden', 'true'); armor.append(shield);
   fbar.append(fill);
   const top = el('span', 'brow'), low = el('span', 'brow');
-  top.append(name, stage); low.append(fbar, num, armor);
+  // no numbers on the bar: its fill shows the health and the shield that it has armor; the raider card a tap opens
+  // has both as have / most (clarity fix 8m: "44%" here beside "21.1K / 48.0K" on the card, the second flag on this
+  // bar's health after 8a, so by the twice-flagged rule the number leaves the bar)
+  top.append(name, stage); low.append(fbar, armor);
   const txt = el('span', 'btext'); txt.append(top, low);
   bar.append(pic, txt);
   let f = null, kind = null, goneFor = 0, picKey = '';
@@ -76,10 +76,9 @@ export function bossBar(town, { store = 'vault', onTap = () => {} } = {}) {
     }
     if (kind !== v.kind) { kind = v.kind; const c = drawFoe(v.kind); c.className = 'foepic'; pic.replaceChildren(c); }
     set(name, v.name); paintStage(v.pic);
-    if (stage.getAttribute('aria-label') !== v.stage) { if (v.stage) { stage.setAttribute('aria-label', v.stage); stage.title = v.stage; } else { stage.removeAttribute('aria-label'); stage.title = ''; } } set(num, v.gone ? '' : healthWord(v.health.share));
+    if (stage.getAttribute('aria-label') !== v.stage) { if (v.stage) { stage.setAttribute('aria-label', v.stage); stage.title = v.stage; } else { stage.removeAttribute('aria-label'); stage.title = ''; } }
     const w = (100 * (v.gone ? 0 : v.health.share)).toFixed(1) + '%'; if (fill.style.width !== w) fill.style.width = w;
-    // the word with the percent (review of 2026.11.23-6: a shield and a percent with no word)
-    set(apct, v.armor ? 'Armor ' + v.armor : ''); const vis = v.armor ? '' : 'hidden'; if (armor.style.visibility !== vis) armor.style.visibility = vis; // kept in place, so the bar never changes
+    const vis = v.armor ? '' : 'hidden'; if (armor.style.visibility !== vis) armor.style.visibility = vis; // kept in place, so the bar never changes
     const label = [v.name, 'Health ' + v.health.text, v.armor && 'Armor ' + v.armor, v.stage].filter(Boolean).join('. ');
     if (bar.getAttribute('aria-label') !== label) bar.setAttribute('aria-label', label);
     if (bar.hidden) bar.hidden = false;

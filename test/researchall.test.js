@@ -45,9 +45,9 @@ test('the sheet lists the research running in the other towns, never this town\'
   assert.ok(startResearch(g, gulch, 'saws'));
   assert.equal(labsRunning(g).length, 1);
   gulch.lab.left = 13;
-  assert.deepEqual(elsewhereLines(g, g.towns.drycreek).map(sp), ['Copper Gulch · Sharp Saws · 13 sec left']);
+  assert.deepEqual(elsewhereLines(g, g.towns.drycreek).map(sp), ['Copper Gulch · Sharp Saws · 0:13 left']);
   g.towns.ridge.flags['open:research'] = true; // a town that can research and runs nothing shows too, so an idle one is seen
-  assert.deepEqual(elsewhereLines(g, g.towns.drycreek).map(sp), ['Copper Gulch · Sharp Saws · 13 sec left', 'Iron Ridge · Not researching']);
+  assert.deepEqual(elsewhereLines(g, g.towns.drycreek).map(sp), ['Copper Gulch · Sharp Saws · 0:13 left', 'Iron Ridge · Not researching']);
   assert.deepEqual(elsewhereLines(g, gulch).map(sp), ['Iron Ridge · Not researching'], 'never its own, its row says it');
   assert.deepEqual(otherLabs(g, g.towns.drycreek).map(x => x.id), ['gulch', 'ridge'], 'each row knows its town, so a tap goes there');
 });

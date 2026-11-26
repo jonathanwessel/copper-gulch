@@ -240,9 +240,12 @@ function stages(game, town) {
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
-   do the work. */
+   do the work. A probe can also ask for each pad's own direct damage by setting game.dealtSpot = {} (it fills
+   game.dealtSpot[town][spot]; tools/frost-pads.js); the game never sets it. */
+let firing = null; // the tower firing now, for that per-pad count (null between towers)
 function tally(game, town, by, n) {
   if (!by || !(n > 0)) return;
+  if (game.dealtSpot && firing && by === firing.kind) { const p = game.dealtSpot[town.id] || (game.dealtSpot[town.id] = {}); p[firing.spot] = (p[firing.spot] || 0) + n; }
   // the militia is not a tower: its damage is kept apart (game.armsDealt), so the towers' shares stay the towers'
   const d = by === 'militia' ? game.armsDealt || (game.armsDealt = {}) : game.dealt || (game.dealt = {}), t = d[town.id] || (d[town.id] = {});
   t[by] = (t[by] || 0) + n;
@@ -373,7 +376,9 @@ export function fight(game, town, dt) {
     sh.t -= dt;
     if (sh.t > 1e-9) continue;
     if (sh.foe != null) { const to = ws.foes.find(f => f.id === sh.foe && f.hp > 0); if (to) sh.at = pos.get(to); } // a rocket finds its raider
+    firing = { kind: sh.by || 'mortar', spot: sh.spot };
     for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg, false, sh.by || 'mortar');
+    firing = null;
     if (sh.fire) fires.push({ at: sh.at, r: sh.splash, t: FIRE.seconds, dps: sh.dmg * FIRE.dps });
     game.bus.emit('land', { town: town.id, spot: sh.spot, at: sh.at, splash: sh.splash, fire: !!sh.fire });
   }
@@ -388,6 +393,7 @@ export function fight(game, town, dt) {
   ws.fires = ws.fires.filter(fi => fi.t > 1e-9);
   // towers
   for (const t of town.towers) {
+    firing = t;
     const st = towerStats(town, t), at = town.def.board.spots[t.spot];
     t.cd -= dt;
     while (t.cd <= 0) {
@@ -441,6 +447,7 @@ export function fight(game, town, dt) {
       game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, ...(st.pulse ? { ring: st.range } : {}) });
     }
   }
+  firing = null;
   // Call to arms (src/core/arms.js): every built building's workers shoot the raider nearest the vault in their reach
   if (town.arms && town.arms.t > 1e-9) {
     const a = town.arms; a.clock = (a.clock || 0) + dt;
