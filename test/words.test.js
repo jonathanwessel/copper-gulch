@@ -72,7 +72,7 @@ test('the explainers name the controls by their words on screen', async () => {
   assert.match(by('map'), /Under each town you see if it is fighting/);
   // the Vault sheet's words (gets in, hits left), with no line about the screen (clarity fix 8g); its spotlight on the heart ties the two
   assert.equal(by('vault'), 'Raiders that get in take hits off your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.');
-  assert.equal(EXPLAINERS.find(e => e.id === 'vault').at().el, '#vaultBtn');
+  assert.equal(EXPLAINERS.find(e => e.id === 'vault').at().vault, true); // the vault it names (clarity fix 8l)
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
 });
 

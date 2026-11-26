@@ -153,9 +153,10 @@ export const EXPLAINERS = [
     // the Vault sheet's own words, gets in and hits left, and the spotlight on the heart ties it to the vault (clarity
     // fix 8g: "The heart at the top counts the hits the vault can still take" read as a manual)
     text: 'Raiders that get in take hits off your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.',
-    // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
-    // 2026.11.23-11: on a phone the card lay over the top bar and its heart)
-    when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ el: '#vaultBtn' }),
+    // the spotlight on the vault it names, slid above the card when off screen, so the card sits low and leaves the top
+    // bar and its heart in view (review of 2026.11.23-11: on a phone the card lay over the top bar; clarity fix 8l: the
+    // box lay on the heart while the vault itself was under the card)
+    when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ vault: true }),
   },
   {
     id: 'milestone', covers: ['milestone', 'upgrade'],

@@ -56,10 +56,10 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       const [x, z] = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot];
       rig.keep({ x, y: tg.plot ? .6 : .3, z }, tg.plot ? 'p' + tg.plot : 's' + tg.spot, selection.reach || 0); // a tower's circle stays in view too
     },
-    /* Slide the map so a tip card's target ({ plot }, { spot } or { tower }) lands on screen point (x, y). */
+    /* Slide the map so a tip card's target ({ plot }, { spot }, { tower } or { vault }) lands on screen point (x, y). */
     bring(tg, x, y) {
-      const B = town.def.board, at = tg.plot ? B.plots[tg.plot] : B.spots[tg.spot !== undefined ? tg.spot : tg.tower];
-      return !!at && rig.slideTo({ x: at[0], y: tg.plot ? .6 : .3, z: at[1] }, x, y);
+      const B = town.def.board, at = tg.vault ? B.vault : tg.plot ? B.plots[tg.plot] : B.spots[tg.spot !== undefined ? tg.spot : tg.tower];
+      return !!at && rig.slideTo({ x: at[0], y: tg.plot || tg.vault ? .6 : .3, z: at[1] }, x, y);
     },
     get paused() { return api.holds.size > 0; },
     /* Pause or resume for a reason ('player', 'coach'...); the game runs when nothing holds it. */

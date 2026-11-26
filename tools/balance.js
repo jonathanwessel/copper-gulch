@@ -87,6 +87,61 @@ export function along(town, spot, lo, hi) {
   }
   return m.get(key);
 }
+/* Raiders still standing (M6a, the active bot's Frost Lens near the vault, 2026.11.26-3): a slow only helps raiders
+   that are still on the road, and where the towers have already worn a wave down few are left. standShare gives the
+   share of a pad's reach, weighted by the raiders still standing there: each lane's road in 0.25 steps, where a careful
+   player adds up the hits a raider of the coming wave takes on its way (each tower's hits a second that land, past
+   armor, times the time it gives each raider, SPACING / its speed, spread over the road in its reach) and counts it
+   standing while that sum is under its health: 1 / (1 + (STAND_EFF * hits / health) ^ 4), never under STAND_FLOOR.
+   That share of tower time undercounts how long a real wave stays in reach (raiders ride bunched and slowed), so
+   STAND_EFF scales it, read off tools/frost-pads.js --standeff on seed 1: at 1 every pad read 99-100%, at 6 the land
+   road is nearly empty past its middle (pad 13 9%, pad 7 8%) and the Frost Lens did 32% of the Falls damage with none
+   built late by the vault, at 10 and 16 its share fell to 13% and 8%.
+   So a town that wears its waves down early (the active bot's Silver Falls) has an empty road by the vault, and a town
+   with few strong towers that only just holds (min-max) has raiders standing to the end. A first try that spread the
+   town's fire as a share of its own total emptied every town's road the same way, and min-max opened Silver Falls 1.5
+   hours later (7.4 h to 8.9 h, seed 1 never), since its few towers only just hold. Only the slowing towers use it
+   (worth below); every other kind's guess was set by runs of the waves as it is. Memoized per town on its towers and
+   wave. */
+export let STAND_FLOOR = .02, STAND_EFF = 6;
+const STAND = new WeakMap(), STEP_S = .25;
+/* The coming wave's raider on a lane: its health and speed, by the wave kinds open at wave w (boats on the river). */
+function laneFoe(town, w, river) {
+  if (river) return { hp: wavesOf(town).hp(w) * FOES.boat.hp, speed: FOES.boat.speed };
+  let n = 0, hp = 0, sp = 0;
+  for (const T of Object.values(WAVE_TYPES)) if (w >= T.from) for (const [k, c] of Object.entries(T.mix)) if (w >= FOES[k].from && !FOES[k].water) { n += c; hp += c * FOES[k].hp * (T.hp || 1); sp += c * FOES[k].speed; }
+  return n ? { hp: wavesOf(town).hp(w) * hp / n, speed: sp / n } : { hp: wavesOf(town).hp(w), speed: 1 };
+}
+function standing(town) {
+  const w = town.wave + 2, key = w + ':' + town.towers.map(t => t.spot + t.kind + t.level + (t.path || '') + (t.fork || '')).join(','), got = STAND.get(town);
+  if (got && got.key === key) return got.lanes;
+  const b = town.def.board, share = {}, lanes = lanesOf(town).map((r, li) => {
+    const n = Math.floor(r.length / STEP_S) + 1, hits = new Float64Array(n), pts = [], foe = laneFoe(town, w, li > 0);
+    for (let i = 0; i < n; i++) pts.push(pointAt(r, i * STEP_S));
+    for (const t of town.towers) {
+      const st = towerStats(town, t), p = b.spots[t.spot], lo = st.minRange || 0, inside = [];
+      for (let i = 0; i < n; i++) { const d = dist(p, pts[i]); if (d >= lo && d <= st.range) inside.push(i); }
+      if (!inside.length) continue;
+      share[t.kind] ??= hitShare(town, t.kind, w);
+      const hit = (st.dmg * st.rate * (st.rockets || 1) * (st.splash ? Math.max(1, 2 * st.splash / SPACING) : 1) * share[t.kind] + (st.poison || 0) + (st.rot || 0)) * SPACING / foe.speed;
+      for (const i of inside) hits[i] += hit / inside.length;
+    }
+    const up = new Float64Array(n); let run = 0;
+    for (let i = 0; i < n; i++) { up[i] = STAND_FLOOR + (1 - STAND_FLOOR) / (1 + (STAND_EFF * run / foe.hp) ** 4); run += hits[i]; }
+    return { pts, up };
+  });
+  STAND.set(town, { key, lanes });
+  return lanes;
+}
+export function standShare(town, spot, lo, hi) {
+  const p = town.def.board.spots[spot], all = standing(town), boat = all.length > 1 ? 1 / (wavesOf(town).boatEvery || 3) : 0;
+  let n = 0, up = 0;
+  all.forEach((L, li) => {
+    const w = all.length > 1 ? (li ? boat : 1 - boat) : 1;
+    L.pts.forEach((q, i) => { const d = dist(p, q); if (d >= lo && d <= hi) { n += w; up += w * L.up[i]; } });
+  });
+  return n ? up / n : 1;
+}
 /* Slow Rot keeps ticking after a raider leaves the tower's reach: a careful player counts ROT_LIVES of the road left
    after it. At .5 it picked Last Call on 34 of 36 pads of the late Ridge, where a run of the waves showed Slow Rot dealing
    twice as much at the first pads; at 1 the picks matched those runs while Last Call hit 0.4 times as hard at the
@@ -154,7 +209,12 @@ export function aloneShare(town, spot, hi, near) {
 /* The most raiders a careful player counts in one frost pulse (4 to 8 made no pad change sides, 2026.11.24-2). */
 export let PULSE_CAP = 4;
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; };
+export const tune = (k, v) => { if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; if (k === 'standfloor') STAND_FLOOR = v; if (k === 'standeff') STAND_EFF = v; if (k === 'stand') STAND_ON = !!v; };
+/* standShare in worth, off by default and on with --stand (or tune('stand', 1)). 2026.11.26-3: on, it took the
+   active bot's late Falls Frost share from 35% to 25-32%, and every try tipped a gate of a weaker player, who leans on
+   a slow by the vault to stop breaches (min-max's Silver Falls 29% behind against 25%, idle's later hours under 90%,
+   the newcomer's coins lost to falls 272K against 175K). The Frost Lens box in PLAN.md (M6a) holds the next step. */
+export let STAND_ON = process.argv.includes('--stand');
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
    below EATS_ARMOR.from eats none yet; a careful player who means to raise its towers that far (its level target,
@@ -197,6 +257,8 @@ export function worth(town, t, support = true) {
     const gain = o => ahead(town, o.kind, town.wave, false, eat) / ahead(town, o.kind, town.wave) - 1;
     for (const o of town.towers) if (o.spot !== t.spot && o.kind !== 'still' && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += gain(o) * EAT_REACH * worth(town, o, false) / share;
   }
+  // a slow (and a lens's own pulse) counts only on the raiders still standing in its reach (standShare)
+  if (st.slow && STAND_ON) w *= standShare(town, t.spot, st.minRange || 0, st.range);
   return w;
 }
 /* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market

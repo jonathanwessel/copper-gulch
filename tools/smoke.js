@@ -1018,7 +1018,7 @@ async function run() {
         const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, out = {}, sheet = document.getElementById('sheet'), card = document.getElementById('card');
         const box = () => card.querySelector('.explain.why');
         document.getElementById('coins').click(); await wait(700);
-        out.income = !sheet.hidden && sheet.dataset.id === 'income' && /Selling timber/.test(sheet.textContent) && / a second$/.test(sheet.querySelector('.explain .total b')?.textContent || '');
+        out.income = !sheet.hidden && sheet.dataset.id === 'income' && /selling timber/i.test(sheet.textContent) && / a second$/.test(sheet.querySelector('.explain .total b')?.textContent || '') && !/a minute/.test(sheet.textContent); // a small source is named on the line under the total (clarity fix 8m)
         document.getElementById('sheetClose').click(); await wait(100);
         document.getElementById('vaultBtn').click(); await wait(300);
         out.vault = !sheet.hidden && sheet.dataset.id === 'vault' && /Hits left/.test(sheet.textContent) && /War wagon/.test(sheet.textContent);
@@ -1030,6 +1030,21 @@ async function run() {
         card.querySelector('[data-why="range"]').click(); await wait(150);
         out.range = !!box() && /Short|Medium|Long/.test(box().textContent);
         out.oneAtATime = card.querySelectorAll('.explain.why').length === 1;
+        // clarity fix 8m (4): a breakdown taller than the room shows its Total above the pinned cost (on a phone the
+        // Total sat half under it); an old-waves row makes the Damage box as tall as in the release shots
+        const rec = t.record; t.record = Math.max(t.record || 0, t.wave + 20); CG.play.close(); CG.play.openSpot(tw.spot); await wait(200);
+        card.querySelector('[data-why="dmg"]').click(); await wait(250);
+        const pinOf = () => card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
+        // the card squeezed so the box is taller than the room between the title and the pinned cost (in this state it
+        // fits at every size, so the check could not fail; seen red so on the old scroll: the Total 28-49 px under it)
+        { const hb = card.querySelector(':scope > .cardhead').getBoundingClientRect().bottom, pn = pinOf(), fl = pn ? pn.getBoundingClientRect().top : card.getBoundingClientRect().bottom, bh = box() ? box().getBoundingClientRect().height : 0;
+          card.style.maxHeight = Math.round(card.getBoundingClientRect().height - (fl - hb) + bh * .6) + 'px'; card.scrollTop = 0; await wait(100);
+          card.querySelector('[data-why="dmg"]').click(); await wait(200); card.querySelector('[data-why="dmg"]').click(); await wait(300); }
+        const tot = box() && box().querySelector('.total'), pin = pinOf();
+        const floor = Math.min(card.getBoundingClientRect().bottom, pin ? pin.getBoundingClientRect().top : Infinity);
+        out.totalAbovePin = !!tot && tot.getBoundingClientRect().bottom <= floor + 1;
+        card.style.maxHeight = '';
+        if (rec === undefined) delete t.record; else t.record = rec;
         return out;
       });
       bad.push(...(await check(page)).map(b => 'tower why: ' + b));
@@ -1199,6 +1214,26 @@ async function run() {
         return on && !onHold ? '' : 'box on the pit ' + on + ', on Hold waves ' + onHold;
       });
       if (pitCard) bad.push('the Mortar card spotlight: ' + pitCard);
+      // the vault's card spotlights the vault it names, slid out from under the card first (clarity fix 8l: the box lay
+      // on the heart in the top bar while the vault sat under the card)
+      const vaultCard = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms)), t = CG.game.town, B = t.def.board, hp = t.vault.hp, seen = CG.game.shared.seen.vault;
+        CG.coach.dismiss(); await wait(1300);
+        const sb = document.getElementById('goodsStrip').getBoundingClientRect();
+        CG.town.bring({ vault: true }, innerWidth / 2, Math.max(innerHeight / 2, sb.top - 40)); await wait(900); // the vault where the card will lie
+        delete CG.game.shared.seen.vault; t.vault.hp = Math.max(1, t.vault.max - 3);
+        for (let i = 0; i < 40 && CG.coach.current !== 'vault'; i++) await wait(100);
+        if (CG.coach.current !== 'vault') { t.vault.hp = hp; return 'no card (' + CG.coach.current + ')'; }
+        await wait(1200);
+        const p = CG.town.projectPoint(B.vault[0], .6, B.vault[1]), hn = document.querySelector('#coach .hole'), h = hn.getBoundingClientRect(), c = document.querySelector('#coach .coachcard').getBoundingClientRect();
+        const on = !hn.hidden && p && p.x >= h.left && p.x <= h.right && p.y >= h.top && p.y <= h.bottom;
+        const under = p && p.x >= c.left && p.x <= c.right && p.y >= c.top && p.y <= c.bottom;
+        // nor does the card lie on Call now (the landscape shot of the first try: the card went over the top bar)
+        const cb = document.getElementById('callWave').getBoundingClientRect(), onCall = cb.width > 0 && c.left < cb.right - 1 && cb.left < c.right - 1 && c.top < cb.bottom - 1 && cb.top < c.bottom - 1;
+        CG.coach.dismiss(); t.vault.hp = hp; if (seen) CG.game.shared.seen.vault = seen;
+        return on && !under && !onCall ? '' : 'box on the vault ' + on + ', vault under the card ' + under + ', card on Call now ' + onCall;
+      });
+      if (vaultCard) bad.push('the vault card spotlight: ' + vaultCard);
       // the place bar: the name, Map, and the back button to Dry Creek, all on one row that fits the screen
       const chip = await page.evaluate(() => ({ goal: document.querySelector('#goal .gtext').textContent, dcGo: !!CG.game.shared.goals.done['dc-go'] }));
       if (!/^(Tap a stone pad and build a Crossbow|Wait for \d+ more (coins|timber|stone)( and \d+ more (timber|stone))?, then tap a stone pad)$/.test(chip.goal) || !chip.dcGo) bad.push('the Gulch goals did not start (' + chip.goal + ')');

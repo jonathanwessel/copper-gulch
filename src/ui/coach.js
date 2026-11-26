@@ -128,10 +128,16 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
   }
   /* The part of the screen a spotlit pad can sit in: below the top bar (--hudtop on the play screen), above the card
      at the foot (or below it when the card sits at the top) and in from the sides. */
-  function freeArea() {
+  function freeArea(p) {
     const ui = document.getElementById('play-ui'), top = ui ? parseFloat(getComputedStyle(ui).getPropertyValue('--hudtop')) || 0 : 0;
     const c = card.getBoundingClientRect(), m = 48;
     const foot = c.height && c.top > innerHeight / 2 ? c.top : innerHeight; // a card left at the top from the last one is no floor
+    // a short wide screen has no room for the card under a spotlight, so the card goes to the side (place, side) and the
+    // free part is the side of the screen the spotlight is already on, the card on the other (clarity fix 8l: in landscape
+    // the vault mid-screen sent the card over the top bar, and the map could not slide the vault, at the board's edge,
+    // to the left)
+    const cw = card.offsetWidth + 32, right = p && p.x > innerWidth / 2;
+    if (innerWidth > innerHeight && innerHeight - card.offsetHeight - 32 < Math.max(top, 0) + 2 * m + 96 && innerWidth - cw > 2 * m + 96) return { l: right ? cw + m : m, r: right ? innerWidth - m : innerWidth - cw - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, innerHeight - m) };
     return { l: m, r: innerWidth - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, foot - m) };
   }
   function place() {
@@ -145,7 +151,7 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
       // lay on Hold waves). Not after the player moves the map.
       if (p && !cur.slid && locate.bring) {
         cur.slid = true;
-        const f = freeArea();
+        const f = freeArea(p);
         if (p.x < f.l || p.x > f.r || p.y < f.t || p.y > f.b) locate.bring(target, (f.l + f.r) / 2, (f.t + f.b) / 2);
       }
       // workers by the road get a smaller box, so it lies on them and not on the building behind them (clarity fix 8b)

@@ -259,6 +259,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // the row and its breakdown do not both fit: the breakdown whole, down to its Total, the row above it under the
       // title (review of 2026.11.20-7: in landscape the Total sat under the cost bar)
       if (last !== first && end - top > bottom - roof - 4) top = Math.max(top, last.getBoundingClientRect().top);
+      // taller than the room even so: its Total sits on the pinned bar and the first rows go under the title, since the
+      // Total is the answer (clarity fix 8m: on a phone the Total sat half under the pinned cost)
+      if (last !== first && end - top > bottom - roof - 4) { card.scrollTop += end - bottom; return; }
       const down = Math.min(end - bottom, top - roof - 4);
       if (down < 0 && top < roof) { card.scrollTop += top - roof - 4; return; } // already scrolled past it: back up to it
       if (down > 0) card.scrollTop += down;

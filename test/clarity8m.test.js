@@ -35,3 +35,19 @@ test('Hits left shows the count alone', () => {
   assert.equal(hitsLeftWords({ rows: [{}, {}], value: 25, left: 16 }), '16');
   assert.equal(hitsLeftWords({ rows: [{}, {}], value: 25, left: 25 }), 'Full');
 });
+
+// 8m (3): one rate form per card. A building's why rows said "+78/s" over "40 timber a second", and Income mixed
+// "a second" with "2 a minute"; in a card every rate reads "a second", and Income names its smallest sources on a line
+test('a card writes every rate one way', async () => {
+  const { cardRate, incomeRows } = await import('../src/ui/explain.js');
+  assert.equal(cardRate('+78/s'), '+78 a second');
+  assert.equal(cardRate('187/s'), '187 a second');
+  const ex = { value: 40.02, rows: [{ label: 'Selling timber', value: 30 }, { label: 'Raiders', value: 10 }, { label: 'Dry Creek', value: .02 }] };
+  const r = incomeRows(ex);
+  for (const [, v] of r.rows) assert.match(v, / a second$/);
+  assert.match(r.total, / a second$/);
+  assert.ok(!r.rows.some(([l]) => l === 'Dry Creek'));
+  assert.equal(r.also, 'Also a few coins from Dry Creek.');
+  assert.ok(!/minute/.test(JSON.stringify(r)));
+  assert.equal(incomeRows({ value: 0, rows: [] }).total, '');
+});

@@ -131,8 +131,12 @@ export function addsShown(ex) {
     return (d < 0 ? '-' : '+') + shown + (ex.unit === 'rate' ? '/s' : '');
   });
 }
+/* A rate in a card reads in words, rows and total alike (clarity fix 8m: "+78/s" rows over "40 timber a second" on one
+   card); the top bar keeps "/s". */
+export const cardRate = s => s.replace(/[/]s$/, ' a second');
 export function explainBox(ex, { extra = {}, total = 'Total', pct = false } = {}) {
   const box = el('div', 'explain why');
+  if (ex.unit === 'rate') return rateBox(box, ex, total);
   // the old-waves row's label is the wave bar's gold wave number (review of 2026.11.23-9)
   const row = (a, b, cls, old) => { const r = el('div', cls); r.append(el('span', old ? 'oldwave' : null, a), el('b', null, b)); box.append(r); };
   const adds = pct ? null : addsShown(ex);
@@ -141,25 +145,39 @@ export function explainBox(ex, { extra = {}, total = 'Total', pct = false } = {}
   return box;
 }
 
+function rateBox(box, ex, total) {
+  const adds = addsShown(ex), row = (a, b, cls) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, b)); box.append(r); };
+  for (const [i, r] of ex.rows.entries()) row(r.label, cardRate(r.base !== undefined ? unitText('rate', r.base) : adds[i]));
+  if (total && ex.rows.length > 1) row(total, cardRate(unitText('rate', ex.value)), 'total');
+  return box;
+}
+/* The Income sheet's rows in one form (clarity fix 8m: "a second" rows beside "2 a minute" ones on one card). Rows big
+   enough for the total's last digit read "N a second" and add up to it; the ones too small for that are named on one
+   line under the total, with no number ("Also a few coins from Dry Creek."). */
+export function incomeRows(ex) {
+  const sp = splitLive(ex.value, ex.rows.map(r => r.value)), rows = [], small = [];
+  ex.rows.forEach((r, i) => { if (!sp.rows[i]) return; if (sp.under[i]) small.push(r.label); else rows.push([r.label, rateWords(sp.rows[i])]); });
+  const also = small.length ? 'Also a few coins from ' + (small.length > 1 ? small.slice(0, -1).join(', ') + ' and ' + small[small.length - 1] : small[0]).replace(/^Selling/, 'selling') + '.' : '';
+  return { rows, total: rows.length || small.length ? rateWords(sp.total) : '', also };
+}
 /* The Income sheet: coins a second by where they came from, then the bonuses already in those numbers.
    income() gives explainIncome over the same minute as the number at the top (clarity fix 10). */
 export function incomeSheet(income) {
   return body => {
-    const parts = el('div', 'explain why'), bonus = el('div', 'explain why'), bsec = el('div', 'sec');
+    const parts = el('div', 'explain why'), bonus = el('div', 'explain why'), bsec = el('div', 'sec'), also = el('p', 'uses');
     bsec.append(el('h3', null, 'Bonuses included'), bonus); // review of 2026.11.19-10: Deeds × 1.5 under the total read as not yet added
-    body.append(parts, bsec);
+    body.append(parts, also, bsec);
     let sig = '';
     const paint = () => {
       // the rows add up to the total as written (review of 2026.11.19-5: 4.7 + 0.6 + 0.0 under +5.4/s)
-      const ex = income(), sp = splitLive(ex.value, ex.rows.map(r => r.value));
-      const rows = ex.rows.map((r, i) => [r.label, sp.rows[i]]).filter(r => r[1]).map(([l, v]) => [l, rateWords(v)]); // in words in a card (clarity fix 8a), the top bar keeps /s
-      if (!rows.length) rows.push(['No coins in the last minute', '']);
-      else rows.push(['Total', rateWords(sp.total), 'total']);
+      const ex = income(), ir = incomeRows(ex), rows = ir.rows.slice(); // in words in a card (clarity fix 8a), the top bar keeps /s
+      if (!ir.total) rows.push(['No coins in the last minute', '']);
+      else rows.push(['Total', ir.total, 'total']);
       const b = ex.bonuses.map(r => [r.label + (r.on === 'sales' ? ' on sales' : r.on === 'raiders' ? ' on raiders' : ''), moreWord(r.mul)]);
-      const s = JSON.stringify([rows, b]);
+      const s = JSON.stringify([rows, b, ir.also]);
       if (s === sig) return; sig = s;
       const fill = (box, list) => box.replaceChildren(...list.map(([a, v, cls]) => { const r = el('div', cls); r.append(el('span', null, a), el('b', null, v)); return r; }));
-      fill(parts, rows); fill(bonus, b); bsec.hidden = !b.length;
+      fill(parts, rows); fill(bonus, b); bsec.hidden = !b.length; also.textContent = ir.also; also.hidden = !ir.also;
     };
     paint();
     // painted whenever the top bar writes a new number (it keeps the object until then), so the two always agree

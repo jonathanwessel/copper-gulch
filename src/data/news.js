@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-3',
+    lines: [
+      'When your vault takes its first hit, the map moves to show the vault, and the card moves out of its way.',
+      'Tap a number on a building and every row says a second, like the line under it.',
+      'The Income card lists coins a second only. Very small sources are named on one line under the total.',
+      'Tap Damage on a long list and the Total stays in view above the price.',
+    ],
+  },
+  {
     v: '2026.11.26-2',
     lines: [
       'The bandit wagon has a red cover now, on the road and on its bar.',
