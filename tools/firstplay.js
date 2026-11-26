@@ -30,7 +30,7 @@ import { PATHS, PATH_LEVEL } from '../src/data/towers.js';
 import { options, buildValue, campaign } from './balance.js';
 import { nextTowns, foundTown, canFound } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, takeContract } from '../src/core/capital.js';
-import { foundBlock, foundInstitution } from '../src/core/tree.js';
+import { foundBlock, foundInstitution, nodeBlock, buyNode } from '../src/core/tree.js';
 import { INSTITUTIONS } from '../src/data/institutions.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? +process.argv[i + 1] : d; };
@@ -101,6 +101,9 @@ export function goalTap(game, town, rng) {
     if (g.next === 'capital') return canFoundCapital(game) ? { what: 'go', label: 'capital', run: () => foundCapital(game) } : null;
     return canFound(game, g.next) ? { what: 'go', label: g.next, run: () => !!foundTown(game, g.next) && game.go(g.next) } : null;
   }
+  // a town that needs an institution's upgrades (Thunder Mesa, M6b part 1b): Map, the Capital, then its Build or Upgrade
+  if (g.next && g.id.endsWith(':inst')) return foundBlock(game, g.inst) === null ? { what: 'go', label: 'institution', run: () => foundInstitution(game, g.inst) } : null;
+  if (g.next && g.id.endsWith(':nodes')) return nodeBlock(game, g.inst) === null ? { what: 'go', label: 'upgrade', run: () => buyNode(game, g.inst) } : null;
   // the Capital's first building: Map, the Capital, its Buildings tab, a Build button (any of them)
   if (g.next === 'contract') { const o = game.shared.capital.offers; return o.length ? { what: 'go', label: 'contract', run: () => takeContract(game, rng.pick(o).id) } : null; }
   if (g.next === 'institution') { const ids = INSTITUTIONS.map(i => i.id).filter(id => foundBlock(game, id) === null); return ids.length ? { what: 'go', label: 'institution', run: () => foundInstitution(game, rng.pick(ids)) } : null; }

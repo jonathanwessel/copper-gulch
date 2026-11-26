@@ -378,12 +378,18 @@ const MESA = [
     for (let i = 0; i < 150 && !(window.CG && CG.game && CG.town && CG.play); i++) await wait(100);
     const g = CG.game; (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek');
     for (const id of ['ridge', 'pinehollow', 'falls', 'sandybend']) g.addTown(id);
-    g.towns.falls.bestWave = 31; g.towns.falls.buildings.wiremill = 4; g.towns.falls.buildings.dynamo = 2; g.towns.ridge.buildings.steelmill = 4;
+    g.towns.falls.bestWave = 46; g.shared.charter.deeds = 12; g.towns.falls.buildings.wiremill = 4; g.towns.falls.buildings.dynamo = 2; g.towns.ridge.buildings.steelmill = 4;
     g.shared.capital.open = true; g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = 1; g.shared.purse.coins = 2e9;
     CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
     CG.mapui.openSite('mesa'); await wait(1000);
   }],
-  ['mesa', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.game.shared.tree.nodes.transport = 3; CG.mapui.openSite('mesa'); await wait(400); document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'mesa'); i++) await wait(100); }],
+  // the Falls' strip once only the Rail Office's upgrades are missing (part 1b): the step names them, with its count
+  ['mesa-step', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
+    const d = CG.game.shared.goals.done; for (const id of (await import('./src/core/goals.js')).ALL_GOALS()) d[id] = true;
+    // the player's own way back: the Falls' card on the map, then Play
+    CG.mapui.openSite('falls'); await wait(400); document.getElementById('mapPlay').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'falls'); i++) await wait(100); await wait(800);
+  }],
+  ['mesa', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.game.shared.tree.nodes.transport = 3; CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('mesa'); await wait(400); document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'mesa'); i++) await wait(100); }],
   ['mesa-entry', () => { const t = CG.game.town, r = CG.town.rig, m = t.def.board.entrance.mouth, v = { x: m[0] + 2, z: 1.4, yaw: 0, pitch: .5, dist: 10.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['mesa-built', () => {
     CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e10;

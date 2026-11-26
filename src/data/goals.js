@@ -23,6 +23,9 @@ const RIDGE_GOAL = 185;
 const ridgeTools = c => c.lvIn('gulch', 'toolsmith') >= 1;
 /* Silver Falls (M5): within FALLS_GOAL minutes of a new game, the top of the Falls' 6-10 h window. */
 const FALLS_GOAL = 600;
+/* Thunder Mesa (M6b part 1b): within MESA_GOAL minutes of a new game, the top of the Mesa's 20-30 h window and the
+   hour the player plays there (tools/mesa-road.js checks them). */
+const MESA_GOAL = 1860;
 
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
@@ -124,19 +127,18 @@ export const GOALS = [
   { id: 'f-rails', town: 'falls', text: 'Tap Map, Iron Ridge, then build a Rolling Mill', doneText: 'Rolling Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'rolling') >= 1, ready: c => c.unlocked('telegraph'), at: goTo('ridge'), there: ['ridge', 'rolling'], within: FALLS_GOAL },
   // Thunder Mesa (PLAN.md M6b, part 1a): the way up its chain to the Airship Works. The Motor Works uses Falls wire, the
   // Automobile Plant Ridge steel and the Airship Works Falls dynamos, so a missing maker there sends the player to that
-  // town. side: no bot plays the Mesa yet, so the bots' goal timing check leaves these out; part 1b gives them a
-  // `within` once its bots get there.
-  { id: 'm-derrick4', town: 'mesa', side: true, text: 'Tap the Oil Derrick and upgrade it to level 4', doneText: 'Oil Derrick is level 4', done: c => c.lv('derrick') >= 4, at: () => ({ plot: 'derrick' }) },
-  { id: 'm-bauxite', town: 'mesa', side: true, text: 'Tap the Bauxite Pit lot, then tap Build', doneText: 'Bauxite Pit built', done: c => c.lv('bauxitepit') >= 1, ready: c => c.unlocked('bauxitepit'), at: () => ({ plot: 'bauxitepit' }) },
-  { id: 'm-refinery', town: 'mesa', side: true, text: 'Tap the Refinery lot, then tap Build', doneText: 'Refinery built', done: c => c.lv('refinery') >= 1, ready: c => c.unlocked('refinery'), at: () => ({ plot: 'refinery' }) },
-  { id: 'm-aluminum', town: 'mesa', side: true, text: 'Tap the Aluminum Works lot, then tap Build', doneText: 'Aluminum Works built', done: c => c.lv('aluminum') >= 1, ready: c => c.lv('refinery') >= 1, at: () => ({ plot: 'aluminum' }) },
-  { id: 'm-rubber', town: 'mesa', side: true, text: 'Tap the Rubber Farm lot, then tap Build', doneText: 'Rubber Farm built', done: c => c.lv('rubberfarm') >= 1, ready: c => c.lv('aluminum') >= 1, at: () => ({ plot: 'rubberfarm' }) },
-  { id: 'm-tires', town: 'mesa', side: true, text: 'Tap the Tire Works lot, then tap Build', doneText: 'Tire Works built', done: c => c.lv('tireworks') >= 1, ready: c => c.lv('rubberfarm') >= 1, at: () => ({ plot: 'tireworks' }) },
-  { id: 'm-motors', town: 'mesa', side: true, text: 'Tap the Motor Works lot, then tap Build', doneText: 'Motor Works built', done: c => c.lv('motorworks') >= 1, ready: c => c.lv('aluminum') >= 1, at: () => ({ plot: 'motorworks' }) },
-  { id: 'm-wire', town: 'mesa', side: true, text: 'Tap Map, Silver Falls, then build a Wire Mill', doneText: 'Wire Mill built in Silver Falls', done: c => c.lvIn('falls', 'wiremill') >= 1, ready: c => c.lv('motorworks') >= 1, at: goTo('falls'), there: ['falls', 'wiremill'] },
-  { id: 'm-autos', town: 'mesa', side: true, text: 'Tap the Automobile Plant lot, then tap Build', doneText: 'Automobile Plant built', done: c => c.lv('autoplant') >= 1, ready: c => c.lv('motorworks') >= 1, at: () => ({ plot: 'autoplant' }) },
-  { id: 'm-steel', town: 'mesa', side: true, text: 'Tap Map, Iron Ridge, then build a Steel Mill', doneText: 'Steel Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'steelmill') >= 1, ready: c => c.lv('autoplant') >= 1, at: goTo('ridge'), there: ['ridge', 'steelmill'] },
-  { id: 'm-airships', town: 'mesa', side: true, text: 'Tap the Airship Works lot, then tap Build', doneText: 'Airship Works built', done: c => c.lv('airshipworks') >= 1, ready: c => c.lv('motorworks') >= 1, at: () => ({ plot: 'airshipworks' }) },
-  { id: 'm-dynamo', town: 'mesa', side: true, text: 'Tap Map, Silver Falls, then build a Dynamo Works', doneText: 'Dynamo Works built in Silver Falls', done: c => c.lvIn('falls', 'dynamo') >= 1, ready: c => c.lv('airshipworks') >= 1, at: goTo('falls'), there: ['falls', 'dynamo'] },
+  // town. The active player's road there (tools/mesa-road.js) checks each within MESA_GOAL.
+  { id: 'm-derrick4', town: 'mesa', within: MESA_GOAL, text: 'Tap the Oil Derrick and upgrade it to level 4', doneText: 'Oil Derrick is level 4', done: c => c.lv('derrick') >= 4, at: () => ({ plot: 'derrick' }) },
+  { id: 'm-bauxite', town: 'mesa', within: MESA_GOAL, text: 'Tap the Bauxite Pit lot, then tap Build', doneText: 'Bauxite Pit built', done: c => c.lv('bauxitepit') >= 1, ready: c => c.unlocked('bauxitepit'), at: () => ({ plot: 'bauxitepit' }) },
+  { id: 'm-refinery', town: 'mesa', within: MESA_GOAL, text: 'Tap the Refinery lot, then tap Build', doneText: 'Refinery built', done: c => c.lv('refinery') >= 1, ready: c => c.unlocked('refinery'), at: () => ({ plot: 'refinery' }) },
+  { id: 'm-aluminum', town: 'mesa', within: MESA_GOAL, text: 'Tap the Aluminum Works lot, then tap Build', doneText: 'Aluminum Works built', done: c => c.lv('aluminum') >= 1, ready: c => c.lv('refinery') >= 1, at: () => ({ plot: 'aluminum' }) },
+  { id: 'm-rubber', town: 'mesa', within: MESA_GOAL, text: 'Tap the Rubber Farm lot, then tap Build', doneText: 'Rubber Farm built', done: c => c.lv('rubberfarm') >= 1, ready: c => c.lv('aluminum') >= 1, at: () => ({ plot: 'rubberfarm' }) },
+  { id: 'm-tires', town: 'mesa', within: MESA_GOAL, text: 'Tap the Tire Works lot, then tap Build', doneText: 'Tire Works built', done: c => c.lv('tireworks') >= 1, ready: c => c.lv('rubberfarm') >= 1, at: () => ({ plot: 'tireworks' }) },
+  { id: 'm-motors', town: 'mesa', within: MESA_GOAL, text: 'Tap the Motor Works lot, then tap Build', doneText: 'Motor Works built', done: c => c.lv('motorworks') >= 1, ready: c => c.lv('aluminum') >= 1, at: () => ({ plot: 'motorworks' }) },
+  { id: 'm-wire', town: 'mesa', within: MESA_GOAL, text: 'Tap Map, Silver Falls, then build a Wire Mill', doneText: 'Wire Mill built in Silver Falls', done: c => c.lvIn('falls', 'wiremill') >= 1, ready: c => c.lv('motorworks') >= 1, at: goTo('falls'), there: ['falls', 'wiremill'] },
+  { id: 'm-autos', town: 'mesa', within: MESA_GOAL, text: 'Tap the Automobile Plant lot, then tap Build', doneText: 'Automobile Plant built', done: c => c.lv('autoplant') >= 1, ready: c => c.lv('motorworks') >= 1, at: () => ({ plot: 'autoplant' }) },
+  { id: 'm-steel', town: 'mesa', within: MESA_GOAL, text: 'Tap Map, Iron Ridge, then build a Steel Mill', doneText: 'Steel Mill built in Iron Ridge', done: c => c.lvIn('ridge', 'steelmill') >= 1, ready: c => c.lv('autoplant') >= 1, at: goTo('ridge'), there: ['ridge', 'steelmill'] },
+  { id: 'm-airships', town: 'mesa', within: MESA_GOAL, text: 'Tap the Airship Works lot, then tap Build', doneText: 'Airship Works built', done: c => c.lv('airshipworks') >= 1, ready: c => c.lv('motorworks') >= 1, at: () => ({ plot: 'airshipworks' }) },
+  { id: 'm-dynamo', town: 'mesa', within: MESA_GOAL, text: 'Tap Map, Silver Falls, then build a Dynamo Works', doneText: 'Dynamo Works built in Silver Falls', done: c => c.lvIn('falls', 'dynamo') >= 1, ready: c => c.lv('airshipworks') >= 1, at: goTo('falls'), there: ['falls', 'dynamo'] },
   { id: 'f-telegraph', town: 'falls', text: 'Tap the Telegraph Works lot, then tap Build', doneText: 'Telegraph Works built', done: c => c.lv('telegraph') >= 1, ready: c => c.unlocked('telegraph'), at: () => ({ plot: 'telegraph' }), within: FALLS_GOAL },
 ];

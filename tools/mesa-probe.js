@@ -1,5 +1,5 @@
 // node tools/mesa-probe.js [--seed 1] [--minutes 20] [--strategy active]: Thunder Mesa's wave 10 from a Falls-era game
-// (PLAN.md M6b, part 1a). Plays the active player's empire through the Capital and an hour of Silver Falls
+// (PLAN.md M6b, part 1a; tools/mesa-road.js plays the real road there since part 1b). Plays the active player's empire through the Capital and an hour of Silver Falls
 // (tools/balance.js empire, falls: true), prints its purse and income there, then gives it what founding the Mesa takes
 // (the Falls' wave, the Rail Office's three upgrades, and the price added to the purse, so the purse it keeps after
 // paying is the one it had), founds the Mesa and plays it with goals on. Prints the minutes to wave 10 from getting
@@ -33,6 +33,7 @@ falls.bestWave = Math.max(falls.bestWave || 0, F.wave);
 if (!g.shared.tree.founded.includes('transport')) g.shared.tree.founded.push('transport');
 g.shared.tree.nodes.transport = Math.max(g.shared.tree.nodes.transport || 0, F.nodes.transport);
 g.town.coins += F.coins;
+g.shared.charter.deeds = Math.max(g.shared.charter.deeds, F.deeds || 0); // the deeds the Falls' charter would bring (part 1b)
 if (!canFound(g, 'mesa')) { console.log('cannot found the Mesa'); process.exit(1); }
 foundTown(g, 'mesa'); g.go('mesa');
 // playFalls times wave 10 from the Falls' own clock; the Mesa's starts at 0 when it is founded

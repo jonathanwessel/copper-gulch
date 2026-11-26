@@ -58,7 +58,7 @@ export const makesWords = id => TOWNS[id].makesText || goodsLower(makesOf(id));
 function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Opens at wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
-  if (r.kind === 'deeds') return short ? 'Needs ' + r.deeds + ' deeds' : 'Deeds';
+  if (r.kind === 'deeds') return short ? 'Needs ' + r.deeds + ' deeds' : r.deeds + ' deeds';
   if (r.kind === 'nodes') return short ? 'Needs the ' + r.name : r.name + ' upgrades';
   if (r.kind === 'with') return short ? 'Needs ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';

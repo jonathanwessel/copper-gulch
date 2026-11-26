@@ -468,7 +468,7 @@ export const EXPLAINERS = [
   {
     id: 'found-mesa', covers: ['found:mesa'],
     title: 'Thunder Mesa',
-    text: 'Thunder Mesa is in sight. Tap Map, then tap the new town to see what it takes. It needs 3 Rail Office upgrades at the Capital.',
+    text: 'Thunder Mesa is in sight. Tap Map, then tap the new town to see what it takes. It needs 12 deeds and 3 Rail Office upgrades at the Capital.',
     when: h => h.next.includes('mesa'), at: () => ({ el: '#mapBtn' }),
   },
   {

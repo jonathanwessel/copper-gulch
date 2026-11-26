@@ -29,7 +29,7 @@ import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/co
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
 import { TOWNS } from '../src/data/towns/index.js';
-import { canFound, foundTown } from '../src/core/empire.js';
+import { canFound, foundTown, nodesHeld } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, capitalOf, takeContract, spareRate as capSpare } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
 import { foundCost, foundBlock, foundInstitution, nodeBlock, nodeCost, buyNode, founded } from '../src/core/tree.js';
@@ -667,7 +667,36 @@ export function playFalls(seed, g, strategy, minutes, out) {
   r.imports = imp; r.from = from;
   return r;
 }
-export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false, falls = false } = {}) {
+/* The Capital's player, once a minute while it plays on (out.pick): it takes the contract that pays the most Influence
+   for each minute it asks (rush, then big, then plain; clarity fix 3b part 3a), a rush one only when its town can fill
+   it in time at its spare rate now, and switches one still running at STUCK times its ask (its town's spare went to its
+   own workshops: a pig iron one ran 65 minutes on seed 2), as a player who reads "Waiting" on its card would. It founds
+   the next institution (TREE_ORDER) when it can, unless r.noInst (the purse is saved for a town), buys the cheapest
+   Empire tree upgrade it has the Influence for, keeps the other towns' foremen off while it saves (others), and tends
+   the towns it is not playing (tendTowns). Out of empire() so a run from a saved game (tools/mesa-probe.js) plays the
+   same way; out.capital is when the Capital was founded, in play time. Fills out.took and out.tree. */
+export function capitalPick(g, out, now, others) {
+  const c = capitalOf(g), took = out.took ||= {}, takenAt = {}, tr = out.tree ||= { founded: [], nodes: [] }, at = () => now() - out.capital;
+  const nextInst = () => TREE_ORDER.find(id => !founded(g, id));
+  return (g2, t, r) => {
+    const stuck = c.active && c.offers.length && now() - (takenAt[c.active.id] ??= now()) > STUCK * 60 * c.active.minutes;
+    if ((!c.active || stuck) && c.offers.length) {
+      const fits = o => o.kind !== 'rush' || capSpare(g, g.towns[o.town], o.good) * o.time >= RUSH_ROOM * o.need;
+      const o = c.offers.filter(fits).sort((a, b) => b.influence / b.minutes - a.influence / a.minutes || b.coins - a.coins)[0];
+      if (o && takeContract(g, o.id)) { took[o.kind ? o.kind + ' ' + o.good : o.good] = (took[o.kind ? o.kind + ' ' + o.good : o.good] || 0) + 1; if (stuck) took.switched = (took.switched || 0) + 1; }
+    }
+    const n = nextInst();
+    if (n && !r.noInst && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
+    for (;;) {
+      const id = TREE_ORDER.filter(x => !nodeBlock(g, x)).sort((a, b) => nodeCost(g, a) - nodeCost(g, b))[0];
+      if (!id || !buyNode(g, id)) break;
+      tr.nodes.push([id, at()]);
+    }
+    for (const x of typeof others === 'function' ? others(t) : others) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, !r.savingNow);
+    if (!r.savingNow && Math.round(t.t) % 60 === 0) tendTowns(g2, t, out.tended ||= []);
+  };
+}
+export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES, gulchMinutes = GULCH_MINUTES, capital = false, falls = false, mesa = false } = {}) {
   const g = newGame('balance-' + seed), goals = {}, now = () => g.stats.steps * .25;
   const off = g.bus.on('goal:done', e => { goals[e.id] = now(); });
   const out = { dc: null, gulch: null, found: null, ph: null, ridge: null, game: g, goals, imports: null, era: {} };
@@ -726,35 +755,14 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
     if (foundCapital(g)) {
       out.capital = now(); out.capHeld = out.capSave.saving === undefined ? 0 : out.capSave.until - out.capSave.saving;
       setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
-      const c = capitalOf(g), took = {}, takenAt = {}, tr = out.tree = { founded: [], nodes: [] }, at = () => now() - out.capital;
+      const c = capitalOf(g), pick = out.pick = capitalPick(g, out, now, others), tr = out.tree, at = () => now() - out.capital;
       const nextInst = () => TREE_ORDER.find(id => !founded(g, id));
-      const pick = (g2, t, r) => {
-        // the offer that pays the most Influence for each minute it asks (rush, then big, then plain; clarity fix 3b
-        // part 3a), and a rush one only when its town can fill it in time at its spare rate now
-        // a contract still running at STUCK times its ask (its town's spare went to its own workshops: a pig iron one
-        // ran 65 minutes on seed 2) is switched for the best offer, as a player who reads "Waiting" on its card would
-        const stuck = c.active && c.offers.length && now() - (takenAt[c.active.id] ??= now()) > STUCK * 60 * c.active.minutes;
-        if ((!c.active || stuck) && c.offers.length) {
-          const fits = o => o.kind !== 'rush' || capSpare(g, g.towns[o.town], o.good) * o.time >= RUSH_ROOM * o.need;
-          const o = c.offers.filter(fits).sort((a, b) => b.influence / b.minutes - a.influence / a.minutes || b.coins - a.coins)[0];
-          if (o && takeContract(g, o.id)) { took[o.kind ? o.kind + ' ' + o.good : o.good] = (took[o.kind ? o.kind + ' ' + o.good : o.good] || 0) + 1; if (stuck) took.switched = (took.switched || 0) + 1; }
-        }
-        const n = nextInst();
-        if (n && !r.noInst && !foundBlock(g, n) && foundInstitution(g, n)) tr.founded.push([n, at()]);
-        for (;;) {
-          const id = TREE_ORDER.filter(x => !nodeBlock(g, x)).sort((a, b) => nodeCost(g, a) - nodeCost(g, b))[0];
-          if (!id || !buyNode(g, id)) break;
-          tr.nodes.push([id, at()]);
-        }
-        for (const x of others) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, !r.savingNow);
-        if (!r.savingNow && Math.round(t.t) % 60 === 0) tendTowns(g2, t, out.tended ||= []);
-      };
       const ts = (t, r) => { const n = nextInst(); return !!n && foundBlock(g, n) === 'coins' && foundCost(g) <= TREE_SAVE_MINUTES * (r.all || 0); };
       play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, save: ts, tick: pick });
-      out.contracts = { filled: c.filled, influence: c.earned, took };
+      out.contracts = { filled: c.filled, influence: c.earned, took: out.took };
       tr.gap = tr.nodes.length ? at() / tr.nodes.length : null; // minutes of play per upgrade over the window, in seconds
-      out.pick = pick;
       if (falls) toFalls(seed, g, strategy, out, now);
+      if (falls && mesa && out.fallsFound != null) toMesa(seed, g, strategy, out, now);
     }
   }
   off();
@@ -781,6 +789,48 @@ function toFalls(seed, g, strategy, out, now) {
   g.go('falls');
   out.fallsSnap = encode(g, 0);
   out.falls = playFalls(seed, g, strategy, FALLS_PLAY, out);
+}
+/* M6b part 1b, Thunder Mesa (mesa: true, after the Falls hour): the player plays on in Silver Falls with goals on and
+   its imports tended, founds the institutions again and buys Empire tree upgrades (the Rail Office's three among them),
+   and once the Falls' wave and the upgrades are there and the price is no more than MESA_SAVE_MINUTES of what every
+   town earns, it saves for the Mesa like the Falls (the Falls' waves held, every foreman off), until MESA_MAX minutes
+   of play from the new game. Then it founds the Mesa and plays it MESA_PLAY minutes with goals on. out.mLog: one row
+   each hour of play, [hour, purse, empire coins a minute, Falls best wave, Rail Office upgrades, deeds]. mesaFound is
+   play time from the new game; the Mesa's wave 10 (out.mesa.w10) counts from when the player gets there.
+   out.mesaSnap is the game as the player gets to the Mesa. */
+// the save starts once the price is no more than MESA_SAVE_MINUTES of what every town earns: half an hour, since the
+// Falls era's income stays flat (the Falls' rule of 6 minutes would wait for an income that never comes)
+export const MESA_SAVE_MINUTES = 30, MESA_MAX = 32 * 60, MESA_PLAY = 60;
+export function toMesa(seed, g, strategy, out, now, { log = null, saveMinutes = MESA_SAVE_MINUTES } = {}) {
+  const F = TOWNS.mesa.found, imp = { run: {}, built: {}, short: {}, raised: [], at: {} };
+  const nodesOk = () => Object.entries(F.nodes || {}).every(([id, n]) => nodesHeld(g, id) >= n);
+  const ms = (t, r) => !!r.savingNow || (nodesOk() && short() === 0 && t.bestWave >= F.wave && F.coins <= saveMinutes * (r.all || 0));
+  // the deeds the Mesa still needs: it signs the Falls' charter once that pays them, as it signed the Ridge's for the Falls
+  const short = () => Math.max(0, (F.deeds || 0) - deedsHeld(g));
+  out.mLog = [];
+  let hour = Math.ceil(now() / 3600 + 1e-9);
+  const tick = (g2, t, r) => {
+    r.noInst = !!r.savingNow; out.pick(g2, t, r); fallsTick(t, imp);
+    // a player saving for the Mesa stops raising the makers in other towns (2026.11.26-6: on seed 3 they took 40M of a
+    // 3M save over six hours)
+    if (!r.savingNow && Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
+    if (now() >= hour * 3600) {
+      const row = [hour, Math.round(t.coins), Math.round(r.all || 0), t.bestWave, nodesHeld(g2, 'transport'), deedsHeld(g2), deedsFor(t)];
+      out.mLog.push(row); if (log) log(row); hour++;
+    }
+  };
+  out.mSave = play(seed, Math.max(1, MESA_MAX - now() / 60), strategy, null, { game: g, sign: short() > 0, signAt: Math.max(1, short()), goals: true, save: ms, tick, until: () => canFound(g, 'mesa') });
+  out.mSigned = out.mSave.signed ? { at: now() - (g.towns.falls.t - out.mSave.signed.at), deeds: out.mSave.signed.deeds, wave: out.mSave.signed.wave } : null;
+  out.mImports = imp;
+  if (!canFound(g, 'mesa')) { out.mesaFound = null; return; }
+  out.mesaFound = now(); out.mHeld = out.mSave.saving === undefined ? 0 : out.mSave.until - out.mSave.saving;
+  foundTown(g, 'mesa');
+  setHold(g, g.towns.falls, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
+  g.go('mesa');
+  out.mesaSnap = encode(g, 0);
+  const m = g.towns.mesa, from = m.t;
+  out.mesa = play(seed, MESA_PLAY, strategy, null, { game: g, sign: false, goals: true, tick: out.pick });
+  out.mesa.w10 = out.mesa.wave10 === null ? null : out.mesa.wave10 - from;
 }
 /* A strategy's run of the Falls from the active player's game as it got there (out.fallsSnap): FALLS_STRATEGY minutes
    with goals on and the imports tended. Returns the play() record with w10 and imports. */
@@ -849,8 +899,9 @@ export function tendImports(game, town, imp) {
 /* The goal strip check (M2, The first 30 minutes): the careful player finishes every goal within GOAL_MINUTES of a
    new game on every seed. Returns { rows: [{ id, text, times }], misses }. */
 export const GOAL_MINUTES = 40;
-export function goalCheck(camps, later = false) {
-  const rows = GOALS.filter(x => !x.side && !!x.within === later).map(x => ({ id: x.id, text: x.text, within: x.within || GOAL_MINUTES, times: camps.map(c => c.goals[x.id] ?? null) }));
+/* skip: towns whose goals these runs never reach (the Mesa's are checked by tools/mesa-road.js, which plays it). */
+export function goalCheck(camps, later = false, skip = []) {
+  const rows = GOALS.filter(x => !x.side && !!x.within === later && !skip.includes(x.town)).map(x => ({ id: x.id, text: x.text, within: x.within || GOAL_MINUTES, times: camps.map(c => c.goals[x.id] ?? null) }));
   const misses = [];
   for (const r of rows) {
     const late = r.times.map((t, i) => [t, camps[i].dc.seed]).filter(([t]) => t === null || t > r.within * 60);
@@ -1196,7 +1247,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   misses.push(...gc.misses);
   const emp = [];
   for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : RIDGE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active', falls: k === 'active' }); e.strategy = k; emp.push(e); }
-  const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true);
+  const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true, ['mesa']);
   for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...lg.misses);
   const mm = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';

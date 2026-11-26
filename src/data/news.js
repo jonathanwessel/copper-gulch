@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-6',
+    lines: [
+      'Thunder Mesa now opens much sooner. It needs wave 45 in Silver Falls, 12 deeds, 3 Rail Office upgrades and 3M coins.',
+      'To get the deeds, tap Perks in Silver Falls and sign its charter.',
+    ],
+  },
+  {
     v: '2026.11.26-5',
     lines: [
       'A new town, Thunder Mesa, waits east of the Capital. It pumps oil and builds motors, automobiles and airships.',

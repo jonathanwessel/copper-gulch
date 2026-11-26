@@ -12,9 +12,10 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { researchOpen, itemsOf, researchBlock, researchCost } from './research.js';
-import { canFound, nextTowns, deedsOf } from './empire.js';
+import { canFound, nextTowns, deedsOf, nodesHeld } from './empire.js';
+import { INSTITUTIONS } from '../data/institutions.js';
 import { capitalOpen, capitalNext as capitalAhead } from './capital.js';
-import { treeOf, foundCost } from './tree.js';
+import { treeOf, foundCost, founded as instFounded } from './tree.js';
 import { TOWNS, TOWN_ORDER } from '../data/towns/index.js';
 import { stallOf } from './stall.js';
 import { deedsFor, charterOffered } from './charter.js';
@@ -467,6 +468,14 @@ export function nextStep(game) {
   if (best() < s.f.wave && game.active !== s.f.from) return { id: 'next:' + s.id + ':there', next: s.id, away: true, text: 'Tap Map, ' + fromName + ', then reach wave ' + s.f.wave + ' there to ' + verb + ' ' + s.name, at: () => ({ el: game.back === s.f.from ? '#backBtn' : '#mapBtn', go: s.f.from }), done: () => false };
   if (best() < s.f.wave) return { id: 'next:' + s.id + ':wave', next: s.id, text: 'Reach wave ' + s.f.wave + ' in ' + fromName + ' to ' + verb + ' ' + s.name, meter: () => [best(), s.f.wave], pre: 'wave ', meterTown: s.f.from, done: () => false };
   if (s.f.deeds && deedsOf(game) < s.f.deeds) return { id: 'next:' + s.id + ':deeds', next: s.id, text: 'Sign a charter in Perks for the deeds to ' + verb + ' ' + s.name, meter: g2 => [deedsOf(g2), s.f.deeds], post: ' deeds', done: () => false };
+  // the Empire tree upgrades a town needs (Thunder Mesa's 3 Rail Office upgrades, M6b part 1b) come before its save:
+  // the coins would wait on them, and the Influence for them comes from contracts, not from the purse
+  const ns = Object.entries(s.f.nodes || {}).find(([inst, n]) => nodesHeld(game, inst) < n);
+  if (ns) {
+    const [inst, n] = ns, iname = INSTITUTIONS.find(i => i.id === inst).name, built = capitalOpen(game) && instFounded(game, inst);
+    if (!built) return { id: 'next:' + s.id + ':inst', next: s.id, inst, text: 'Tap Map, the Capital, Buildings, then build the ' + iname + ' to ' + verb + ' ' + s.name, at: () => ({ el: '#mapBtn' }), done: () => false };
+    return { id: 'next:' + s.id + ':nodes', next: s.id, inst, text: 'Tap Map, the Capital, Buildings, then upgrade the ' + iname + ' to ' + verb + ' ' + s.name, meter: g2 => [nodesHeld(g2, inst), n], post: ' upgrades', at: () => ({ el: '#mapBtn' }), done: () => false };
+  }
   if (from.coins + 1e-9 < s.f.coins) return { id: 'next:' + s.id + ':coins', next: s.id, text: 'Save coins to ' + verb + ' ' + s.name, need: s.f.coins, at: () => ({ el: '#coins' }), done: () => false };
   return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + (s.id === 'capital' ? ' to build it' : ' to start it'), at: () => ({ el: '#mapBtn' }), done: () => false };
 }

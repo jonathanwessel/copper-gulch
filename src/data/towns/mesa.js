@@ -22,10 +22,12 @@ export const MESA = {
   boss: 'wagon',                   // the war wagon until the Sky pirate airship comes in part 2
   research: ['pumpjacks', 'crushers', 'cracking', 'stormwalls', 'searchlights', 'leases', 'assembly'], // src/data/research.js
   researchOpens: 'refinery',
-  // founding it (src/core/empire.js): Silver Falls' best wave, coins from the purse, and the Rail Office's third upgrade
-  // (GDD.md, Towns and eras: "Transport node 3 + 1B"). A first price; part 1b tunes it with the bots to land the Mesa
-  // at 20-30 h of play.
-  found: { from: 'falls', wave: 30, coins: 1e9, nodes: { transport: 3 }, shows: 25 },
+  // founding it (src/core/empire.js): Silver Falls' best wave, deeds held, the Rail Office's third upgrade and coins from
+  // the purse. Set in M6b part 1b (tools/mesa-road.js): the deeds take the Falls' charter (the empire holds 6 when the
+  // Falls opens, and the charter pays 5-7 at its wave 44-47), the wave is the climb back after it, and the price is
+  // about half an hour of the empire's income then (about 100K coins a minute). The first pass asked for 1B, which no
+  // seed could save in 32 hours: the income stays flat at 70-300K a minute through the Falls era.
+  found: { from: 'falls', wave: 45, deeds: 12, coins: 3e6, nodes: { transport: 3 }, shows: 25 },
   // The board: the road comes in through a red rock cut in the north-west and switches back across the town four
   // times (east, west, east, then west to the vault). Workshops stand in three rows of three between the passes; the
   // pads between them reach two passes, and the ones outside the bends reach the bend.

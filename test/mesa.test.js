@@ -20,26 +20,29 @@ import { SITES } from '../src/data/empire.js';
 const run = (g, seconds) => { for (let i = 0; i < seconds * 4; i++) g.step(STEP); };
 const F = TOWNS.mesa.found;
 /* A game with Silver Falls at `wave`, `coins` in the purse and `nodes` Rail Office upgrades bought. */
-function falls(seed, { wave = F.wave, coins = F.coins * 1.1, nodes = 3 } = {}) {
+function falls(seed, { wave = F.wave, coins = F.coins * 1.1, nodes = 3, deeds = F.deeds || 0 } = {}) {
   const g = newGame(seed, 'gulch');
   g.addTown('ridge'); g.addTown('falls');
   g.towns.falls.bestWave = wave; g.town.coins = coins;
   g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = nodes;
+  g.shared.charter.deeds = deeds;
   return g;
 }
 function mesa(seed) { const g = falls(seed); foundTown(g, 'mesa'); g.go('mesa'); return g; }
 
-test('Thunder Mesa needs a Falls wave, the coins and 3 Rail Office upgrades, and the map lists all three', () => {
-  assert.deepEqual([F.from, F.nodes], ['falls', { transport: 3 }]);
+test('Thunder Mesa needs a Falls wave, deeds, the coins and 3 Rail Office upgrades, and the map lists them all', () => {
+  assert.deepEqual([F.from, F.nodes, F.deeds], ['falls', { transport: 3 }, 12]);
   assert.deepEqual(nextTowns(falls('m1', { wave: F.shows - 1 })), [], 'out of sight before the Falls reach it');
   assert.deepEqual(nextTowns(falls('m1', { wave: F.shows, nodes: 1 })).map(n => [n.id, n.ready, n.nodesOk]), [['mesa', false, false]]);
   assert.equal(canFound(falls('m1', { nodes: 2 }), 'mesa'), false, 'one upgrade short');
   assert.equal(canFound(falls('m1', { coins: F.coins - 1 }), 'mesa'), false, 'short of coins');
   assert.equal(canFound(falls('m1', { wave: F.wave - 1 }), 'mesa'), false, 'one wave short');
+  if (F.deeds) assert.equal(canFound(falls('m1', { deeds: F.deeds - 1 }), 'mesa'), false, 'one deed short');
   assert.equal(canFound(falls('m1'), 'mesa'), true);
   const lr = lockedRules(falls('m1', { nodes: 1 }), 'mesa');
-  assert.deepEqual(lr.rules.map(r => [r.kind, r.done]), [['wave', true], ['nodes', false], ['coins', true]]);
-  assert.deepEqual([lr.rules[1].name, lr.rules[1].have, lr.rules[1].nodes], ['Rail Office', 1, 3]);
+  assert.deepEqual(lr.rules.map(r => [r.kind, r.done]), [['wave', true], ['deeds', true], ['nodes', false], ['coins', true]]);
+  assert.deepEqual([lr.rules[2].name, lr.rules[2].have, lr.rules[2].nodes], ['Rail Office', 1, 3]);
+  assert.deepEqual([lr.rules[1].deeds, lr.rules[1].have], [F.deeds, F.deeds], 'the deeds the Falls charter brings');
 });
 
 test('founding Thunder Mesa pays from the purse and keeps the upgrades', () => {
@@ -107,4 +110,39 @@ test('a game saved in Thunder Mesa loads back the same', () => {
   const h = loadGame(decode(encode(g, 0)).game);
   assert.equal(h.towns.mesa.level('refinery'), 2);
   assert.equal(h.town.id, 'mesa');
+});
+
+// part 1b: the Falls' strip leads to the Mesa through the Rail Office, then the save, and each step is a newcomer tap
+import { goalTap } from '../tools/firstplay.js';
+import { Rng } from '../src/core/rng.js';
+import { ALL_GOALS } from '../src/core/goals.js';
+test('the strip in Silver Falls asks for the Rail Office and its upgrades before the save, and the newcomer taps each', () => {
+  const g = falls('m1b', { nodes: 0, coins: 0 });
+  g.shared.tree.founded.splice(0, Infinity, 'market'); g.shared.capital.open = true;
+  for (const id of ALL_GOALS()) g.shared.goals.done[id] = true;
+  g.go('falls'); g.step(STEP);
+  const at = () => goalNow(g, false), rng = new Rng('m1b');
+  assert.equal(at().id, 'next:mesa:inst');
+  assert.match(at().text, /^Tap Map, the Capital, Buildings, then build the Rail Office to open Thunder Mesa$/);
+  assert.equal(goalTap(g, g.town, rng), null, 'no coins for it yet: no tap');
+  g.town.coins = 1e12;
+  assert.ok(goalTap(g, g.town, rng).run(), 'the newcomer builds it');
+  assert.equal(at().id, 'next:mesa:nodes');
+  assert.equal(at().text, 'Tap Map, the Capital, Buildings, then upgrade the Rail Office to open Thunder Mesa', 'the map card names Buildings and says upgrade too');
+  assert.deepEqual(at().meter(g), [0, 3]);
+  assert.equal(goalTap(g, g.town, rng), null, 'no Influence yet: no tap');
+  g.shared.capital.influence = 1e6;
+  for (let i = 0; i < 3; i++) { assert.equal(at().id, 'next:mesa:nodes'); assert.ok(goalTap(g, g.town, rng).run()); }
+  assert.equal(g.shared.tree.nodes.transport, 3);
+  assert.notEqual(at().id, 'next:mesa:nodes', 'three upgrades: the strip moves on');
+});
+
+import { GOALS } from '../src/data/goals.js';
+import { goalCheck } from '../tools/balance.js';
+test('every Mesa strip step is timed for the road bot, and the Falls-era bots leave them out', () => {
+  const m = GOALS.filter(x => x.town === 'mesa');
+  assert.ok(m.length >= 10 && m.every(x => !x.side && x.within >= 9 * 60), 'each has a within past the Mesa window');
+  const camp = { goals: {}, dc: { seed: 1 } };
+  assert.ok(goalCheck([camp], true, ['mesa']).rows.every(r => !r.id.startsWith('m-')));
+  assert.ok(goalCheck([camp], true).rows.some(r => r.id.startsWith('m-')));
 });
