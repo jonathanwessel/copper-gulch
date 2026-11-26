@@ -122,7 +122,9 @@ export function priceNote({ have, kept = 0, price = 0, boom = false, bust = fals
   // "Price up" was flagged three times (8e, and the reads of 2026.11.25-7 and -8), so by the twice-flagged rule it went
   // clarity fix 8i: one pair of words for the price, up and down, as the boom line and the rows say ("low" and "comes
   // back over time", with no time, were two more), and one line in a bust or not, since the bust's clock says when it ends
-  if (price < .0095 && boom) return null;
+  // in a bust too: its row says the drop with its time left (clarity fix 8r: "Price down for 0:47 more" over "The price is
+  // down because you sold a lot" said one fact twice)
+  if (price < .0095 && (boom || bust)) return null;
   if (price < .0095 && !none) return LOW_NOTE;
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;

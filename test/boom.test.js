@@ -71,10 +71,10 @@ test('a boom raises the price and a bust lowers it, and the price box says so', 
   const base = price(g, t, good);
   g.shared.market.event = { [good]: BOOM.up }; g.shared.market.boom = { good, f: BOOM.up, left: 60 };
   assert.ok(Math.abs(price(g, t, good) - base * BOOM.up) < 1e-9);
-  assert.ok(explainPrice(g, t, good).rows.some(r => r.label === 'Boom'));
+  assert.ok(explainPrice(g, t, good).rows.some(r => r.label === 'Demand high')); // clarity fix 8r: Boom read as jargon
   g.shared.market.event = { [good]: BOOM.down };
   assert.ok(Math.abs(price(g, t, good) - base * BOOM.down) < 1e-9);
-  assert.ok(explainPrice(g, t, good).rows.some(r => r.label === 'Bust'));
+  assert.ok(explainPrice(g, t, good).rows.some(r => r.label === 'Demand low'));
   // a foreman's sum leaves it out: a level lasts, a boom does not
   const m0 = marginal(g, t, good); g.shared.market.event = {}; assert.equal(marginal(g, t, good), m0);
 });

@@ -292,6 +292,9 @@ export class CameraRig {
     const q = this.proj(this.t, p.x, p.y, p.z), g1 = this.ground(q.x, q.y, this.t), g2 = this.ground(x, y, this.t);
     if (!g1 || !g2) return false;
     this.t.x += g1.x - g2.x; this.t.z += g1.z - g2.z;
+    // off home, as after a pan: a refit (the top bar's height changing as the town opens) no longer puts it back
+    // (clarity fix 8p: the goal's slide to the Mesa's Oil Derrick was undone a moment later)
+    this.atHome = false;
     return true;
   }
   /* The ground point { x, z } under a screen point (client pixels), for a rig state (the current one by default). */

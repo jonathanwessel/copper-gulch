@@ -40,7 +40,10 @@ export async function uncovered(page) {
     if (vis(card) && vis(strip) && hit(R(card), R(strip))) { const c = R(card), g = R(strip), u = document.querySelector('.play'); bad.push('the card covers the goods strip (card ' + Math.round(c.top) + '-' + Math.round(c.bottom) + ', strip ' + Math.round(g.top) + '-' + Math.round(g.bottom) + ', --striph ' + (u ? getComputedStyle(u).getPropertyValue('--striph') : '?') + ', chips ' + strip.children.length + ', ' + document.querySelector('#card h2').textContent + ')'); }
     for (const p of panes) if (p.id !== 'card' && vis(strip) && hit(R(p), R(strip))) bad.push('a sheet covers the goods strip'); // (review of 2026.11.19-7)
     // no level tag shows cut by a card, a sheet, the strip or the top bar
-    { const boxes = [...panes, strip, ...document.querySelectorAll('.hud .hudleft, .hud .hudright')].filter(vis).map(R);
+    // the top bar by its pieces, never its columns' whole boxes (clarity fix 8p: in landscape the left column's box ran
+    // 570 px wide over open ground)
+    { const parts = [...document.querySelectorAll('.hud .hudleft > *, .hud .hudright > *')].flatMap(c => c.matches('.place, .hudrow, .side') ? [...c.children] : [c]);
+      const boxes = [...panes, strip, ...parts].filter(vis).map(R);
       for (const n of document.querySelectorAll('.tags .tag')) { if (!vis(n) || getComputedStyle(n).visibility === 'hidden' || document.documentElement.classList.contains('flat')) continue; const r = R(n); if (boxes.some(b => hit(r, b))) bad.push('a level tag is cut: ' + n.textContent); } }
     // and beside it every good's name shows whole (review of 2026.11.19-6: "Copper ..." beside a side card)
     if (vis(strip)) for (const n of strip.querySelectorAll('.gname')) if (n.scrollWidth > n.clientWidth + 1) bad.push('the goods strip cuts ' + n.textContent);
@@ -855,6 +858,8 @@ async function run() {
         // a boom on timber: the strip chip gets its arrow and keeps its box
         const m = CG.game.shared.market, keep = { boom: m.boom, event: m.event, wait: m.wait, rate: m.rate.timber };
         m.rate.timber = 0; // an unsold good, so the boom moves the price up (clarity fix 8k: the line follows the price now)
+        // some spare to sell, so the open row shows its price rows and not the none-to-sell note (clarity fix 8r)
+        const tWas = t.goods.timber, sWas = t.sell.timber; t.goods.timber = Math.ceil((t.keep || {}).timber || 0) + 60; t.sell.timber = false; // Sell spare off (false), so none of it sells meanwhile
         const chip = document.querySelector('#goodsStrip .goodchip[data-good="timber"]'), box = c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), Math.round(r.top), Math.round(r.height)].join(); };
         const b0 = chip && box(chip);
         m.boom = { good: 'timber', f: 1.6, left: 75 }; m.event = { timber: 1.6 }; m.wait = 200; await wait(450);
@@ -862,14 +867,22 @@ async function run() {
         out.chip = !!chip && chip.classList.contains('boom') && box(chip) === b0 && getComputedStyle(chip, '::after').borderBottomWidth === '7px' && getComputedStyle(chip).outlineStyle === 'solid';
         // the row: an arrow up and the time left, a picture, not the word Boom (review of 2026.11.23-6)
         const evl = document.querySelector('#sheet [data-why="timber"] .evline');
-        out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price up for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && (row.getAttribute('aria-label') || '') === evl.textContent; // rising while still under 1 coin (clarity fix 8e), and the arrow's label is the line's words
+        // since clarity fix 8r no line of words sits under the price: the arrow (its label says it) and, open, the demand
+        // row with its own time left
+        const rowEl = document.querySelector('#sheet [data-why="timber"]');
+        const openedRow = !!rowEl && rowEl.getAttribute('aria-expanded') !== 'true';
+        if (openedRow) { rowEl.click(); await wait(300); }
+        const rowsText = () => (rowEl && rowEl.textContent) || '';
+        out.row = !!row && !row.hidden && !!evl && evl.hidden && /^Price up for \d:\d\d more$/.test(row.getAttribute('aria-label') || '') && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /Demand high \d:\d\d\sleft/.test(rowsText()) && !/Boom/.test(rowsText());
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
-        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && /^Price down for 0:\d\d more$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
+        out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && evl.hidden && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for 0:\d\d more$/.test(row.getAttribute('aria-label') || '') && /Demand low 0:\d\d\sleft/.test(rowsText());
         // a boom over a good sold low: the line says the price is still down, and the arrow points down (clarity fix 8k)
         m.boom = { good: 'timber', f: 1.6, left: 70 }; m.event = { timber: 1.6 }; m.rate.timber = 1e6; await wait(450);
-        out.stillDown = !!chip && chip.classList.contains('bust') && !chip.classList.contains('boom') && !!row && !!evl && /^Boom for \d:\d\d more\. Price still down\.$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px';
+        out.stillDown = !!chip && chip.classList.contains('bust') && !chip.classList.contains('boom') && !!row && !!evl && evl.hidden && /^Demand high for \d:\d\d more\. Price still down\.$/.test(row.getAttribute('aria-label') || '') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /Demand high \d:\d\d\sleft/.test(rowsText()) && /Down \d+%/.test(rowsText());
         m.rate.timber = keep.rate || 0; delete keep.rate;
         Object.assign(m, keep); await wait(450);
+        if (openedRow) { rowEl.click(); await wait(200); } // closed again, as the checks after this one find it
+        t.goods.timber = tWas; if (sWas === undefined) delete t.sell.timber; else t.sell.timber = sWas;
         out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden && !!evl && evl.hidden;
         return out;
       });
@@ -1070,9 +1083,9 @@ async function run() {
         const T = CG.game.town, was = T.goods.timber, mk = CG.game.shared.market, rate = mk.rate.timber; mk.rate.timber = 0; T.goods.timber = Math.ceil((T.keep || {}).timber || 0) + 60;
         document.getElementById('goodsBtn').click(); await wait(300);
         sheet.querySelector('[data-why="timber"]').click(); await wait(400);
-        out.price = /Base price/.test(sheet.textContent) && /coins? (each|per)/.test(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || ''); // the price bar's front says the price (no total row, review of 2026.11.20-7)
+        out.price = /Usual price/.test(sheet.textContent) && /coins? (each|per)/.test(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || ''); // the price bar's front says the price (no total row, review of 2026.11.20-7)
         T.goods.timber = 0; await wait(600);
-        out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Base price/.test(sheet.textContent);
+        out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Usual price/.test(sheet.textContent);
         if (!out.price || !out.noneToSell) out.priceText = sheet.textContent.slice(0, 400);
         T.goods.timber = was; mk.rate.timber = rate;
         return out;
@@ -1350,6 +1363,30 @@ async function run() {
       await sleep(400);
       const cut = await page.evaluate(() => { const w = document.querySelector('#wave .winfo'); return w.scrollWidth > w.clientWidth + 1 ? w.textContent : ''; });
       if (cut) bad.push('the wave countdown is cut off in the Ridge (' + cut + ')');
+      // the two longest place names side by side, here and on a narrower phone: neither is cut short (clarity fix 8p:
+      // "Thunder M..." beside "Copper Gul..."). The Ridge stands in for the longest name, its back button for the other
+      if (name === 'phone') {
+        const longPair = await page.evaluate(async () => {
+          const wait = ms => new Promise(r => setTimeout(r, ms)), { TOWNS } = await import('./src/data/towns/index.js');
+          const names = Object.values(TOWNS).map(d => d.short || d.name).sort((a, b) => b.length - a.length), me = CG.game.town.def, bk = TOWNS[CG.game.back], keep = [me.short, bk.short];
+          me.short = names[0]; bk.short = names[1]; await wait(700);
+          const n = document.querySelector('#placeBar .townname'), b = document.getElementById('backBtn');
+          const out = [n, b].filter(x => !x.hidden && x.scrollWidth > x.clientWidth + 1).map(x => x.textContent).join(' and ');
+          me.short = keep[0]; bk.short = keep[1]; return out ? out + ' (' + names[0] + ', ' + names[1] + ')' : '';
+        });
+        if (longPair) bad.push('the place bar cuts ' + longPair + ' at 400 px');
+        await page.setViewportSize({ width: 375, height: 667 }); await sleep(300);
+        const narrow = await page.evaluate(async () => {
+          const wait = ms => new Promise(r => setTimeout(r, ms)), { TOWNS } = await import('./src/data/towns/index.js');
+          const names = Object.values(TOWNS).map(d => d.short || d.name).sort((a, b) => b.length - a.length), me = CG.game.town.def, bk = TOWNS[CG.game.back], keep = [me.short, bk.short];
+          me.short = names[0]; bk.short = names[1]; await wait(700);
+          const n = document.querySelector('#placeBar .townname'), b = document.getElementById('backBtn');
+          const out = [n, b].filter(x => !x.hidden && x.scrollWidth > x.clientWidth + 1).map(x => x.textContent).join(' and ');
+          me.short = keep[0]; bk.short = keep[1]; return out;
+        });
+        if (narrow) bad.push('the place bar cuts ' + narrow + ' at 375 px');
+        await page.setViewportSize({ width: 400, height: 860 }); await sleep(400);
+      }
       bad.push(...(await check(page)).map(b => 'ridge: ' + b));
       // with a card open in landscape and on a desktop, every good on the strip shows its count, none behind a more box,
       // and none under the card (clarity fix 8c: "3 more" beside the Boiler Shop's card in landscape; seen red there)

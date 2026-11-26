@@ -53,7 +53,9 @@ export function climb(seed, minutes = MINUTES, onLine = null) {
     // a step with a count ("Reach wave 52 in Iron Ridge", wave 44 / 52) is the same step only while its count stays: a
     // count that rises is the climb moving, as a save's coins are (the Gulch's loss loop box: the step read as one for
     // 42-73 minutes while the Ridge climbed from wave 41 to 52; before, the trips back to the Gulch had split it)
-    const gn = goalNow(g), text = gn ? (gn.need ? null : gn.text + (gn.meter ? ' [' + meterWords(gn, g) + ']' : '')) : '(none)';
+    // the count the step is done by (g.meter, the best wave), never the strip's words: those show the wave bar's own
+    // number since clarity fix 8q, which drops after a loss and would split a stall at a wall into short pieces (rule 14)
+    const gn = goalNow(g), text = gn ? (gn.need ? null : gn.text + (gn.meter ? ' [' + gn.meter(g).map(x => Math.floor(x)).join(' / ') + ']' : '')) : '(none)';
     // a blank strip from the Capital on (the Gulch's loss loop box: once seen inside Silver Falls)
     const bl = rec.blank;
     if (capitalOpen(g) && text === '(none)') { bl.from ??= at; if (at - bl.from > bl.longest) { bl.longest = at - bl.from; bl.at = bl.from; } } else bl.from = null;

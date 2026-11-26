@@ -162,7 +162,7 @@ test('the price has one pair of words, up and down, clarity fix 8i', async () =>
   const { foremanLine } = await import('../src/ui/explain.js');
   assert.equal(LOW_NOTE, 'The price is down because you sold a lot.');
   assert.equal(priceNote({ have: 50, price: .00005 }), LOW_NOTE);
-  assert.equal(priceNote({ have: 50, price: .00005, bust: true }), LOW_NOTE);
+  assert.equal(priceNote({ have: 50, price: .00005, bust: true }), null); // clarity fix 8r: the demand row says it with its time
   assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is down.');
   for (const s of [LOW_NOTE, foremanLine('flooded', 'timber')]) { assert.ok(!/ low|comes back/.test(s), s); assert.deepEqual(textIssues(s), [], s); }
 });
@@ -183,7 +183,7 @@ test('the words of clarity fixes 8j and 8k', async () => {
   assert.equal(waveTimer({ phase: 'break', hold: false, timer: 117 }), 'in 1:57');
   assert.equal(shotsWord(1.4), '84 a minute');
   assert.deepEqual([0, 30, 64, 100].map(repLine), ['Fill orders to raise it. Rush orders come at 60.', 'Orders pay 15% more. Rush orders come at 60.', 'Orders pay 32% more. Rush orders come too.', 'Orders pay 50% more. Rush orders come too.']);
-  assert.equal(boomWords(1.6, '1:11', .3), 'Boom for 1:11 more. Price still down.');
+  assert.equal(boomWords(1.6, '1:11', .3), 'Demand high for 1:11 more. Price still down.');
   assert.equal(boomWords(1.6, '1:11', 1.2), 'Price up for 1:11 more');
   assert.equal(roadLine(1, 0), '1 on the road. No more to come.');
   assert.equal(foremanLine('flooded', 'timber', '99%'), 'Foreman paused while the timber price is down 99%.');
@@ -207,4 +207,18 @@ test('the words of clarity fix 8o', async () => {
   // a done step says what was done, never "started" beside Done
   assert.equal(GOALS.find(g => g.id === 'g-research').doneText, 'Research picked');
   for (const g of GOALS) if (g.doneText) assert.doesNotMatch(g.doneText, /started|starting|begun/i, g.id);
+});
+
+test('clarity fixes 8q and 8r: the price rows, the Capital label and the red line', async () => {
+  const { newGame } = await import('../src/core/setup.js');
+  const { explainPrice } = await import('../src/core/explain.js');
+  const { EXPLAINERS } = await import('../src/data/explainers.js');
+  const g = newGame('w8r', 'gulch'), t = g.town;
+  g.shared.market.event = { timber: 1.6 }; g.shared.market.boom = { good: 'timber', f: 1.6, left: 71 };
+  assert.deepEqual(explainPrice(g, t, 'timber').rows.slice(0, 2).map(r => r.label), ['Usual price', 'Demand high']);
+  g.shared.market.event = { timber: .6 };
+  assert.equal(explainPrice(g, t, 'timber').rows[1].label, 'Demand low');
+  const short = EXPLAINERS.find(e => e.id === 'short');
+  assert.equal(short.text, 'A red line under a building level means it ran out of what it needs. Tap the building to see what it is missing.');
+  assert.deepEqual(textIssues(short.text), []);
 });

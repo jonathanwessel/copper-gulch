@@ -186,7 +186,8 @@ export const EXPLAINERS = [
   {
     id: 'short', now: true, covers: ['starved'],
     title: 'Out of materials',
-    text: 'A red edge on a building\'s tag means it ran out of what it needs. Upgrade the building that supplies it.',
+    // the pill's red line as it looks now (clarity fix 8r: "red edge on a tag" was the old big tag's look)
+    text: 'A red line under a building level means it ran out of what it needs. Tap the building to see what it is missing.',
     when: h => !!h.starved, at: h => ({ plot: h.starved }),
   },
   {

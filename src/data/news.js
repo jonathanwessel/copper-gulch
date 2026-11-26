@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-8',
+    lines: [
+      'In Goods, a price now says what it pays. Open it to see the usual price, how much you sold and the demand, with the time left.',
+      'A good that a workshop is missing stays on the goods bar.',
+      'On the map, the Capital says what to build or upgrade there next. The Thunder Mesa card shows the Influence for the next Rail Office upgrade.',
+      'The goal counts the same wave as the wave bar.',
+      'The Motor Works and the Aluminum Works look like what they make, and long town names fit on a phone.',
+    ],
+  },
+  {
     v: '2026.11.26-7',
     lines: [
       'Each Sell spare switch now says its choice in a word, and the same word starts each choice in Goods.',

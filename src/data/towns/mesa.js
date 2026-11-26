@@ -46,7 +46,7 @@ export const MESA = {
       [2, 12.4],                                   // west to the vault
     ],
     vault: [1, 12.4],
-    entrance: { kind: 'canyon', mouth: [.4, -1.8], portal: [.4, -5.6], width: 2.4, hide: .6, mesa: ['#8e4a3a', '#b8705a', '#7a3e32', '#c98a6c'] },
+    entrance: { kind: 'canyon', mouth: [.4, -1.8], portal: [.4, -5.6], width: 2.4, hide: .6, pit: false, trestle: false, rise: 1.5, mesa: ['#8e4a3a', '#b8705a', '#7a3e32', '#c98a6c'] },
     spots: [
       [3.5, 2.4], [6.5, 2.4], [3.5, 6.4], [6.5, 6.4], [3.5, 10.4], [6.5, 10.4], // between the workshops: two passes each
       [11.4, 2.4], [11.4, 10.4], [-1.4, 6.4], [5, 14.4],                       // outside the bends and the last pass

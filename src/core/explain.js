@@ -75,10 +75,12 @@ export function usedBy(town, good) {
 /* What one unit of a good pays right now: its base price, the market (selling a lot lowers it for a while, an event
    moves it) and the town's bonuses on prices and on every coin earned. */
 export function explainPrice(game, town, good) {
-  const rows = [{ label: 'Base price', base: GOODS[good].price }];
+  // clarity fix 8r: "Base price" beside the row's own price read as two prices, and "Boom" as jargon, so the rows say
+  // usual price and demand, and the row's price says what it pays
+  const rows = [{ label: 'Usual price', base: GOODS[good].price }];
   const s = saturation(game, good), e = eventFactor(game, good);
   if (s < .995) rows.push({ label: 'Sold a lot lately', mul: s });
-  if (e !== 1) rows.push({ label: e > 1 ? 'Boom' : 'Bust', mul: e });
+  if (e !== 1) rows.push({ label: e > 1 ? 'Demand high' : 'Demand low', mul: e, event: true });
   rows.push(...modRows(town.mods, 'price'), ...modRows(town.mods, 'income'));
   return done('coins', rows);
 }

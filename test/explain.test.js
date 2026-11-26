@@ -51,7 +51,7 @@ test('a price is its base, the market and every bonus, and it is what a small sa
   for (const s of ['Market Stalls research', 'Hard Bargain perk', 'Deeds']) assert.ok(ex.rows.some(r => r.label === s), s);
   assert.ok(Math.abs(quote(g, t, 'timber', 1e-6) / 1e-6 - paysEach(g, t, 'timber')) < 1e-6 * ex.value);
   const fresh = newGame('y', 'gulch');
-  assert.deepEqual(explainPrice(fresh, fresh.town, 'planks').rows.map(r => r.label), ['Base price']);
+  assert.deepEqual(explainPrice(fresh, fresh.town, 'planks').rows.map(r => r.label), ['Usual price']); // clarity fix 8r: Base price beside the row price named two prices
 });
 
 test('tower damage, shots and reach come from the kind, its level, its path and the town\'s bonuses', () => {

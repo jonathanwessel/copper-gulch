@@ -20,8 +20,8 @@ test('8e (1): a boom on a low price says why it is low, and a bust does not say 
   assert.equal(boomWords(.6, '0:47'), 'Price down for 0:47 more');
   const inBoom = priceNote({ have: 50, price: low, boom: true }), inBust = priceNote({ have: 50, price: low, bust: true });
   assert.equal(inBoom, null, 'in a boom the rows say it, no sentence under Price up (8h, read of 2026.11.25-8)');
-  assert.ok(inBust && !/comes back/.test(inBust), 'the bust clock already says it ends');
-  assert.equal(priceNote({ have: 50, price: low }), inBust, 'one line in a bust or not (8i)');
+  assert.equal(inBust, null, 'in a bust its demand row says the drop and its time left, no sentence over it (8r)');
+  assert.ok(!/comes back/.test(priceNote({ have: 50, price: low })));
 });
 
 test('8e (4) and 8h (4): the card leads with one line in every case, never a count a row says', () => {

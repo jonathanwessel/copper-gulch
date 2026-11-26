@@ -243,13 +243,21 @@ export function goodsSheet(game, town, focus = null) {
         if (r.wait.hidden !== !wt) r.wait.hidden = !wt;
         r.txt.setAttribute('aria-expanded', String(!!open[g]));
         const bm0 = boomNow(game), note = open[g] ? priceNote({ have, kept, price: ex.value, boom: !!bm0 && bm0.good === g && bm0.f > 1, bust: !!bm0 && bm0.good === g && bm0.f < 1 }) : null; // none to sell, or a price of almost 0: words, not rows
-        const ws = open[g] ? (note || JSON.stringify(ex.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex, { total: null, pct: true })])); }
+        // the demand row carries its own time left, so no sentence about it sits over the rows (clarity fix 8r: "Boom for
+        // 1:11 more. Price still down." beside "Boom Up 60%" read as a contradiction, flagged on the fourth wording)
+        const bmx = boomNow(game), evClock = bmx && bmx.good === g ? boomClock(bmx.left) + String.fromCharCode(160) + 'left' : ''; // the time and its word never part (fresh-eyes read of 2026.11.26-8: a dot ended a line)
+        const ex2 = evClock ? { ...ex, rows: ex.rows.map(x => (x.event ? { ...x, label: x.label + ' ' + evClock } : x)) } : ex;
+        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex2, { total: null, pct: true })])); }
         const sat = saturation(game, g);
         const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
         const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
         if (r.level.textContent !== pw1) r.level.textContent = pw1;
-        if (r.plabel.textContent !== pl) r.plabel.textContent = pl;
+        // the price the player gets says so, beside the open rows' usual price (clarity fix 8r: "Base price 1 coin" beside
+        // "Under 1 coin each" named two prices)
+        // open with none spare, its note says what it would pay, so the label above it steps aside (one fact once)
+        const pl2 = open[g] && note && have - kept < 1 ? '' : 'Pays ' + pl[0].toLowerCase() + pl.slice(1);
+        if (r.plabel.textContent !== pl2) r.plabel.textContent = pl2;
         setSwitch(r.sw, 'Sell spare', modeState(mode), selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
@@ -259,8 +267,8 @@ export function goodsSheet(game, town, focus = null) {
         // the arrow's label is the line's own words (clarity fix 8e: it said Price up while the line said rising)
         { const al = ew; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.hidden !== !on) r.ev.hidden = !on;
-        if (r.evLine.textContent !== ew) r.evLine.textContent = ew;
-        if (r.evLine.hidden !== !ew) r.evLine.hidden = !ew;
+        // no line of words under the price: the arrow says which way, the open rows say why and for how long (clarity fix 8r)
+        if (!r.evLine.hidden) r.evLine.hidden = true;
         // the arrow and its color follow the price now, not the event alone (clarity fix 8k)
         if (r.ev.classList.contains('bust') !== (on && net < 1)) r.ev.classList.toggle('bust');
         if (r.evLine.classList.contains('bust') !== (on && net < 1)) r.evLine.classList.toggle('bust');
@@ -362,7 +370,7 @@ export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.roun
 /* net: the price's move now, the market's and the event's together (the price bar's own). A boom over a good sold low
    says the price is still down (clarity fix 8k: "Price up for 1:11 more" over rows that came to Down 99%). */
 export const boomWords = (f, clock, net = f) => ((f > 1) === (net >= 1) ? (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more'
-  : (f > 1 ? 'Boom for ' : 'Bust for ') + clock + ' more. Price still ' + (net < 1 ? 'down.' : 'up.'));
+  : (f > 1 ? 'Demand high for ' : 'Demand low for ') + clock + ' more. Price still ' + (net < 1 ? 'down.' : 'up.'));
 // research rows and their buttons say a running time as a clock, "0:13 left", and a length in words, "takes 80 sec"
 // (clarity fix 8m, the one-timer rule: "13 sec left" and "Research 1 sec" were the last countdowns in words)
 export const leftWord = s => clock(s) + ' left';

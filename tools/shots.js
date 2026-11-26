@@ -375,20 +375,23 @@ const FALLS = [
 // Thunder Mesa (M6b, part 1a): in sight on the map with its Rail Office rule, then founded: its rock cut, every
 // building at a few levels, the Motor Works card with its import, a fight on the road, and the map with it open
 const MESA = [
+  // a real late empire: the active bot's game an hour into Silver Falls (tools/fixtures/falls-hour.json, written by
+  // tools/mesa-probe.js on seed 1), loaded by the runner, so the strip, the map and the back button are the player's own
+  // (clarity fix 8p: a hand-made save showed the Gulch's goals and "Silver Falls · Wave 1" in the Mesa's shots). Only
+  // the founding rule's last steps are added: the Falls' charter deeds, its wave 46 and the Rail Office
   ['mesa-sight', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
     const n = document.getElementById('newsOk'); if (n) n.click();
-    localStorage.clear(); document.getElementById('play').click();
     for (let i = 0; i < 150 && !(window.CG && CG.game && CG.town && CG.play); i++) await wait(100);
-    const g = CG.game; (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek');
-    for (const id of ['ridge', 'pinehollow', 'falls', 'sandybend']) g.addTown(id);
-    g.towns.falls.bestWave = 46; g.shared.charter.deeds = 12; g.towns.falls.buildings.wiremill = 4; g.towns.falls.buildings.dynamo = 2; g.towns.ridge.buildings.steelmill = 4;
-    g.shared.capital.open = true; g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = 1; g.shared.purse.coins = 2e9;
+    const g = CG.game; g.towns.falls.bestWave = 46; g.towns.falls.wave = 46; g.shared.charter.deeds = 12;
+    g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = 1; g.shared.purse.coins = 2e9;
+    // the bot's Gulch lost a wave while it played the Falls and holds, so the strip's first step is "Tap Map, Copper
+    // Gulch, then tap Resume waves" (the held-away rule); the player taps it, so the Rail Office and the Mesa's steps show
+    const { setHold } = await import('./src/core/defense.js'); for (const t of Object.values(g.towns)) if (t.waves && t.waves.hold) setHold(g, t, false);
     CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
     CG.mapui.openSite('mesa'); await wait(1000);
   }],
   // the Falls' strip once only the Rail Office's upgrades are missing (part 1b): the step names them, with its count
   ['mesa-step', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
-    const d = CG.game.shared.goals.done; for (const id of (await import('./src/core/goals.js')).ALL_GOALS()) d[id] = true;
     // the player's own way back: the Falls' card on the map, then Play
     CG.mapui.openSite('falls'); await wait(400); document.getElementById('mapPlay').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'falls'); i++) await wait(100); await wait(800);
   }],
@@ -419,6 +422,16 @@ async function shot(pg, f, size) {
   await pg.screenshot({ path: f }); wrote.push(f);
   const top = await pg.evaluate(() => { const w = document.getElementById('wave'), r = w && w.getBoundingClientRect(); return r && r.height > 0 && getComputedStyle(w).visibility !== 'hidden' ? Math.round(r.top) : null; });
   if (top !== null) (waveTops[size] ||= []).push([path.basename(f), top]);
+  // a goal's tag names a building the player can see: the building's point is never under a top bar button (clarity fix
+  // 8p: in landscape the Mesa's Oil Derrick sat under the goal strip and its tag pointed at an empty plot)
+  const hid = await pg.evaluate(() => {
+    const t = document.querySelector('.tags .tag.goaltag:not([hidden])'), id = t && t.dataset.plot, p = id && CG.town && CG.town.project(id);
+    if (!p || p.x < 0 || p.x > innerWidth) return '';
+    const under = [...document.querySelectorAll('.hudleft .place > *, .hudleft > .wave, .hudleft .hudrow > *, .hudleft > .goal, .hudright .coins, .hudright .side > *')]
+      .filter(n => !n.hidden && n.offsetParent !== null).find(n => { const b = n.getBoundingClientRect(); return p.x > b.left && p.x < b.right && p.y > b.top && p.y < b.bottom; });
+    return under ? id + ' under ' + (under.id || under.className) : '';
+  });
+  if (hid) errs.push(size + ': ' + path.basename(f) + ' the goal names ' + hid);
 }
 /* Every page gets a speech engine with one on-device voice that only records what it is asked to say, so the speaker
    button on the cards and the Read aloud settings show the same on every machine, and nothing is spoken. */
@@ -475,11 +488,16 @@ try {
     }
     if (!ONLY || ONLY === 'mesa') {
       const r = await watch(await b.newPage({ viewport: { width, height } }), size);
-      await r.goto(srv.url + '?coach=off&start=gulch');
+      // the late save is written from a page with no game on it (the game saves itself as it unloads)
+      await r.goto(srv.url + 'version.json');
+      await r.evaluate(save => { localStorage.clear(); const s = JSON.parse(save); s.at = Date.now(); localStorage.setItem('cg-save', JSON.stringify(s)); }, fs.readFileSync(new URL('./fixtures/falls-hour.json', import.meta.url), 'utf8'));
+      await r.goto(srv.url + '?coach=off#play');
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of MESA) {
         await r.evaluate(go); await sleep(name === 'mesa' || name === 'mesa-sight' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 7000 : 1200);
+        if (process.env.SHOT_NAMES && !process.env.SHOT_NAMES.split(',').includes(name)) continue; // as in the Gulch run
         const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
+        if (process.env.SHOT_PROBE) console.log(name, size, JSON.stringify(await r.evaluate(new Function('return (' + process.env.SHOT_PROBE + ')'))));
       }
       await r.close();
     }

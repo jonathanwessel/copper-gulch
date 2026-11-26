@@ -81,15 +81,28 @@ const R = {
     return 1.35;
   },
   aluminumworks(k, add) {
-    // a long tin pot room with a row of stacks, a glowing pot by the door and stacks of bright ingots
-    k.box(-.1, 0, -.25, 1.5, .5, .8, 'tin', { jit: .05 });
-    k.gable(-.1, .5, -.25, 1.56, .86, .22, 'tinD');
-    windows(k, [-.6, -.2, .2], .22, .16, .16, .14);
-    for (const x of [-.55, -.1, .35]) add('smoke', null, stack(k, x, .64, -.35, .35, .045));
-    k.cyl(.55, 0, .45, .18, .22, 'iron', { seg: 10 });
-    const hot = part(k2 => k2.cyl(0, 0, 0, .15, .02, 'glowO', { mat: 'fire', seg: 10 })); add('hot', hot, new THREE.Vector3(.55, .22, .45));
-    for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) k.box(-.5 + (i - (2 - row) / 2) * .1, row * .05, .55, .08, .05, .18, '#e9eef2', { mat: 'metal' });
-    return .9;
+    // a silver-roofed pot room fed by a power pole with thick cables (aluminum is made with electricity), a ladle
+    // pouring white-hot metal into molds, and tall stacks of shining ingots (clarity fix 8p: it read as a shed)
+    k.box(-.15, 0, -.35, 1.3, .48, .7, 'tinD', { jit: .04 });
+    k.gable(-.15, .48, -.35, 1.36, .76, .2, 'white', { mat: 'metal' });
+    windows(k, [-.6, -.15, .3], .2, .01, .16, .14, { c: 'glowO' });
+    for (const x of [-.55, -.15, .25]) add('smoke', null, stack(k, x, .6, -.45, .3, .04, 'ironL'));
+    // the power pole: a tall post, a crossarm with three white insulators and cables sagging to the roof
+    k.box(.72, 0, -.55, .07, 1.25, .07, 'woodD');
+    k.box(.72, 1.15, -.55, .07, .05, .5, 'woodD');
+    for (const dz of [-.2, 0, .2]) { k.cyl(.72, 1.2, -.55 + dz, .03, .07, 'white', { seg: 6 }); k.box(.6, 1.0, -.55 + dz, .3, .02, .02, 'black', { rz: .55 }); }
+    // the ladle on its frame, tipped toward a row of molds glowing with poured metal
+    k.box(.35, 0, .3, .04, .45, .04, 'iron'); k.box(.75, 0, .3, .04, .45, .04, 'iron'); k.box(.55, .45, .3, .46, .04, .04, 'iron');
+    k.cyl(.55, .24, .3, .13, .16, 'iron', { r2: .09, seg: 10, rz: .5 });
+    const hot = part(k2 => { k2.cyl(0, 0, 0, .1, .02, 'glowO', { mat: 'fire', seg: 10 }); for (let i = 0; i < 3; i++) k2.box(-.25 - i * .17, -.2, .22, .12, .03, .08, 'glowO', { mat: 'fire' }); });
+    add('hot', hot, new THREE.Vector3(.6, .36, .3));
+    for (let i = 0; i < 3; i++) k.box(.3 - i * .17, 0, .52, .14, .12, .1, 'iron');
+    // ingots stacked crosswise, bright and tall enough to read from the map
+    for (const [x, z] of [[-.6, .35], [-.25, .55]]) for (let row = 0; row < 5; row++) for (let i = 0; i < 2; i++) {
+      const across = row % 2 === 1;
+      k.box(x + (across ? 0 : (i - .5) * .12), row * .055, z + (across ? (i - .5) * .12 : 0), across ? .26 : .1, .055, across ? .1 : .26, '#f4f7fa');
+    }
+    return 1.25;
   },
   tireworks(k, add) {
     // a brick shed with a tall stack, a mold that turns a tire, and piles of black tires out front
@@ -104,16 +117,26 @@ const R = {
     return 1.0;
   },
   motorworks(k, add) {
-    // a brick factory with a sawtooth roof, a motor on a test stand with its flywheel turning, and crates
-    k.box(0, 0, -.25, 1.5, .5, .8, 'brickD', { jit: .06 });
-    for (let i = 0; i < 3; i++) k.gable(-.5 + i * .5, .5, -.25, .5, .8, .22, i % 2 ? 'tinD' : 'tin', { ry: Math.PI / 2 });
-    windows(k, [-.5, 0, .5], .2, .16, .16, .14, { c: 'glowW' });
-    k.box(.35, 0, .45, .34, .16, .26, 'woodD');
-    k.box(.35, .16, .45, .22, .16, .18, 'paintR', { mat: 'metal' });
-    for (let i = 0; i < 3; i++) k.cyl(.27 + i * .08, .32, .45, .025, .06, 'steel', { seg: 6 });
-    const fly = part(k2 => { k2.cyl(0, -.02, 0, .12, .04, 'iron', { rx: Math.PI / 2, seg: 12 }); k2.box(0, -.01, -.03, .2, .02, .02, 'steel'); });
-    add('spin', fly, new THREE.Vector3(.12, .26, .45), 'z', 6);
-    crate(k, -.55, .55, .2); crate(k, -.3, .62, .16); barrel(k, -.75, .3, 0, 'paintY');
+    // a brick factory with a sawtooth roof and a big brass gear over its door, and out front a red motor on a test
+    // stand: its cylinders in a row on top, a big flywheel turning and a belt to the wall (clarity fix 8p: it read as
+    // a small shed with a box beside it)
+    k.box(0, 0, -.35, 1.5, .55, .7, 'brickD', { jit: .06 });
+    for (let i = 0; i < 3; i++) { k.gable(-.5 + i * .5, .55, -.35, .5, .74, .24, i % 2 ? 'tinD' : 'tin', { ry: Math.PI / 2 }); k.box(-.5 + i * .5 - .2, .6, -.35, .02, .14, .7, 'glowW'); }
+    windows(k, [-.55, -.25, .25, .55], .22, .01, .14, .14, { c: 'glowW' });
+    k.box(-.02, 0, .01, .3, .36, .02, 'iron');
+    // the gear: a brass ring with ten teeth on the front wall, over the door
+    const gear = part(k2 => { k2.cyl(0, 0, 0, .14, .04, 'paintY', { rx: Math.PI / 2, seg: 12, mat: 'metal' }); k2.cyl(0, 0, .01, .05, .05, 'iron', { rx: Math.PI / 2, seg: 8 }); for (let i = 0; i < 10; i++) { const t = i / 10 * Math.PI * 2; k2.box(Math.cos(t) * .16, Math.sin(t) * .16 - .025, 0, .05, .05, .04, 'paintY', { rz: t, mat: 'metal' }); } });
+    add('spin', gear, new THREE.Vector3(-.02, .46, .04), 'z', .6);
+    // the test stand: a timber bed, the motor block, four cylinder heads, an exhaust pipe and the flywheel
+    k.box(.3, 0, .48, .62, .14, .34, 'woodD');
+    k.box(.3, .14, .48, .46, .22, .26, 'paintR', { mat: 'metal' });
+    for (let i = 0; i < 4; i++) k.box(.14 + i * .11, .36, .48, .08, .08, .2, 'steel', { mat: 'metal' });
+    k.box(.3, .44, .4, .46, .03, .03, 'ironL');
+    add('smoke', null, stack(k, .58, .3, .6, .3, .03));
+    const fly = part(k2 => { k2.cyl(0, -.025, 0, .2, .05, 'iron', { rx: Math.PI / 2, seg: 14 }); for (const r of [0, Math.PI / 2]) k2.box(0, 0, -.03, .34, .03, .02, 'steel', { rz: r }); });
+    add('spin', fly, new THREE.Vector3(-.02, .3, .48), 'z', 6);
+    k.box(-.04, .3, .2, .03, .03, .5, 'black', { rx: .25 });
+    crate(k, -.6, .45, .2); crate(k, -.62, .7, .16); barrel(k, -.35, .7, 0, 'paintY');
     return 1.0;
   },
   autoplant(k, add) {

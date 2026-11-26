@@ -14,6 +14,7 @@ import { towerOpen, towerIn } from './defense.js';
 import { anyAuto } from './automation.js';
 import { armsOpen, armsHere } from './arms.js';
 import { needsYou } from './map.js';
+import { shortInput } from './stall.js';
 
 /* The goods the Goods list shows: what this town's built buildings make (power is not a good: the Water Wheel's card
    shows it). */
@@ -25,10 +26,19 @@ export function stripFit(town, max = Infinity) {
   if (all.length <= max) return { list: all, more: 0 };
   // too many for the room: the goods the towers pay with, then what the town makes, then what it ships in, with the
   // last place a "more" chip that opens the Goods sheet (always room for the tower goods: the owner rule)
-  const tower = towerGoods(town), made = new Set(listedGoods(town));
-  const rank = g => (tower.has(g) ? 0 : made.has(g) ? 1 : 2);
-  const keep = all.slice().sort((a, b) => rank(a) - rank(b)).slice(0, Math.max(tower.size, max - 1));
+  // a good a workshop here waits on keeps its place too, made here or shipped in (clarity fix 8p: the Mesa's Motor Works
+  // said "Not enough wire" while wire sat behind "5 more")
+  const tower = towerGoods(town), made = new Set(listedGoods(town)), block = blockGoods(town);
+  const must = new Set([...tower, ...block].filter(g => all.includes(g)));
+  const rank = g => (must.has(g) ? 0 : made.has(g) ? 1 : 2);
+  const keep = all.slice().sort((a, b) => rank(a) - rank(b)).slice(0, Math.max(must.size, max - 1));
   return { list: all.filter(g => keep.includes(g)), more: all.length - keep.length };
+}
+/* The goods a built workshop here is short of now (its card says "Not enough wire"): the input it has least of. */
+export function blockGoods(town) {
+  const s = new Set();
+  for (const [id, why] of Object.entries(town.starved || {})) if (why === true && BUILDINGS[id] && town.level(id) > 0) { const g = shortInput(town, id); if (g && GOODS[g] && !GOODS[g].grid) s.add(g); }
+  return s;
 }
 /* The goods the town's open or standing towers pay with. */
 function towerGoods(town) {

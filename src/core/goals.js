@@ -316,6 +316,17 @@ export function playStep(game) {
    2: nothing sent the newcomer there, so it never took a contract or built one, and the 20 minutes after the Capital had
    nothing new). A contract is free to take and its goods go by themselves; the building counts its price as have / need,
    and the Capital's card has a Buildings tab with a Build button for each. Never marked done. */
+/* What the Capital's map label asks for when the strip's step is at the Capital: "Upgrade the Rail Office", "Build
+   the Rail Office", "Add a building", or null (its own contract words then). One source with the strip, so the place
+   the player is sent to says the same task (clarity fix 8q: the strip asked for the Rail Office's upgrades while the
+   Capital's label said "Take a contract"). */
+export function capitalAsk(game) {
+  const s = game.town ? goalNow(game) : null;
+  if (!s) return null;
+  if (s.inst) { const i = INSTITUTIONS.find(x => x.id === s.inst); return i ? (s.id.endsWith(':inst') ? 'Build the ' : 'Upgrade the ') + i.name : null; }
+  if (s.next === 'institution') return 'Add a building';
+  return null;
+}
 export function firstInstitution(game) {
   const tr = game.shared.tree, cp = game.shared.capital;
   if (!capitalOpen(game) || !tr || tr.founded.length) return null;
@@ -454,7 +465,16 @@ export function charterStep(game, target) {
 /* The strip's count for a goal with a meter: "wave 9 / 30", "2 / 5 deeds". */
 /* A wave count shows only in the town that must climb, beside its own wave bar: in another town "9 / 30" and then
    "wave 9 / 30" were both read as that town's wave (two reviews of 2026.11.23-2), so there the line alone says it. */
-export const meterWords = (g, game) => { if (g.meterTown && g.meterTown !== game.active) return ''; const [a, b] = g.meter(game); return (g.pre || '') + Math.floor(a) + ' / ' + b + (g.post || ''); };
+/* A wave count says the wave bar's own number, the wave coming or being fought, as the map card does; the step is
+   still done by the best wave beaten, and the bots read that from g.meter (clarity fix 8q: "Wave 1" on the bar beside
+   "Wave 0 / 10" on the strip, one label for two numbers). */
+export const meterWords = (g, game) => {
+  if (g.meterTown && g.meterTown !== game.active) return '';
+  let [a, b] = g.meter(game);
+  const t = g.pre === 'wave ' && g.meterTown && game.towns[g.meterTown];
+  if (t && !t.won) a = Math.min(b, t.wave);
+  return (g.pre || '') + Math.floor(a) + ' / ' + b + (g.post || '');
+};
 export function nextStep(game) {
   const out = [];
   for (const id of TOWN_ORDER) {

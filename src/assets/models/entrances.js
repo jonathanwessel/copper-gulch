@@ -11,7 +11,9 @@ export const ENTRANCES = {
   /* Copper Gulch: a slot canyon. Tall walls of layered rock run from the mouth off the edge of the board; inside, the
      road comes out of a timber mine portal cut through a rockfall that fills the canyon behind it. A collapsed trestle
      leans by the mouth and a signpost carries a wanted poster. e: { mouth: [x, z], portal: [x, z], width, mesa: [4
-     colors] } with the canyon running toward -z. */
+     colors] } with the canyon running toward -z. Thunder Mesa's rock cut sets pit, trestle and rise (clarity fix 8p:
+     its low thin walls, thinned for the Gulch's mortar pit, and the Gulch's fallen trestle read as debris): pit false
+     keeps the east wall whole, trestle false leaves the trestle out, rise is how far in the walls reach full height. */
   canyon: e => {
     const k = new Kit({ aoH: 3 }), R = rng(17), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
     const strata = [...(e.mesa || ['#b35a3a', '#d98a55', '#a94f33', '#e0a46c']), '#8f4a33'];
@@ -20,7 +22,7 @@ export const ENTRANCES = {
       for (let z = mz + .4, i = 0; z > mz - 9.5; i++) { // past here the camera never looks; the mesas carry on
         // thin and low by the mortar pit east of the mouth, broad and tall farther in (review of 2026.11.20-6: the pit
         // looked as if it sat on the canyon's rock)
-        const byPit = side > 0 && z > mz - 6, len = 1.8 + R() * 1.4, rise = Math.min(1, (mz + .4 - z) / 4), H = (1.2 + rise * 1.9) * (.9 + R() * .2) * (byPit ? .5 : 1);
+        const byPit = e.pit !== false && side > 0 && z > mz - 6, len = 1.8 + R() * 1.4, rise = Math.min(1, (mz + .4 - z) / (e.rise || 4)), H = (1.2 + rise * 1.9) * (.9 + R() * .2) * (byPit ? .5 : 1);
         const thick = (byPit ? .6 : 1.3 + R() * .5), x0 = mx + side * ((byPit ? half * .78 : half) + thick / 2 + R() * (byPit ? 0 : .15)); // pulled in toward the road there, so a gap of open ground parts it from the pit
         // layers are added top first: seen from above, each upper layer hides the one below, and drawing it first
         // lets the depth test skip the hidden faces instead of painting every layer over the last (overdraw)
@@ -29,6 +31,12 @@ export const ENTRANCES = {
         for (let l = 0; y < H; l++) { const h = 1 + R() * .5, inset = l * .1 * (1 + R()); layers.push([x0 + side * inset, y, thick - inset * 1.5, h + .02, strata[(l + i) % strata.length]]); y += h; }
         if (R() < .5) k.box(x0, y, z - len / 2, thick * .6, .2, len * .5, strata[3], { ao: false }); // a cap ledge
         for (const [x, yy, w, h, c] of layers.reverse()) k.box(x, yy, z - len / 2, w, h, len + .04, c, { jit: .12, ao: false });
+        // a rock cut without the Gulch's trestle (Thunder Mesa) breaks each block's flat top and foot with boulders, so
+        // seen from above it reads as rock and not as slabs
+        if (e.trestle === false) for (let j = 0; j < 3; j++) {
+          const top = j < 2, r = top ? .35 + R() * .3 : .25 + R() * .2, bx = top ? x0 + (R() - .5) * thick * .7 : x0 - side * (thick / 2 + .05);
+          k.dode(bx, top ? y - .1 : r * .4, z - len * (.2 + R() * .6), r, strata[(i + j) % strata.length], { jit: .2 });
+        }
         z -= len;
       }
     }
@@ -51,13 +59,12 @@ export const ENTRANCES = {
     k.box(mx + .25, 0, pz + .45, .5, .06, .14, 'iron', { ry: -.15 });
     // the collapsed trestle in front of the east wall: two bents standing, the third fallen, a beam down across them
     const tz = mz + .55;
-    for (let b = 0; b < 3; b++) {
+    if (e.trestle !== false) for (let b = 0; b < 3; b++) {
       const x = mx + half + .35 + b * .62, fall = b === 2 ? 1.1 : b * .1;
       for (const sz of [-1, 1]) k.box(x, 0, tz + sz * .2, .07, 1.15 - b * .2, .07, 'wood', { rx: sz * .1, rz: -fall, ao: false });
       k.box(x, .5, tz, .06, .06, .48, 'woodD', { rx: .6, rz: -fall });
     }
-    k.box(mx + half + .9, .75, tz, 1.5, .08, .08, 'woodL', { rz: -.35 });
-    k.box(mx + half + 1.5, 0, tz + .45, 1.1, .07, .07, 'wood', { ry: .7 });
+    if (e.trestle !== false) { k.box(mx + half + .9, .75, tz, 1.5, .08, .08, 'woodL', { rz: -.35 }); k.box(mx + half + 1.5, 0, tz + .45, 1.1, .07, .07, 'wood', { ry: .7 }); }
     // the signpost with a wanted poster, west of the mouth
     const sx0 = mx - half - .1, sz0 = mz + .85;
     k.box(sx0, 0, sz0, .09, 1.15, .09, 'woodD');

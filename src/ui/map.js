@@ -14,7 +14,8 @@ import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
 import { capitalPanel, contractDone, contractMissed, sentWords, influenceWords } from './capital.js';
-import { treeCalls } from '../core/tree.js';
+import { treeCalls, influence, nodeCost, founded as instFounded } from '../core/tree.js';
+import { capitalAsk } from '../core/goals.js';
 import { retryState } from '../core/automation.js';
 import { atWall } from '../core/defense.js';
 
@@ -347,7 +348,11 @@ export function mountMap(root, game, view, shell) {
         }
         else if (r.kind === 'nodes') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.nodes, r.done ? 'done' : 'short'));
-          if (!r.done) kids.push(el('p', 'uses', 'Tap the Capital, then Buildings, and upgrade the ' + r.name + '.'));
+          // what the next one costs, as have / need (clarity fix 8q: nothing said an upgrade takes Influence)
+          const nc = !r.done && capitalOpen(game) && instFounded(game, r.inst) ? nodeCost(game, r.inst) : null;
+          if (nc !== null) { const inf = influence(game); kids.push(stat('Next upgrade', fmt(Math.floor(inf)) + ' / ' + fmt(nc) + ' Influence', inf + 1e-9 >= nc ? 'done' : 'short')); }
+          // no line of how-to here: the Capital's own label on this map says "Upgrade the Rail Office" while the strip asks for
+          // it (fresh-eyes read of 2026.11.26-8: the line read as a manual and repeated the strip)
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];
@@ -435,7 +440,7 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.remove('gold');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, a ? sentWords(a) : 'Take a contract'); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
+        setText(B.wave, capitalAsk(game) || (a ? sentWords(a) : 'Take a contract')); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
         B.vault.hidden = true; B.st.hidden = B.bar.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game)); B.b.classList.add('gold'); // gold: something ready to take, not a problem
       } else {

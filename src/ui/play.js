@@ -89,6 +89,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // one source with the map's labels and the goal strip (needsYou, clarity fix 5)
     mapBtn.classList.toggle('dot', mapDot(game, town.id));
   };
+  /* Two long names ("Thunder Mesa" beside "Copper Gulch") cut short on a phone: the place bar drops to a smaller type
+     first, and clips only if that is not enough (clarity fix 8p). Decided once per name pair and width, with the small
+     type off while it measures, so it never flips back and forth. */
+  let placeSig = '';
+  const fitPlace = () => {
+    const sig = name.textContent + '|' + (backBtn.hidden ? '' : backBtn.textContent + backBtn.className) + '|' + mapBtn.hidden + '|' + left.clientWidth;
+    if (sig === placeSig) return; placeSig = sig;
+    place.classList.remove('tight');
+    if ([name, backBtn].some(n => !n.hidden && n.scrollWidth > n.clientWidth + 1)) place.classList.add('tight');
+  };
   const store = town.def.store || 'vault'; // what raiders ride for here: the vault, or an outpost's stockpile
   // the wave: its number, the vault's strength, and the countdown with a button to call it early
   const wave = el('div', 'wave'); wave.id = 'wave';
@@ -352,7 +362,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     // where shipped goods come from, unless the short warning below says it (review of 2026.11.20-11: "Bricks come by
     // wagon" beside "Not enough bricks" on the Boiler Shop)
-    if (imp.length && !(town.starved[id] && L && shortImp.length && !gridShort && town.starved[id] !== 'towers')) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + ' come by wagon from ' + fromName(imp[0]) + '.'));
+    if (imp.length && !(town.starved[id] && L && shortImp.length && !gridShort && town.starved[id] !== 'towers')) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + (imp.length > 1 || /[^s]s$/.test(GOODS[imp[0]].name) ? ' come' : ' comes') + ' by wagon from ' + fromName(imp[0]) + '.'));
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
       // held back by the tower reserve (src/core/economy.js, WORKSHOP): the yard has the input, the towers come first
@@ -693,8 +703,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   };
   let markAt = null; // the goal's tag's point this frame (frame), for the mark around it (placeMark)
   let markTg = null, markBox = null, markW = 0, markH = 0, markSig = '', stripBox = null, stripH = -1, stripW = '', leftBox = null;
+  // the top bar's pieces a tag must not sit under: each button of a row, each other block whole
+  const barParts = col => [...col.children].flatMap(c => c.classList.contains('place') || c.classList.contains('hudrow') || c.classList.contains('side') ? [...c.children] : [c]);
   const tagSize = new WeakMap(); // each level tag's size, read with the 5-a-second measure
   function measure() {
+    fitPlace();
     fold(); // first, since the card's top and the sheet's room below read the side buttons' height
     // a card at the bottom opens above the goods strip, so the counts stay in view (owner rule: you can always see what
     // you have; review of 2026.11.19-4: the mortar pit card cut off the timber count)
@@ -748,11 +761,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null, sb && sb.height ? { l: sb.left, t: sb.top, r: sb.right, b: sb.bottom } : null);
     }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
-    { const b = left.getBoundingClientRect(); leftBox = b.height ? { l: b.left, r: b.right, b: b.bottom } : null; }
-    // what a level tag may never show cut in half under: the top bar's two columns, the goods strip and an open card or
-    // sheet (review of 2026.11.19-7: "Lv 5" cut by a card's edge, "Lv 13" by the strip, "Lv 8" by Pause)
-    coverBoxes = [left, right, strip.hidden ? null : strip, openId && !card.hidden ? card : null, sheets.current ? document.getElementById('sheet') : null]
-      .filter(Boolean).map(n => [n, n.getBoundingClientRect()]).filter(([, b]) => b.width && b.height).map(([n, b]) => ({ n, l: b.left, r: b.right, t: b.top, b: b.bottom }));
+    // what a level tag may never show cut in half under: the top bar's buttons, the goods strip and an open card or
+    // sheet (review of 2026.11.19-7: "Lv 5" cut by a card's edge, "Lv 13" by the strip, "Lv 8" by Pause). The top bar
+    // counts by its pieces, never its columns' whole boxes: in landscape the left column's box ran 570 px wide past the
+    // goal strip and hid six of nine Mesa pills over open ground (clarity fix 8p)
+    const boxOf = (n, bar) => { const b = n.getBoundingClientRect(); return b.width && b.height ? { n, bar, l: b.left, r: b.right, t: b.top, b: b.bottom } : null; };
+    leftBox = barParts(left).map(n => boxOf(n, true)).filter(Boolean).sort((a, b) => a.t - b.t);
+    coverBoxes = [...leftBox, ...barParts(right).map(n => boxOf(n, true)), ...[strip.hidden ? null : strip, openId && !card.hidden ? card : null, sheets.current ? document.getElementById('sheet') : null]
+      .filter(Boolean).map(n => boxOf(n, false))].filter(Boolean);
     for (const t of Object.values(tag)) if (!t.hidden) tagSize.set(t, [t.offsetWidth, t.offsetHeight]);
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
@@ -764,8 +780,26 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       const k = goalCur.kind, b = (markTg.sell && card.querySelector('#sellTowerHead')) || (k && card.querySelector('.build[data-kind="' + k + '"]')) || (!k && (card.querySelector('#buy') || card.querySelector('.build[data-path]')));
       markTg = b ? { el: b } : null;
     } else if (openId) markTg = null; // a card for something else is open: it has the player's attention
+    slideToGoal();
     if (markTg && markTg.el) { const n = typeof markTg.el === 'string' ? document.querySelector(markTg.el) : markTg.el; if (n && n.offsetParent !== null) { const b = n.getBoundingClientRect(); markBox = { x: b.left - 2, y: b.top - 2, w: b.width + 4, h: b.height + 4 }; } } // snug on the button, so it never covers the next one (review of 2026.11.20-6: the back button's frame sat on Map and its dot)
     else if (markTg && markTg.plot && tag[markTg.plot] && !tag[markTg.plot].hidden) { markW = tag[markTg.plot].offsetWidth + 10; markH = tag[markTg.plot].offsetHeight + 10; }
+  }
+  /* The goal's building or pad under the top bar: the map slides it into the open part once per goal, as a tip card's
+     target does, so its tag and mark lie on it (clarity fix 8p: in landscape the Mesa's Oil Derrick sat under the goal
+     strip, and its tag, held below the bar, pointed at an empty plot). Once per goal, so a player who moves the map
+     after that keeps it where they put it. */
+  let goalSlid = '';
+  function slideToGoal() {
+    const tg = markTg, key = goalId ? town.id + ':' + goalId : '';
+    if (!tg || tg.el || !key || goalSlid === key || !shell.locate || !shell.locate.bring) return;
+    const sp = tg.spot ?? tg.tower, at = tg.plot ? { plot: tg.plot } : sp !== null && sp !== undefined ? { spot: sp } : null;
+    const p = at && shell.locate(at);
+    if (!p) return;
+    const bars = coverBoxes.filter(c => c.bar);
+    if (!bars.some(c => p.x > c.l - 12 && p.x < c.r + 12 && p.y > c.t - 12 && p.y < c.b + 12)) return;
+    goalSlid = key;
+    const top = Math.max(0, ...bars.filter(c => c.l < innerWidth * .6).map(c => c.b)) + GOAL_LIFT + 40, foot = strip.hidden ? innerHeight : strip.getBoundingClientRect().top;
+    shell.locate.bring(at, innerWidth / 2, Math.min(foot - 60, top + (foot - top) * .3)); // the point is its roof: the rest stands below it
   }
   function placeMark() {
     const tg = markTg;
@@ -863,10 +897,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // a tag that would slide under the top bar's left column (the place, the wave row, Pause and the goal strip) sits
       // just below it, still on its building (review of 2026.11.19-5: the goal strip covered the Ridge's top row of tags)
       let py = p && (marked ? p.y - GOAL_LIFT : p.y);
-      if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; if (px - tw / 2 < leftBox.r && px + tw / 2 > leftBox.l && py > leftBox.b && py - th < leftBox.b + 2) py = leftBox.b + 2 + th; } // (only while its building shows below the bar)
+      if (p && leftBox) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of leftBox) if (px - tw / 2 < c.r && px + tw / 2 > c.l && py > c.b && py - th < c.b + 2) py = c.b + 2 + th; } // (only while its building shows below the bar)
       // the goal's tag never hides under the top bar: it sits just below it, over its building (review of 2026.11.20-2:
       // in landscape the Sawmill's lifted tag went under the goal strip, and the goal named a tag no one could see)
-      if (p && marked) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of coverBoxes) if ((c.n === left || c.n === right) && px - tw / 2 < c.r && px + tw / 2 > c.l && py - th < c.b + 2) py = Math.max(py, c.b + 2 + th); markAt = { x: px, y: py }; }
+      if (p && marked) { const [tw, th] = tagSize.get(t) || [56, 26]; for (const c of coverBoxes) if (c.bar && px - tw / 2 < c.r && px + tw / 2 > c.l && py - th < c.b + 2) py = Math.max(py, c.b + 2 + th); markAt = { x: px, y: py }; }
       if (p) { const [tw, th] = tagSize.get(t) || [56, 26], l = px - tw / 2, r = px + tw / 2, tp = py - th; if (coverBoxes.some(c => !c.n.hidden && l < c.r && r > c.l && tp < c.b && py > c.t)) { if (!t.hidden) t.hidden = true; if (marked) markAt = null; continue; } }
       if (t.hidden) t.hidden = false;
       if (p) { const tr = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -100%)`; if (tagTr.get(t) !== tr) { tagTr.set(t, tr); t.style.transform = tr; } }
@@ -879,7 +913,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       } else if (t.dataset.side) { t.dataset.side = ''; t.classList.remove('offl', 'offr'); t.style.removeProperty('--sx'); } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
       const over = !!(foes && !full && p && foes.length && (() => { const [tw, th] = tagSize.get(t) || [32, 32]; return foes.some(f => Math.abs(f.x - px) < tw / 2 + 14 && f.y > py - th - 14 && f.y < py + 18); })());
       if (t.classList.contains('overfoe') !== over) t.classList.toggle('overfoe', over);
-      t.classList.toggle('short', !!(L && town.starved[id] === true)); // held for towers is not a problem to fix
+      const sh = !!(L && town.starved[id] === true); // held for towers is not a problem to fix
+      t.classList.toggle('short', sh);
+      // the pill says in words what its red line means, read aloud and on a mouse hover (clarity fix 8r)
+      const al = BUILDINGS[id].name + (L ? ', level ' + L : '') + (sh ? ', out of materials' : '');
+      if (t.title !== al) { t.title = al; t.setAttribute('aria-label', al); }
       t.classList.toggle('goaltag', !!marked);
       t.classList.toggle('can', !!L && town.coins >= cost(town, id)); // an up mark only on a building, never on an empty plot's Build
       t.classList.toggle('boss', full && foremanOn(town, id));

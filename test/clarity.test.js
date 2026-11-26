@@ -44,10 +44,10 @@ test('a locked lot asks for the level that opens it, in plain words', () => {
 test('a town with no goal left shows the next step for the empire: the wave, then the coins, then the map', () => {
   const g = gulch('cl3'), t = g.town, f = TOWNS.ridge.found;
   allDone(g, 'gulch');
-  t.bestWave = 12;
+  t.bestWave = 12; t.wave = 13; // the bar shows the wave coming after the best one beaten
   let x = goalNow(g);
   assert.equal(x.text, 'Reach wave ' + f.wave + ' in Copper Gulch to open Iron Ridge');
-  assert.equal(meterWords(x, g), 'wave 12 / ' + f.wave, 'the count says what it counts');
+  assert.equal(meterWords(x, g), 'wave 13 / ' + f.wave, 'the count says the number on the wave bar (clarity fix 8q)');
   t.bestWave = f.wave; t.coins = 10;
   x = goalNow(g);
   assert.equal(x.text, 'Save coins to open Iron Ridge');
@@ -60,7 +60,7 @@ test('after Iron Ridge the strip leads to the Capital (the lower wave), then Sil
   const g = gulch('cl4'), t = g.town;
   t.bestWave = 20; t.coins = 1e6; foundTown(g, 'ridge');
   allDone(g, 'gulch'); allDone(g, 'ridge'); allDone(g, 'drycreek'); allDone(g, 'pinehollow');
-  const r = g.towns.ridge; r.bestWave = 10;
+  const r = g.towns.ridge; r.bestWave = 10; r.wave = 11;
   let x = nextStep(g);
   assert.equal(x.next, 'capital');
   // in the Gulch it sends the player to Iron Ridge (clarity fix 3), with no count: it read as the Gulch's wave
@@ -70,7 +70,7 @@ test('after Iron Ridge the strip leads to the Capital (the lower wave), then Sil
   g.go('ridge');
   x = nextStep(g);
   assert.equal(x.text, 'Reach wave ' + CAPITAL_DEF.found.wave + ' in Iron Ridge to build the Capital');
-  assert.equal(meterWords(x, g), 'wave 10 / ' + CAPITAL_DEF.found.wave, 'in Iron Ridge, beside its own wave bar');
+  assert.equal(meterWords(x, g), 'wave 11 / ' + CAPITAL_DEF.found.wave, 'in Iron Ridge, beside its own wave bar, its number');
   g.shared.capital.open = true;
   r.bestWave = TOWNS.falls.found.wave;
   x = nextStep(g);

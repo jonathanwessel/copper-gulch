@@ -151,6 +151,9 @@ html.no3d body { background: var(--bg); }
   .place .townname { padding: 4px 6px; letter-spacing: 0; }
   .place .btn { padding: 4px 7px; }
   .place .backbtn::before { margin-right: 4px; }
+  .place.tight .townname, .place.tight .btn { font-size: .76rem; } /* two long names: smaller type before any name is cut (src/ui/play.js, fitPlace) */
+  .place.tight .btn { padding: 4px 6px; }
+  .place.tight .backbtn.dot { padding-right: 14px; }
 }
 .hudrow .btn { min-height: 34px; padding: 4px 10px; white-space: nowrap; }
 .hudrow .btn.on { background: var(--gold); color: #1d120c; box-shadow: inset 2px 2px 0 #ffe08a, inset -2px -2px 0 #a8801a, 2px 2px 0 var(--line); }
