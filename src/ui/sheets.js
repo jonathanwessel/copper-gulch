@@ -24,7 +24,7 @@ import { itemsOf, researchLevel, researchCost, researchTime, researchBlock, star
 import { PERKS, DEEDS } from '../data/perks.js';
 import { deedParts, nextDeed, signCharter, pickPerk, perkState } from '../core/charter.js';
 import { TOWNS } from '../data/towns/index.js';
-import { canFound, foundTown, nextTowns, deedsOf } from '../core/empire.js';
+import { canFound, foundTown, nextTowns, deedsOf, nodesHeld } from '../core/empire.js';
 import { capitalNext, canFoundCapital } from '../core/capital.js';
 import { autoOpen, autoOf, setAuto, retryState, towerBlock, towerEvery, nextTowerUp, nextResearch, foremenOf, foremenWorking, setForemen } from '../core/automation.js';
 import { PATH_LEVEL, TOWERS } from '../data/towers.js';
@@ -289,8 +289,8 @@ export function foundSheet(game, id, go) {
   return body => {
     const d = TOWNS[id], f = d.found, from = TOWNS[f.from].short || TOWNS[f.from].name;
     const out = d.outpost && TOWNS[d.outpost];
-    const wave = el('p', 'uses'), coins = el('p', 'uses'), deeds = el('p', 'uses');
-    body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, ...(f.deeds ? [deeds] : []), coins);
+    const wave = el('p', 'uses'), coins = el('p', 'uses'), deeds = el('p', 'uses'), nodes = Object.keys(f.nodes || {}).map(() => el('p', 'uses'));
+    body.append(el('p', 'uses', 'Start a new town that makes ' + (d.makesText || d.era.toLowerCase()) + '.' + (out ? ' ' + out.name + ', a new outpost, opens too.' : '')), wave, ...(f.deeds ? [deeds] : []), ...nodes, coins);
     const row = el('div', 'row'), b = btn('Start ' + d.name, 'btn primary buy', 'foundTown');
     b.addEventListener('click', () => { if (foundTown(game, id)) go(id); });
     row.append(b); body.append(row);
@@ -301,6 +301,11 @@ export function foundSheet(game, id, go) {
       if (wave.textContent !== a) wave.textContent = a;
       if (coins.textContent !== m) coins.textContent = m;
       if (f.deeds) { const h = deedsOf(game), x = 'Hold ' + f.deeds + ' deeds' + (h >= f.deeds ? ' · Done' : ' · You have ' + h + '. Sign a charter to get more.'); if (deeds.textContent !== x) deeds.textContent = x; }
+      Object.entries(f.nodes || {}).forEach(([inst, n], i) => {
+        const name = INSTITUTION[inst].name, h = nodesHeld(game, inst);
+        const x = n + ' ' + name + ' upgrades' + (h >= n ? ' · Done' : ' · You have ' + h + '. Buy them at the Capital.');
+        if (nodes[i].textContent !== x) nodes[i].textContent = x;
+      });
       b.disabled = !canFound(game, id);
     };
     paint();

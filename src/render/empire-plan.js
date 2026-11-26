@@ -253,6 +253,7 @@ export const FLAVOR = {
   sandybend: { kind: 'dune', n: 7, from: .8, to: 6 },
   drycreek: { kind: 'sage', n: 18, from: .6, to: 5.5 },
   falls: { kind: 'reed', n: 16, from: .5, to: 4.5 },
+  mesa: { kind: 'hoodoo', n: 9, from: .9, to: 4.5 }, // Thunder Mesa's own red rock pillars, in its darker tones
 };
 export function flavor(id, free, seed = 7) {
   const F = FLAVOR[id];

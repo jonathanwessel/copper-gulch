@@ -464,6 +464,19 @@ export const EXPLAINERS = [
     text: 'Wave 10 brings an ironclad steamer down the river. Its plates stop part of every hit. When it is nearly beaten it lets off steam and goes faster. Mortars and the Still hurt it most.',
     when: h => h.wave >= 9, at: () => ({ el: '#wave' }),
   },
+  // Thunder Mesa (PLAN.md M6b, part 1a)
+  {
+    id: 'found-mesa', covers: ['found:mesa'],
+    title: 'Thunder Mesa',
+    text: 'Thunder Mesa is in sight. Tap Map, then tap the new town to see what it takes. It needs 3 Rail Office upgrades at the Capital.',
+    when: h => h.next.includes('mesa'), at: () => ({ el: '#mapBtn' }),
+  },
+  {
+    id: 'mesa-welcome', town: 'mesa', now: 1, covers: ['welcome:mesa'],
+    title: 'Welcome to Thunder Mesa',
+    text: 'This town pumps oil and builds motors and airships. Start with the Oil Derrick. Crossbows here are built with crude oil.',
+    when: () => true, at: () => ({ plot: 'derrick' }),
+  },
   {
     id: 'sb-welcome', town: 'sandybend', now: 1, covers: ['welcome:sandybend'],
     title: 'Welcome to Sandy Bend',

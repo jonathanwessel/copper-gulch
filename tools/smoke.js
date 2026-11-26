@@ -1457,7 +1457,7 @@ async function run() {
       }));
       // the look pass (M5b): no plate under any town, a surveyors' camp on land not open yet, dirt roads before the Rail Office
       if (m.land.plates || !m.land.camps.includes('falls') || !m.land.camps.includes('sandybend') || m.kind !== 'road') bad.push('the map land is wrong (' + JSON.stringify(m.land) + ', ' + m.kind + ')');
-      if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge,sandybend,falls' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
+      if (m.canvases !== 1 || m.town || m.dio !== 'gulch,pinehollow,ridge' || m.routes !== 'gulch>ridge' || m.badges !== 'capital,drycreek,gulch*,pinehollow,ridge,sandybend,falls,mesa' || !m.pause || !/\d/.test(m.coins) || m.back !== 'Back to Copper Gulch') bad.push('the map is wrong (' + JSON.stringify(m) + ')');
       bad.push(...(await check(page)).map(b => 'map: ' + b));
       // no label covers more than a third of its own town, or any town's middle (two reviews of 2026.11.21-5: on a phone
       // the labels covered the Capital, the falls and most of Iron Ridge)
@@ -1756,7 +1756,7 @@ async function run() {
   const srvRd = await start(0), bRd = await chromium.launch();
   try {
     const { ROAD_CHECK } = await import('./road-probe.js'), bad = [];
-    for (const [w, h] of [[400, 860], [430, 930]]) for (const town of ['drycreek', 'gulch', 'ridge', 'pinehollow', 'falls']) {
+    for (const [w, h] of [[400, 860], [430, 930]]) for (const town of ['drycreek', 'gulch', 'ridge', 'pinehollow', 'falls', 'mesa']) {
       const page = await bRd.newPage({ viewport: { width: w, height: h } }), errs = [];
       page.on('pageerror', e => errs.push(e.message));
       await page.goto(srvRd.url + '?coach=off&start=' + town); await waitFor(page, () => window.CG && CG.ready);
@@ -1871,7 +1871,7 @@ async function run() {
     const ids = await page.evaluate(async () => {
       const g = CG.game, t = g.town; t.bestWave = 60; g.shared.purse.coins = 1e12;
       const E = await import('./src/core/empire.js');
-      for (const id of ['drycreek', 'ridge', 'pinehollow', 'falls', 'sandybend']) { try { if (!g.towns[id]) E.foundTown(g, id); if (!g.towns[id]) g.addTown(id); } catch (e) { /* not foundable from here */ } if (g.towns[id]) g.towns[id].bestWave = Math.max(g.towns[id].bestWave || 0, 60); }
+      for (const id of ['drycreek', 'ridge', 'pinehollow', 'falls', 'sandybend', 'mesa']) { if (id === 'mesa') { g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = 3; } try { if (!g.towns[id]) E.foundTown(g, id); if (!g.towns[id]) g.addTown(id); } catch (e) { /* not foundable from here */ } if (g.towns[id]) g.towns[id].bestWave = Math.max(g.towns[id].bestWave || 0, 60); }
       (await import('./src/core/capital.js')).foundCapital(g); g.shared.purse.coins = 1e12;
       (await import('./src/core/tree.js')).foundInstitution(g, 'university');
       const R = await import('./src/core/research.js'), A = await import('./src/core/automation.js');

@@ -146,6 +146,44 @@ export const RESEARCH = {
     effects: [{ stat: 'prod:dynamo', per: .6 }, { stat: 'prod:telegraph', per: .6 }],
     downside: [{ stat: 'use:dynamo:power', per: 1 }, { stat: 'use:telegraph:power', per: 1 }],
   },
+  // Thunder Mesa (a first pass on prices, PLAN.md M6b part 1a)
+  pumpjacks: {
+    name: 'Pump Jacks', town: 'mesa', max: 5, cost: 15000,
+    about: 'The Oil Derrick and the Rubber Farm work 25% faster.',
+    effects: [{ stat: 'prod:derrick', per: .25 }, { stat: 'prod:rubberfarm', per: .25 }],
+  },
+  crushers: {
+    name: 'Ore Crushers', town: 'mesa', max: 5, cost: 30000,
+    about: 'The Bauxite Pit and the Aluminum Works work 25% faster.',
+    effects: [{ stat: 'prod:bauxitepit', per: .25 }, { stat: 'prod:aluminum', per: .25 }],
+  },
+  cracking: {
+    name: 'Cracking Towers', town: 'mesa', max: 5, cost: 60000,
+    about: 'The Refinery and the Tire Works work 25% faster.',
+    effects: [{ stat: 'prod:refinery', per: .25 }, { stat: 'prod:tireworks', per: .25 }],
+  },
+  stormwalls: {
+    name: 'Storm Walls', town: 'mesa', max: 5, cost: 25000,
+    about: 'Your vault can take 25% more hits.',
+    effects: [{ stat: 'vault', per: .25 }],
+  },
+  searchlights: {
+    name: 'Searchlights', town: 'mesa', max: 5, cost: 40000,
+    about: 'Every tower shoots 10% faster.',
+    effects: [{ stat: 'towerRate', per: .1 }],
+  },
+  leases: {
+    name: 'Oil Leases', town: 'mesa', max: 5, cost: 50000,
+    about: 'Everything you sell earns 10% more coins.',
+    effects: [{ stat: 'price', per: .1 }],
+  },
+  assembly: {
+    name: 'Assembly Line', town: 'mesa', max: 2, cost: 200000,
+    about: 'Motors and airships are made 60% faster.',
+    worse: 'Each motor burns twice the fuel.',
+    effects: [{ stat: 'prod:motorworks', per: .6 }, { stat: 'prod:airshipworks', per: .6 }],
+    downside: [{ stat: 'use:motorworks:fuel', per: 1 }],
+  },
 };
 
 export const GROWTH = 3;        // each level costs this many times the last

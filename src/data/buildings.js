@@ -34,6 +34,17 @@ export const BUILDINGS = {
   bulbworks: { name: 'Bulb Works', town: 'falls', makes: 'bulbs', inputs: { glass: 1, wire: 1, power: 1 }, rate: .25, cost: 12000, growth: 1.2, needs: { wiremill: 3 }, model: 'bulbworks' },
   dynamo: { name: 'Dynamo Works', town: 'falls', makes: 'dynamos', inputs: { wire: 1, steel: 1, power: 1 }, rate: .2, cost: 20000, growth: 1.2, needs: { wiremill: 5 }, model: 'dynamo' },
   telegraph: { name: 'Telegraph Works', town: 'falls', makes: 'telegraphs', inputs: { wire: 2, bulbs: 1, rails: 1, power: 1 }, rate: .08, cost: 60000, growth: 1.2, needs: { bulbworks: 5, dynamo: 3 }, model: 'telegraph' },
+  // Thunder Mesa: oil and flight. Its Motor Works and Airship Works need wire and dynamos from Silver Falls, and its
+  // Automobile Plant steel from Iron Ridge. A first pass on prices (PLAN.md M6b, part 1a); part 1b tunes them.
+  derrick: { name: 'Oil Derrick', town: 'mesa', makes: 'oil', inputs: {}, rate: 1.2, cost: 600, growth: 1.15, model: 'derrick' },
+  bauxitepit: { name: 'Bauxite Pit', town: 'mesa', makes: 'bauxite', inputs: {}, rate: .8, cost: 3000, growth: 1.15, needs: { derrick: 3 }, model: 'bauxitepit' },
+  rubberfarm: { name: 'Rubber Farm', town: 'mesa', makes: 'rubber', inputs: {}, rate: 1, cost: 6000, growth: 1.15, needs: { derrick: 5 }, model: 'rubberfarm' },
+  refinery: { name: 'Refinery', town: 'mesa', makes: 'fuel', inputs: { oil: 2 }, rate: .5, cost: 15000, growth: 1.17, needs: { derrick: 4 }, model: 'refinery' },
+  aluminum: { name: 'Aluminum Works', town: 'mesa', makes: 'aluminum', inputs: { bauxite: 2, fuel: 1 }, rate: .4, cost: 30000, growth: 1.17, needs: { bauxitepit: 5, refinery: 1 }, model: 'aluminumworks' },
+  tireworks: { name: 'Tire Works', town: 'mesa', makes: 'tires', inputs: { rubber: 2 }, rate: .5, cost: 30000, growth: 1.17, needs: { rubberfarm: 3 }, model: 'tireworks' },
+  motorworks: { name: 'Motor Works', town: 'mesa', makes: 'motors', inputs: { fuel: 1, aluminum: 1, wire: 1 }, rate: .2, cost: 80000, growth: 1.2, needs: { aluminum: 3, refinery: 3 }, model: 'motorworks' },
+  autoplant: { name: 'Automobile Plant', town: 'mesa', makes: 'autos', inputs: { motors: 1, tires: 4, steel: 1 }, rate: .05, cost: 200000, growth: 1.2, needs: { motorworks: 3, tireworks: 5 }, model: 'autoplant' },
+  airshipworks: { name: 'Airship Works', town: 'mesa', makes: 'airships', inputs: { motors: 2, aluminum: 3, dynamos: 1 }, rate: .04, cost: 600000, growth: 1.2, needs: { motorworks: 5, aluminum: 5 }, model: 'airshipworks' },
   // Sandy Bend, the third outpost
   sandwash: { name: 'Sand Wash', town: 'sandybend', makes: 'sand', inputs: {}, rate: .9, cost: 15, growth: 1.15, model: 'sandwash' },
   quartzdig: { name: 'Quartz Diggings', town: 'sandybend', makes: 'quartz', inputs: {}, rate: .6, cost: 40, growth: 1.15, needs: { sandwash: 2 }, model: 'quartzdig' },

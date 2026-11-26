@@ -7,7 +7,9 @@ export const CAPITAL = [0, 0];
    clockwise from north (-z). The Gulch is north, Iron Ridge and Silver Falls south-west and south-east (a phone sees the south side nearer, so the busier pair sits there); the two side
    slots wait for Thunder Mesa and Radium Springs. Each board turns to face outward (src/render/empire-plan.js, turnOf). */
 export const RING = { town: [9, 13.5], outpost: [16.5, 27] };
-export const SLOTS = { gulch: 0, ridge: 216, falls: 144, mesa: 72, radium: 288 };
+// the side slots sit at 80 and 280, not 72 and 288: at 72 Thunder Mesa's road met the Capital's plaza beside the Gulch's and
+// Dry Creek's, and their wagons overlapped there (test/trains.test.js, 2026.11.26-5)
+export const SLOTS = { gulch: 0, ridge: 216, falls: 144, mesa: 80, radium: 280 };
 // Dry Creek stands further out than the others: the Gulch's canyon runs long toward it, and the Gulch's label sits
 // between them on a phone
 const DRY = [RING.outpost[0], RING.outpost[1] + 5];
@@ -19,5 +21,6 @@ export const SITES = {
   pinehollow: onRing(SLOTS.ridge, RING.outpost),
   falls: onRing(SLOTS.falls, RING.town),
   sandybend: onRing(SLOTS.falls, RING.outpost),
+  mesa: onRing(SLOTS.mesa, RING.town),
 };
 export const DIORAMA = .58; // a town's board drawn on the map at this scale

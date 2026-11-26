@@ -16,6 +16,7 @@ import { waterCut, crossings, bridgePlan, RAMP } from './bridge-plan.js';
 import { Militia } from './militia.js';
 import '../assets/models/ridge.js'; // adds the Iron Ridge and Pine Hollow recipes to makeBuilding
 import '../assets/models/falls.js'; // and the Silver Falls and Sandy Bend ones
+import '../assets/models/mesa.js'; // and Thunder Mesa's
 
 // scratch objects reused every frame (no garbage for the collector to stutter on)
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3(), _pos = new THREE.Vector3();

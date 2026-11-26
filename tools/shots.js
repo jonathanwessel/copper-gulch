@@ -369,8 +369,37 @@ const FALLS = [
   ['sandybend-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0], z: 2.6, yaw: 0, pitch: .5, dist: 10 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
   ['falls-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('falls'); }],
 ];
+// Thunder Mesa (M6b, part 1a): in sight on the map with its Rail Office rule, then founded: its rock cut, every
+// building at a few levels, the Motor Works card with its import, a fight on the road, and the map with it open
+const MESA = [
+  ['mesa-sight', async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
+    const n = document.getElementById('newsOk'); if (n) n.click();
+    localStorage.clear(); document.getElementById('play').click();
+    for (let i = 0; i < 150 && !(window.CG && CG.game && CG.town && CG.play); i++) await wait(100);
+    const g = CG.game; (await import('./src/core/outpost.js')).grantOutpost(g, 'drycreek');
+    for (const id of ['ridge', 'pinehollow', 'falls', 'sandybend']) g.addTown(id);
+    g.towns.falls.bestWave = 31; g.towns.falls.buildings.wiremill = 4; g.towns.falls.buildings.dynamo = 2; g.towns.ridge.buildings.steelmill = 4;
+    g.shared.capital.open = true; g.shared.tree.founded.push('transport'); g.shared.tree.nodes.transport = 1; g.shared.purse.coins = 2e9;
+    CG.openMap(); for (let i = 0; i < 60 && !(CG.mapui && CG.map && CG.map.frames > 10); i++) await wait(100);
+    CG.mapui.openSite('mesa'); await wait(1000);
+  }],
+  ['mesa', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.game.shared.tree.nodes.transport = 3; CG.mapui.openSite('mesa'); await wait(400); document.getElementById('mapFound').click(); for (let i = 0; i < 60 && !(CG.town && CG.game.active === 'mesa'); i++) await wait(100); }],
+  ['mesa-entry', () => { const t = CG.game.town, r = CG.town.rig, m = t.def.board.entrance.mouth, v = { x: m[0] + 2, z: 1.4, yaw: 0, pitch: .5, dist: 10.5 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
+  ['mesa-built', () => {
+    CG.town.rig.reset(); const t = CG.game.town; t.coins = 1e10;
+    for (const [id, n] of Object.entries({ derrick: 12, bauxitepit: 10, rubberfarm: 6, refinery: 8, aluminum: 6, tireworks: 6, motorworks: 5, autoplant: 3, airshipworks: 2 })) { CG.play.open(id); for (let i = 0; i < n; i++) document.getElementById('buy').click(); }
+    CG.play.close();
+  }],
+  ['mesa-motors', () => { CG.play.open('motorworks'); }],
+  ['mesa-fight', () => {
+    const t = CG.game.town; CG.play.close(); t.flags['open:mortar'] = true; Object.assign(t.goods, { oil: 900, bauxite: 900, fuel: 900, aluminum: 900 }); t.sell = { oil: false, bauxite: false, fuel: false, aluminum: false };
+    for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'frost'], [3, 'still'], [4, 'crossbow'], [5, 'cannon'], [t.def.board.far, 'mortar']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); }
+    CG.play.close(); t.wave = Math.max(t.wave, 5); document.getElementById('callWave').click();
+  }],
+  ['mesa-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('mesa'); }],
+];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const ONLY = process.argv[3]; // optional: only this run (gulch, outpost, ridge or falls)
+const ONLY = process.argv[3]; // optional: only this run (gulch, outpost, ridge, falls or mesa)
 
 fs.mkdirSync(dir, { recursive: true });
 const srv = await start(0), b = await chromium.launch(), wrote = [], errs = [];
@@ -431,6 +460,16 @@ try {
       for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
       for (const [name, go] of FALLS) {
         await r.evaluate(go); await sleep(name === 'falls' || name === 'sandybend' || name === 'falls-sight' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 7000 : name === 'steamer' ? 150 : 1200);
+        const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
+      }
+      await r.close();
+    }
+    if (!ONLY || ONLY === 'mesa') {
+      const r = await watch(await b.newPage({ viewport: { width, height } }), size);
+      await r.goto(srv.url + '?coach=off&start=gulch');
+      for (let i = 0; i < 100 && !(await r.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
+      for (const [name, go] of MESA) {
+        await r.evaluate(go); await sleep(name === 'mesa' || name === 'mesa-sight' ? 3000 : name.endsWith('-entry') ? 3500 : name.endsWith('-fight') ? 7000 : 1200);
         const f = path.join(dir, `${name}-${size}.png`); await shot(r, f, size);
       }
       await r.close();

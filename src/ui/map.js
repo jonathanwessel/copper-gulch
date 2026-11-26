@@ -59,6 +59,7 @@ function ruleText(game, r, short = false) {
   if (r.kind === 'wave') return (short ? 'Opens at wave ' : 'Beat wave ') + r.wave + ' in ' + shortOf(r.town);
   if (r.kind === 'coins') return fmt(r.coins) + ' coins';
   if (r.kind === 'deeds') return short ? 'Needs ' + r.deeds + ' deeds' : 'Deeds';
+  if (r.kind === 'nodes') return short ? 'Needs the ' + r.name : r.name + ' upgrades';
   if (r.kind === 'with') return short ? 'Needs ' + shortOf(r.town) : 'It opens when you start ' + nameOf(r.town) + '.';
   if (r.kind === 'win') return short ? 'Win ' + shortOf(r.town) : 'It opens when you win ' + nameOf(r.town) + '.';
   return short ? 'Coming later' : 'The Capital will be built here.';
@@ -343,6 +344,10 @@ export function mountMap(root, game, view, shell) {
         if (r.kind === 'deeds') {
           kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.deeds, r.done ? 'done' : 'short'));
           if (!r.done) kids.push(el('p', 'uses', 'Tap Perks in a town to sign a charter. That town starts over at wave 1 and you get deeds.')); // says what a charter does (review of 2026.11.20-14)
+        }
+        else if (r.kind === 'nodes') {
+          kids.push(stat(ruleText(game, r), r.done ? 'Done' : r.have + ' / ' + r.nodes, r.done ? 'done' : 'short'));
+          if (!r.done) kids.push(el('p', 'uses', 'Tap the Capital, then Buildings, and upgrade the ' + r.name + '.'));
         }
         else if (r.kind === 'wave' || r.kind === 'coins') {
           const from = game.towns[id === 'capital' ? CAPITAL_DEF.found.from : (TOWNS[id].found || {}).from];

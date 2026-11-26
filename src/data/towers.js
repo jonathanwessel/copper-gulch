@@ -16,25 +16,25 @@
 export const TOWERS = {
   crossbow: {
     name: 'Crossbow', about: 'Fires fast, one shot at a time. Best against horsemen.', best: { runner: 2 }, bestText: 'Horsemen',
-    coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
+    coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 }, mesa: { oil: 8 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot also hits the raiders around it.', bestText: 'Bunched-up raiders',
-    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.24, // 1.24 since 2026.11.20-17 (was 1.25): with more pads one Cannon did 37% of the economy player's damage in Silver Falls
+    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 }, mesa: { bauxite: 6 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.24, // 1.24 since 2026.11.20-17 (was 1.25): with more pads one Cannon did 37% of the economy player's damage in Silver Falls
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',
-    coins: 100, goods: { gulch: { planks: 4, clay: 3 }, ridge: { coal: 4, stone: 3 }, falls: { quartz: 4, sand: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true, grow: 1.24,
+    coins: 100, goods: { gulch: { planks: 4, clay: 3 }, ridge: { coal: 4, stone: 3 }, falls: { quartz: 4, sand: 3 }, mesa: { bauxite: 4, oil: 3 } }, dmg: 4, rate: 1, range: 2.1, slow: .45, pulse: true, grow: 1.24,
   },
   still: {
     name: 'Snake Oil Still', about: 'Throws poison that eats armor. Best against brutes and {boss}.',
-    coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { stone: 4, coal: 3 }, falls: { sand: 4, glass: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
+    coins: 100, goods: { gulch: { ore: 4, planks: 3 }, ridge: { stone: 4, coal: 3 }, falls: { sand: 4, glass: 3 }, mesa: { oil: 4, fuel: 3 } }, dmg: 5, rate: .7, range: 2.4, poison: 6.5, cloud: .9,
     best: { armored: 2.2 }, bestText: 'Brutes and {boss}',
   },
   // reaches from half to twice a normal tower's reach (NORMAL_REACH): 1.4 to 5.6
   mortar: {
     name: 'Mortar', about: 'Lobs shells far over the road, not up close. Best against {boss}.',
-    coins: 400, goods: { gulch: { copper: 6, bricks: 6 }, ridge: { pigiron: 6, stone: 6 }, falls: { glass: 6, quartz: 6 } }, dmg: 36, rate: .3, range: 5.6, minRange: 1.4, splash: 1.4, grow: 1.19,
+    coins: 400, goods: { gulch: { copper: 6, bricks: 6 }, ridge: { pigiron: 6, stone: 6 }, falls: { glass: 6, quartz: 6 }, mesa: { aluminum: 6, bauxite: 6 } }, dmg: 36, rate: .3, range: 5.6, minRange: 1.4, splash: 1.4, grow: 1.19,
     best: { boss: 2.5 }, bestText: 'Big groups and {boss}',
     flight: 1.5, lob: true, long: true, opens: 12,
   },

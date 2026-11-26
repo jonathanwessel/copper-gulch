@@ -11,7 +11,8 @@ import { SITES, CAPITAL } from '../data/empire.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { isOutpost, gridOf } from './economy.js';
-import { canFound, nextTowns, deedsOf } from './empire.js';
+import { canFound, nextTowns, deedsOf, nodesHeld } from './empire.js';
+import { INSTITUTIONS } from '../data/institutions.js';
 import { capitalOpen, capitalNext, canFoundCapital } from './capital.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { treeCalls } from './tree.js';
@@ -66,7 +67,8 @@ export function makesOf(id) {
 }
 
 /* What a town that is not open yet takes: [{ kind: 'wave', town, wave, done } | { kind: 'coins', coins, done } |
-   { kind: 'deeds', deeds, have, done } (deeds the empire holds) | { kind: 'with', town } (it opens with that town) | { kind: 'win', town } (winning that outpost opens it) |
+   { kind: 'deeds', deeds, have, done } (deeds the empire holds) | { kind: 'nodes', inst, name, nodes, have, done } (upgrades of one
+   Capital building, Thunder Mesa's Rail Office) | { kind: 'with', town } (it opens with that town) | { kind: 'win', town } (winning that outpost opens it) |
    { kind: 'later' }], and ready: it can be founded now. The Capital lists Iron Ridge's wave and the coins. */
 export function lockedRules(game, id) {
   if (id === 'capital') {
@@ -82,6 +84,7 @@ export function lockedRules(game, id) {
     return {
       rules: [{ kind: 'wave', town: f.from, wave: f.wave, done: !!from && (from.bestWave || 0) >= f.wave },
         ...(f.deeds ? [{ kind: 'deeds', deeds: f.deeds, have: deedsOf(game), done: deedsOf(game) >= f.deeds }] : []),
+        ...Object.entries(f.nodes || {}).map(([inst, n]) => ({ kind: 'nodes', inst, name: INSTITUTIONS.find(i => i.id === inst).name, nodes: n, have: nodesHeld(game, inst), done: nodesHeld(game, inst) >= n })),
         { kind: 'coins', coins: f.coins, done: !!from && from.coins + 1e-9 >= f.coins }],
       ready: canFound(game, id),
     };

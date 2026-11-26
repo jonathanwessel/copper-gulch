@@ -330,7 +330,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     line.setAttribute('aria-expanded', String(why && !!L));
     if (why && L) card.append(explainBox(made));
     const ins = Object.entries(b.inputs), goodsIn = ins.filter(([k]) => !isGrid(k)); // power is not used up by each one, so it has its own line (review of 2026.11.20-12: "Each glass uses 2 sand and 1 power")
-    if (goodsIn.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + goodsIn.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).join(' and ') + '.'));
+    if (goodsIn.length) card.append(el('p', 'uses', 'Each ' + oneOf(g) + ' uses ' + goodsIn.map(([k]) => fmt(uses(town, id, k)) + ' ' + GOODS[k].name.toLowerCase()).reduce((s, x, i, a) => s + (i ? (i === a.length - 1 ? ' and ' : ', ') : '') + x, '') + '.')); // "1 fuel, 1 aluminum and 1 wire" (fresh-eyes read of 2026.11.26-5)
     usedEl = null; if (usedText) card.append(usedEl = el('p', 'uses', usedText)); // what goes in, then where it goes
     // the tapped row stays in view above the pinned price, down to the line of where its goods go (review of
     // 2026.11.23-9: that last line sat under the pinned bar)

@@ -330,6 +330,9 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
 /* The chain rules (GDD.md): step value 1.3-1.6x, balanced at equal levels, one maker per good, imports from earlier
    towns only, and every town's top good needs an import (except the first town, which has nothing to import).
    Outposts are exempt: they make raw goods only, which may be goods a town makes too. */
+/* Is there an unticked box in PLAN.md that builds this outpost ("Outpost 4, Tar Seep")? id 'tarseep' matches a box
+   that names "Tar Seep" with its spaces taken out. */
+const openBoxNames = id => read('PLAN.md').split('\n').some(l => l.startsWith('- [ ] ') && /Outpost \d/.test(l) && l.replace(/[^A-Za-z]/g, '').toLowerCase().includes(id.toLowerCase()));
 export function chainRules() {
   const p = [], maker = {}, outpost = id => TOWNS[id] && TOWNS[id].kind === 'outpost';
   for (const [id, b] of Object.entries(BUILDINGS)) {
@@ -356,7 +359,9 @@ export function chainRules() {
   towns.forEach((id, i) => { // the first town has nothing to import; every later one names its outpost (GDD.md, Outposts)
     const t = TOWNS[id];
     if (i > 0 && !t.imports.length) p.push(id + ': its top good needs no import');
-    if (i > 0 && !(t.outpost && outpost(t.outpost))) p.push(id + ': names no outpost (town.outpost)');
+    // a town whose outpost ships in a later box names it in outpostSoon, and PLAN.md must still hold that open box
+    const soon = !t.outpost && t.outpostSoon && openBoxNames(TOWNS[id].outpostSoon);
+    if (i > 0 && !soon && !(t.outpost && outpost(t.outpost))) p.push(id + ': names no outpost (town.outpost)');
   });
   for (const id of TOWN_ORDER) for (const b of TOWNS[id].buildings) if (!BUILDINGS[b] || BUILDINGS[b].town !== id) p.push(id + ' lists building ' + b + ' of another town');
   return p;

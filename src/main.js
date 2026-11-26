@@ -26,8 +26,8 @@ setInterval(() => {
   audio.mood(moodOf({ title: !g, map: !!(window.CG && window.CG.map), phase: ws ? ws.phase : 'break', boss: !!(ws && ws.phase === 'wave' && bossWave(t, t.wave)) }));
   audio.tick();
 }, 120);
-// the test tools may start a new game in one later town alone (?start=gulch, ridge, pinehollow or falls); players always start in Dry Creek
-const START = ['gulch', 'ridge', 'pinehollow', 'falls'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
+// the test tools may start a new game in one later town alone (?start=gulch, ridge, pinehollow, falls or mesa); players always start in Dry Creek
+const START = ['gulch', 'ridge', 'pinehollow', 'falls', 'mesa'].includes(new URLSearchParams(location.search).get('start')) ? new URLSearchParams(location.search).get('start') : 'drycreek';
 const CG = window.CG = { version: GAME_VERSION, news: GAME_NEWS, APP, checkUpdates, INSTALL, installState, audio, speech, scene: null, ready: false, game: null, town: null, play: null, map: null, mapui: null };
 const title = mountTitle(document.getElementById('app'), { onPlay: () => startGame(), slot: slotSummary(activeSlot()), slotNo: activeSlot() });
 initUpdates();

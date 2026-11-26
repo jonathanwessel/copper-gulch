@@ -12,6 +12,10 @@ import { setHold } from './defense.js';
 /* Deeds the empire holds (game.shared.charter, src/core/charter.js), read here without importing the charter system. */
 export const deedsOf = game => (game.shared && game.shared.charter && game.shared.charter.deeds) || 0;
 const deedsOk = (game, f) => !f.deeds || deedsOf(game) >= f.deeds;
+/* Empire tree upgrades bought in one institution (game.shared.tree, src/core/tree.js), read here without importing it.
+   A town that names nodes ({ transport: 3 }, Thunder Mesa) needs that many upgrades of each before it can be founded. */
+export const nodesHeld = (game, id) => (game.shared && game.shared.tree && game.shared.tree.nodes && game.shared.tree.nodes[id]) || 0;
+const nodesOk = (game, f) => !f.nodes || Object.entries(f.nodes).every(([id, n]) => nodesHeld(game, id) >= n);
 
 /* Towns not yet open whose founding the player can see: [{ id, from, wave, coins, ready, short }]. */
 export function nextTowns(game) {
@@ -21,7 +25,7 @@ export function nextTowns(game) {
     if (!f || game.towns[id]) continue;
     const from = game.towns[f.from];
     if (!from || (from.bestWave || 0) < (f.shows ?? f.wave)) continue;
-    out.push({ id, ...f, waveOk: from.bestWave >= f.wave, coinsOk: from.coins + 1e-9 >= f.coins, deedsOk: deedsOk(game, f), ready: canFound(game, id) });
+    out.push({ id, ...f, waveOk: from.bestWave >= f.wave, coinsOk: from.coins + 1e-9 >= f.coins, deedsOk: deedsOk(game, f), nodesOk: nodesOk(game, f), ready: canFound(game, id) });
   }
   return out;
 }
@@ -29,7 +33,7 @@ export function nextTowns(game) {
 /* Can the player found this town now? */
 export function canFound(game, id) {
   const d = TOWNS[id], f = d && d.found, from = f && game.towns[f.from];
-  return !!(f && from && !game.towns[id] && from.bestWave >= f.wave && from.coins + 1e-9 >= f.coins && deedsOk(game, f));
+  return !!(f && from && !game.towns[id] && from.bestWave >= f.wave && from.coins + 1e-9 >= f.coins && deedsOk(game, f) && nodesOk(game, f));
 }
 
 /* Found it: the paying town pays, the town and its outpost open. Returns the new town, or null. */

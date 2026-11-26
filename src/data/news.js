@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-5',
+    lines: [
+      'A new town, Thunder Mesa, waits east of the Capital. It pumps oil and builds motors, automobiles and airships.',
+      'To start it you need wave 30 in Silver Falls, 3 Rail Office upgrades and 1B coins.',
+      'Its raiders ride a road for now. Airships come in a later update.',
+    ],
+  },
+  {
     v: '2026.11.26-4',
     lines: [
       'On a phone the whole road fits on the screen, so raiders no longer walk along the edge.',

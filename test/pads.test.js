@@ -10,10 +10,11 @@ import { isPit, fitsSpot } from '../src/core/defense.js';
 const segDist = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L = dx * dx + dz * dz, t = L ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L)) : 0; return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz); };
 const polyD = (x, z, P) => { let d = Infinity; for (let i = 0; i + 1 < P.length; i++) d = Math.min(d, segDist(x, z, P[i], P[i + 1])); return d; };
 // the pads every map had before 2026.11.20-17, in order: a saved tower's spot index must still mean the same pad
-const BEFORE = { drycreek: 6, pinehollow: 7, sandybend: 7, gulch: 16, ridge: 16, falls: 15 };
+// (Thunder Mesa came after the pads box, so all its pads are new: 0 before)
+const BEFORE = { drycreek: 6, pinehollow: 7, sandybend: 7, gulch: 16, ridge: 16, falls: 15, mesa: 0 };
 // (the look pass, 2026.11.21-2, moved Pine Hollow's first pad back from the Logging Camp: the same pad, a
 // third of a step over)
-const FIRST = { gulch: [2.5, 3], ridge: [3.5, 2.4], falls: [3.5, 2.4], drycreek: [3.6, 2.2], pinehollow: [3.6, 1.85], sandybend: [3.6, 2.2] };
+const FIRST = { gulch: [2.5, 3], ridge: [3.5, 2.4], falls: [3.5, 2.4], mesa: [3.5, 2.4], drycreek: [3.6, 2.2], pinehollow: [3.6, 1.85], sandybend: [3.6, 2.2] };
 
 test('every map has about half again as many pads: outposts 10-11, towns 22-24', () => {
   for (const id of TOWN_ORDER) {

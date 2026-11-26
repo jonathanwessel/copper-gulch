@@ -32,4 +32,14 @@ export const GOODS = {
   bulbs:  { name: 'Light bulbs', town: 'falls', tier: 2, price: 22.3, depth: .5, color: '#fff2a8' },
   dynamos: { name: 'Dynamos', town: 'falls', tier: 2, price: 31.6, depth: .4, color: '#3d6e8f' },
   telegraphs: { name: 'Telegraphs', town: 'falls', tier: 2, price: 108, depth: .12, color: '#6b4a7a' },
+  // Thunder Mesa (Tar Seep, its outpost in part 3, will pump crude oil and tap rubber too)
+  oil:      { name: 'Crude oil', town: 'mesa', tier: 0, price: 2.5, depth: 3, color: '#3a2c1e' },
+  bauxite:  { name: 'Bauxite', town: 'mesa', tier: 0, price: 3, depth: 3, color: '#c4683f' },
+  rubber:   { name: 'Rubber', town: 'mesa', tier: 0, price: 2.5, depth: 3, color: '#7a8a4a' },
+  fuel:     { name: 'Fuel', town: 'mesa', tier: 1, price: 7, depth: 1.6, color: '#e8a33a' },
+  aluminum: { name: 'Aluminum', town: 'mesa', tier: 1, price: 18.2, depth: 1.2, color: '#e9eef2' },
+  tires:    { name: 'Tires', town: 'mesa', tier: 1, price: 7, depth: 1.4, color: '#3a3a40' },
+  motors:   { name: 'Motors', town: 'mesa', tier: 2, price: 48, depth: .5, color: '#8a3a2e' },
+  autos:    { name: 'Automobiles', town: 'mesa', tier: 2, price: 125, depth: .2, color: '#2f5aa0' },
+  airships: { name: 'Airships', town: 'mesa', tier: 2, price: 255, depth: .1, color: '#b0a0d0' },
 };

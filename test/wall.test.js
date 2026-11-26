@@ -13,7 +13,7 @@ import { unlocked } from '../src/core/economy.js';
 import { needsYou } from '../src/core/map.js';
 import { migrate, SAVE_VERSION } from '../src/core/save.js';
 import { GOALS } from '../src/data/goals.js';
-import { TOWN_ORDER } from '../src/data/towns/index.js';
+import { TOWNS, TOWN_ORDER } from '../src/data/towns/index.js';
 import { lostLine } from '../src/ui/lost.js';
 import { buildFirst, choices } from '../tools/firstplay.js';
 import { Rng } from '../src/core/rng.js';
@@ -130,7 +130,9 @@ test('with every goal done and no place left to open, the strip names the next m
   assert.equal(s.text, 'Reach wave 60 in Silver Falls');
   assert.deepEqual(s.meter(g), [53, 60]);
   g.go('drycreek');
-  assert.equal(goalNow(g).text, 'Tap Map, then tap Silver Falls', 'a won outpost sends you to the newest town');
+  // every place is open here, so the newest town is the last town in TOWN_ORDER (Thunder Mesa since 2026.11.26-5)
+  const newest = TOWN_ORDER.filter(id => TOWNS[id].kind !== 'outpost').pop();
+  assert.equal(goalNow(g).text, 'Tap Map, then tap ' + TOWNS[newest].name, 'a won outpost sends you to the newest town');
 });
 
 // a few Crossbows in a town, paid from a full purse
