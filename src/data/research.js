@@ -17,7 +17,7 @@ export const RESEARCH = {
   },
   walls: {
     name: 'Thick Walls', town: 'gulch', max: 5, cost: 300,
-    about: 'Your vault takes 25% more hits before it breaks.',
+    about: 'Your vault can take 25% more hits.',
     effects: [{ stat: 'vault', per: .25 }],
   },
   gunsmith: {
@@ -60,7 +60,7 @@ export const RESEARCH = {
   },
   plating: {
     name: 'Iron Plating', town: 'ridge', max: 5, cost: 500,
-    about: 'Your vault takes 25% more hits before it breaks.',
+    about: 'Your vault can take 25% more hits.',
     effects: [{ stat: 'vault', per: .25 }],
   },
   rifling: {
@@ -126,7 +126,7 @@ export const RESEARCH = {
   },
   levee: {
     name: 'River Levee', town: 'falls', max: 5, cost: 2500,
-    about: 'Your vault takes 25% more hits before it breaks.',
+    about: 'Your vault can take 25% more hits.',
     effects: [{ stat: 'vault', per: .25 }],
   },
   arclamps: {

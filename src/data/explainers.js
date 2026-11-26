@@ -69,8 +69,11 @@ export const EXPLAINERS = [
   // any town: the boss bar (owner, 2026-11-22), the first time a boss is on the road
   {
     id: 'boss-bar', now: true, covers: ['bossbar'],
-    title: 'The boss bar',
-    text: 'Bosses change when they are badly hurt. Tap the boss bar to see what your towers did to it.',
+    // it names the town's own boss, the name on the bar (clarity fix 8i: "The boss bar" and "boss" were words no other screen used)
+    title: 'The war wagon',
+    head: h => (h.boss ? 'The ' + h.boss : null),
+    text: 'The war wagon changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.',
+    say: h => (h.boss ? 'The ' + h.boss + ' changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.' : null),
     when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch
@@ -149,7 +152,7 @@ export const EXPLAINERS = [
     title: 'Your vault took a hit',
     // the Vault sheet's own words, gets in and hits left, and the spotlight on the heart ties it to the vault (clarity
     // fix 8g: "The heart at the top counts the hits the vault can still take" read as a manual)
-    text: 'Each raider that gets in hits your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.',
+    text: 'Raiders that get in take hits off your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.',
     // the spotlight on the heart it talks about, so the card sits low and leaves the top bar in view (review of
     // 2026.11.23-11: on a phone the card lay over the top bar and its heart)
     when: h => h.vault.hp < h.vault.max || h.breaches > 0, at: () => ({ el: '#vaultBtn' }),

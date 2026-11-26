@@ -57,7 +57,7 @@ const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g
 /* The toast when a research item ends: its name and level, and the vault's new heart count when it adds hearts. */
 export function researchDoneWords(town, e) {
   const R = RESEARCH[e.id], walls = (R.effects || []).some(x => x.stat === 'vault');
-  return R.name + ' level ' + e.level + ' is done.' + (walls ? ' The vault has ' + vaultMax(town) + ' hearts now.' : '');
+  return R.name + ' level ' + e.level + ' is done.' + (walls ? ' The ' + ((town.def && town.def.store) || 'vault') + ' can take ' + vaultMax(town) + ' hits now.' : ''); // hits, the Vault sheet's word for the count (clarity fix 8i: hearts, hits and breaks were three names)
 }
 
 export function mountPlay(root, game, viewApi, shell = {}) {
@@ -175,7 +175,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       }
       if (more) { const m = el('button', 'morechip', more + ' more'); m.id = 'stripMore'; m.addEventListener('click', () => openGoods()); strip.append(m); }
     }
-    if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) { powerChip.classList.toggle('low', low); powerChip.querySelector('.gname').textContent = low ? 'Low power' : GOODS[BUILDINGS[gm].makes].name; } } // the red count says why (review of 2026.11.23-9)
+    if (powerNum) { const gr = gridOf(town); setText(powerNum, fmtLive(Math.floor(gr.made + 1e-9))); const low = gr.share < .999; if (powerChip.classList.contains('low') !== low) { powerChip.classList.toggle('low', low); powerChip.title = GOODS[BUILDINGS[gm].makes].name + (low ? ', short' : ''); } }
+    // the red count says it is short (review of 2026.11.23-9), and the chip keeps the name the cards use, Power (clarity fix 8i: "Low power 6" beside "Town power 6 / 9")
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
     // a boom or bust (src/core/market.js): a small arrow in the chip's corner, so the chip keeps its size
     const bm = boomNow(game), ev = bm ? (bm.f > 1 ? 'boom' : 'bust') : '';
@@ -215,7 +216,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const openVault = () => sheets.open('vault', titled(store === 'vault' ? 'Vault' : 'Stockpile'), vaultSheet(town)); // names its place (review of 2026.11.23-11)
   coins.addEventListener('click', openIncome); coins.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openIncome(); });
   vaultBtn.addEventListener('click', openVault);
-  const openWave = () => sheets.open('wave', waveTitle(town), waveSheet(town));
+  // the card's title is the bar's own wave name, kept up while it is open (one state, one source; clarity fix 8i)
+  const openWave = () => sheets.open('wave', () => waveTitle(town), waveSheet(town));
   waveBtn.addEventListener('click', openWave);
   goodsBtn.addEventListener('click', () => openGoods()); menuBtn.addEventListener('click', openMenu); labBtn.addEventListener('click', openResearch); autoBtn.addEventListener('click', openAuto); armsBtn.addEventListener('click', openArms); perksBtn.addEventListener('click', openPerks);
 
@@ -317,7 +319,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // red when short (review of 2026.11.19-7: power was named but never counted)
     if ((isGrid(b.makes) || onGrid(id)) && L) {
       const want = Math.ceil(grid.want - 1e-9), pr = el('p', 'uses powerline'), n = el('span', 'need' + (gridShort ? ' low' : ''), isGrid(b.makes) ? want + ' power' : Math.floor(grid.made + 1e-9) + ' / ' + want);
-      pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Town power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
+      pr.append(isGrid(b.makes) ? 'Buildings here need ' : 'Power ', n); card.append(pr); // the Wheel's Makes row shows what it makes
     }
     // the line above shows the shortage, so the warning only says what it does and what to upgrade
     // said for this card, not as a rule (review of 2026.11.20-12: the same sentence on every card read like a manual)
@@ -558,7 +560,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // news from the road
   const offs = [
-    game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000); }),
+    game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000, { kind: 'boss' }); }),
+    // the boss toast goes when its wave ends, won or lost (clarity fix 8i: it stayed under the Wave 20 lost card)
+    game.bus.on('wave:clear', e => { if (e.town === town.id) dropToasts('boss'); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id && !isOutpost(town)) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000, { kind: 'here' }); }), // only where Perks shows (review of 2026.11.23-6: in Pine Hollow)
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
     game.bus.on('contract:miss', e => { if (!game.catching) toast(contractMissed(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
@@ -571,13 +575,14 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     game.bus.on('research:done', e => { if (e.town === town.id && sheets.current !== 'research') toast(researchDoneWords(town, e), 3000, { kind: 'here' }); }),
     game.bus.on('research:new', e => { if (e.town === town.id && sheets.current !== 'research') toast('New research. Tap Research to see ' + RESEARCH[e.id].name + '.', 4000, { kind: 'here' }); }),
     game.bus.on('breach', e => {
+      if (e.town === town.id) dropToasts('boss');
       // a town away that lost holds its own waves: say so wherever the player is (owner rule, 2026-11-17)
       if (e.held && game.catching) return; // time away: the Welcome back line lists it (src/main.js)
       if (e.held && !e.away && e.town === town.id) { showLost(); return; } // the boss got through here: a card, waves on hold
       if (e.held && game.towns[e.town]) { toast(lostToast(game.towns[e.town], e.town === town.id, game), 6000, { kind: 'lost' }); return; }
       if (e.town !== town.id) return;
       if (e.goods) toast('Raiders got through to the ' + store + ' and took a quarter of its goods.', 5000);
-      else toast('Your ' + store + ' broke. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
+      else toast('Your ' + store + ' fell. Raiders took ' + fmt(e.lost) + ' coins and you went back two waves.', 5000);
     }),
   ];
 
@@ -929,6 +934,8 @@ export function usedLine(used, g) {
   const who = n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
   return used.rate >= .05 ? 'The ' + who + ' take' + (n.length > 1 ? '' : 's') + ' ' + perSecond(used.rate, g) + '.' : g.name + (/[^s]s$/.test(g.name) ? ' go' : ' goes') + ' to the ' + who + '.'; // "Boilers go" (review of 2026.11.20-14)
 }
+/* Every toast showing or waiting its turn, for the smoke test (a toast behind another is not on the page yet). */
+export const toastsNow = () => [...(toasts.up ? [toasts.up.text] : []), ...toasts.queue.map(q => q.text)];
 export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
   if (first) toasts.queue.unshift({ text, ms, kind }); else toasts.queue.push({ text, ms, kind });

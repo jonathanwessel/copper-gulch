@@ -25,8 +25,8 @@ test('the foreman line says when it buys, never its reasons', () => {
 test('a price card gives one reason at a time', () => {
   const kept = priceNote({ have: 19, kept: 19, price: .00005 });
   assert.doesNotMatch(kept, /sold a lot/); // the line above it already says towers need it all
-  assert.match(kept, /comes back over time/);
-  assert.match(priceNote({ have: 50, price: .00005 }), /^You sold a lot of it lately\. The price comes back over time\.$/);
+  assert.match(kept, /once you have some to sell/);
+  assert.match(priceNote({ have: 50, price: .00005 }), /sold a lot/); // the words: test/words.test.js
   const sheets = fs.readFileSync(new URL('../src/ui/sheets.js', import.meta.url), 'utf8');
   assert.doesNotMatch(sheets, /Sell lots of one thing/); // no how-it-works line on the Goods sheet
 });

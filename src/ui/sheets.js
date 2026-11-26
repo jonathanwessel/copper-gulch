@@ -55,14 +55,20 @@ export function createSheets(root, { onOpen = () => {} } = {}) {
   let cur = null;
   const api = {
     get current() { return cur ? cur.id : null; },
+    /* name: the title, or a function giving it, kept up while the sheet is open (clarity fix 8i: the raiders card kept
+       "Wave 3" while the bar beside it read "Wave 4", since its title was set once as it opened). */
     open(id, name, build) {
       onOpen();
-      cur = { id, tick: null }; sheet.dataset.id = id; title.textContent = name; body.replaceChildren(); body.scrollTop = 0;
+      cur = { id, tick: null, name: typeof name === 'function' ? name : null }; sheet.dataset.id = id; title.textContent = cur.name ? cur.name() : name; body.replaceChildren(); body.scrollTop = 0;
       cur.tick = build(body) || null;
       back.hidden = false; sheet.hidden = false;
     },
     close() { cur = null; sheet.hidden = true; back.hidden = true; body.replaceChildren(); },
-    frame(dt) { if (cur && cur.tick) cur.tick(dt); if (cur) moreBelow(); },
+    frame(dt) {
+      if (cur && cur.tick) cur.tick(dt);
+      if (cur && cur.name) { const n = cur.name(); if (title.textContent !== n) title.textContent = n; }
+      if (cur) moreBelow();
+    },
     sync() { if (cur && cur.tick && cur.tick.sync) cur.tick.sync(); },
   };
   /* A sheet with more below its edge darkens its foot, so a row cut there reads as more to scroll to (reviews of

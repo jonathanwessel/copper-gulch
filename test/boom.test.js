@@ -117,6 +117,22 @@ test('a good on Booms only always gets a boom in time, so it is never held for g
   for (const good of goods) assert.ok(booms.has(good), good + ' boomed in six hours');
 });
 
+test('a pile a mode held back sells out over about half a minute, and pays more than all in one step', () => {
+  const after = (mode, secs) => {
+    const g = newGame('boom-9', 'drycreek'), t = g.town;
+    t.goods = { ore: 600 }; t.keep = {}; setSellMode(t, 'ore', mode);
+    const c = t.coins, start = t.goods.ore;
+    for (let i = 0; i < secs * 4; i++) { sellSurplus(g, t, .25); M.market.tick(.25, g); }
+    return { sold: start - t.goods.ore, coins: t.coins - c };
+  };
+  const step = after('skip', .25), dump = after('always', .25);
+  assert.ok(step.sold < .02 * dump.sold, 'Skip busts let out ' + step.sold + ' of ' + dump.sold + ' in one step');
+  const paced = after('skip', 150), all = after('always', 150);
+  assert.ok(paced.sold > .97 * all.sold, 'the pile was out in two and a half minutes: ' + paced.sold + ' of ' + all.sold);
+  assert.ok(paced.coins > 1.05 * all.coins, 'paced ' + paced.coins + ' against all at once ' + all.coins);
+  assert.equal(M.held('always', 50, .25), 50); assert.equal(M.held('off', 50, .25), 50);
+});
+
 test('Booms only holds a good while no boom is on', () => {
   const g = newGame('boom-8', 'drycreek'), t = g.town;
   t.goods = { ore: 300 }; t.keep = {}; setSellMode(t, 'ore', 'boom');

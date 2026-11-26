@@ -43,7 +43,7 @@ test('one verb switches places, Play, and Start opens a new one', () => {
 });
 
 test('nothing said twice: the price note, Perks, the Boiler Shop', () => {
-  assert.equal(priceNote({ have: 0, price: .00005 }), 'The price comes back over time.'); // "Down 99%" says the rest
+  assert.match(priceNote({ have: 0, price: .00005 }), /once you have some to sell/); // "Down 99%" says the rest
   assert.doesNotMatch(priceNote({ have: 50, price: .00005 }), /almost nothing/);
   const sheets = read('src/ui/sheets.js'), play = read('src/ui/play.js');
   assert.ok(sheets.includes("'After signing'") && !sheets.includes('Sign now and you have'));
@@ -54,10 +54,10 @@ test('nothing said twice: the price note, Perks, the Boiler Shop', () => {
 
 test('plainer words for the old-wave bonus, the foreman, the hold goal and the stock switch', () => {
   assert.ok(oldWavesLabel({ record: 120 }).length <= 20 && oldWavesLabel({}).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
+  assert.ok(foremanLine('flooded', 'timber').includes('timber price')); // the words: test/words.test.js
   assert.equal(stockWords({ stock: 'lots' }), '4 upgrades');
   assert.ok(read('src/ui/play.js').includes('STOCK_LABEL'), 'the building card uses the same name');
-  for (const s of ['Foreman paused while the timber price is low.', 'Tap Hold waves while you save for Iron Ridge', 'Won last time']) assert.deepEqual(textIssues(s), []);
+  for (const s of ['Foreman paused while the timber price is down.', 'Tap Hold waves while you save for Iron Ridge', 'Won last time']) assert.deepEqual(textIssues(s), []);
 });
 
 test('towers name the town\'s own boss, and the Rail Office names the outposts', () => {

@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.25-10',
+    lines: [
+      'Goods you held back for a better price now sell over half a minute, so they do not crash their own price.',
+      'The raiders card always shows the same wave as the wave bar.',
+      'The vault counts hits everywhere, and the power tile says Power like the cards.',
+      'The war wagon note goes away when its wave ends.',
+    ],
+  },
+  {
     v: '2026.11.25-9',
     lines: [
       'Big orders pay less for each unit, the same way a big sale does.',

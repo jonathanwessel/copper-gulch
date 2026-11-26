@@ -36,7 +36,7 @@ test('the Goods switch reads like the building cards\' Keep switch and says what
 
 test('the bonus is named, the path price comes first, and the foreman says what it waits for', () => {
   assert.ok(oldWavesLabel({}).length <= 20);
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
+  assert.ok(foremanLine('flooded', 'timber').includes('timber price')); // the words: test/words.test.js
   const play = read('src/ui/play.js');
   assert.ok(play.includes("const coinCost = need => fmt(need) + ' coins'"), 'the price first since the review of 2026.11.20-14');
   assert.match(play, /const pc = costRow\(c, true\)/);

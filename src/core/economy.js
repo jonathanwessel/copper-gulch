@@ -3,7 +3,7 @@
    Buildings are leveled with coins; reaching each milestone level doubles a building's output. */
 import { BUILDINGS, MILESTONES } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
-import { sell, sellMode, sellsNow, eventFactor } from './market.js';
+import { sell, sellMode, sellsNow, eventFactor, held } from './market.js';
 
 export const KEEP_SECONDS = 10; // a workshop's inputs are kept for this many seconds of its use, never sold
 
@@ -197,7 +197,10 @@ export function sellSurplus(game, town, dt) {
   }
   for (const to of feedTowns(game, town)) feed(game, town, to, extra);
   const prices = feedTarget(game, town) || town;
-  for (const [g, n] of Object.entries(extra)) if (n > 1e-9 && sellsNow(sellMode(town, g), eventFactor(game, g))) sell(game, town, g, n, dt, prices);
+  for (const [g, n] of Object.entries(extra)) {
+    const mode = sellMode(town, g);
+    if (n > 1e-9 && sellsNow(mode, eventFactor(game, g))) sell(game, town, g, held(mode, n, dt), dt, prices);
+  }
 }
 
 /* How long coins count as earned lately (town.recent): a fallen vault loses at most that much (src/core/defense.js). */

@@ -118,7 +118,9 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
   // a two-word name (Cold Snap, Frost Lens, Iron Ridge) never breaks across two lines (review of 2026.11.24-2)
   const keepNames = s => String(s).replace(/\b([A-Z][a-z]+) (?=[A-Z][a-z]+\b)/g, '$1' + String.fromCharCode(160));
   function show(e) {
-    cur = { e }; title.textContent = e.title; text.textContent = keepNames((e.say && e.say(helper(town, game))) || e.text); layer.hidden = false; layer.dataset.id = e.id;
+    // head: a title that names the thing on screen in this town (clarity fix 8i: "The boss bar" named a word no other screen used)
+    const h = (e.say || e.head) ? helper(town, game) : null;
+    cur = { e }; title.textContent = (e.head && e.head(h)) || e.title; text.textContent = keepNames((e.say && e.say(h)) || e.text); layer.hidden = false; layer.dataset.id = e.id;
     go.hidden = !e.go; go.textContent = e.button || ''; ok.textContent = e.go ? 'Stay here' : 'Got it'; ok.classList.toggle('primary', !e.go);
     pause(true); place();
     hush(); paintSpeak();

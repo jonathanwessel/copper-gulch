@@ -98,10 +98,10 @@ test('the window lasts across switching towns, and a charter or a load starts it
   assert.ok(!('incomeHist' in g.toJSON()), 'never saved');
 });
 
-test('a finished Thick Walls says how many hearts the vault has now', () => {
+test('a finished Thick Walls says how many hits the vault can take now', () => {
   const g = newGame('broke6', 'gulch'), t = g.town;
   const w = researchDoneWords(t, { id: 'walls', level: 1 });
-  assert.match(w, /^Thick Walls level 1 is done\. The vault has \d+ hearts now\.$/);
+  assert.match(w, /^Thick Walls level 1 is done\. The vault can take \d+ hits now\.$/);
   assert.ok(researchCost(t, 'walls') > 0);
 });
 

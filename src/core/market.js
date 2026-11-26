@@ -32,6 +32,12 @@ export function setSellMode(town, g, mode) {
 /* Whether a mode sells now, given the good's event factor e (1 none, over 1 a boom, under 1 a bust). */
 export const sellsNow = (mode, e) => (mode === 'always' ? true : mode === 'skip' ? !(e < 1) : mode === 'boom' ? e > 1 : false);
 
+/* A mode that holds goods back (Skip busts, Booms only) lets its pile out over about HOLD.pace seconds once it may sell,
+   never all in one step: a pile sold at once crashes its own price (the market's rate rises by the whole pile over
+   TAU), so Skip busts paid less than Always (Market depth part 2b, 2026.11.25-10). Always and Off are unchanged. */
+export const HOLD = { pace: 30 };
+export const held = (mode, n, dt) => (mode === 'skip' || mode === 'boom' ? n * (1 - Math.exp(-dt / HOLD.pace)) : n);
+
 /* The goods a boom or bust can fall on: what the empire's buildings make (power is never sold). */
 export function boomable(game) {
   const s = new Set();

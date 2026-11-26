@@ -1,4 +1,4 @@
 {
-  "version": "2026.11.25-9",
-  "notes": "Orders pay what their load would sell for, and their goods lower the price like a sale"
+  "version": "2026.11.25-10",
+  "notes": "Held goods sell over half a minute, the raiders card keeps the bar wave, the vault counts hits everywhere"
 }

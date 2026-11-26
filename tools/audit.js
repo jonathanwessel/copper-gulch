@@ -203,6 +203,15 @@ export function textIssues(text) {
   }
   return p;
 }
+/* One name, one meaning (games/CLAUDE.md): words a clarity fix retired, since one state had several names and the
+   fresh-eyes reads flagged each again and again (8e, 8g, 8i). Old news lines keep theirs. */
+export const RETIRED = [
+  // the heart is the vault's mark on screen and may be named; hearts as a count is retired
+  [/\bhearts\b|\d+ heart\b/i, 'the vault counts hits'],
+  [/\b(vault|stockpile) (broke|breaks)\b|before it breaks/i, 'a vault fell'],
+  [/\bprice is low\b|comes back over time/i, 'a price is up or down'],
+  [/\b(Town|Low) power\b/, 'the tile and the cards say Power'],
+];
 export function textRules(debug) {
   const p = [], seen = [];
   for (const e of EXPLAINERS) seen.push(['explainer ' + e.id, e.title], ['explainer ' + e.id, e.text]);
@@ -221,6 +230,7 @@ export function textRules(debug) {
   }
   if (debug) return seen;
   for (const [where, t] of seen) for (const issue of textIssues(t || '')) p.push(where + ': ' + issue + ' in "' + t + '"');
+  for (const [where, t] of seen) if (!where.startsWith('news ')) for (const [r, say] of RETIRED) if (r.test(t || '')) p.push(where + ': a retired word (' + say + ') in "' + t + '"');
   p.push(...choiceRules());
   return p;
 }
@@ -228,7 +238,7 @@ export function textRules(debug) {
    and older cards said "Sell" and "Off" for buttons that read Sell spare and Always). Reads every "Tap X" in the
    explainers, the goals and the quoted strings of src/ui and the strip's code, with each "then Y" or ", Y" after it,
    and fails a name that is not a word on a button or label in src/ui, or the name of a thing in the world. */
-export const TAP_WORLD = ['stone pad', 'pad', 'mortar pit', 'pair of workers', 'raider', 'tower', 'town', 'good', 'goods', 'button', 'boss bar', 'it', 'coins', 'Share', 'Add to Home Screen', 'new town', 'Capital', 'Back to', 'building', '◂'];
+export const TAP_WORLD = ['stone pad', 'pad', 'mortar pit', 'pair of workers', 'raider', 'tower', 'town', 'good', 'goods', 'button', 'boss bar', 'bar', 'it', 'coins', 'Share', 'Add to Home Screen', 'new town', 'Capital', 'Back to', 'building', '◂'];
 const worldStart = s => TAP_WORLD.find(w => s.toLowerCase().startsWith(w.toLowerCase()) && w.includes(' ') && !/^[a-z]/i.test(s.slice(w.length, w.length + 1)));
 const TAP_STOP = /[.,!?]| (?:to|and|then|when|if|or|so|for|until|on|while|in|at|there|below|here|again|right|with|from)\b/;
 export function tapNames(text) {

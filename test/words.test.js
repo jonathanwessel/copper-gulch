@@ -71,7 +71,7 @@ test('the explainers name the controls by their words on screen', async () => {
   assert.match(by('mortar'), /A dark spot shows where each one will land/);
   assert.match(by('map'), /Under each town you see if it is fighting/);
   // the Vault sheet's words (gets in, hits left), with no line about the screen (clarity fix 8g); its spotlight on the heart ties the two
-  assert.equal(by('vault'), 'Each raider that gets in hits your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.');
+  assert.equal(by('vault'), 'Raiders that get in take hits off your vault. At 0 hits left you lose coins and go back two waves. Each wave you beat mends it a little.');
   assert.equal(EXPLAINERS.find(e => e.id === 'vault').at().el, '#vaultBtn');
   assert.doesNotMatch(by('towers'), /vault/); // shown first in Dry Creek, which has a stockpile
 });
@@ -143,4 +143,32 @@ test('the strip lines of the Gulch loss loop fix', async () => {
     [lostCard({ def: { name: 'Iron Ridge', boss: 'train' }, lost: { why: 'vault', wave: 45, back: 43, coins: 0 }, waves: {} }).lines[0], 'Your vault fell again. You dropped back to wave 43.'],
   ];
   for (const [got, want] of lines) { assert.equal(got, want); assert.deepEqual(textIssues(got), [], got); }
+});
+
+test('the vault has one word for its count (hits) and one for its loss (fell), clarity fix 8i', async () => {
+  const { newGame } = await import('../src/core/setup.js');
+  const { researchDoneWords } = await import('../src/ui/play.js');
+  const { explainVault } = await import('../src/core/explain.js');
+  const { RESEARCH } = await import('../src/data/research.js');
+  const t = newGame('words-8i', 'gulch').town;
+  assert.match(researchDoneWords(t, { id: 'walls', level: 1 }), /^Thick Walls level 1 is done. The vault can take [0-9]+ hits now.$/);
+  assert.equal(explainVault(t).rows[0].label, 'New vault');
+  for (const [id, r] of Object.entries(RESEARCH)) if (/vault/.test(r.about || '')) assert.ok(!/heart|break/.test(r.about), id + ': ' + r.about);
+});
+
+test('the price has one pair of words, up and down, clarity fix 8i', async () => {
+  const { priceNote, LOW_NOTE } = await import('../src/ui/format.js');
+  const { foremanLine } = await import('../src/ui/explain.js');
+  assert.equal(LOW_NOTE, 'The price is down because you sold a lot.');
+  assert.equal(priceNote({ have: 50, price: .00005 }), LOW_NOTE);
+  assert.equal(priceNote({ have: 50, price: .00005, bust: true }), LOW_NOTE);
+  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is down.');
+  for (const s of [LOW_NOTE, foremanLine('flooded', 'timber')]) { assert.ok(!/ low|comes back/.test(s), s); assert.deepEqual(textIssues(s), [], s); }
+});
+
+test('the boss tip card names the boss on the bar, never the word boss, clarity fix 8i', () => {
+  const e = EXPLAINERS.find(x => x.id === 'boss-bar');
+  assert.equal(e.head({ boss: 'armored train' }), 'The armored train');
+  assert.equal(e.say({ boss: 'armored train' }), 'The armored train changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.');
+  for (const s of [e.title, e.text, e.say({ boss: 'war wagon' })]) { assert.ok(!/boss/i.test(s), s); assert.deepEqual(textIssues(s), [], s); }
 });

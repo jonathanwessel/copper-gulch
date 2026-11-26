@@ -24,7 +24,7 @@ test('every goods row has one pattern and a price, and never keeps more than the
 
 test('the foreman, old-waves, research and lost lines read as plain statuses', () => {
   const f = foremanLine('flooded', 'timber');
-  assert.equal(f, 'Foreman paused while the timber price is low.');
+  assert.ok(f.includes('timber price')); // the words: test/words.test.js
   assert.doesNotMatch(f, /better .* price/);
   assert.ok(oldWavesLabel({ record: 22 }).length <= 20);
   assert.equal(levelsDone(0, 5), '0 of 5 done');

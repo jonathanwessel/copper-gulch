@@ -447,10 +447,17 @@ async function run() {
         const m = await import(new URL('src/core/defense.js', location.href).href);
         const t = CG.game.town, keep = JSON.stringify(t.waves), w = t.wave, bw = t.bestWave, coins = t.coins, br = t.breaches;
         CG.town.pause('smoke', true); t.wave = 10; t.bestWave = 9; t.coins = 400; t.recent = 400;
+        // the boss toast of the wave goes with the loss (clarity fix 8i: it stayed under the lost card)
+        CG.game.bus.emit('wave:start', { town: t.id, wave: 10, boss: true }); await new Promise(r => setTimeout(r, 100));
+        // showing or waiting its turn behind another toast (the first run read only the page and failed on a queued one)
+        const ui = await import(new URL('src/ui/play.js', location.href).href);
+        const coming = () => ui.toastsNow().some(s => /is coming/.test(s));
+        const before = coming();
         m.fall(CG.game, t, 'boss'); await new Promise(r => setTimeout(r, 300));
         const c = document.getElementById('lostCard'), out = {
           card: !!c && c.getBoundingClientRect().width > 0, text: c ? c.textContent : '', back: t.wave === 8, held: !!t.waves.autoHold,
           resume: document.getElementById('holdWaves').textContent === 'Resume waves',
+          toast: before && !coming(),
         };
         if (c) document.getElementById('lostOk').click();
         await new Promise(r => setTimeout(r, 100));
@@ -459,7 +466,7 @@ async function run() {
         Object.assign(t, { wave: w, bestWave: bw, coins, breaches: br }); CG.town.pause('smoke', false);
         return out;
       });
-      if (!gate.card || !/got through. You dropped back/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
+      if (!gate.card || !/got through. You dropped back/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed || !gate.toast) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
       // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
       // names the good, the amount and the building that makes it
       const reserve = await page.evaluate(async () => {
@@ -536,6 +543,9 @@ async function run() {
         // the wave number opens the raiders card
         document.getElementById('waveBtn').click(); await wait(300);
         out.waveCard = !document.getElementById('sheet').hidden && document.getElementById('sheet').dataset.id === 'wave' && /^\d+ /.test(document.querySelector('#sheet .option.foe b')?.textContent || ''); // one kind on the road: its row carries the count (clarity fix 8e)
+        // the card's title and the bar name one wave, also when the next wave starts with the card open (clarity fix 8i)
+        t.wave += 1; await wait(400);
+        out.waveSame = document.querySelector('#sheet h2').textContent === document.querySelector('#waveBtn b').textContent ? true : document.querySelector('#sheet h2').textContent + ' beside ' + document.querySelector('#waveBtn b').textContent;
         CG.play.sheets.close();
         Object.assign(t.goods, keep.goods); t.sell = keep.sell; t.coins = keep.coins; t.wave = keep.wave; Object.assign(t.waves, JSON.parse(keep.ws));
         CG.town.pause('smoke', false); await wait(300);
@@ -545,6 +555,7 @@ async function run() {
       if (!still.painted) bad.push('live numbers: the HUD did not repaint the goods strip');
       if (still.chip !== true) bad.push('the wave chip changed width when a wave started: ' + still.chip);
       if (!still.waveCard) bad.push('the wave number did not open the raiders card');
+      if (still.waveSame !== true) bad.push('the raiders card and the wave bar name different waves: ' + still.waveSame);
       for (const m of still.moved) bad.push('live numbers: a HUD cell moved or changed size: ' + m);
       // every object opens with one tap (owner rule): a real click (browser hit testing, so a HUD box over the map counts)
       // on the middle of every pad and plot, in the home view, turned and zoomed in, must open that object's card. A
@@ -587,7 +598,7 @@ async function run() {
         out.off = t.foremen.camp === false && t.level('camp') === L && /Off/.test(document.getElementById('foremanSwitch').textContent);
         // working again on a flooded good nobody is short of: the card says it waits
         document.getElementById('foremanSwitch').click(); CG.game.shared.market.rate.timber = 1e5; t.goods.timber = 1e6; const L2 = t.level('camp'); await wait(500);
-        out.waits = /Foreman paused while the timber price is low./.test(document.getElementById('card').textContent) && t.level('camp') === L2;
+        out.waits = /Foreman paused while the timber price is down/.test(document.getElementById('card').textContent) && t.level('camp') === L2;
         t.goods.timber = 50;
         CG.play.close();
         return out;

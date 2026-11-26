@@ -107,6 +107,7 @@ export const MODE_SELLS = { always: [1, 1, 1], skip: [0, 1, 1], boom: [0, 0, 1],
    good with none to sell showed its rows down to "Sold a lot lately ÷ 19,000"). */
 /* One reason at a time (review of 2026.11.19-11: "towers need it all" beside "You sold a lot of it lately"). The sheet
    no longer has a header line, so the note says the price comes back. */
+export const LOW_NOTE = 'The price is down because you sold a lot.';
 export function priceNote({ have, kept = 0, price = 0, boom = false, bust = false }) {
   const none = have - kept < 1;
   // in a boom the price is up from where it was, so "comes back" read as a drop (review of 2026.11.23-1)
@@ -117,9 +118,10 @@ export function priceNote({ have, kept = 0, price = 0, boom = false, bust = fals
   // beside Price rising it says why it is still low (fresh-eyes read of 2026.11.25-7: "You sold a lot" under "rising" read as opposite facts)
   // in a boom the rows say it (the boom's lift and the drop from selling a lot), not a sentence: "Low because..." under
   // "Price up" was flagged three times (8e, and the reads of 2026.11.25-7 and -8), so by the twice-flagged rule it went
+  // clarity fix 8i: one pair of words for the price, up and down, as the boom line and the rows say ("low" and "comes
+  // back over time", with no time, were two more), and one line in a bust or not, since the bust's clock says when it ends
   if (price < .0095 && boom) return null;
-  if (price < .0095 && bust) return 'You sold a lot of it lately.';
-  if (price < .0095) return (none ? '' : 'You sold a lot of it lately. ') + 'The price comes back over time.';
+  if (price < .0095 && !none) return LOW_NOTE;
   if (none) return 'Pays ' + each(price) + ' once you have some to sell.';
   return null;
 }

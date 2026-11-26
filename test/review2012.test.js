@@ -33,7 +33,7 @@ test('a camp says which buildings use its good and how much', () => {
 test('power has its own line, never in the list of goods each one uses', () => {
   const play = read('src/ui/play.js');
   assert.match(play, /goodsIn = ins\.filter\(\(\[k\]\) => !isGrid\(k\)\)/);
-  assert.ok(play.includes("'Town power '"));
+  assert.ok(play.includes("'Power '")); // one name, the strip's (clarity fix 8i)
   assert.ok(!play.includes('Buildings that use power run slower'), 'the general rule left the cards');
 });
 

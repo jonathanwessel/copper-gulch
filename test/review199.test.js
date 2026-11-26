@@ -30,7 +30,7 @@ test('a foreman that is not buying reads as a status, not a story', () => {
     assert.ok(t.length < 60, t); // short as a sign, beside the Foreman switch (review of 2026.11.20-2)
     assert.doesNotMatch(t, /foreman waits/i);
   }
-  assert.equal(foremanLine('flooded', 'timber'), 'Foreman paused while the timber price is low.');
+  assert.ok(foremanLine('flooded', 'timber').includes('timber price')); // the words: test/words.test.js
 });
 
 test('the lost toast has one step', () => {
@@ -49,6 +49,6 @@ test('the map card writes the vault in hits and the coins as the label does', ()
 test('a good with none to sell, or a price of almost 0, says so in words instead of price rows', () => {
   assert.match(priceNote({ have: 0, price: 13 }), /^Pays 13 coins each once you have some to sell\.$/);
   assert.match(priceNote({ have: 19, kept: 19, price: 2 }), /once you have some to sell/);
-  assert.match(priceNote({ have: 50, price: .00005 }), /comes back over time/);
+  assert.match(priceNote({ have: 50, price: .00005 }), /sold a lot/);
   assert.equal(priceNote({ have: 50, kept: 5, price: 13 }), null);
 });
