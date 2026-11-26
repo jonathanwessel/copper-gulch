@@ -127,7 +127,8 @@ export function priceNote({ have, kept = 0, price = 0, boom = false, bust = fals
 }
 /* A research item's line before it runs: how many levels are done ("Level 1 of 5" before any research read as a level
    you had, review of 2026.11.19-7). */
-export const levelsDone = (L, max) => L + ' of ' + max + ' done'; // review of 2026.11.20-4: "No levels yet · 20 seconds"
+// one word for the steps, level, as the running row's "Researching level 3 of 5" (clarity fix 8k: "2 of 5 done" beside it)
+export const levelsDone = (L, max) => (L ? 'Level ' + L + ' of ' + max : 'Not started'); // "Level 0 of 5" read oddly (fresh-eyes read of 2026.11.26-1) // review of 2026.11.20-4: "No levels yet · 20 seconds"
 /* A live count on the HUD (owner rule: live numbers never change the size or place of anything on screen). Never
    more than 5 characters, with fixed decimals so the cell keeps its width as the count grows: 0-999 (and 0.0-9.9 for a
    rate under 10), then 1.00K-9.99K, 10.0K-99.9K, 100K-999K, 1.00M... It rounds down, so 999.96 never shows as 1000. */

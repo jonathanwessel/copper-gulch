@@ -62,9 +62,8 @@ test('chips, Best against and landscape cards keep one layout', () => {
 test('from the screenshot review of this release: a long wait in minutes, and plural goods go', async () => {
   const { waveTimer } = await import('../src/ui/wave.js');
   const { usedLine } = await import('../src/ui/play.js');
-  assert.equal(waveTimer({ phase: 'break', hold: false, timer: 99 }), 'in 99s');
-  assert.equal(waveTimer({ phase: 'break', hold: false, timer: 119.5 }), 'in 2m');
-  for (const t of [1, 50, 99, 100, 240, 599]) assert.ok(waveTimer({ phase: 'break', hold: false, timer: t }).length <= 6, String(t));
+  // a clock since clarity fix 8j, at most 7 characters
+  for (const t of [1, 50, 99, 100, 240, 599, 900]) assert.ok(waveTimer({ phase: 'break', hold: false, timer: t }).length <= 7, String(t));
   assert.equal(usedLine({ ids: ['saw'], rate: 0 }, { name: 'Boilers' }), 'Boilers go to the Sawmill.');
   assert.equal(usedLine({ ids: ['saw'], rate: 0 }, { name: 'Glass' }), 'Glass goes to the Sawmill.');
 });

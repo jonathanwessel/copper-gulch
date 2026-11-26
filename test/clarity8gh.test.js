@@ -25,7 +25,7 @@ test('8h, the read of 2026.11.25-8: an Off switch says Off beside its picture', 
 });
 
 test('8h (4): the raiders card leads with where they are, never a total its rows say', () => {
-  assert.equal(roadLine(3, 0), 'All of them are on the road.');
+  assert.equal(roadLine(3, 0), '3 on the road. No more to come.');
   assert.equal(roadLine(0, 5), '5 still to come, none on the road yet.');
   assert.equal(roadLine(2, 4), '2 on the road, 4 still to come.');
   for (const s of [roadLine(3, 0), roadLine(0, 5), roadLine(2, 4)]) assert.deepEqual(textIssues(s), [], s);

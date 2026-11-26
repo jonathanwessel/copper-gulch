@@ -19,8 +19,8 @@ test('a good not for sale says so and what it would sell for', () => {
 });
 
 test('research says how many levels are done', () => {
-  assert.equal(levelsDone(0, 5), '0 of 5 done');
-  assert.equal(levelsDone(2, 5), '2 of 5 done');
+  assert.equal(levelsDone(0, 5), 'Not started');
+  assert.equal(levelsDone(2, 5), 'Level 2 of 5');
 });
 
 test('the lost toast is one step, and the map card says the rest', () => {

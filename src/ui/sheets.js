@@ -111,6 +111,12 @@ export const orderName = o => fmt(o.need) + ' ' + GOODS[o.good].name.toLowerCase
 export const orderDone = (e, here) => GOODS[e.good].name + ' order filled' + (here ? '' : ' in ' + (TOWN_NAMES[e.town] || e.town)) + '. You got ' + fmt(e.coins) + ' coins.';
 export const orderMissed = (e, here) => (e.gaveUp ? 'You gave up the ' : 'The ') + GOODS[e.good].name.toLowerCase() + ' order' + (here ? '' : ' in ' + (TOWN_NAMES[e.town] || e.town)) + (e.gaveUp ? '.' : ' ran out of time.') + ' Reputation is now ' + e.rep + '.';
 const repAsk = 'Lose ' + ORDERS.miss + ' reputation?';
+/* What the reputation does, under its bar (clarity fix 8j: "Reputation 64 of 100" was never explained where it shows). */
+export function repLine(rep) {
+  const pct = Math.round(100 * ORDERS.repPay * rep / ORDERS.max);
+  const pays = pct >= 1 ? 'Orders pay ' + pct + '% more.' : 'Fill orders to raise it.';
+  return pays + ' ' + (rep >= ORDERS.rushAt ? 'Rush orders come too.' : 'Rush orders come at ' + ORDERS.rushAt + '.');
+}
 export function ordersPanel(game, town) {
   const st = ordersOf(game, town);
   if (!st) return null;
@@ -122,7 +128,7 @@ export function ordersPanel(game, town) {
   live.push(() => {
     setText(repN, 'Reputation ' + Math.round(st.rep) + ' of ' + ORDERS.max);
     const w = Math.round(100 * st.rep / ORDERS.max) + '%'; if (fill.style.width !== w) fill.style.width = w;
-    setText(rush, st.rep >= ORDERS.rushAt ? 'Rush orders pay more' : 'Rush orders come at ' + ORDERS.rushAt); // what a rush order is (review of 2026.11.23-6: "Rush orders are open")
+    setText(rush, repLine(st.rep)); // what a rush order is (review of 2026.11.23-6: "Rush orders are open")
   });
   const a = st.active;
   if (a) {
@@ -249,14 +255,15 @@ export function goodsSheet(game, town, focus = null) {
         if (r.pick.hidden !== !picking[g]) r.pick.hidden = !picking[g];
         for (const b of r.picks) { const on = b.dataset.mode === mode; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); } }
         // an arrow up or down and the time it has left (the stylesheet draws the arrow; review of 2026.11.23-7: a bare time said nothing of what it counts)
-        const bm = boomNow(game), on = !!bm && bm.good === g, ew = on ? boomWords(bm.f, boomClock(bm.left)) : '';
+        const bm = boomNow(game), on = !!bm && bm.good === g, net = on ? sat * bm.f : 1, ew = on ? boomWords(bm.f, boomClock(bm.left), net) : '';
         // the arrow's label is the line's own words (clarity fix 8e: it said Price up while the line said rising)
         { const al = ew; if ((r.ev.getAttribute('aria-label') || '') !== al) r.ev.setAttribute('aria-label', al); }
         if (r.ev.hidden !== !on) r.ev.hidden = !on;
         if (r.evLine.textContent !== ew) r.evLine.textContent = ew;
         if (r.evLine.hidden !== !ew) r.evLine.hidden = !ew;
-        if (r.ev.classList.contains('bust') !== (!!bm && bm.good === g && bm.f < 1)) r.ev.classList.toggle('bust');
-        if (r.evLine.classList.contains('bust') !== (on && bm.f < 1)) r.evLine.classList.toggle('bust');
+        // the arrow and its color follow the price now, not the event alone (clarity fix 8k)
+        if (r.ev.classList.contains('bust') !== (on && net < 1)) r.ev.classList.toggle('bust');
+        if (r.evLine.classList.contains('bust') !== (on && net < 1)) r.evLine.classList.toggle('bust');
       }
     };
     build();
@@ -337,7 +344,10 @@ const keep = s => s.replace(/ /g, '\u00a0');
 export const span = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' sec' : Math.round(s / 60) + ' min';
 /* A boom or bust on the Goods sheet in words, with its clock (clarity fix 8b). */
 /* One pair of words, up and down, here and in the sell modes' lines (clarity fix 8h: "rising" beside "way up" and "crashed"). */
-export const boomWords = (f, clock) => (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more';
+/* net: the price's move now, the market's and the event's together (the price bar's own). A boom over a good sold low
+   says the price is still down (clarity fix 8k: "Price up for 1:11 more" over rows that came to Down 99%). */
+export const boomWords = (f, clock, net = f) => ((f > 1) === (net >= 1) ? (f > 1 ? 'Price up for ' : 'Price down for ') + clock + ' more'
+  : (f > 1 ? 'Boom for ' : 'Bust for ') + clock + ' more. Price still ' + (net < 1 ? 'down.' : 'up.'));
 export const leftWord = s => span(s) + ' left'; // research rows and their buttons say time one way, "takes 80 sec" and "13 sec left" (review of 2026.11.20-9)
 export const wait = s => s < 90 ? Math.max(1, Math.ceil(s)) + ' seconds' : Math.round(s / 60) + ' minutes';
 
@@ -536,8 +546,8 @@ export function armsLine(game, town) {
   const b = armsBlock(game, town), a = town.arms || { t: 0 };
   return b === 'closed' ? 'Buy the Armory at the War Office first.'
     : b === 'none' ? 'Build a building first. Its workers are the ones who fight.'
-    : b === 'fighting' ? 'Your workers are fighting. ' + span(a.t) + ' left.'
-    : b === 'wait' ? 'Ready again in ' + span(armsWait(town)) + '.'
+    : b === 'fighting' ? 'Your workers are fighting. ' + clock(a.t) + ' left.'
+    : b === 'wait' ? 'Ready again in ' + clock(armsWait(town)) + '.'
     : 'Ready';
 }
 /* Call to arms (owner idea, 2026-11-20): what a call does and what it costs, before the tap, then its time. */
@@ -545,7 +555,7 @@ export function armsSheet(game, town) {
   return body => {
     const what = el('div', 'explain'), row = (a, b) => { const r = el('div'), v = el('b', null, b); r.append(el('span', null, a), v); what.append(r); return v; };
     body.append(el('p', 'note', 'Your workers leave the buildings and fight raiders on the road. The buildings make nothing until they come back.'), what);
-    const workers = row('Workers from', ''), lost = row('Goods lost', '');
+    const workers = row('Workers from', ''), lost = row('Coins you miss', ''); // coins, named as coins (clarity fix 8j: "Goods lost · About 11.6K coins" counted goods in coins)
     row('They fight for', span(ARMS.seconds));
     // the rest after a call, which counts down in its own row while it runs, so the sheet never shows two times for one wait
     // (review of 2026.11.23-6: "Call again after 5 min" beside "Ready again in 4 min")
@@ -556,7 +566,7 @@ export function armsSheet(game, town) {
     const paint = () => {
       const n = militia(town).length, l = armsLoss(game, town), b = armsBlock(game, town);
       setText(workers, n === 1 ? '1 building' : n + ' buildings');
-      setText(lost, 'About ' + fmt(l.coins) + ' coins');
+      setText(lost, 'About ' + fmt(l.coins));
       go.disabled = !!b;
       const waiting = b === 'wait';
       setText(restName, waiting ? 'Ready again in' : 'Rest after a call'); setText(rest, waiting ? clock(armsWait(town)) : span(ARMS.cooldown)); // the same clock as the To arms button (review of 2026.11.23-7)

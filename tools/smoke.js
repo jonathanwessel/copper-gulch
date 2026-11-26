@@ -466,7 +466,7 @@ async function run() {
         Object.assign(t, { wave: w, bestWave: bw, coins, breaches: br }); CG.town.pause('smoke', false);
         return out;
       });
-      if (!gate.card || !/got through. You dropped back/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed || !gate.toast) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
+      if (!gate.card || !/got through\. That loses the wave, even with hits left\. You dropped back/.test(gate.text) || !gate.back || !gate.held || !gate.resume || !gate.closed || !gate.toast) bad.push('a boss that got through did not lose the wave with its card: ' + JSON.stringify(gate));
       // the tower reserve: the camp card says what it keeps and its switch turns it off and on; a short tower card
       // names the good, the amount and the building that makes it
       const reserve = await page.evaluate(async () => {
@@ -522,8 +522,8 @@ async function run() {
         const inc = document.querySelector('.hud .coins .inc'), winfo = document.querySelector('#wave .winfo');
         Object.assign(ws, { phase: 'break', timer: 30, queue: [], foes: [] });
         let first = null, painted = true;
-        const steps = [[1, 1, 'in 9s'], [9, 9, 'in 44s'], [37, 10, 'On hold'], [99, 12, 'Fighting'], [999, 40, 'in 58s'], [1000, 99, 'Fighting'],
-          [4840, 99, 'in 1s'], [9999, 9, 'in 30s'], [56789, 10, 'On hold'], [99999, 100, 'in 9s'], [100000, 1, 'in 44s'], [999999, 50, 'in 7s'], [1.25e6, 99, 'in 120s'], [9.99e8, 10, 'in 3s']];
+        const steps = [[1, 1, 'in 0:09'], [9, 9, 'in 0:44'], [37, 10, 'On hold'], [99, 12, 'Fighting'], [999, 40, 'in 0:58'], [1000, 99, 'Fighting'],
+          [4840, 99, 'in 0:01'], [9999, 9, 'in 0:30'], [56789, 10, 'On hold'], [99999, 100, 'in 9:59'], [100000, 1, 'in 0:44'], [999999, 50, 'in 1:07'], [1.25e6, 99, 'in 2:00'], [9.99e8, 10, 'in 0:03']];
         for (const [n, w, info] of steps) {
           for (const g of Object.keys(t.goods)) { t.goods[g] = n; t.sell[g] = false; }
           t.coins = n * 10; t.wave = w;
@@ -830,7 +830,8 @@ async function run() {
         }
         if (was === undefined) delete t.sell.timber; else t.sell.timber = was;
         // a boom on timber: the strip chip gets its arrow and keeps its box
-        const m = CG.game.shared.market, keep = { boom: m.boom, event: m.event, wait: m.wait };
+        const m = CG.game.shared.market, keep = { boom: m.boom, event: m.event, wait: m.wait, rate: m.rate.timber };
+        m.rate.timber = 0; // an unsold good, so the boom moves the price up (clarity fix 8k: the line follows the price now)
         const chip = document.querySelector('#goodsStrip .goodchip[data-good="timber"]'), box = c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), Math.round(r.top), Math.round(r.height)].join(); };
         const b0 = chip && box(chip);
         m.boom = { good: 'timber', f: 1.6, left: 75 }; m.event = { timber: 1.6 }; m.wait = 200; await wait(450);
@@ -841,6 +842,10 @@ async function run() {
         out.row = !!row && !row.hidden && !!evl && !evl.hidden && /^Price up for \d:\d\d more$/.test(evl.textContent) && getComputedStyle(row, '::before').borderBottomWidth === '8px' && (row.getAttribute('aria-label') || '') === evl.textContent; // rising while still under 1 coin (clarity fix 8e), and the arrow's label is the line's words
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
         out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && /^Price down for 0:\d\d more$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for/.test(row.getAttribute('aria-label') || '');
+        // a boom over a good sold low: the line says the price is still down, and the arrow points down (clarity fix 8k)
+        m.boom = { good: 'timber', f: 1.6, left: 70 }; m.event = { timber: 1.6 }; m.rate.timber = 1e6; await wait(450);
+        out.stillDown = !!chip && chip.classList.contains('bust') && !chip.classList.contains('boom') && !!row && !!evl && /^Boom for \d:\d\d more\. Price still down\.$/.test(evl.textContent) && evl.classList.contains('bust') && getComputedStyle(row, '::before').borderTopWidth === '8px';
+        m.rate.timber = keep.rate || 0; delete keep.rate;
         Object.assign(m, keep); await wait(450);
         out.cleared = !!chip && !chip.classList.contains('boom') && !chip.classList.contains('bust') && !!row && row.hidden && !!evl && evl.hidden;
         return out;
@@ -1293,10 +1298,16 @@ async function run() {
       if (name !== 'phone') {
         const hidden = await page.evaluate(async () => {
           const t = CG.game.town, wait = ms => new Promise(r => setTimeout(r, ms));
-          for (const g of ['stone', 'iron', 'coal', 'pigiron', 'steel', 'rails', 'boilers', 'locos', 'bricks', 'tools', 'timber']) t.goods[g] = Math.max(t.goods[g] || 0, 5);
+          // with goods from the other towns in stock too, as a player at Silver Falls has them, so the strip needs more
+          // than two rows (the row check was green on the old strip with the Ridge's eleven)
+          for (const g of ['stone', 'iron', 'coal', 'pigiron', 'steel', 'rails', 'boilers', 'locos', 'bricks', 'tools', 'timber', ...(innerHeight <= 500 ? ['ore', 'clay', 'planks', 'copper', 'sand', 'quartz', 'glass', 'wire'] : [])]) t.goods[g] = Math.max(t.goods[g] || 0, 5);
           await wait(500); CG.play.open(Object.keys(t.def.board.plots)[0]); await wait(900);
           const card = document.getElementById('card').getBoundingClientRect(), out = [];
-          const more = document.getElementById('stripMore'); if (more && more.getBoundingClientRect().width) out.push(more.textContent);
+          // a phone turned sideways keeps two rows and the more box (clarity fixes 8j and 8l: a third and fourth row
+          // covered a third of the map and the Mortar's ring), a desktop shows every good
+          const short = innerHeight <= 500, more = document.getElementById('stripMore'); if (!short && more && more.getBoundingClientRect().width) out.push(more.textContent);
+          const tops = new Set([...document.querySelectorAll('#goodsStrip .goodchip, #stripMore')].map(c => Math.round(c.getBoundingClientRect().top)).filter(y => y > 0));
+          if (short && tops.size > 2) out.push(tops.size + ' rows');
           for (const c of document.querySelectorAll('#goodsStrip .goodchip')) { const r = c.getBoundingClientRect(); if (r.right > innerWidth || r.bottom > innerHeight || (card.width && r.left < card.right && r.right > card.left && r.top < card.bottom && r.bottom > card.top)) out.push(c.dataset.good + ' hidden'); }
           CG.play.close(); return out.join(', ');
         });
@@ -1733,7 +1744,7 @@ async function run() {
         if (!out.shown) return out;
         const w0 = btn.getBoundingClientRect().width;
         btn.click(); await wait(400);
-        const sh = document.getElementById('sheet'); out.sheet = !sh.hidden && sh.dataset.id === 'arms' && /Workers from/.test(sh.textContent) && /Goods lost/.test(sh.textContent) && /About [0-9.]+[KMB]? coins/.test(sh.textContent);
+        const sh = document.getElementById('sheet'); out.sheet = !sh.hidden && sh.dataset.id === 'arms' && /Workers from/.test(sh.textContent) && /Coins you miss/.test(sh.textContent) && /About [0-9.]+[KMB]?/.test(sh.textContent);
         for (let i = 0; i < 40 && t.waves.phase !== 'wave'; i++) await wait(100);
         const go = document.getElementById('callArms'); out.lit = !!go && !go.disabled; if (go) go.click(); await wait(600);
         out.out = t.arms.t > 0 && /fighting/.test(sh.textContent) && go.disabled;

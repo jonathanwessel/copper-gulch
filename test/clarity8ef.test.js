@@ -32,7 +32,7 @@ test('8e (4) and 8h (4): the card leads with one line in every case, never a cou
   Object.assign(t.waves, { queue: ['raider', 'runner'], foes: [{ kind: 'raider' }] });
   assert.deepEqual(waveLines(t), ['1 on the road, 2 still to come.', '2 Bandits', '1 Horseman'], 'with more kinds the same lead line');
   Object.assign(t.waves, { queue: [], foes: [{ kind: 'raider' }] });
-  assert.deepEqual(waveLines(t), ['All of them are on the road.', '1 Bandit']);
+  assert.deepEqual(waveLines(t), ['1 on the road. No more to come.', '1 Bandit']);
 });
 
 test('8f (3): at its wall the map line says back once and leaves Play to its button', () => {

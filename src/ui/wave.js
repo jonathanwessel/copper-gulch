@@ -6,7 +6,7 @@ import { FOES, WAVE_TYPES } from '../data/foes.js'; // WAVE_TYPES: which raiders
 import { TOWERS } from '../data/towers.js';
 import { bossWave, wavesOf, towerOpen } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
-import { WON_LINE } from './state.js';
+import { WON_LINE, clock } from './state.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 // a kind's plural: its own (Horsemen), or the name with an s (review of 2026.11.20-6: "Riders" read as "raiders")
@@ -23,18 +23,24 @@ export const waveTitle = town => (town.won ? 'Raids' : 'Wave ' + town.wave);
 /* call: Call now shows only in a break that is not held, so a held town shows one control, Resume waves (review of
    2026.11.23-7: Call now beside Resume waves). It keeps its place while hidden, so the bar keeps one width. */
 export const waveBar = ws => ({ hold: !!ws.hold, word: waveTimer(ws), button: ws.hold ? 'Resume waves' : 'Hold waves', call: !ws.hold && ws.phase === 'break' });
-export const waveTimer = ws => (ws.hold ? 'On hold' : ws.phase !== 'break' ? 'Fighting' : ws.timer > 99 ? 'in ' + Math.ceil(ws.timer / 60) + 'm' : 'in ' + Math.ceil(ws.timer) + 's'); // "in 2m" past 99 seconds, never three digits (review of 2026.11.20-14: "in 120s")
+/* A running countdown reads as a clock on every screen, "in 1:57" here as "Raid in 1:57" on the map (clarity fix 8j:
+   "in 2m", "in 28s" and "Raid in 1:57" were three forms for one timer). */
+export const waveTimer = ws => (ws.hold ? 'On hold' : ws.phase !== 'break' ? 'Fighting' : 'in ' + clock(ws.timer));
 
 /* The tower open in this town that hits a raider kind hardest (its best factor), or null when none does. */
 export function bestTower(town, kind) {
   const f = FOES[kind]; if (!f) return null;
-  let best = null, top = 1;
+  // a tower the player has here comes first, then one they can build (clarity fix 8k: the boss card said "Weak to Snake
+  // Oil Still" in a town with none, beside the Cannons that also hit it harder)
+  let best = null, top = 1, own = null, ownTop = 1;
+  const has = new Set((town.towers || []).map(t => t.kind));
   for (const [k, T] of Object.entries(TOWERS)) {
     if (!T.best || !towerOpen(town, k)) continue;
     const m = Math.max(T.best[kind] || 1, f.armor > 0 ? T.best.armored || 1 : 1, f.boss ? T.best.boss || 1 : 1);
     if (m > top) { top = m; best = k; }
+    if (has.has(k) && m > ownTop) { ownTop = m; own = k; }
   }
-  return best;
+  return own || best;
 }
 
 /* A raider row's tower line: the tower that hits it hardest under a small label, or Any when no tower hits it harder
@@ -50,7 +56,8 @@ export const bestView = (town, kind) => { const b = bestTower(town, kind); retur
 export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : ''; };
 
 /* The raiders card's lead line during a wave: how many are on the road and how many are still to come out. */
-export const roadLine = (road, queued) => (!queued ? 'All of them are on the road.' : !road ? queued + ' still to come, none on the road yet.' : road + ' on the road, ' + queued + ' still to come.');
+// all out: a count like the other two forms (clarity fix 8k: "All of them are on the road." above "1 Bandit")
+export const roadLine = (road, queued) => (!queued ? road + ' on the road. No more to come.' : !road ? queued + ' still to come, none on the road yet.' : road + ' on the road, ' + queued + ' still to come.');
 
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
@@ -68,7 +75,7 @@ export function waveInfo(town) {
     return { lines, kinds: kinds.map(([kind, c]) => ({ kind, n: c })) };
   }
   if (town.won) lines.push(WON_LINE); // the map card's words (state.js)
-  lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : (town.won ? 'The next raid comes in ' : 'It comes in ') + Math.ceil(ws.timer) + ' seconds.');
+  lines.push(ws.hold ? 'On hold. It comes when you tap Resume waves.' : (town.won ? 'The next raid comes in ' : 'It comes in ') + clock(ws.timer) + '.'); // the bar's clock (clarity fix 8j)
   if (bossWave(town, w)) lines.push('A boss wave. The ' + FOES[boss].name.toLowerCase() + ' comes last. Stop it to pass.');
   const kinds = new Set();
   for (const [t, T] of Object.entries(WAVE_TYPES)) if (w >= T.from && (t === 'mixed' || w >= 4)) for (const k of Object.keys(T.mix)) if (w >= FOES[k].from) kinds.add(k);

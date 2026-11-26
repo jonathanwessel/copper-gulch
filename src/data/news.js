@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-1',
+    lines: [
+      'Tap a tower or building number and each row shows how much it adds, not a times sign.',
+      'Every countdown reads like a clock, and shots read as shots a minute on every tower.',
+      'Orders say what your reputation does, and a boom over a cheap good says the price is still down.',
+      'With a phone turned sideways, the goods strip keeps two rows beside a card.',
+    ],
+  },
+  {
     v: '2026.11.25-10',
     lines: [
       'Goods you held back for a better price now sell over half a minute, so they do not crash their own price.',

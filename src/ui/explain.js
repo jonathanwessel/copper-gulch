@@ -12,18 +12,20 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 export const reachWord = (range, minRange = 0) => (minRange ? 'Long, not up close' : range < 2.3 ? 'Short' : range < 3.2 ? 'Medium' : 'Long');
 /* Blast in words, Small or Wide (the circles on the map show the rest). */
 export const blastWord = r => (r < 1.2 ? 'Small' : 'Wide');
-/* Shots in words: "1.3 a second", "One every 3 seconds". */
-// just under one a second rounds to one, never "One every 1 seconds" (screenshot of 2026.11.21-9: a level 19 Cannon)
-export const shotsWord = r => (r >= 1 ? fmt(r) + ' a second' : Math.round(1 / r) <= 1 ? 'About 1 a second' : 'One every ' + Math.round(1 / r) + ' seconds');
+/* Shots in one form for every tower, whole shots a minute: "84 a minute", "30 a minute" (clarity fix 8j: "1.4 a second"
+   beside "One every 2 seconds" were two forms for one stat, so two towers could not be compared at a glance). */
+export const shotsWord = r => Math.max(1, Math.round(r * 60)) + ' a minute';
 
 /* A working foreman that is not buying, beside its "Foreman · On" switch: what it is doing and why, as a status, not a
    story (review of 2026.11.19-9: "The foreman waits. Timber sells low..." read as a narrator). */
 /* It says when the foreman buys again, what it does, not its reasons (review of 2026.11.19-11: "Timber sells low and no
    workshop needs more" read as narrator reasoning beside a cheap upgrade). */
-export function foremanLine(why, good) {
+/* down: how far the price is down now, "99%", so a card that shows no price still says the one the foreman waits on
+   (clarity fix 8k: "Foreman paused while the timber price is down." on a card with no price). */
+export function foremanLine(why, good, down = '') {
   /* a status, as short as a sign (review of 2026.11.20-2: "buys the next level once timber sells for more" beside 1M coins and a 41-coin level read odd) */
   if (why === 'short') return 'Waiting for more ' + good + '.';
-  if (why === 'flooded') return 'Foreman paused while the ' + good + ' price is down.'; // up and down, the price's words everywhere (clarity fix 8i)
+  if (why === 'flooded') return 'Foreman paused while the ' + good + ' price is down' + (down ? ' ' + down : '') + '.'; // up and down, the price's words everywhere (clarity fix 8i)
   // what it waits for (review of 2026.11.20-8) // review of 2026.11.20-4: "a better price" beside a good kept for towers
   return 'Waiting until a level pays for itself within an hour.';
 }
@@ -92,14 +94,49 @@ export const pctWord = m => (m >= 1 ? 'Up ' + Math.max(1, Math.round((m - 1) * 1
 /* A bonus as how much it adds, "50% more" or "10% less" (clarity fix 8b: "Deeds × 1.5" in the Income bonuses was a bare
    factor, the same fix as the Goods rows' "Down 34%"). */
 export const moreWord = m => (m >= 1 ? Math.max(1, Math.round((m - 1) * 100)) + '% more' : Math.min(99, Math.max(1, Math.round((1 - m) * 100))) + '% less');
+/* Clarity fix 8j: a why row says what it adds, as the Vault sheet does, never a bare factor ("Level 6 × 2.94", "Wave 4
+   × 3" and "Level 10 and 25 bonuses × 4" in the fresh-eyes read of 2026.11.25-8). Each row's amount is the running total
+   as written less the one before, so the start and the rows add up to the total as written. A reach, shots or blast
+   row says it in words ("25% more"), since its total is a word. A row too small to write reads as words too. */
+const stepOf = (unit, v) => {
+  const a = Math.abs(v);
+  if (unit === 'dmg' && a >= 10 && a < 999.5) return 1;
+  if (a < 1) return .01;
+  if (a < 10) return .1;
+  if (a < 1000) return 1;
+  const i = Math.floor(Math.log10(a) / 3), w = a / 10 ** (i * 3);
+  return 10 ** (i * 3) * (w < 10 ? .01 : w < 100 ? .1 : 1);
+};
+const WORD_UNITS = ['reach', 'shots', 'blast'];
+/* A number as its row writes it, and that string as a number (null for "1.2K"). */
+const shownOf = (unit, v) => (unit === 'dmg' ? fmtDmg(v) : unit === 'rate' ? fmtLive(v) : fmt(v));
+const numOf = s => (/^\d+(\.\d+)?$/.test(s) ? +s : null);
+const decimalsOf = s => (s.includes('.') ? s.split('.')[1].length : 0);
+export function addsShown(ex) {
+  if (WORD_UNITS.includes(ex.unit)) return ex.rows.map(r => (r.base !== undefined ? null : moreWord(r.mul)));
+  const totalS = shownOf(ex.unit, ex.value), T = numOf(totalS);
+  const bases = ex.rows.filter(r => r.base !== undefined).map(r => shownOf(ex.unit, r.base));
+  // under 1,000 the rows keep the finest decimals the start or the total shows, so the sum is exact
+  const dec = T === null ? 0 : Math.max(decimalsOf(totalS), ...bases.map(decimalsOf));
+  const step = T === null ? stepOf(ex.unit, ex.value) : 10 ** -dec, q = v => Math.round(v / step) * step;
+  const last = ex.rows.map(r => r.base === undefined).lastIndexOf(true);
+  let v = 1, prev = 0;
+  return ex.rows.map((r, i) => {
+    if (r.base !== undefined) { v = r.base; const s = shownOf(ex.unit, r.base); prev = numOf(s) ?? r.base; return null; }
+    v *= r.mul;
+    const now = i === last ? (T ?? q(ex.value)) : q(v), d = now - prev;
+    prev = now;
+    const amount = Math.abs(d), shown = T === null ? fmt(amount) : String(+amount.toFixed(dec));
+    if (shown === '0') return moreWord(r.mul);
+    return (d < 0 ? '-' : '+') + shown + (ex.unit === 'rate' ? '/s' : '');
+  });
+}
 export function explainBox(ex, { extra = {}, total = 'Total', pct = false } = {}) {
   const box = el('div', 'explain why');
   // the old-waves row's label is the wave bar's gold wave number (review of 2026.11.23-9)
   const row = (a, b, cls, old) => { const r = el('div', cls); r.append(el('span', old ? 'oldwave' : null, a), el('b', null, b)); box.append(r); };
-  const vals = ex.unit === 'reach' || ex.unit === 'shots' ? null : mulShown(ex);
-  // a price that reads "almost 0 coins": a factor under 0.01 reads "÷ 2,000" with it
-  const almost = ex.unit === 'coins' && shownNum('coins', ex.value) === 'almost';
-  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : pct ? pctWord(r.mul) : almost && r.mul < .01 ? divText(r.mul) : vals ? mulWord(vals[i]) : mulText(r.mul), null, r.old);
+  const adds = pct ? null : addsShown(ex);
+  for (const [i, r] of ex.rows.entries()) row(r.label, r.base !== undefined ? unitText(ex.unit, r.base, extra) : pct ? pctWord(r.mul) : adds[i], null, r.old);
   if (total && (ex.rows.length > 1 || ex.unit === 'reach')) row(total, unitText(ex.unit, ex.value, extra), 'total'); // total null: the price bar above says it
   return box;
 }

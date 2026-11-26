@@ -4,7 +4,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
-import { boomNow, sellMode, setSellMode } from '../core/market.js';
+import { boomNow, sellMode, setSellMode, saturation } from '../core/market.js';
 import { explainMade, explainTower, explainWindow, incomeWindow, paysEach, usedBy } from '../core/explain.js';
 import { stallOf, stallFix, shortInput, makerOf as stallMaker } from '../core/stall.js';
 import { explainBox, incomeSheet, vaultSheet, reachWord, shotsWord, blastWord, foremanLine, keepLine } from './explain.js';
@@ -30,7 +30,9 @@ import { tabs, dots, look, lookGoods, lookPerks, stripGoods, stripFit, heldAfter
 const shortLand = () => innerHeight <= 500 && innerWidth >= innerHeight;
 /* Beside a side card the strip takes a third row when the goods need it, so none hides behind a more box while a card
    is open (clarity fix 8c: the Ridge in landscape showed "3 more" in place of three counts). */
-const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : strip.classList.contains('beside') ? 3 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
+/* Not on a phone turned sideways: there a third row (a fourth with Power) covered a third of the map and the Mortar's
+   ring beside its card (clarity fixes 8j and 8l: path-land, falls-power-land), so it keeps two rows and the more box. */
+const stripRoom = strip => (strip.classList.contains('oneline') ? 1 : strip.classList.contains('beside') && !shortLand() ? 3 : 2) * (strip.classList.contains('narrow') ? Math.max(3, Math.floor((parseInt(strip.style.width) || innerWidth - 24) / 84)) : innerWidth < 600 ? 3 : innerWidth < 1100 ? 6 : 8);
 import { goalNow, goalContext, goalsOf, goalText, sendsAway, meterWords, readyIn, readyWords } from '../core/goals.js';
 import { lostToast, lostCard, bossName } from './lost.js';
 import { setSwitch } from './switch.js';
@@ -179,9 +181,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // the red count says it is short (review of 2026.11.23-9), and the chip keeps the name the cards use, Power (clarity fix 8i: "Low power 6" beside "Town power 6 / 9")
     for (const [g, n] of Object.entries(stripNums)) setText(n, fmtLive(Math.floor((town.goods[g] || 0) + 1e-9)));
     // a boom or bust (src/core/market.js): a small arrow in the chip's corner, so the chip keeps its size
-    const bm = boomNow(game), ev = bm ? (bm.f > 1 ? 'boom' : 'bust') : '';
+    // the arrow points the way the price is now, as the Goods row's line does (clarity fix 8k: a boom over a good sold
+    // low showed an up arrow on the strip beside "Price still down")
+    const bm = boomNow(game);
     for (const [g, n] of Object.entries(stripNums)) {
-      const c = n.parentNode, want = bm && bm.good === g ? ev : '';
+      const c = n.parentNode, want = bm && bm.good === g ? (saturation(game, g) * bm.f >= 1 ? 'boom' : 'bust') : '';
       if ((c.dataset.ev || '') === want) continue;
       c.dataset.ev = want; c.classList.toggle('boom', want === 'boom'); c.classList.toggle('bust', want === 'bust');
       c.title = GOODS[g].name + (want === 'boom' ? ', boom' : want === 'bust' ? ', bust' : '');
@@ -290,7 +294,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const used = L && !isGrid(b.makes) ? usedBy(town, b.makes) : { ids: [] };
     const usedText = usedLine(used, g);
     if (usedEl) setText(usedEl, usedText);
-    const now = [id, L, why, why ? madeText : !!(made && made.lacking), used.ids.join(), wait && wait.why + wait.good, Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
+    const now = [id, L, why, why ? madeText : !!(made && made.lacking), used.ids.join(), wait && wait.why + wait.good + downBy(wait), Math.round(grid.made * 10), Math.round(grid.want * 10), cost(town, id), town.coins >= cost(town, id), String(town.starved[id] || ''), missing(town, id).length, town.sell[b.makes], kept, keepOn, hasForeman(town, id), foremanOn(town, id), canHire(town, id) && town.coins >= hireCost(town, id)].join();
     if (!force && now === sig) return;
     sig = now;
     card.replaceChildren();
@@ -396,7 +400,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   }
 
   /* Why a working foreman is not buying (src/core/foremen.js, foremanWait), in plain words (foremanLine, src/ui/explain.js). */
-  const waitText = w => foremanLine(w.why, GOODS[w.good].name.toLowerCase());
+  const downBy = w => (w && w.why === 'flooded' ? Math.min(99, Math.max(1, Math.round((1 - saturation(game, w.good)) * 100))) + '%' : '');
+  const waitText = w => foremanLine(w.why, GOODS[w.good].name.toLowerCase(), downBy(w));
 
   let armed = null; // a path tapped once, waiting for the second tap
   /* A cost as a row: the coins, then each good with its square, each "have / need", red when short (review 2026-11-18:

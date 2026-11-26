@@ -84,11 +84,12 @@ test('the Still card says what its poison does to armor', () => {
   for (const s of ['Poisoned raiders', eatWords(EATS_ARMOR.share)]) assert.deepEqual(textIssues(s), [], s);
 });
 
-test('shots just under one a second never read "One every 1 seconds"', async () => {
+test('shots read one way for every tower, whole shots a minute (clarity fix 8j)', async () => {
   const { shotsWord } = await import('../src/ui/explain.js');
-  assert.equal(shotsWord(.96), 'About 1 a second');
-  assert.equal(shotsWord(.5), 'One every 2 seconds');
-  assert.ok(!/every 1 seconds/.test(shotsWord(.7)));
+  assert.equal(shotsWord(.96), '58 a minute');
+  assert.equal(shotsWord(.5), '30 a minute');
+  assert.equal(shotsWord(1.4), '84 a minute');
+  assert.equal(shotsWord(.001), '1 a minute');
 });
 
 test('the sell modes say what each does, and a boom never reads as a drop (review of 2026.11.23-1)', async () => {
@@ -171,4 +172,21 @@ test('the boss tip card names the boss on the bar, never the word boss, clarity 
   assert.equal(e.head({ boss: 'armored train' }), 'The armored train');
   assert.equal(e.say({ boss: 'armored train' }), 'The armored train changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.');
   for (const s of [e.title, e.text, e.say({ boss: 'war wagon' })]) { assert.ok(!/boss/i.test(s), s); assert.deepEqual(textIssues(s), [], s); }
+});
+
+test('the words of clarity fixes 8j and 8k', async () => {
+  const { waveTimer, roadLine } = await import('../src/ui/wave.js');
+  const { repLine, boomWords } = await import('../src/ui/sheets.js');
+  const { foremanLine } = await import('../src/ui/explain.js');
+  const { levelsDone } = await import('../src/ui/format.js');
+  const { shotsWord } = await import('../src/ui/explain.js');
+  assert.equal(waveTimer({ phase: 'break', hold: false, timer: 117 }), 'in 1:57');
+  assert.equal(shotsWord(1.4), '84 a minute');
+  assert.deepEqual([0, 30, 64, 100].map(repLine), ['Fill orders to raise it. Rush orders come at 60.', 'Orders pay 15% more. Rush orders come at 60.', 'Orders pay 32% more. Rush orders come too.', 'Orders pay 50% more. Rush orders come too.']);
+  assert.equal(boomWords(1.6, '1:11', .3), 'Boom for 1:11 more. Price still down.');
+  assert.equal(boomWords(1.6, '1:11', 1.2), 'Price up for 1:11 more');
+  assert.equal(roadLine(1, 0), '1 on the road. No more to come.');
+  assert.equal(foremanLine('flooded', 'timber', '99%'), 'Foreman paused while the timber price is down 99%.');
+  assert.equal(levelsDone(2, 5), 'Level 2 of 5');
+  for (const s of [repLine(0), repLine(64), boomWords(1.6, '1:11', .3), roadLine(1, 0), foremanLine('flooded', 'timber', '99%')]) assert.deepEqual(textIssues(s), [], s);
 });

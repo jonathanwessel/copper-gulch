@@ -41,7 +41,9 @@ export function lostCard(town, game = null) {
   const l = town.lost || { wave: town.wave, back: town.wave, coins: 0 };
   const again = game && willRetry(game, town);
   // a fallen vault holds the town in play only at its wall (atWall: the second loss in a row with no new best wave)
-  const what = l.why === 'boss' ? 'The ' + bossName(town) + ' got through.' : 'Your ' + storeOf(town) + ' fell again.';
+  // a boss that gets in loses its wave with hits left, which the Vault sheet does not say, so the card says it once
+  // (clarity fix 8k: "The war wagon got through." beside a vault that loses only at 0 hits left)
+  const what = l.why === 'boss' ? 'The ' + bossName(town) + ' got through. That loses the wave, even with hits left.' : 'Your ' + storeOf(town) + ' fell again.';
   return {
     title: 'Wave ' + l.wave + ' lost',
     lines: [what + ' You dropped back to wave ' + l.back + (l.coins > 0 ? ' and lost ' + fmt(l.coins) + ' coins.' : '.'),
