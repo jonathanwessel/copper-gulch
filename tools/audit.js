@@ -86,6 +86,17 @@ export function audit() {
     if (s.includes('\r')) problems.push(f + ': CRLF line endings (write with newline "\\n")');
   }
 
+  // 5b. page animations that cost a layout every frame (perf headroom box, 2026.11.27-6): the goal mark's endless pulse
+  // grew by inset, so the page was laid out again in every frame, and a second @keyframes of one name quietly replaced
+  // the first. An endless animation may only move transform, opacity, colors, shadows and outlines.
+  const css = read('index.html'), frames = new Map();
+  for (const m of css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^}]*\})*)\s*\}/g)) {
+    if (frames.has(m[1])) problems.push('index.html: two @keyframes named ' + m[1] + ' (the later one replaces the first)');
+    frames.set(m[1], m[2]);
+  }
+  const LAYOUT = /(^|[;{\s])(inset|top|left|right|bottom|width|height|min-width|min-height|max-width|max-height|margin[\w-]*|padding[\w-]*|border(-\w+)?-width|border-width|font-size|line-height|gap)\s*:/;
+  for (const m of css.matchAll(/animation:\s*([\w-]+)[^;}]*\binfinite\b/g)) if (frames.has(m[1]) && LAYOUT.test(frames.get(m[1]))) problems.push('index.html: the endless animation ' + m[1] + ' moves a layout property (use transform, opacity or outline-offset)');
+
   // 6. release plumbing: one version everywhere, a cache list with no missing files, icons that exist
   const v1 = (read('src/version.js').match(/GAME_VERSION = '([^']+)'/) || [])[1];
   const v2 = (read('sw.js').match(/const VERSION = '([^']+)'/) || [])[1];

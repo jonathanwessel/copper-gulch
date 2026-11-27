@@ -420,7 +420,7 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
     if (meter) meter.update(game);
     t += dt;
     if (!api.paused) CLOUD.t.value += dt;
-    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    const { w, h } = v.cssSize(); // no layout here (scene.js, cssSize)
     size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
     if (!opened && rig.fitted) { // coming out of a town: start low over it and rise to the whole map

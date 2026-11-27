@@ -47,26 +47,29 @@ const GradeShader = {
 
 /* Edge smoothing for the med tier (FXAA, after Timothy Lottes' fast approximate antialiasing): the scene is drawn into
    an 8-bit target already tone mapped and in screen colors (the target says it is an XR target, which is the one case
-   where three.js does that), then one full-screen triangle blurs only across edges: four corner reads find the edge's
-   direction, flat areas stop there, and edges take two or four reads along it. On the software GPU in tools/perf.js
+   where three.js does that), then one full-screen triangle blurs only across edges. On the software GPU in tools/perf.js
    multisampling ran the fragment shader for every sample and cost a third of the frame; this is one cheap pass.
-   The five reads that find an edge land on whole pixels, so they are texelFetch reads: a filtered read costs four
-   fetches on a software GPU even at a pixel's middle (perf headroom box, 2026.11.27-5). Only the reads along an
-   edge, which fall between pixels, blend. */
+   Each read of the target costs about half a millisecond over a phone screen there, and most pixels are flat, so the
+   flat test reads only the middle and two opposite corners (top left, bottom right); the other two corners and the
+   four reads along the edge come only on an edge (perf headroom box, 2026.11.27-6: 1.3 ms of the Mesa frame, with 89%
+   of the smoothing kept and the same look at four times zoom; the edges it skips run exactly corner to corner the
+   other way). The reads that find an edge land on whole pixels, so they are texelFetch reads: a filtered read costs
+   four fetches on a software GPU even at a pixel's middle. uEdge is the contrast an edge needs (least, and share of
+   the brightest), as uniforms so a tool can try others without building the shader again. */
 const FxaaShader = {
-  uniforms: { tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) } },
+  uniforms: { tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) }, uEdge: { value: new THREE.Vector2(.0833, .166) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 0., 1.); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uPx; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uPx, uEdge; varying vec2 vUv;
     const vec3 L = vec3(.299, .587, .114);
-    vec3 at(ivec2 p, ivec2 e) { return texelFetch(tDiffuse, clamp(p, ivec2(0), e), 0).rgb; }
+    float at(ivec2 p, ivec2 e) { return dot(texelFetch(tDiffuse, clamp(p, ivec2(0), e), 0).rgb, L); }
     void main(){
       ivec2 p = ivec2(gl_FragCoord.xy), edge = textureSize(tDiffuse, 0) - 1;
-      vec3 nw = at(p + ivec2(-1, -1), edge), ne = at(p + ivec2(1, -1), edge);
-      vec3 sw = at(p + ivec2(-1, 1), edge), se = at(p + ivec2(1, 1), edge);
-      vec3 m = at(p, edge);
-      float lnw = dot(nw, L), lne = dot(ne, L), lsw = dot(sw, L), lse = dot(se, L), lm = dot(m, L);
-      float lo = min(lm, min(min(lnw, lne), min(lsw, lse))), hi = max(lm, max(max(lnw, lne), max(lsw, lse)));
-      if (hi - lo < max(.0833, hi * .166)) { gl_FragColor = vec4(m, 1.); return; }
+      vec3 m = texelFetch(tDiffuse, p, 0).rgb;
+      float lm = dot(m, L), lnw = at(p + ivec2(-1, -1), edge), lse = at(p + ivec2(1, 1), edge);
+      float lo = min(lm, min(lnw, lse)), hi = max(lm, max(lnw, lse));
+      if (hi - lo < max(uEdge.x, hi * uEdge.y)) { gl_FragColor = vec4(m, 1.); return; }
+      float lne = at(p + ivec2(1, -1), edge), lsw = at(p + ivec2(-1, 1), edge);
+      lo = min(lo, min(lne, lsw)); hi = max(hi, max(lne, lsw));
       vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));
       float red = max((lnw + lne + lsw + lse) * .03125, 1. / 128.), rcp = 1. / (min(abs(dir.x), abs(dir.y)) + red);
       dir = clamp(dir * rcp, -8., 8.) * uPx;
@@ -120,8 +123,19 @@ export function createScene(canvas, opt = {}) {
   const fxaaQuad = new THREE.Mesh(tri, fxaaMat); fxaaQuad.frustumCulled = false;
   const fxaaScene = new THREE.Scene(); fxaaScene.add(fxaaQuad);
   const fxaaCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  /* The canvas's size in CSS pixels, kept by a ResizeObserver. Each view read clientWidth at the top of every frame, and
+     when an animation or the interface had changed the page since the browser last laid it out, that read laid the
+     whole page out again in the middle of the frame (the hottest line of the game's own code in the Mesa empire case,
+     perf headroom box, 2026.11.27-6). The observer hears every rotation and window resize after the browser's layout. */
+  const css = { w: canvas.clientWidth || innerWidth, h: canvas.clientHeight || innerHeight };
+  const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(es => {
+    const b = es[es.length - 1].contentRect; css.w = Math.round(b.width) || innerWidth; css.h = Math.round(b.height) || innerHeight;
+  });
+  if (ro) ro.observe(canvas);
   const view = {
-    renderer: r, scene, cam, sky, hemi, sun, canvas,
+    renderer: r, scene, cam, sky, hemi, sun, canvas, fxaa: fxaaMat,
+    /* The canvas's size in CSS pixels ({ w, h }, the same object every frame), with no layout. */
+    cssSize() { if (!ro) { css.w = canvas.clientWidth || innerWidth; css.h = canvas.clientHeight || innerHeight; } return css; },
     get tier() { return tier; }, get target() { return aa; }, get ratio() { return ratio; }, get lamps() { return lamps; },
     /* Change the quality tier (shadows, lamps, post-processing) and the pixel ratio (the tier's own when left out).
        Multisampling stays as created. */
@@ -181,7 +195,7 @@ export function createScene(canvas, opt = {}) {
       else r.render(scene, cam);
       view.stats = { calls: r.info.render.calls, triangles: r.info.render.triangles, w: W, h: H, tier, ratio };
     },
-    dispose() { if (composer) composer.dispose(); if (aa) aa.dispose(); fxaaMat.dispose(); tri.dispose(); r.dispose(); },
+    dispose() { if (ro) ro.disconnect(); if (composer) composer.dispose(); if (aa) aa.dispose(); fxaaMat.dispose(); tri.dispose(); r.dispose(); },
   };
   view.setQuality(tier, ratio);
   canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); view.lost = true; });

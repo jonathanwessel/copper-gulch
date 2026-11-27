@@ -105,7 +105,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     step(dt);
     if (!api.paused) game.advance(dt);
     t += dt;
-    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    const { w, h } = v.cssSize(); // no layout here (scene.js, cssSize)
     size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
     // build and draw every shader once at the real size before the first frame (Battle.warm)

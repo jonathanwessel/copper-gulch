@@ -884,17 +884,19 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // frame, before it is drawn: at 5 measures a second the phone tower card sat over the strip's new row for up to 0.2 s
   // (smoke failed on it in 3 of 7 runs, 2026.11.22-1 and -2)
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(es => {
-    reMeasure = true;
+    reMeasure = true; viewW = innerWidth; // read here, after the browser's layout (the page's own box is observed too)
     for (const e of es) if (e.target === strip) { const sh = strip.hidden ? 0 : Math.round(e.target.getBoundingClientRect().height + 4); if (sh !== stripH) { stripH = sh; ui.style.setProperty('--striph', sh + 'px'); } }
   }) : null;
-  if (ro) { ro.observe(card); ro.observe(strip); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
+  if (ro) { ro.observe(document.documentElement); ro.observe(card); ro.observe(strip); const sh = ui.querySelector('#sheet'); if (sh) ro.observe(sh); }
   let foeAcc = 0, bossAcc = 0;
   function frame(dt) {
     acc += dt; cardAcc += dt;
     // a raider's card keeps up with it ten times a second (the simulation steps four times a second)
     if (foeUi && (foeAcc += dt) > .1) { foeAcc = 0; if (!foeUi.update()) close(); }
     if ((bossAcc += dt) > .1) { boss.update(bossAcc); bossAcc = 0; } // the boss bar, ten times a second
-    viewW = innerWidth; // read once, before this frame moves any tag (a read between moves lays the page out again)
+    // the screen's width, from the observer above: reading innerWidth here laid the whole page out again whenever an
+    // animation had changed it since the browser's last layout (perf headroom box, 2026.11.27-6)
+    if (!ro) viewW = innerWidth;
     if (reMeasure) { reMeasure = false; measure(); }
     sheets.frame(dt);
     paintGoal(dt); markAt = null;

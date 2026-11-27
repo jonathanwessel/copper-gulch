@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-6',
+    lines: [
+      'Thunder Mesa and Silver Falls run smoother on phones.',
+      'Shadows and edges look the same but use less battery.',
+    ],
+  },
+  {
     v: '2026.11.27-5',
     lines: [
       'Big waves run smoother on phones, above all in Thunder Mesa and Silver Falls.',

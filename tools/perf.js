@@ -1,4 +1,5 @@
 // node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|mesa-empire|map] [--limit 33] [--eval "js run in the page first"] [--report "js read after"] [--profile] [--script ms] [--calls n]
+//   [--ab "on => js" [--each "js"] [--rounds 4]]: an A/B of one change inside one page (see AB below)
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
 // --town falls-empire: Silver Falls in play with the Gulch, the Ridge, the Capital, Dry Creek, Pine Hollow and Sandy Bend
@@ -29,7 +30,7 @@ const errs = []; // a page that throws every frame skips its work and reads fast
 try {
   const p = await b.newPage({ viewport: { width: 400, height: 860 }, deviceScaleFactor: DPR, mobile: true });
   p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' || TOWN === 'falls-empire' ? 'gulch' : TOWN)));
+  await p.goto(srv.url + '?coach=off' + (TOWN === 'drycreek' ? '' : '&start=' + (TOWN === 'map' || TOWN === 'empire' || TOWN === 'falls-empire' || TOWN === 'mesa-empire' ? 'gulch' : TOWN)));
   for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.ready))); i++) await sleep(100);
   const TIER = arg('tier', '');
   await p.evaluate(([t, NOAUDIO]) => { localStorage.clear(); if (t) localStorage.setItem('cg-gfx', JSON.stringify({ tier: t, auto: false })); document.getElementById('play').click(); if (!NOAUDIO) CG.audio.start(); }, [TIER, process.argv.includes('--no-audio')]);
@@ -112,6 +113,10 @@ try {
     // the airships off for an A/B of what the sky lane costs
     const D = await import('./src/core/defense.js'); m.flags['open:tesla'] = true; tower(m, 5, 'tesla', 8); tower(m, 6, 'tesla', 8);
     m.wave = D.wavesOf(m).airFrom + 2; if (window.NO_SKY) D.wavesOf(m).airFrom = 999;
+    // every town's random numbers from a fixed seed, so each run fights the same waves (perf headroom box, 2026.11.27-6:
+    // the game's seed is the clock's, and wave 13 came as raiders, brutes or runners, which moved the frame 2-3 ms; and
+    // the case started in Dry Creek, not the Gulch, so the Gulch worked behind it in only some runs)
+    const { Rng } = await import('./src/core/rng.js'); for (const x of Object.values(g.towns)) x.rng = new Rng('perf:' + x.id);
     m.waves.timer = 1; // called at the end of its wait, so the wave comes at its own size (no rush)
     CG.play.close(); document.getElementById('callWave').click();
   });
@@ -166,6 +171,19 @@ try {
     const v = (CG.town || CG.map).view, s = v.stats || {};
     return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), script: script[script.length >> 1], p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2), worst } };
   }, SECONDS);
+  // --ab "on => js": flips the page between two states (on false, then true) in windows of --seconds, in the order
+  // ABBA ABBA, and prints each side's median frame and script part. Runs one after another move about 1.5 ms with the
+  // wave's moment and the machine (perf headroom box, 2026.11.27-6), so a change is judged inside one page and one wave.
+  const AB = arg('ab', ''), EACH = arg('each', ''); // --each js: run before every window (to keep a wave on the road)
+  if (AB) {
+    const runs = { off: [], on: [] }, ROUNDS = +arg('rounds', 4), med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+    for (let i = 0; i < ROUNDS; i++) for (const on of i % 2 ? [true, false] : [false, true]) {
+      if (EACH) await p.evaluate(EACH); await p.evaluate(`(${AB})(${on})`); await sleep(300);
+      const m = await measure(); runs[on ? 'on' : 'off'].push([+m.median.toFixed(1), +m.script.toFixed(1), m.calls, m.foes]);
+    }
+    for (const k of ['off', 'on']) console.log(`${k.padEnd(3)} frame ${med(runs[k].map(r => r[0]))} script ${med(runs[k].map(r => r[1]))}  ` + JSON.stringify(runs[k]));
+    await b.close(); srv.close(); process.exit(0);
+  }
   const PROFILE = process.argv.includes('--profile');
   if (PROFILE) { await p.cdp('Profiler.enable'); await p.cdp('Profiler.start'); }
   out = await measure();
@@ -187,6 +205,13 @@ try {
     console.log('by kind: ' + [...kinds].sort((a, b) => b[1] - a[1]).map(([c, v]) => c + ' ' + (100 * v / total).toFixed(1) + '%').join(', '));
     console.log('game files (' + (100 * own / total).toFixed(1) + '% of all):');
     for (const [f, v] of [...files].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log((100 * v / own).toFixed(1).padStart(5) + '%  ' + f);
+    // and the game's hottest lines (samples by line, from each function's position ticks): a function's own time can
+    // hide a forced layout or a string built every frame (perf headroom box, 2026.11.27-6)
+    const lines = new Map(); let ticks = 0;
+    for (const n of profile.nodes) { const u = n.callFrame.url.split('/').slice(-2).join('/'); if (!/^(core|ui|render|data|audio)\//.test(u)) continue;
+      for (const pt of n.positionTicks || []) { const k = u + ':' + pt.line; lines.set(k, (lines.get(k) || 0) + pt.ticks); ticks += pt.ticks; } }
+    console.log('game lines (samples):');
+    for (const [k, v] of [...lines].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log(String(v).padStart(6) + '  ' + k);
   }
   // the software GPU is noisy on a busy machine: a near miss (within 15%) is measured once more, and the better run counts
   if (out.median > LIMIT && out.median <= LIMIT * 1.15) {

@@ -151,22 +151,24 @@ export function padFooting(k) {
 }
 
 /* Soft contact shadows: one dark radial blob under each pad and the vault (static), and one under each plot that
-   has a building (shown by scale). A single instanced mesh, so one draw call for all of them. */
-let BLOB = null;
-function blobTexture() {
-  if (BLOB) return BLOB;
-  const N = 64, data = new Uint8Array(N * N * 4);
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const d = Math.hypot(x - N / 2 + .5, y - N / 2 + .5) / (N / 2), a = Math.max(0, 1 - d), i = (y * N + x) * 4;
-    data[i] = data[i + 1] = data[i + 2] = 0; data[i + 3] = Math.round(255 * Math.min(1, a * 1.6));
-  }
-  BLOB = new THREE.DataTexture(data, N, N); BLOB.needsUpdate = true; BLOB.magFilter = THREE.LinearFilter; BLOB.minFilter = THREE.LinearFilter;
-  return BLOB;
-}
+   has a building (shown by scale). A single instanced mesh, so one draw call for all of them. The fade is worked out in
+   the shader from the square's middle, with no texture: a filtered texture read costs four fetches on a software GPU,
+   and the blobs read one for every pixel round every building (about 1 ms of the Mesa empire frame, perf headroom box,
+   2026.11.27-6). The fade is the old 64-pixel texture's: dark out to 0.375 of the radius, then down to nothing at its
+   edge, and the square's corners outside the circle are skipped. */
+const BLOB_VS = `varying vec2 vUv;
+  void main(){ vUv = uv; vec4 p = vec4(position, 1.);
+  #ifdef USE_INSTANCING
+    p = instanceMatrix * p;
+  #endif
+    gl_Position = projectionMatrix * modelViewMatrix * p; }`;
+const BLOB_FS = `uniform float opacity; varying vec2 vUv;
+  void main(){ float a = clamp((1. - length(vUv - .5) * 2.) * 1.6, 0., 1.) * opacity; if (a <= 0.) discard; gl_FragColor = vec4(0., 0., 0., a); }`;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 /* n soft round shadows on the ground in one draw call (instances placed with setMatrixAt, a unit square scaled). */
 export function blobMesh(n, opacity = .5) {
-  const mat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity, color: '#000', polygonOffset: true, polygonOffsetFactor: -1, fog: false });
+  const mat = new THREE.ShaderMaterial({ uniforms: { opacity: { value: opacity } }, vertexShader: BLOB_VS, fragmentShader: BLOB_FS,
+    transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, fog: false });
   mat.userData.own = true;
   const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, n);
   mesh.name = 'blobs'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false; mesh.renderOrder = 0;

@@ -82,7 +82,7 @@ export function startTitleScene(canvas) {
   v.sun.position.set(-9, 7, 6); v.sun.target.position.set(0, 0, 0);
   let t0 = performance.now(), raf = 0, frames = 0;
   const size = () => {
-    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    const { w, h } = v.cssSize();
     v.resize(w, h);
     return w / h;
   };
