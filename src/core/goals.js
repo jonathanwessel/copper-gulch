@@ -5,7 +5,7 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall, bossOn } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall, bossOn, nextBoss } from './defense.js';
 import { FOES } from '../data/foes.js';
 import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
@@ -156,7 +156,7 @@ export const CAPITAL_HOLD = { id: 'next:capital:hold', next: 'capital', text: 'T
 export const FIGHT_LOW = .4;
 export const bossFight = (game, town) => !!town && game.active === town.id && !town.won && !!town.waves && town.waves.phase !== 'break'
   && bossWave(town, town.wave) && (town.towers || []).length > 0 && town.vault.hp <= FIGHT_LOW * town.vault.max;
-const bossNameOf = town => ((FOES[(town.def && town.def.boss) || 'wagon'] || FOES.wagon).name).toLowerCase();
+const bossNameOf = town => ((FOES[nextBoss(town)] || FOES.wagon).name).toLowerCase();
 /* spot: the tower the town's own goal names, so the strip never asks for two towers in turn (on seed 1 the fight's
    cheapest tower took the coins saved for the goal's level 15); else the cheapest to raise. */
 /* Its words follow the boss (clarity fix 8o: "Stop the war wagon" showed before the wagon came out, with no boss bar):

@@ -2,7 +2,7 @@
    motors, automobiles and airships. Its Motor Works needs wire and its Airship Works dynamos from Silver Falls, and its
    Automobile Plant steel from Iron Ridge (src/core/economy.js, ship). Founding it takes the Rail Office's third upgrade
    (Mule Trains) as well as a wave and coins. The road came in part 1a and the sky lane with its airships in part 2b
-   (PLAN.md M6b); the war wagon is its boss until the Sky pirate comes in part 2c, and its outpost (Tar Seep) in part 3. */
+   (PLAN.md M6b), its boss the pirate airship in part 2c, and its outpost (Tar Seep) in part 3. */
 export const MESA = {
   id: 'mesa',
   name: 'Thunder Mesa',
@@ -20,7 +20,9 @@ export const MESA = {
   // a first pass like the Falls' (70 s, rushMore 6); the probe in part 1a (tools/mesa-probe.js) checks wave 10
   // airships from wave 11, after the first boss (part 2b): every airEvery-th raider flies the sky lane, where only the Tesla Coil reaches it
   waves: { pace: 72, rushMore: 6, airEvery: 5, airFrom: 11 },
-  boss: 'wagon',                   // the war wagon until the Sky pirate airship comes in part 2
+  // the pirate airship from wave 20 (part 2c); the first boss, at wave 10, is still the war wagon, since the sky opens after it
+  boss: 'skypirate',
+  bossAt: { 10: 'wagon' },
   research: ['pumpjacks', 'crushers', 'cracking', 'stormwalls', 'searchlights', 'leases', 'assembly'], // src/data/research.js
   researchOpens: 'refinery',
   // founding it (src/core/empire.js): Silver Falls' best wave, deeds held, the Rail Office's third upgrade and coins from

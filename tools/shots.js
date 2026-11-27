@@ -424,6 +424,23 @@ const MESA = [
     for (let i = 0; i < 60 && CG.coach.current !== 'airship'; i++) await new Promise(r => setTimeout(r, 100));
   }],
   ['mesa-airship-card', () => { CG.coach.dismiss(); CG.coach.wake(false); const f = CG.game.town.waves.foes.find(x => x.kind === 'airship' && x.hp > 0); if (f) CG.play.openFoe(f.id); }],
+  // the pirate airship (part 2c), the Mesa's boss from wave 20: its card the first time, the boss in flight over the
+  // town with its bar, then at half health with its crew on the road and the airship low
+  ['mesa-pirate-intro', async () => {
+    CG.play.close(); const t = CG.game.town; t.wave = 19; t.bestWave = Math.max(t.bestWave || 0, 18);
+    const { EXPLAINERS } = await import(new URL('src/data/explainers.js', location.href).href), seen = CG.game.shared.seen;
+    for (const e of EXPLAINERS) seen[e.id] = e.id !== 'mesa-boss'; delete seen['mesa-boss']; CG.game.cardAt = null; CG.coach.wake();
+    for (let i = 0; i < 60 && CG.coach.current !== 'mesa-boss'; i++) await new Promise(r => setTimeout(r, 100));
+  }],
+  ['mesa-pirate', async () => {
+    CG.coach.dismiss(); CG.coach.wake(false);
+    const t = CG.game.town, D = await import(new URL('src/core/defense.js', location.href).href); CG.town.rig.reset(); t.wave = 20;
+    t.waves.foes = t.waves.foes.filter(f => f.kind !== 'airship'); Object.assign(t.waves, { phase: 'wave', timer: 999, queue: [] });
+    const sky = D.lanesOf(t)[1], max = D.wavesOf(t).hp(20) * 400;
+    const p = { id: 9300, kind: 'skypirate', lane: 1, hp: max * .8, max, s: sky.length * .45, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 };
+    t.waves.foes.push(p); window.__pirate = p; await new Promise(r => setTimeout(r, 900));
+  }],
+  ['mesa-pirate-low', async () => { const p = window.__pirate; if (p) p.hp = p.max * .44; await new Promise(r => setTimeout(r, 1800)); }],
   // the Tesla Coil's card at level 6 on Storm Coil, and the pick of its two paths on the other one
   ['mesa-tesla', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { x.level = 6; x.path = 'a'; } CG.play.openSpot(1); }],
   ['mesa-tesla-path', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { x.level = 4; x.path = null; } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],

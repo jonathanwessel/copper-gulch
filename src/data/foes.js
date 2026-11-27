@@ -14,6 +14,8 @@
    boss stays a gate, not a wall (2026.11.22-10: a train at 1.35 times its pace and a steamer at 1.5 put the economy
    bot's Ridge wave 10 at 11-13 min on three seeds, against 7-9 with no stages, tools/boom-probe.js with STAGES=off; a
    steamer at 1.25 still won Silver Falls wave 10 on seed 1, 11.5 min against 8.3 at 1.1).
+   low: the stage brings an air boss down low over the town, where every tower can hit it (grounded in
+   src/core/defense.js), and its drop lands on the road (lane 0) under it.
    only: a raider that only rides off a boss (the war wagon's crew), never in a wave's own mix. */
 export const FOES = {
   raider: { name: 'Bandit', hp: 1, speed: 1.1, bounty: 1, leak: 1, armor: 0, from: 1 },
@@ -29,6 +31,12 @@ export const FOES = {
   boat:   { name: 'Riverboat', hp: 2.2, speed: .85, bounty: 2, leak: 2, armor: .2, from: 1, water: true },
   // the airship (M6b part 2b): a gas bag over a gondola of raiders, slow, and too high for every tower but the Tesla Coil
   airship: { name: 'Airship', hp: 1.6, speed: .8, bounty: 2, leak: 2, armor: 0, from: 1, air: true },
+  // the pirate airship (M6b part 2c, Thunder Mesa's boss from its second boss wave): a dark armed airship on the sky
+  // lane, where only the Tesla Coil reaches it, until at half health its crew slides down ropes to the road and it sinks
+  // low, slower, where every tower can hit it. So the Mesa's boss needs Teslas and ground towers both.
+  skypirate: { name: 'Pirate airship', hp: 8, speed: .65, bounty: 30, leak: 8, armor: .2, from: 10, boss: true, air: true,
+    stages: [{ at: .5, key: 'bail', drop: 'pirate', n: 4, speed: .8, low: true }] },
+  pirate: { name: 'Sky pirate', many: 'Sky pirates', hp: .55, speed: 1.5, bounty: 1, leak: 1, armor: 0, from: 10, only: true },
   steamer: { name: 'Ironclad steamer', hp: 18, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true,
     stages: [{ at: 1 / 3, key: 'steam', speed: 1.1 }] },
 };
@@ -36,8 +44,8 @@ export const FOES = {
 /* What happened and what it changed, in three words (review of 2026.11.23-7: the lines named only what happened). */
 /* The same stage on the raider card, in a sentence: the bar has a picture and an arrow beside its few words, the card a
    chip with room (clarity fix 8b: "Crew off, slower" on the card read as a note). */
-export const STAGE_LINES = { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.' };
-export const STAGE_WORDS = { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' };
+export const STAGE_LINES = { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.', bail: 'The crew slid down to the road. The airship flies low now, and every tower can hit it.' };
+export const STAGE_WORDS = { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster', bail: 'Crew off, sinking' };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */
 export const WAVE_TYPES = {

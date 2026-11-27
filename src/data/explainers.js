@@ -485,6 +485,12 @@ export const EXPLAINERS = [
     when: h => !!h.flags['open:tesla'], at: h => ({ spot: h.freePad ?? Object.values(h.kinds)[0] ?? 0 }),
   },
   {
+    id: 'mesa-boss', town: 'mesa', now: true, covers: ['boss:skypirate'],
+    title: 'The pirate airship',
+    text: 'Wave 20 brings a pirate airship. Only a Tesla Coil can hit it up high. At half health its crew slides down to the road. Then it flies low, and every tower can hit it.',
+    when: h => h.wave >= 19, at: () => ({ el: '#wave' }),
+  },
+  {
     id: 'airship', town: 'mesa', now: true, covers: ['sky'],
     title: 'Airships',
     text: 'An airship is flying over your town. Only a Tesla Coil can hit it. Each airship that gets in takes 2 hits off your vault. Tap an airship to see its health.',

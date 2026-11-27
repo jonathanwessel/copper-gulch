@@ -33,9 +33,9 @@ test('the words on screen today', async () => {
   assert.equal(fxLeft(null), 'No end'); assert.equal(fxLeft(3.2), '4s');
   for (const s of Object.values(EFFECT_WORDS)) assert.deepEqual(textIssues(s), [], s);
   // the boss bar's stages (owner, 2026-11-22)
-  assert.deepEqual(STAGE_WORDS, { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster' });
+  assert.deepEqual(STAGE_WORDS, { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster', bail: 'Crew off, sinking' });
   // clarity fix 8b: the raider card says the stage in a sentence, a bonus says how much it adds, a boom says its time with a noun
-  assert.deepEqual(STAGE_LINES, { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.' });
+  assert.deepEqual(STAGE_LINES, { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.', bail: 'The crew slid down to the road. The airship flies low now, and every tower can hit it.' });
   for (const s of Object.values(STAGE_LINES)) assert.deepEqual(textIssues(s), [], s);
   assert.deepEqual([1.5, 1.1, .9].map(moreWord), ['50% more', '10% more', '10% less']);
   assert.deepEqual([boomWords(1.6, '1:11'), boomWords(.6, '0:30')], ['Price up for 1:11 more', 'Price down for 0:30 more']);

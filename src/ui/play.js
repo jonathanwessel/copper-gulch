@@ -599,7 +599,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
 
   // news from the road
   const offs = [
-    game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + (FOES[town.def.boss || 'wagon'] || FOES.wagon).name.toLowerCase() + ' is coming. Stop it before it reaches the ' + store + '.', 4000, { kind: 'boss' }); }),
+    game.bus.on('wave:start', e => { if (e.town === town.id && e.boss) toast('Wave ' + e.wave + '. The ' + bossName(town) + ' is coming. Stop it before it reaches the ' + store + '.', 4000, { kind: 'boss' }); }),
     // a boss's new stage says itself once, in the raider card's words, while the bar keeps the boss's name and shows the
     // stage as its picture (clarity fix 8n: the picture alone read as nothing; the fresh-eyes read of this release found
     // the words in the name's place read as a narrator and flipped the bar between a name and a sentence)

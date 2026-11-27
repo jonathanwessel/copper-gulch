@@ -4,7 +4,7 @@
    has its picture and the tower that hits it hardest (review of 2026.11.19-14). */
 import { FOES, WAVE_TYPES } from '../data/foes.js'; // WAVE_TYPES: which raiders a wave can bring
 import { TOWERS } from '../data/towers.js';
-import { bossWave, wavesOf, towerOpen, airWave } from '../core/defense.js';
+import { bossWave, wavesOf, towerOpen, airWave, bossKind } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
 import { WON_LINE, clock } from './state.js';
 
@@ -55,8 +55,10 @@ export const BEST_LABEL = 'Weak to';
 /* An air raider (the airship, part 2b) names the only towers that reach it, the one thing a player tapping it needs
    (fresh-eyes read of 2026.11.26-11: its card said "No effects" and its coins, not that). */
 export const AIR_LABEL = 'Hit only by';
-export const bestView = (town, kind) => {
-  if (FOES[kind] && FOES[kind].air) return { label: AIR_LABEL, tower: Object.keys(TOWERS).filter(k => TOWERS[k].air).map(k => TOWERS[k].name).join(', ') || null };
+/* foe: the raider itself, when the card is about one: an air boss brought low (the pirate airship's stage) is in every
+   tower's reach, so its card names the tower weak spot like a raider on the road. */
+export const bestView = (town, kind, foe = null) => {
+  if (FOES[kind] && FOES[kind].air && !(foe && foe.low)) return { label: AIR_LABEL, tower: Object.keys(TOWERS).filter(k => TOWERS[k].air).map(k => TOWERS[k].name).join(', ') || null };
   const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null };
 };
 export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : ''; };
@@ -68,7 +70,7 @@ export const roadLine = (road, queued) => (!queued ? road + ' on the road. No mo
 /* What the card shows (pure, for the tests): its lines, and the raider kinds as rows, with how many are left during a
    wave (n) or null during a break. */
 export function waveInfo(town) {
-  const ws = town.waves, w = town.wave, boss = (town.def && town.def.boss) || 'wagon', lines = [];
+  const ws = town.waves, w = town.wave, boss = bossKind(town, w), lines = [];
   if (ws.phase !== 'break') {
     const n = {};
     for (const k of ws.queue) n[k] = (n[k] || 0) + 1;

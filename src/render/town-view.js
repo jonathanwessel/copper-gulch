@@ -88,7 +88,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     /* Where a raider is drawn on screen, or null when it is gone or hidden in its entrance. */
     projectFoe: id => { const u = battle.foes.get(id); return u && u.obj.visible ? project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + (u.boss ? .7 : u.obj.userData.air ? .55 : .4), u.obj.position.z), size) : null; },
     /* How a raider is drawn: its height, whether it shows, and whether it flies (smoke: airships at the sky lane's height). */
-    foeDrawn: id => { const u = battle.foes.get(id); return u ? { y: u.obj.position.y, visible: u.obj.visible, air: !!u.obj.userData.air, shadows: battle.blobs.count } : null; },
+    // ropes: the pirate airship's crew ropes show (part 2c), null for a raider that has none
+    foeDrawn: id => { const u = battle.foes.get(id), d = u && u.obj.userData; return u ? { y: u.obj.position.y, visible: u.obj.visible, air: !!d.air, shadows: battle.blobs.count, ropes: d.ropes ? d.ropes.visible : null } : null; },
     /* The lanes' entrances drawn on this board (smoke: the sky lane's cloud bank). */
     entrances: () => board.entrances.map(e => ({ sky: !!e.sky, puffs: e.puffs.length })),
     /* Where a building's workers stand on screen while they are called to arms, or null. */

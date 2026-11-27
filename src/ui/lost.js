@@ -4,7 +4,7 @@
 import { FOES } from '../data/foes.js';
 import { fmt } from './format.js';
 import { willRetry, retryState, autoOf } from '../core/automation.js';
-import { bossWave, atWall } from '../core/defense.js';
+import { bossWave, atWall, nextBoss } from '../core/defense.js';
 import { WALL_UPS } from '../core/goals.js';
 
 /* The upgrades a town at its wall still asks for, as the strip counts them (RESUME_WALL): "8 times", "3 more times"
@@ -19,7 +19,8 @@ export function wallUpsWords(town) {
    wave 19 and stays there" was flagged a second time after its rewording, so by the twice-flagged rule it went). */
 const AGAIN = 'It tries again after a tower goes up a level.';
 
-export const bossName = town => ((FOES[town.def.boss || 'wagon'] || FOES.wagon).name).toLowerCase();
+/* The boss the town meets next (nextBoss): Thunder Mesa's war wagon at wave 10, its pirate airship after. */
+export const bossName = town => ((FOES[nextBoss(town)] || FOES.wagon).name).toLowerCase();
 const storeOf = town => town.def.store || 'vault';
 
 /* The toast when it happens. here: the player is in this town now (it lost during time away). game: given, a town with

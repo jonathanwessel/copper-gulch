@@ -54,6 +54,8 @@ const GEO = {
   rocket: new THREE.ConeGeometry(.06, .3, 6).rotateX(Math.PI / 2), // nose along +z, so lookAt points it where it flies
 };
 const _ra = new THREE.Vector3();
+// how high an air boss flies once its stage brings it low (the pirate airship, part 2c), against the sky lane's 1.7
+const LOW_Y = .7;
 
 export class Battle {
   constructor(board, game) {
@@ -226,7 +228,9 @@ export class Battle {
       // up the bridge and over (a comment here once swallowed the next two statements, so from 2026.11.19 raiders never
       // turned along the road and showed inside their entrance: review of 2026.11.20-10)
       const key = this.laneKeys[f.lane || 0];
-      u.obj.position.set(x, key === 'sky' ? this.skyY + Math.sin(t * 1.3 + u.phase * .1) * .06 : key === 'river' ? -.05 + Math.sin(t * 2.2 + u.phase) * .015 : this.river ? bridgeLift(polyDist(x, z, this.river).d) : 0, z);
+      // an air boss brought low (its stage, f.low) sinks from the sky lane's height to LOW_Y over about a second
+      if (key === 'sky') u.lowK = Math.min(1, (u.lowK || 0) + (f.low ? dt * 1.2 : 0));
+      u.obj.position.set(x, key === 'sky' ? this.skyY + (LOW_Y - this.skyY) * (u.lowK || 0) + Math.sin(t * 1.3 + u.phase * .1) * .06 : key === 'river' ? -.05 + Math.sin(t * 2.2 + u.phase) * .015 : this.river ? bridgeLift(polyDist(x, z, this.river).d) : 0, z);
       u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= this.hideS[f.lane || 0];
       // the steamer folds its stack back to pass under a bridge
       if (u.obj.userData.stack) { const want = key === 'river' && polyDist(x, z, this.roadPts).d < 1.3 ? -1.35 : 0, st = u.obj.userData.stack; st.rotation.x += (want - st.rotation.x) * Math.min(1, dt * 5); }
@@ -236,6 +240,7 @@ export class Battle {
       const staged = (f.stage || 0) > 0;
       if (d.crew && d.crew.visible === staged) d.crew.visible = !staged;
       if (d.plates && d.plates.visible === staged) d.plates.visible = !staged;
+      if (d.ropes && d.ropes.visible !== staged) d.ropes.visible = staged;
       if (staged && d.stack && u.obj.visible && (u.puff = (u.puff || 0) + dt) > .12 && this.fx.length < 110) {
         u.puff = 0; d.stack.getWorldPosition(_ra); _ra.y += .5 * u.obj.scale.y;
         const p = this.add('trail', { life: .9, grow: .3, op: .7 }); p.mesh.position.copy(_ra);
@@ -248,7 +253,7 @@ export class Battle {
     }
     for (const id of this.staged) { // a burst of dust at the boss as its stage starts
       const u = this.foes.get(id); if (!u || this.fx.length > 110) continue;
-      const p = this.add('trail', { life: .8, grow: 1.1, op: .8 }); p.mesh.position.set(u.obj.position.x, .3, u.obj.position.z);
+      const p = this.add('trail', { life: .8, grow: 1.1, op: .8 }); p.mesh.position.set(u.obj.position.x, u.obj.userData.air ? u.obj.position.y : .3, u.obj.position.z);
     }
     this.staged.length = 0;
     for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); disposeTree(u.obj); this.foes.delete(id); }
@@ -257,7 +262,7 @@ export class Battle {
     let nb = 0;
     for (const u of this.foes.values()) {
       if (!u.obj.visible || nb >= FOE_BLOBS) continue;
-      const air = !!u.obj.userData.air, w = u.boss ? 1.7 : air ? 1.25 : .95;
+      const air = !!u.obj.userData.air && !(u.lowK > .5), w = u.boss ? 1.7 : air ? 1.25 : .95; // an air boss brought low throws a round shadow under it
       // an airship's shadow lies on the ground far under it, long like its gas bag (part 2b)
       _bm.compose(_bp.set(u.obj.position.x, air ? .04 : Math.max(0, u.obj.position.y) + .04, u.obj.position.z), _bq.setFromAxisAngle(_up, u.obj.rotation.y), _bs.set(air ? w * .6 : w, 1, air ? w * 1.4 : w)); this.blobs.setMatrixAt(nb++, _bm);
     }

@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, airWave, forkNext, forkOf, hurtFactor, foeStatus } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, airWave, forkNext, forkOf, hurtFactor, foeStatus, bossKind } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -185,7 +185,7 @@ export function hitShare(town, kind, w, poison = false, eat = 0, boss = 1) {
   let hp = 0, a = 0;
   for (const T of kinds) { let h = 0, x = 0; for (const [k, n] of Object.entries(T.mix)) if (w >= FOES[k].from) { h += n * FOES[k].hp; x += n * FOES[k].hp * f(k); } if (h) { hp += 1; a += x / h; } }
   let share = hp ? a / hp : 1;
-  if (bossWave(town, w)) { const b = (town.def && town.def.boss) || 'wagon', bh = FOES[b].hp, rest = wavesOf(town).count(w); share = (share * rest + bh * f(b)) / (rest + bh); }
+  if (bossWave(town, w)) { const b = bossKind(town, w), bh = FOES[b].hp, rest = wavesOf(town).count(w); share = (share * rest + bh * f(b)) / (rest + bh); }
   return share;
 }
 /* A careful player buys for the next few waves, not just the coming one, so the boss is seen coming (HORIZON waves). */

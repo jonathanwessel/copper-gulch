@@ -33,7 +33,7 @@ export function foeView(town, f, store = 'vault') {
     // a boss's stage leads its effects, in the boss bar's words (one state, one source: both read foeStatus)
     effects: [...(st.stage ? [{ key: 'stage', word: STAGE_LINES[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
     none: 'No effects.', // review of 2026.11.22-9: "Nothing on it now" read as a narrator
-    worth: coins(st.worth), best: bestView(town, f.kind),
+    worth: coins(st.worth), best: bestView(town, f.kind, f),
     gone: st.gone === 'down' ? F.name + ' down!' : st.gone === 'through' ? 'It got to the ' + store + '.' : null,
   };
 }

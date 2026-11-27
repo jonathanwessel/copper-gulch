@@ -11,11 +11,11 @@ import { bossOn, bossView, bossLines } from '../src/ui/boss.js';
 import { textIssues } from '../tools/audit.js';
 
 /* A town on its boss wave with the boss alone on the road (no towers, so nothing hurts it but the test). */
-function onRoad(id) {
+function onRoad(id, w = id === 'mesa' ? 20 : 10) {
   const g = newGame('boss-' + id, id === 'drycreek' ? undefined : 'gulch');
   if (id !== 'drycreek' && id !== 'gulch') { g.addTown(id); g.active = id; }
   const t = g.towns[id];
-  t.towers = []; t.wave = 10; t.waves.hold = false; t.waves.phase = 'break'; t.waves.timer = 0;
+  t.towers = []; t.wave = w; t.waves.hold = false; t.waves.phase = 'break'; t.waves.timer = 0;
   assert.ok(startWave(g, t));
   t.waves.queue = [t.waves.queue[t.waves.queue.length - 1]]; // the boss only
   for (let i = 0; i < 20 && !bossOn(t); i++) fight(g, t, .25);
@@ -23,7 +23,7 @@ function onRoad(id) {
   assert.ok(f && FOES[f.kind].boss, 'the boss is on the road in ' + id);
   return { g, t, f };
 }
-const STAGED = [['drycreek', 'bandits'], ['gulch', 'wagon'], ['ridge', 'train'], ['falls', 'steamer']];
+const STAGED = [['drycreek', 'bandits'], ['gulch', 'wagon'], ['ridge', 'train'], ['falls', 'steamer'], ['mesa', 'skypirate']];
 
 test('every boss has a stage with its words, and every drop is a raider that only rides off a boss or a wave raider', () => {
   for (const [k, F] of Object.entries(FOES)) if (F.boss) {
@@ -56,7 +56,8 @@ for (const [id, kind] of STAGED) test('the ' + FOES[kind].name.toLowerCase() + '
   assert.equal(drops.length, st.n || 0, 'its riders jump off');
   assert.equal(t.waves.foes.length, n0 + (st.n || 0));
   assert.equal(t.waves.size, size0 + (st.n || 0), 'they count toward the wave');
-  for (const d of drops) { assert.ok(d.s <= f.s && d.s >= f.s - 1, 'beside it, a little behind'); assert.equal(d.lane, f.lane); assert.ok(d.hp > 0 && !FOES[d.kind].boss); }
+  // riders of an air boss land on the road (test/skypirate.test.js checks where), the others beside it, a little behind
+  for (const d of drops) { if (!FOES[kind].air) { assert.ok(d.s <= f.s && d.s >= f.s - 1, 'beside it, a little behind'); assert.equal(d.lane, f.lane); } else assert.equal(d.lane, 0); assert.ok(d.hp > 0 && !FOES[d.kind].boss); }
   f.hp = f.max * .05; for (let i = 0; i < 4; i++) fight(g, t, .25);
   assert.equal(seen, 1, 'a stage happens once');
   assert.equal(t.waves.foes.filter(x => x.kind === st.drop && x !== f).length <= (st.n || 0), true);

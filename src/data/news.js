@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-1',
+    lines: [
+      'Thunder Mesa has a new boss from wave 20, the pirate airship. Only a Tesla Coil can hit it up high.',
+      'At half health its crew slides down ropes to the road, and the airship flies low where every tower can hit it.',
+      'Wave 10 in Thunder Mesa still brings the war wagon.',
+      'On narrow phones, Call now no longer slides under the buttons on the right.',
+    ],
+  },
+  {
     v: '2026.11.26-11',
     lines: [
       'Airships now raid Thunder Mesa after wave 10. They fly out of the storm clouds over the town to your vault.',

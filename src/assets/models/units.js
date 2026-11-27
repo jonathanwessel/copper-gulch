@@ -34,6 +34,8 @@ const FOE = {
   raider: () => person({ shirt: 'paintR', pants: 'cloth', hat: 'cowboy', hatC: 'bark', mask: 'paintR', extra: gun }),
   // the war wagon's crew: they jump off at its first stage and run on (src/data/foes.js, stages)
   crew: () => person({ shirt: 'cloth', vest: 'black', pants: 'black', hat: 'cap', hatC: 'iron', extra: gun }),
+  // the pirate airship's crew (M6b part 2c): a red head scarf and a striped shirt; they slide down ropes to the road
+  pirate: () => person({ shirt: 'white', vest: 'paintR', pants: 'black', hat: 'bandana', hatC: 'paintR', extra: k => { gun(k); k.box(.035, .58, .068, .05, .04, .012, 'ink', { ao: false }); } }),
   brute: () => person({ shirt: 'paintP', pants: 'black', hat: 'bandana', hatC: 'ink', wide: 1.35, skin: 'skinD', extra: k => { k.cyl(.22, .1, .1, .04, .4, 'woodD', { r2: .07, rx: .5, seg: 6, ao: false }); } }),
 };
 function horse(k, c = 'woodD') {
@@ -177,6 +179,40 @@ FOE.airship = () => {
   const props = [-1, 1].map(sx => {
     const prop = part(k => { for (let i = 0; i < 2; i++) k.box(0, 0, 0, .035, .26, .015, 'woodL', { rz: i * Math.PI / 2 }); });
     const hold = G(); hold.add(prop); hold.position.set(sx * .46, .42, -.28); root.add(hold); return hold;
+  });
+  root.userData.wheels = props;
+  return root;
+};
+FOE.skypirate = () => {
+  // the pirate airship (Thunder Mesa's boss from wave 20, part 2c): a long dark gas bag patched in red and tan, a black
+  // flag on a mast at its tail, a big armored gondola with a cannon at each side and a crew of pirates, and two engines.
+  // It is drawn bigger than an airship, as every boss is. At half health its crew slides down ropes (userData.crew
+  // hides, userData.ropes shows) and it sinks low over the town (src/render/battle.js).
+  const root = G(); root.userData = { air: true };
+  root.add(part(k => {
+    k.ball(0, .62, 0, .36, 'ironL', { det: 2, sz: 1.9 }); // lighter than the road, so it stands out from above (fresh-eyes read of 2026.11.27-1)
+    for (const [x, y, z, c] of [[.2, .82, .18, 'paintR'], [-.24, .74, -.22, 'sand'], [.27, .6, -.36, 'paintR'], [-.18, .9, .3, 'sand']]) k.box(x, y, z, .14, .1, .14, c, { ao: false });
+    for (const z of [-.3, .3]) k.ball(0, .62, z, .362, 'paintR', { det: 2, sz: .12 }); // red bands, like its picture
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; k.box(Math.cos(a) * .18, .62 + Math.sin(a) * .18, -.6, .02 + Math.abs(Math.sin(a)) * .24, .02 + Math.abs(Math.cos(a)) * .24, .22, 'black'); }
+    // the flag: a mast up from the tail fin and a black flag with a white mark
+    k.box(0, 1.0, -.6, .02, .3, .02, 'bark', { ao: false }); k.box(0, 1.12, -.78, .02, .22, .34, 'black', { ao: false }); for (const sx of [-1, 1]) k.box(sx * .012, 1.13, -.78, .01, .08, .09, 'white', { ao: false }); // a big black flag with a white mark, seen from above
+    for (const sx of [-1, 1]) for (const z of [-.18, .2]) k.box(sx * .13, .3, z, .012, .2, .012, 'bark', { rz: sx * .25, ao: false });
+    // the gondola: dark planks with iron bands and a cannon out of each side
+    k.box(0, .12, 0, .34, .15, .62, 'woodD'); k.box(0, .26, 0, .36, .03, .64, 'iron', { mat: 'metal' });
+    for (const z of [-.2, .2]) k.box(0, .12, z, .35, .16, .03, 'iron', { mat: 'metal' });
+    for (const sx of [-1, 1]) k.cyl(sx * .22, .14, .05, .04, .16, 'black', { rz: Math.PI / 2, seg: 8 });
+    for (const sx of [-1, 1]) { k.box(sx * .36, .44, -.14, .3, .025, .04, 'iron', { mat: 'metal' }); k.cyl(sx * .52, .44, -.04, .065, .26, 'black', { rx: Math.PI / 2, seg: 8 }); }
+  }));
+  const crew = part(k => {
+    for (const [x, z] of [[-.08, -.16], [.08, .04], [-.06, .22]]) { k.box(x, .32, z, .1, .1, .08, 'white', { ao: false }); k.box(x, .4, z, .08, .08, .08, 'skin', { ao: false }); k.box(x, .45, z, .09, .03, .09, 'paintR', { ao: false }); }
+  }, { ao: false });
+  root.add(crew); root.userData.crew = crew;
+  // the ropes the crew slid down, hanging from the gondola once they are off
+  const ropes = part(k => { for (const [x, z] of [[-.15, -.2], [.15, .1], [-.1, .24]]) k.box(x, -.3, z, .015, .8, .015, 'sand', { ao: false }); }, { ao: false });
+  ropes.visible = false; root.add(ropes); root.userData.ropes = ropes;
+  const props = [-1, 1].map(sx => {
+    const prop = part(k => { for (let i = 0; i < 2; i++) k.box(0, 0, 0, .035, .28, .015, 'woodD', { rz: i * Math.PI / 2 }); });
+    const hold = G(); hold.add(prop); hold.position.set(sx * .52, .44, -.31); root.add(hold); return hold;
   });
   root.userData.wheels = props;
   return root;

@@ -41,6 +41,16 @@ export function wavesOf(town) {
 /* Is wave w a boss wave here? A town may list its boss waves (waves.bosses); otherwise every WAVE.boss-th wave.
    A won outpost's light raids never bring its boss again. */
 export const bossWave = (town, w) => { const W = wavesOf(town); return !town.won && (W.bosses ? W.bosses.includes(w) : w % W.boss === 0); };
+/* The boss of wave w here: the town's own (town.def.boss), or the one its def names for that wave (town.def.bossAt;
+   Thunder Mesa's first boss is the war wagon, since its sky opens after it, and the pirate airship comes from wave 20). */
+export const bossKind = (town, w = town.wave) => { const d = town.def || {}; return (d.bossAt && d.bossAt[w]) || d.boss || 'wagon'; };
+/* The boss the town meets next: the one of the first boss wave from the wave it is on (the wave on the road now, during
+   a boss wave). Every line that names "the boss" in a town reads this one. */
+export function nextBoss(town) {
+  if (!(town.def && town.def.bossAt)) return bossKind(town);
+  for (let w = Math.max(1, town.wave || 1), n = 0; n < 200; w++, n++) if (bossWave(town, w)) return bossKind(town, w);
+  return bossKind(town);
+}
 /* Share of each good in its stockpile a won outpost loses when raiders break in (its waves never drop back). */
 export const RAID_LOSS = .25;
 
@@ -110,7 +120,7 @@ export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i =
 export const towerIn = (town, kind) => !!TOWERS[kind] && !!(TOWERS[kind].goods || {})[town.id] && !(town.def && town.def.towers && !town.def.towers.includes(kind));
 /* Can this tower hit this raider? An air raider only by a tower that reaches the sky (TOWERS[kind].air); a blast, a
    cloud or burning ground on the road never reaches it. */
-export const grounded = f => !(FOES[f.kind] && FOES[f.kind].air);
+export const grounded = f => !(FOES[f.kind] && FOES[f.kind].air) || !!f.low; // an air boss brought low (stages, low) is in reach of all
 export const canHit = (st, f) => !!st.air || grounded(f);
 /* Has the town opened this tower kind? (Most are open from the start; some open at a wave.) */
 export const towerOpen = (town, kind) => towerIn(town, kind) && (!TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]));
@@ -173,7 +183,7 @@ export function planWave(town, w, type) {
   if (every && town.def.board && town.def.board.river) for (let i = every - 1; i < q.length; i += every) q[i] = 'boat';
   // a town with a sky sends every airEvery-th raider by air (the same way: no random draw, so the stream is untouched)
   if (airWave(town, w)) { const air = wavesOf(town).airEvery; for (let i = air - 1; i < q.length; i += air) q[i] = 'airship'; }
-  if (bossWave(town, w)) q.push((town.def && town.def.boss) || 'wagon');
+  if (bossWave(town, w)) q.push(bossKind(town, w));
   return q;
 }
 export function startWave(game, town, rush = 0) {
@@ -252,10 +262,21 @@ function stages(game, town) {
     const st = S[i]; f.stage = i + 1;
     if (st.speed) f.pace = st.speed;
     if (st.armor !== undefined) f.armor = st.armor;
-    for (let k = 0; k < (st.n || 0); k++) spawn(town, st.drop, Math.max(0, f.s - .25 * (k + 1)), f.lane || 0);
+    if (st.low) f.low = true;
+    // riders off a boss on another lane than theirs (the pirate airship's crew) land on their own lane at the point nearest it
+    const lane = laneFor(town, st.drop || 'raider'), s0 = st.drop && lane !== (f.lane || 0) ? nearS(lanesOf(town)[lane], pointAt(lanesOf(town)[f.lane || 0], f.s)) + .25 : f.s;
+    for (let k = 0; k < (st.n || 0); k++) spawn(town, st.drop, Math.max(0, s0 - .25 * (k + 1)), lane);
     ws.size = (ws.size || 0) + (st.n || 0);
     game.bus.emit('stage', { town: town.id, foe: f.id, kind: f.kind, stage: st.key });
   }
+}
+
+/* The distance along a lane of its point nearest xz: a coarse walk, then a fine one round the best. */
+export function nearS(lane, xz) {
+  let best = 0, bd = Infinity;
+  for (let s = 0; s <= lane.length; s += .25) { const d = dist(pointAt(lane, s), xz); if (d < bd) { bd = d; best = s; } }
+  for (let s = Math.max(0, best - .25), e = Math.min(lane.length, best + .25); s <= e; s += .02) { const d = dist(pointAt(lane, s), xz); if (d < bd) { bd = d; best = s; } }
+  return best;
 }
 
 /* Damage dealt, by tower kind, per town: game.dealt[town][kind]. Not saved; the bots read it to see which towers
@@ -494,7 +515,7 @@ export function fight(game, town, dt) {
       const L = town.level(p.id); if (!(L > 0)) continue;
       let target = null;
       // a boss in reach first (they gang up on the war wagon), else the raider nearest the vault
-      for (const f of ws.foes) if (f.hp > 0 && !FOES[f.kind].air && dist(p.at, pos.get(f)) <= ARMS.reach && (!target || (!!FOES[f.kind].boss - !!FOES[target.kind].boss || f.s - target.s) > 0)) target = f;
+      for (const f of ws.foes) if (f.hp > 0 && grounded(f) && dist(p.at, pos.get(f)) <= ARMS.reach && (!target || (!!FOES[f.kind].boss - !!FOES[target.kind].boss || f.s - target.s) > 0)) target = f;
       if (!target) continue;
       hurt(game, town, target, base * ARMS.hit * Math.min(ARMS.most, (L / 10) ** ARMS.grow), false, 'militia');
       game.bus.emit('shot', { town: town.id, spot: -1, kind: 'militia', post: p.id, foe: target.id, from: p.at, to: pos.get(target) });
