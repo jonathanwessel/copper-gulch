@@ -93,7 +93,10 @@ export class Life {
     this.folk = Array.from({ length: MAXF }, (_, i) => ({ i, at: null, walk: null, s: 0, wait: this.R() * 3, speed: .42 + this.R() * .2, ph: this.R() * 6, yaw: 0, side: (i % 2 ? 1 : -1) * (.06 + this.R() * .1) }));
     this.lanes = []; this.laneTries = 0; // tumbleweed lanes, found one try a frame and kept (perf: a full search was a hitch)
     this.routeT = 0;
-    this.weeds = Array.from({ length: MAXW }, () => ({ lane: null, s: 0, wait: 2 + this.R() * 6, speed: 1.1 + this.R() * .6, r: .12, ph: this.R() * 6, roll: 0 }));
+    // the first tumbleweed rolls as soon as a lane is found, while the town opens: the first one on screen cost a frame of
+    // 117 ms on the software GPU of tools/perf.js however it was warmed (perf drift box, 2026.11.26-9), and a stall then
+    // lands before any raider walks, not mid-wave six seconds in
+    this.weeds = Array.from({ length: MAXW }, (_, i) => ({ lane: null, s: 0, wait: (w => i ? w : 0)(2 + this.R() * 6), speed: 1.1 + this.R() * .6, r: .12, ph: this.R() * 6, roll: 0 }));
     const c = board.center, b = this.B;
     this.birds = Array.from({ length: MAXB }, (_, i) => ({ cx: c.x + (this.R() - .5) * b.cols * .5, cz: c.z + (this.R() - .5) * b.rows * .5, r: 3.5 + this.R() * 5, y: 3.2 + this.R() * 1.4, w: (.16 + this.R() * .14) * (i % 3 ? 1 : -1), a: this.R() * 6.28, ph: this.R() * 6 }));
     // the wagon rides the road from just inside the entrance to a stop before the vault, and back

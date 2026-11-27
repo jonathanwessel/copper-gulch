@@ -1,4 +1,4 @@
-// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|map] [--limit 33] [--eval "js run in the page first"] [--report "js read after"] [--profile] [--script ms] [--calls n]
+// node tools/perf.js [--dpr 2] [--throttle 4] [--seconds 6] [--tier low|med|high] [--town gulch|drycreek|ridge|falls|empire|falls-empire|mesa-empire|map] [--limit 33] [--eval "js run in the page first"] [--report "js read after"] [--profile] [--script ms] [--calls n]
 // --town map: the empire map with every town open, built up, wagons on the roads and the Capital's city with all five
 //   institutions (no raider to follow there).
 // --town falls-empire: Silver Falls in play with the Gulch, the Ridge, the Capital, Dry Creek, Pine Hollow and Sandy Bend
@@ -85,6 +85,31 @@ try {
     for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [4, 'crossbow'], [8, 'frost'], [9, 'still']]) { CG.play.openSpot(s); document.querySelector('#card .build[data-kind="' + k + '"]').click(); }
     CG.play.close(); document.getElementById('callWave').click();
   });
+  // M6b: Thunder Mesa in play with every town, outpost and the Capital working behind it, the heaviest scene in the game
+  // (perf drift box, 2026.11.26-9: the Mesa shipped in part 1a with no frame gate, and part 2 adds its sky lane here)
+  else if (TOWN === 'mesa-empire') await p.evaluate(async () => {
+    const g = CG.game, t = g.town, wait = () => new Promise(r => setTimeout(r, 100)); t.coins = 1e9; t.bestWave = 30;
+    const tower = (x, spot, kind, level) => x.towers.push({ spot, kind, level, path: null, cd: 0, spent: 0, pulses: 0 });
+    for (const [id, n] of Object.entries({ camp: 12, mine: 10, pit: 8, saw: 10, smelter: 8, kiln: 8, toolsmith: 6 })) t.buildings[id] = n;
+    for (const [s, k] of [[1, 'crossbow'], [2, 'cannon'], [3, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(t, s, k, 12);
+    const op = await import('./src/core/outpost.js'); op.grantOutpost(g, 'drycreek');
+    const r = g.addTown('ridge'); g.addTown('pinehollow'); op.grantOutpost(g, 'pinehollow'); g.towns.pinehollow.won = true; r.bestWave = 52;
+    for (const [id, n] of Object.entries({ rquarry: 12, ironmine: 10, colliery: 10, furnace: 10, steelmill: 8, rolling: 10, boilershop: 5, loco: 3 })) r.buildings[id] = n;
+    for (const [s, k] of [[4, 'crossbow'], [5, 'cannon'], [6, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(r, s, k, 12);
+    (await import('./src/core/capital.js')).foundCapital(g);
+    const f = g.addTown('falls'); op.grantOutpost(g, 'sandybend'); g.towns.sandybend.won = true; f.bestWave = 45;
+    for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 8, glassworks: 8, wiremill: 6, bulbworks: 5, dynamo: 3, telegraph: 2 })) f.buildings[id] = n;
+    for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [4, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(f, s, k, 12);
+    g.addTown('mesa');
+    for (const x of Object.values(g.towns)) if (x.waves) x.waves.hold = false;
+    CG.go('mesa');
+    for (let i = 0; i < 100 && !(CG.town && CG.town.frames > 3); i++) await wait();
+    const m = g.towns.mesa; m.coins = 1e9; m.sell = {};
+    for (const k of m.def.goods) { m.goods[k] = 500; m.sell[k] = false; }
+    for (const [id, n] of Object.entries({ derrick: 12, bauxitepit: 10, rubberfarm: 8, refinery: 8, aluminum: 6, tireworks: 6, motorworks: 4, autoplant: 3, airshipworks: 2 })) m.buildings[id] = n;
+    for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow'], [3, 'frost'], [4, 'still']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); else tower(m, s, k, 1); }
+    CG.play.close(); document.getElementById('callWave').click();
+  });
   else if (TOWN === 'map') await p.evaluate(async () => {
     const g = CG.game, t = g.town; t.coins = 1e9; t.bestWave = 20;
     for (const [id, n] of Object.entries({ camp: 12, mine: 8, pit: 6, saw: 8, smelter: 5, kiln: 3 })) t.buildings[id] = n;
@@ -118,18 +143,23 @@ try {
         if (battle && now - t0 < 3000 && !CG.town.paused) {
           if (id === null || !battle.foes.has(id)) id = [...battle.foes.keys()].find(k => battle.foes.get(k).obj.position.x > -50) ?? null;
           const u = id !== null && battle.foes.get(id);
-          if (u) { const p = CG.town.projectPoint(u.obj.position.x, .5, u.obj.position.z); if (p) track.push([p.x, p.y, id]); }
+          if (u) { const p = CG.town.projectPoint(u.obj.position.x, .5, u.obj.position.z); if (p) track.push([p.x, p.y, id, +u.obj.position.x.toFixed(2), +u.obj.position.z.toFixed(2), times[times.length - 1], +gpu[gpu.length - 1].toFixed(1)]); }
         } if (now - t0 < sec * 1000) requestAnimationFrame(f); else done(); }; requestAnimationFrame(f); });
     // script: each frame's time less its wait for the GPU (the game's own work: simulation, interface, three's setup)
     const script = times.map((x, i) => Math.max(0, x - gpu[i])); script.shift(); script.sort((a, b) => a - b);
     times.shift(); times.sort((a, b) => a - b);
     const q = k => times[Math.min(times.length - 1, Math.floor(times.length * k))];
-    const jumps = [];
-    for (let i = 1; i < track.length; i++) if (track[i][2] === track[i - 1][2]) jumps.push(Math.hypot(track[i][0] - track[i - 1][0], track[i][1] - track[i - 1][1]));
+    const jumps = []; let worst = null;
+    for (let i = 1; i < track.length; i++) if (track[i][2] === track[i - 1][2]) {
+      const j = Math.hypot(track[i][0] - track[i - 1][0], track[i][1] - track[i - 1][1]); jumps.push(j);
+      // where the biggest jump was: the raider's world spot before and after, that frame's time and its wait for the GPU
+      // (2026.11.26-9: a 120 ms wait at the Mesa's first tumbleweed read as a raider's hop)
+      if (!worst || j > worst.px) worst = { px: +j.toFixed(2), from: track[i - 1].slice(3, 5), to: track[i].slice(3, 5), frameMs: +(track[i][5] || 0).toFixed(1), gpuMs: track[i][6] };
+    }
     const sj = jumps.slice().sort((a, b) => a - b), jmed = sj[sj.length >> 1] || 0, jmax = sj[sj.length - 1] || 0;
     const still = jumps.filter(j => j < .05).length / Math.max(1, jumps.length);
     const v = (CG.town || CG.map).view, s = v.stats || {};
-    return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), script: script[script.length >> 1], p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2) } };
+    return { towns: Object.keys(CG.game.towns).length, inPlay: CG.game.active, frames: times.length, median: q(.5), script: script[script.length >> 1], p90: q(.9), fps: 1000 / q(.5), calls: s.calls, triangles: s.triangles, size: s.w + 'x' + s.h, tier: s.tier, foes: CG.game.town.waves.foes.length, smooth: { samples: jumps.length, medianJump: +jmed.toFixed(2), maxJump: +jmax.toFixed(2), stillFrames: +still.toFixed(2), worst } };
   }, SECONDS);
   const PROFILE = process.argv.includes('--profile');
   if (PROFILE) { await p.cdp('Profiler.enable'); await p.cdp('Profiler.start'); }

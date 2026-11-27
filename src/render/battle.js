@@ -149,6 +149,42 @@ export class Battle {
     return f;
   }
   release(f) { f.mesh.visible = false; this.pool[f.kind].push(f.mesh); }
+  /* Build every shader a wave needs while the town loads: one of each raider, a health bar and one of each effect, then
+     put them away (the effects into their pools). Without it the first raider on screen and the first shot of each kind
+     each built a shader mid-wave, a frame of 150 ms on a slow phone and a raider that hopped (perf drift box,
+     2026.11.26-9: the Mesa case found it). Many GPUs (and the software one tools/perf.js uses) finish a shader only the
+     first time it draws, so the set is also drawn once, in front of the camera, into a tiny target nobody sees. */
+  warm(renderer, scene, cam, target = null) {
+    const tmp = new THREE.Group(); this.group.add(tmp);
+    for (const k of Object.keys(FOES)) tmp.add(makeFoe(k));
+    tmp.add(new THREE.Mesh(barGeo, barBack), new THREE.Mesh(barGeo, barFill));
+    const fx = Object.keys(KINDS).map(k => this.add(k, { life: 0 }, []));
+    const ahead = cam.getWorldDirection(new THREE.Vector3()).multiplyScalar(3).add(cam.position);
+    tmp.position.copy(this.group.worldToLocal(ahead));
+    for (const f of fx) f.mesh.position.copy(tmp.position);
+    // the frame's own target when it has one (the FXAA target, which the frame then draws over), else a small one like it
+    const rt = target || new THREE.WebGLRenderTarget(256, 256, { depthBuffer: true, stencilBuffer: false });
+    if (!target) { rt.isXRRenderTarget = true; rt.texture.colorSpace = THREE.SRGBColorSpace; rt.texture.internalFormat = 'RGBA8'; }
+    // every instanced set (tumbleweeds, birds, raider shadows) draws one copy in front of the camera too, since an empty
+    // set or one whose copies are all shrunk away draws no pixels: the Mesa's first tumbleweeds cost a 130 ms frame on the
+    // software GPU six seconds in, with every shader already built
+    const empty = [], put = new THREE.Matrix4();
+    scene.updateMatrixWorld();
+    scene.traverse(o => {
+      if (!o.isInstancedMesh || !o.instanceMatrix.count) return;
+      const keep = { o, count: o.count, visible: o.visible, fc: o.frustumCulled, m: new THREE.Matrix4() };
+      o.getMatrixAt(0, keep.m); empty.push(keep);
+      o.setMatrixAt(0, put.makeTranslation(o.worldToLocal(ahead.clone()))); o.instanceMatrix.needsUpdate = true;
+      o.count = Math.max(1, o.count); o.visible = true; o.frustumCulled = false;
+    });
+    const was = renderer.getRenderTarget();
+    try { renderer.compile(scene, cam); renderer.setRenderTarget(rt); renderer.render(scene, cam); }
+    catch (e) { console.warn('shader warm-up failed:', e.message); }
+    renderer.setRenderTarget(was); if (!target) rt.dispose();
+    for (const k of empty) { const o = k.o; o.setMatrixAt(0, k.m); o.instanceMatrix.needsUpdate = true; o.count = k.count; o.visible = k.visible; o.frustumCulled = k.fc; }
+    for (const f of fx) this.release(f);
+    this.group.remove(tmp);
+  }
 
   /* alpha: how far the clock is into the next step (0-1); steps: the game's step count, to see when it moved. */
   update(dt, t, cam, alpha = 1, steps = 0) {

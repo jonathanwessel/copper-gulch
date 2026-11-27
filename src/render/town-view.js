@@ -33,7 +33,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     const moving = foe && (!wk || foe.px <= wk.px) ? { px: foe.px, out: { foe: foe.id } } : wk ? { px: wk.px, out: { worker: wk.id } } : null;
     onTap(moving && moving.px < hp ? moving.out : hit, x, y);
   } });
-  let raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
+  let warmed = false, raf = 0, last = performance.now(), frames = 0, t = 0, lastLevels = '', lastTowers = '', lastStep = -1;
   /* The sun's shadow map is drawn only when something that casts a shadow changes: a building or tower built or
      raised, a tower head turning (at most every third frame), an entrance sinking as the camera turns, the graphics
      tier, and every 60 frames besides. Raiders and moving parts cast none (a soft shadow under each raider instead), so
@@ -98,6 +98,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
     size.w = w; size.h = h;
     v.resize(w, h); rig.fit(w / h, w, h);
+    // build and draw every shader once at the real size before the first frame (Battle.warm)
+    if (!warmed) { warmed = true; battle.warm(v.renderer, v.scene, v.cam, v.target); }
     // the board only changes when the simulation steps: check then, not every frame
     const stepped = game.stats.steps !== lastStep; lastStep = game.stats.steps;
     const levels = stepped || !lastLevels ? JSON.stringify(town.buildings) : lastLevels;

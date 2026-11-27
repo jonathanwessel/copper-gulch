@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-9',
+    lines: [
+      'The game no longer freezes for a moment when a tower first shoots or the first raider shows up.',
+      'On a phone, Thunder Mesa now runs as smoothly as the other towns.',
+    ],
+  },
+  {
     v: '2026.11.26-8',
     lines: [
       'In Goods, a price now says what it pays. Open it to see the usual price, how much you sold and the demand, with the time left.',

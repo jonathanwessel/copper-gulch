@@ -115,7 +115,7 @@ export function createScene(canvas, opt = {}) {
   const fxaaCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const view = {
     renderer: r, scene, cam, sky, hemi, sun, canvas,
-    get tier() { return tier; }, get ratio() { return ratio; }, get lamps() { return lamps; },
+    get tier() { return tier; }, get target() { return aa; }, get ratio() { return ratio; }, get lamps() { return lamps; },
     /* Change the quality tier (shadows, lamps, post-processing) and the pixel ratio (the tier's own when left out).
        Multisampling stays as created. */
     setQuality(next, nextRatio) {
