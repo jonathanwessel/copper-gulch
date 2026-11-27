@@ -77,6 +77,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       saveQuality(q); v.setQuality(q.tier, q.ratio);
     },
     project: id => project(v.cam, canvas, board.anchor(id, _a), size),
+    /* How many effects of a kind the battle has drawn since the town loaded (smoke: the Tesla Coil's spark). */
+    fxDrawn: kind => battle.drawn[kind] || 0,
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),
     /* Where each raider on the road is drawn on screen (client pixels), for the level pills that step aside for them. */
     foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, .45, u.obj.position.z), size); if (p) out.push(p); } return out; },

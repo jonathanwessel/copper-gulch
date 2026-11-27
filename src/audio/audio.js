@@ -36,7 +36,7 @@ export function writeAudio(v, store = ls()) {
 }
 
 /* How often each effect may sound at most (seconds), so a wave of shots stays a patter, not a roar. */
-const GAP = { crossbow: .07, cannon: .12, frost: .1, still: .16, mortar: .2, boom: .1, coin: .09, build: .05, boss: 1, leak: .25 };
+const GAP = { crossbow: .07, cannon: .12, frost: .1, still: .16, mortar: .2, tesla: .12, boom: .1, coin: .09, build: .05, boss: 1, leak: .25 };
 const MAX_PER_SEC = 14;
 
 export function createAudio({ store = ls(), win = globalThis.window } = {}) {
@@ -150,6 +150,7 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
     cannon: (c, t) => { tone(c, t, { f: 130, to: 38, d: .32, v: .55 }); hiss(c, t, { type: 'lowpass', f: 900, to: 120, d: .25, v: .35 }); },
     frost: (c, t) => { tone(c, t, { f: 1900, to: 1500, d: .18, v: .08 }); tone(c, t + .02, { f: 2850, to: 2600, d: .14, v: .05 }); },
     still: (c, t) => { tone(c, t, { f: 260, to: 620, d: .12, v: .12 }); tone(c, t + .07, { f: 330, to: 760, d: .1, v: .08 }); },
+    tesla: (c, t) => { hiss(c, t, { type: 'highpass', f: 4200, d: .09, v: .16 }); tone(c, t, { type: 'square', f: 1240, to: 180, d: .09, v: .05, q: 3000 }); },
     mortar: (c, t) => { tone(c, t, { f: 90, to: 45, d: .4, v: .5 }); hiss(c, t, { type: 'lowpass', f: 500, d: .2, v: .25 }); },
     boom: (c, t) => { tone(c, t, { f: 110, to: 30, d: .45, v: .5 }); hiss(c, t, { type: 'lowpass', f: 1400, to: 100, d: .4, v: .4 }); },
     coin: (c, t) => { tone(c, t, { type: 'square', f: 1320, d: .06, v: .05, q: 4000 }); tone(c, t + .05, { type: 'square', f: 1760, d: .1, v: .05, q: 4000 }); },
@@ -212,7 +213,7 @@ export function createAudio({ store = ls(), win = globalThis.window } = {}) {
 /* Hook the effects to the game's events: only for the town in play, and never while time away is caught up. */
 export function soundsFor(game, audio) {
   const here = e => e && e.town === game.active && !game.catching;
-  const SHOT = { crossbow: 'crossbow', cannon: 'cannon', frost: 'frost', still: 'still', mortar: 'mortar' };
+  const SHOT = { crossbow: 'crossbow', cannon: 'cannon', frost: 'frost', still: 'still', mortar: 'mortar', tesla: 'tesla' };
   let milStep = -1;
   const offs = [
     game.bus.on('shot', e => { if (here(e) && !(e.rocket > 0) && !(e.kind === 'militia' && game.stats.steps === milStep)) { if (e.kind === 'militia') milStep = game.stats.steps; audio.play(e.rocket === 0 ? 'mortar' : SHOT[e.kind] || 'crossbow'); } }), // a rocket volley is one launch, and so is the militia's (all its shots come in one step)

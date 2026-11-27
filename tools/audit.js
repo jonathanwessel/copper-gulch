@@ -99,7 +99,7 @@ export function audit() {
   const manifest = JSON.parse(read('manifest.webmanifest'));
   for (const i of manifest.icons) if (!fs.existsSync(path.join(root, i.src))) problems.push('manifest icon missing: ' + i.src);
   for (const m of read('index.html').matchAll(/(?:href|src)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(root, m[1]))) problems.push('index.html links a missing file: ' + m[1]);
-  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...tapRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules(), ...meterRules());
+  problems.push(...chainRules(), ...explainerRules(), ...mapRules(), ...textRules(), ...tapRules(), ...nameRules(), ...capRules(), ...modelRules(), ...swallowRules(), ...meterRules(), ...articleRules());
   return { problems, unlisted };
 }
 
@@ -115,6 +115,13 @@ export function meterRules() {
 /* Code after a line comment never runs. A trailing comment followed by statements ("// why ; this.x = 1") is a bug
    twice over in this repo: raiders never turned (review of 2026.11.20-10), and the raiders' shadows never joined the
    scene (2026.11.21-4). */
+/* A or an (2026.11.26-10: "Build a Aluminum Works" on a Tesla Coil's card, and the strip's "build a Oil Derrick"): game
+   text never puts "a " before a name it adds at run time; aName in src/data/buildings.js picks a or an. */
+export function articleRules() {
+  const out = [];
+  for (const f of walk('src').filter(f => f.endsWith('.js'))) read(f).split('\n').forEach((line, i) => { if (/[ '"`]a ['"`] *\+/.test(line)) out.push(f + ':' + (i + 1) + ' puts "a" before a name added at run time, use aName (a or an)'); });
+  return out;
+}
 export function swallowRules() {
   const out = [], code = /\/\/[^'"`]*; *(this\.|const |let |if \(|for \(|return\b|[a-zA-Z_]+\.[a-zA-Z_]+ *(=|\())/;
   // also a condition left after the comment ("// why !!a.b && ..."), and in tools and test too (2026.11.23-2: a smoke

@@ -9,7 +9,7 @@ import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWal
 import { FOES } from '../data/foes.js';
 import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, aName } from '../data/buildings.js';
 import { CAPITAL_DEF } from '../data/capital.js';
 import { researchOpen, itemsOf, researchBlock, researchCost } from './research.js';
 import { canFound, nextTowns, deedsOf, nodesHeld } from './empire.js';
@@ -264,8 +264,8 @@ function lockedStep(game, town, g) {
 export const SWAP_BELOW = 5;
 /* The strip's words for these steps, pinned in test/words.test.js. */
 export const REBUILD_WORDS = {
-  build: (pad, name) => 'Tap the ' + pad + ' and build a ' + name + ' again',
-  swap: (now, name) => 'Tap the ' + now + ', tap Sell, then build a ' + name + ' there',
+  build: (pad, name) => 'Tap the ' + pad + ' and build ' + aName(name) + ' again',
+  swap: (now, name) => 'Tap the ' + now + ', tap Sell, then build ' + aName(name) + ' there',
   hold: town => 'Tap Hold waves while you save to open ' + town,
   play: town => 'Tap Map, then tap ' + town,
 };
@@ -389,7 +389,7 @@ function stallStep(game, town, g, P, depth) {
     if (s.maker.town !== town.id) {
       const mt = s.maker.town, src = game.towns[mt];
       if (!src || isOutpost(src)) continue;
-      const tn = TOWNS[mt].short || TOWNS[mt].name, act = s.maker.built ? 'upgrade the ' + bname(mk) : 'build a ' + bname(mk);
+      const tn = TOWNS[mt].short || TOWNS[mt].name, act = s.maker.built ? 'upgrade the ' + bname(mk) : 'build ' + aName(bname(mk));
       return { id: g.id + '~' + mt + ':' + mk, town: g.town, text: 'Tap Map, ' + tn + ', then ' + act + '. The ' + bname(id) + ' needs more ' + GOODS[s.good].name.toLowerCase(), done: g.done, step: true, stall: id, feeds: { town: town.id, id, good: s.good }, there: [mt, mk], at: c => ({ el: c.back === mt ? '#backBtn' : '#mapBtn', go: mt }) };
     }
     const why = ' The ' + bname(id) + ' needs more ' + GOODS[s.good].name.toLowerCase();

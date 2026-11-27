@@ -38,7 +38,19 @@ export const TOWERS = {
     best: { boss: 2.5 }, bestText: 'Big groups and {boss}',
     flight: 1.5, lob: true, long: true, opens: 12,
   },
+  /* The Tesla Coil (M6b part 2a, 2026-11-26): Thunder Mesa's own tower (only the Mesa pays for it, so only the Mesa
+     builds it) and the only kind so far that reaches the sky (air: only a tower with air: true aims at an air raider,
+     src/core/defense.js). Its spark hits the raider nearest the vault, then jumps on to the nearest raider it has not
+     hit within ARC.reach of the last one, up to arcs more times, each jump fall times the hit before. It hits a
+     group, so it grows like the Cannon (grow). It opens at the Mesa's wave 4, a few minutes in, with its own card. */
+  tesla: {
+    name: 'Tesla Coil', about: 'Its spark hits up to 3 raiders. It can hit airships.',
+    coins: 100, goods: { mesa: { aluminum: 5, rubber: 4 } }, dmg: 24, rate: .8, range: 2.5, arcs: 2, fall: .8, grow: 1.24, air: true, opens: 4,
+  },
 };
+/* The Tesla Coil's spark: how far it jumps from one raider to the next (each jump's hit as a share of the last is the
+   tower's or its path's fall). */
+export const ARC = { reach: 1.4 };
 /* A normal tower's reach, R. The Mortar reaches from 0.5R to 2R; mortar pits sit farther than R from the road. */
 export const NORMAL_REACH = 2.8;
 
@@ -63,6 +75,13 @@ export const PATHS = {
   mortar: {
     a: { name: 'Siege Mortar', about: 'Shoots farther with a bigger blast, but fires slower.', splash: 1.5, range: 1.2, dmg: 1.2, rate: .85 },
     b: { name: 'Shrapnel', about: 'Smaller blast that sets the ground on fire.', splash: .7, rate: 1.15, fire: 1 },
+  },
+  /* The Tesla Coil: a spark that jumps on through a crowd, or one bolt that hits hard, reaches farther and goes through
+     armor (arcs and fall: the jumps and each jump's share the path gives in place of the tower's own; bare: armor does
+     not stop the hit). */
+  tesla: {
+    a: { name: 'Storm Coil', about: 'Its spark hits up to 6 raiders, each one softer.', arcs: 5, fall: .9, dmg: .8 },
+    b: { name: 'Lightning Rod', about: 'A huge bolt at 1 raider. It goes through armor.', arcs: 0, dmg: 2.4, range: 1.2, bare: true },
   },
 };
 

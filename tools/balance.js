@@ -208,8 +208,15 @@ export function aloneShare(town, spot, hi, near) {
 }
 /* The most raiders a careful player counts in one frost pulse (4 to 8 made no pad change sides, 2026.11.24-2). */
 export let PULSE_CAP = 4;
+/* The Tesla Coil's spark (ARC): each jump hits fall times the last, and a careful player counts ARC_HITS of the
+   jumps as finding a raider (raiders ride apart, so not every jump has one in reach). Lightning Rod's one bolt lands on a
+   raider nearly down as often as on a fresh one, so a careful player counts ROD_SHARE of it (at .92 the guess picks it on
+   3 and 4 of the late Mesa's 18 pads on seeds 1 and 2, as the runs do; at .9 on none, at .95 on 11, 2026.11.26-10).
+   Both set from tools/tesla-runs.js, so the guess splits the pads between the paths about as the runs do. */
+export let ARC_HITS = .8, ROD_SHARE = .92;
+export const arcGain = (n, fall) => { let g = 1; for (let j = 1; j <= n; j++) g += ARC_HITS * fall ** j; return g; };
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; if (k === 'standfloor') STAND_FLOOR = v; if (k === 'standeff') STAND_EFF = v; if (k === 'stand') STAND_ON = !!v; };
+export const tune = (k, v) => { if (k === 'archits') ARC_HITS = v; if (k === 'rod') ROD_SHARE = v; if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; if (k === 'standfloor') STAND_FLOOR = v; if (k === 'standeff') STAND_EFF = v; if (k === 'stand') STAND_ON = !!v; };
 /* standShare in worth, off by default and on with --stand (or tune('stand', 1)). 2026.11.26-3: on, it took the
    active bot's late Falls Frost share from 35% to 25-32%, and every try tipped a gate of a weaker player, who leans on
    a slow by the vault to stop breaches (min-max's Silver Falls 29% behind against 25%, idle's later hours under 90%,
@@ -239,12 +246,14 @@ export function worth(town, t, support = true) {
     // near it reaches is chilled by it alone, and a careful player counts that share's slow ALONE_SLOW times
     far = st.slow && forkOf(t).range > 1 ? ALONE_SLOW * aloneShare(town, t.spot, st.range, near) * st.slow : 0;
   const at = st.hurt || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
-  let dps = st.dmg * st.rate * (st.sharp ? ahead(town, 'sharp', town.wave, false, 0, SHARP_BOSS) : ahead(town, t.kind, town.wave, false, 0, st.boss)) * (st.pierce ? 1 + (st.pierce - 1) * Math.min(1, PIERCE_LINE * lineShare(town, t.spot, st.range)) : 1) * (st.sharp ? Math.max(.5, 1 + SHARP_COVER * (cover(town, t.spot, st.minRange, st.range) - SHARP_FROM)) : 1) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
+  let dps = st.dmg * st.rate * (st.sharp ? ahead(town, 'sharp', town.wave, false, 0, SHARP_BOSS) : ahead(town, t.kind, town.wave, !!st.bare, 0, st.boss)) * (st.pierce ? 1 + (st.pierce - 1) * Math.min(1, PIERCE_LINE * lineShare(town, t.spot, st.range)) : 1) * (st.sharp ? Math.max(.5, 1 + SHARP_COVER * (cover(town, t.spot, st.minRange, st.range) - SHARP_FROM)) : 1) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
   if (st.rot) dps += st.rot * ahead(town, t.kind, town.wave, true) * targets(st.cloud) / share * ROT_LIVES * (1 - at.first) * at.length / Math.max(1, cover(town, t.spot, st.minRange, st.range));
   if (st.pulse) dps *= Math.min(PULSE_CAP, targets(st.range) / 2);
   else if (st.rockets) dps *= st.rockets * targets(st.splash) * ROCKET_HITS;
   else if (st.splash) dps *= targets(st.splash);
+  else if (st.arcs) dps *= arcGain(st.arcs, st.fall);
+  else if (st.bare) dps *= ROD_SHARE;
   if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
   if (st.slow) dps *= 1 + (slowPart + far) * 2; // slowed raiders take longer to pass every tower
   if (st.fire) dps *= 1.35;
@@ -1115,7 +1124,7 @@ export function towerBalance(rows, where = '', lead = true) {
     for (const [k, n] of Object.entries(x.dealt)) if (n / tot > SHARE_MAX) misses.push(`${where ? where + ', ' : ''}${x.strategy}: ${k} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`);
     for (const r of x.runs) for (const [, k, n] of r.top) if (n > 1) led.add(k);
   }
-  if (lead) for (const k of Object.keys(TOWERS)) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
+  if (lead) for (const k of GULCH_KINDS()) if (!led.has(k)) misses.push(`${k} never does the most damage in a wave, for any strategy`);
   return misses;
 }
 /* Late damage shares (M6a, found with the Still late box): the share gate above counts only a town's first hour.
@@ -1217,9 +1226,12 @@ export function charterPayoff(runs) {
   return misses;
 }
 
-/* The variety check (M1 target): kinds never bought in the first hour, and whether one kind topped every wave. */
+/* The variety check (M1 target): kinds never bought in the first hour, and whether one kind topped every wave. Only the
+   kinds Copper Gulch builds count, since the first hour is played there (the Tesla Coil is Thunder Mesa's own; its
+   variety is gated by tools/mesa-road.js). */
+export const GULCH_KINDS = () => Object.keys(TOWERS).filter(k => TOWERS[k].goods.gulch);
 export function variety(runs) {
-  const kinds = Object.keys(TOWERS), never = kinds.filter(k => runs.every(r => r.firstBuy[k] === undefined));
+  const kinds = GULCH_KINDS(), never = kinds.filter(k => runs.every(r => r.firstBuy[k] === undefined));
   const mixed = runs.flatMap(r => r.top.filter(([, , n]) => n > 1));
   const tops = new Set(mixed.map(([, k]) => k));
   return { never, oneKind: mixed.length > 0 && tops.size === 1 ? [...tops][0] : null, tops: [...tops] };

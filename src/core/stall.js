@@ -6,7 +6,7 @@
    towers while the strip asked to upgrade it to level 21 behind a Blast Furnace at level 3), not while the workers are out. It climbs while short and falls twice
    as fast once it runs, so a stall shows after STALL_SECONDS and does not flicker. stallOf names the good it waits for
    and the building that makes it; the building card, the Goods sheet, the goal strip and the bots all read it. */
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, aName } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { TOWNS } from '../data/towns/index.js';
 import { uses, isGrid, gridOf, output, STALL_SHARE, STALL_SECONDS, STALL_MAX } from './economy.js';
@@ -57,7 +57,7 @@ export function stallWords(game, town, s) {
 export function stallFix(game, town, s) {
   if (!s || !s.maker) return '';
   const m = s.maker, there = m.town !== town.id ? ' in ' + placeName(m.town) : '';
-  return (m.built ? 'Upgrade the ' : 'Build a ') + BUILDINGS[m.id].name + there;
+  return (m.built ? 'Upgrade the ' + BUILDINGS[m.id].name : 'Build ' + aName(BUILDINGS[m.id].name)) + there;
 }
 /* The town's stalled workshop that makes this good, if any (the Goods sheet's row for that good). */
 export function goodStall(game, town, good) {

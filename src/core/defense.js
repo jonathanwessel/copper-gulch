@@ -16,7 +16,7 @@
    player taps Resume waves or Call now there.
    A won outpost (town.won, src/core/outpost.js) keeps fighting: its raids stay at its last wave's strength without the
    boss, one every town.def.raid seconds, and a breach there takes part of its goods, never its waves. */
-import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, HIGH_LEVEL, FIRE, FREEZE, EXTRA_TOWER, SLOW_MOST } from '../data/towers.js';
+import { TOWERS, PATHS, PATH_LEVEL, FORKS, FORK_LEVEL, HURT, ROCKETS, PIERCE, EATS_ARMOR, SLOW_SECONDS, POISON_SECONDS, SELL_BACK, PER_LEVEL, HIGH_LEVEL, FIRE, FREEZE, EXTRA_TOWER, SLOW_MOST, ARC } from '../data/towers.js';
 import { FOES, WAVE_TYPES, WAVE } from '../data/foes.js';
 import { makePath, pointAt, dist } from './path.js';
 import { demand, output, buildingsOf } from './economy.js';
@@ -73,6 +73,7 @@ export function towerStats(town, t) {
     poison: (d.poison || 0) * (p.poison || 1) * PER_LEVEL.poison ** (L - 1) * town.mods.factor('towerDmg'),
     cloud: (d.cloud || 0) * (p.cloud || 1), freeze: !!p.freeze, brittle: p.brittle || 0, spread: !!p.spread,
     minRange: d.minRange || 0, flight: d.flight || 0, lob: !!d.lob, fire: !!p.fire, hurt: !!k.hurt, rot: 0, rockets: k.rockets ? ROCKETS.count : 0, boss: k.boss || 1, pierce: k.pierce ? PIERCE.count : 0, sharp: !!k.sharp,
+    arcs: p.arcs !== undefined ? p.arcs : d.arcs || 0, fall: p.fall || d.fall || 0, bare: !!p.bare, air: !!d.air, // the Tesla Coil's spark jumps (ARC), and it reaches the sky
     eat: d.poison && L >= EATS_ARMOR.from ? EATS_ARMOR.share : 0, // poison eats armor (EATS_ARMOR)
   };
   // Slow Rot: a share of its hit damage a second, in place of the normal poison
@@ -97,8 +98,13 @@ export const towerAt = (town, spot) => town.towers.find(t => t.spot === spot) ||
 /* Mortar pits: the far pads, listed by index in board.pits (src/data/towns/index.js, isPitSpot). */
 export const isPit = (town, spot) => isPitSpot(town.def.board, spot);
 export const pitSpots = town => town.def.board.spots.map((_, i) => i).filter(i => isPit(town, i));
-/* Is this tower kind built in this town at all? (An outpost lists its few kinds in town.def.towers.) */
-export const towerIn = (town, kind) => !!TOWERS[kind] && !(town.def && town.def.towers && !town.def.towers.includes(kind));
+/* Is this tower kind built in this town at all? (An outpost lists its few kinds in town.def.towers, and a kind is built
+   only where it has a price in goods: the Tesla Coil only in Thunder Mesa.) */
+export const towerIn = (town, kind) => !!TOWERS[kind] && !!(TOWERS[kind].goods || {})[town.id] && !(town.def && town.def.towers && !town.def.towers.includes(kind));
+/* Can this tower hit this raider? An air raider only by a tower that reaches the sky (TOWERS[kind].air); a blast, a
+   cloud or burning ground on the road never reaches it. */
+export const grounded = f => !(FOES[f.kind] && FOES[f.kind].air);
+export const canHit = (st, f) => !!st.air || grounded(f);
 /* Has the town opened this tower kind? (Most are open from the start; some open at a wave.) */
 export const towerOpen = (town, kind) => towerIn(town, kind) && (!TOWERS[kind].opens || !!(town.flags && town.flags['open:' + kind]));
 /* Can this kind stand on this spot? Pits take only long-range towers, and long-range towers go only in pits. */
@@ -337,13 +343,26 @@ export const waitsAway = (game, town) => away(game, town) && !town.towers.length
 export function pierced(foes, pos, at, first, count) {
   const p0 = pos.get(first), dx = p0[0] - at[0], dz = p0[1] - at[1], L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L, next = [];
   for (const f of foes) {
-    if (f === first || f.hp <= 0) continue;
+    if (f === first || f.hp <= 0 || !grounded(f)) continue;
     const p = pos.get(f), ax = p[0] - p0[0], az = p[1] - p0[1], u = ax * ux + az * uz;
     if (u <= 0 || u > PIERCE.depth || Math.abs(ax * uz - az * ux) > PIERCE.width) continue;
     next.push([u, f]);
   }
   next.sort((a, b) => a[0] - b[0]);
   return [first, ...next.slice(0, count - 1).map(x => x[1])];
+}
+
+/* The Tesla Coil's spark (ARC): the raider it hits first, then up to n more, each the nearest one not yet hit within
+   ARC.reach of the last, among those the tower can hit. */
+export function sparked(foes, pos, first, n, st = { air: true }) {
+  const line = [first];
+  for (let j = 0; j < n; j++) {
+    const p = pos.get(line[line.length - 1]); let next = null, best = ARC.reach;
+    for (const f of foes) { if (f.hp <= 0 || line.includes(f) || !canHit(st, f)) continue; const d = dist(p, pos.get(f)); if (d <= best) { best = d; next = f; } }
+    if (!next) break;
+    line.push(next);
+  }
+  return line;
 }
 
 /* One step of the battle. */
@@ -381,7 +400,7 @@ export function fight(game, town, dt) {
     if (sh.t > 1e-9) continue;
     if (sh.foe != null) { const to = ws.foes.find(f => f.id === sh.foe && f.hp > 0); if (to) sh.at = pos.get(to); } // a rocket finds its raider
     firing = { kind: sh.by || 'mortar', spot: sh.spot };
-    for (const f of ws.foes) if (f.hp > 0 && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg, false, sh.by || 'mortar');
+    for (const f of ws.foes) if (f.hp > 0 && grounded(f) && dist(sh.at, pos.get(f)) <= sh.splash) hurt(game, town, f, sh.dmg, false, sh.by || 'mortar');
     firing = null;
     if (sh.fire) fires.push({ at: sh.at, r: sh.splash, t: FIRE.seconds, dps: sh.dmg * FIRE.dps });
     game.bus.emit('land', { town: town.id, spot: sh.spot, at: sh.at, splash: sh.splash, fire: !!sh.fire });
@@ -389,7 +408,7 @@ export function fight(game, town, dt) {
   ws.shells = shells.filter(sh => sh.t > 1e-9);
   for (const fi of fires) {
     const k = Math.min(dt, fi.t); fi.t -= dt;
-    for (const f of ws.foes) if (f.hp > 0 && dist(fi.at, pos.get(f)) <= fi.r) {
+    for (const f of ws.foes) if (f.hp > 0 && grounded(f) && dist(fi.at, pos.get(f)) <= fi.r) {
       hurt(game, town, f, fi.dps * k, false, 'mortar');
       f.slow = Math.max(f.slowT > 0 ? f.slow : 0, FIRE.slow); f.slowT = Math.max(f.slowT, .5);
     }
@@ -401,7 +420,7 @@ export function fight(game, town, dt) {
     const st = towerStats(town, t), at = town.def.board.spots[t.spot];
     t.cd -= dt;
     while (t.cd <= 0) {
-      const inReach = ws.foes.filter(f => { if (f.hp <= 0 || (st.lob && FOES[f.kind].air)) return false; const d = dist(at, pos.get(f)); return d <= st.range && d >= st.minRange; });
+      const inReach = ws.foes.filter(f => { if (f.hp <= 0 || !canHit(st, f)) return false; const d = dist(at, pos.get(f)); return d <= st.range && d >= st.minRange; });
       if (!inReach.length) { t.cd = 0; break; }
       t.cd += 1 / st.rate;
       if (st.rockets) { // Rocket Battery: a volley, each rocket at its own raider, the ones nearest the vault first
@@ -432,15 +451,21 @@ export function fight(game, town, dt) {
           if (st.freeze && t.pulses % 3 === 0 && !FOES[f.kind].boss && !(f.thawT > 0)) { f.frozenT = FREEZE.seconds; f.thawT = FREEZE.seconds + FREEZE.again; }
         }
       } else if (st.splash) { // Big Shell hits a boss st.boss times as hard
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg * (FOES[f.kind].boss ? st.boss : 1), false, t.kind);
+        for (const f of ws.foes) if (f.hp > 0 && grounded(f) && dist(to, pos.get(f)) <= st.splash) hurt(game, town, f, st.dmg * (FOES[f.kind].boss ? st.boss : 1), false, t.kind);
       } else if (st.poison || st.rot) {
         hurt(game, town, target, st.dmg * (st.hurt ? hurtFactor(target) : 1), false, t.kind);
-        for (const f of ws.foes) if (f.hp > 0 && dist(to, pos.get(f)) <= st.cloud) {
+        for (const f of ws.foes) if (f.hp > 0 && grounded(f) && dist(to, pos.get(f)) <= st.cloud) {
           f.eat = Math.max(eaten(f), st.eat);
           if (st.rot) f.rot = Math.max(f.rot || 0, st.rot * bestFactor(t.kind, f.kind));
           else { f.poison = Math.max(f.poisonT > 0 ? f.poison : 0, st.poison * bestFactor(t.kind, f.kind)); f.poisonT = POISON_SECONDS; }
           f.spread = f.spread || st.spread;
         }
+      } else if (st.fall) { // the Tesla Coil (any path): the spark jumps on to the nearest raider it has not hit (sparked)
+        const line = sparked(ws.foes, pos, target, st.arcs, st);
+        // each jump fall times the hit before it; Lightning Rod's bolt goes through armor (bare)
+        line.forEach((f, j) => hurt(game, town, f, st.dmg * st.fall ** j, st.bare, t.kind));
+        game.bus.emit('shot', { town: town.id, spot: t.spot, kind: t.kind, foe: target.id, from: at, to, chain: line.map(f => f.id), pts: line.map(f => pos.get(f)) });
+        continue;
       } else if (st.pierce) { // Piercing Bolts: the bolt goes on through the raiders in line behind the first
         const line = pierced(ws.foes, pos, at, target, st.pierce);
         for (const f of line) hurt(game, town, f, st.dmg, false, t.kind);
@@ -474,7 +499,7 @@ export function fight(game, town, dt) {
   for (const f of ws.foes) if (f.hp <= 0 && !f.leaked && !f.dead) {
     f.dead = true; kill(game, town, f);
     const dose = Math.max(f.poisonT > 0 ? f.poison : 0, f.rot || 0); // a rotting carrier passes its rot on as a normal dose
-    if (f.spread && dose > 0) for (const g of ws.foes) if (g.hp > 0 && dist(pos.get(f), pos.get(g)) <= 1) { g.eat = Math.max(eaten(g), f.eat || 0); g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, dose / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
+    if (f.spread && dose > 0) for (const g of ws.foes) if (g.hp > 0 && grounded(g) && dist(pos.get(f), pos.get(g)) <= 1) { g.eat = Math.max(eaten(g), f.eat || 0); g.poison = Math.max(g.poisonT > 0 ? g.poison : 0, dose / bestFactor('still', f.kind) * bestFactor('still', g.kind)); g.poisonT = POISON_SECONDS; g.spread = true; }
   }
   ws.foes = ws.foes.filter(f => f.hp > 0);
   if (town.vault.hp <= 0) { fall(game, town, 'vault'); return; }
@@ -708,7 +733,7 @@ export const defense = {
   load(town) { if (!town.waves) defense.init(town); town.reserveOff = town.reserveOff || {}; if (!STOCKS.includes(town.stock)) town.stock = 'normal'; town.waves.shells = town.waves.shells || []; town.waves.fires = town.waves.fires || []; },
   /* Towers that open at a wave open once the town reaches it, and stay open. */
   opens(game, town) {
-    for (const [k, d] of Object.entries(TOWERS)) if (d.opens && town.wave >= d.opens && !town.flags['open:' + k]) {
+    for (const [k, d] of Object.entries(TOWERS)) if (d.opens && town.wave >= d.opens && !town.flags['open:' + k] && towerIn(town, k)) {
       town.flags['open:' + k] = true; game.bus.emit('tower:open', { town: town.id, kind: k });
     }
   },

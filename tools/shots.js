@@ -404,10 +404,14 @@ const MESA = [
   }],
   ['mesa-motors', () => { CG.play.open('motorworks'); }],
   ['mesa-fight', () => {
-    const t = CG.game.town; CG.play.close(); t.flags['open:mortar'] = true; Object.assign(t.goods, { oil: 900, bauxite: 900, fuel: 900, aluminum: 900 }); t.sell = { oil: false, bauxite: false, fuel: false, aluminum: false };
-    for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'frost'], [3, 'still'], [4, 'crossbow'], [5, 'cannon'], [t.def.board.far, 'mortar']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); }
+    const t = CG.game.town; CG.play.close(); t.flags['open:mortar'] = true; t.flags['open:tesla'] = true; Object.assign(t.goods, { oil: 900, bauxite: 900, fuel: 900, aluminum: 900, rubber: 900 }); t.sell = { oil: false, bauxite: false, fuel: false, aluminum: false, rubber: false };
+    // the Tesla Coils (part 2a) by the first passes, one of each path, so their sparks show in the fight
+    for (const [s, k] of [[0, 'crossbow'], [1, 'tesla'], [2, 'frost'], [3, 'still'], [4, 'crossbow'], [5, 'cannon'], [6, 'tesla'], [t.def.board.far, 'mortar']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); }
     CG.play.close(); t.wave = Math.max(t.wave, 5); document.getElementById('callWave').click();
   }],
+  // the Tesla Coil's card at level 6 on Storm Coil, and the pick of its two paths on the other one
+  ['mesa-tesla', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { x.level = 6; x.path = 'a'; } CG.play.openSpot(1); }],
+  ['mesa-tesla-path', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { x.level = 4; x.path = null; } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],
   ['mesa-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('mesa'); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));

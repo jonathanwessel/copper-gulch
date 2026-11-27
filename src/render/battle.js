@@ -34,6 +34,7 @@ const FX = {
   cloud: new THREE.MeshBasicMaterial({ color: '#8fd57a', transparent: true, depthWrite: false }),
   rocket: new THREE.MeshBasicMaterial({ color: '#d9573c' }),
   trail: new THREE.MeshBasicMaterial({ color: '#e8dcc8', transparent: true, depthWrite: false }),
+  spark: new THREE.MeshBasicMaterial({ color: '#d8f2ff', transparent: true, depthWrite: false }),
   mark: new THREE.MeshBasicMaterial({ color: '#2a1408', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: false }),
   fire: new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, fog: false }),
 };
@@ -42,19 +43,21 @@ const KINDS = {
   bolt: ['bolt', 'bolt', false], ball: ['ball', 'ball', false], flask: ['flask', 'flask', false],
   ring: ['ring', 'frost', true], boom: ['boom', 'boom', true], cloud: ['cloud', 'cloud', true],
   shell: ['shell', 'ball', false], mark: ['mark', 'mark', true], rocket: ['rocket', 'rocket', false], trail: ['cloud', 'trail', true],
+  spark: ['spark', 'spark', true],
 };
 const GEO = {
   bolt: new THREE.BoxGeometry(.32, .03, .03), ball: new THREE.IcosahedronGeometry(.08, 1), boom: new THREE.IcosahedronGeometry(1, 1),
   ring: new THREE.RingGeometry(.9, 1, 32).rotateX(-Math.PI / 2), flask: new THREE.IcosahedronGeometry(.07, 0), cloud: new THREE.IcosahedronGeometry(1, 1),
   shell: new THREE.IcosahedronGeometry(.19, 1), mark: new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), // a dark spot that grows as the shell falls, like its shadow (review of 2026.11.20-15: a red ring had no explainer and cut the Mortar's ring)
   fire: new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2),
+  spark: new THREE.BoxGeometry(.045, .045, 1), // a unit length along z, stretched and pointed down each leg of a spark
   rocket: new THREE.ConeGeometry(.06, .3, 6).rotateX(Math.PI / 2), // nose along +z, so lookAt points it where it flies
 };
 const _ra = new THREE.Vector3();
 
 export class Battle {
   constructor(board, game) {
-    this.board = board; this.town = board.town; this.game = game;
+    this.board = board; this.town = board.town; this.game = game; this.drawn = {};
     this.group = new THREE.Group(); this.group.name = 'battle'; board.group.add(this.group);
     this.lanes = lanesOf(this.town);
     this.river = this.town.def.board.river ? this.town.def.board.river.path : null; // raiders cross it on bridges (its path only: the leg into the vault lifted raiders by the vault, 2026-11-22)
@@ -130,6 +133,17 @@ export class Battle {
       const m = this.add('mark', { life: e.flight + .1, mark: e.splash || 1.3 }); m.mesh.position.set(tx, .04, tz);
       return;
     }
+    if (e.chain) { // the Tesla Coil: a jagged spark from the ball to each raider in turn (two legs a jump, bent at a point beside the line)
+      const at = id => { const v = this.foes.get(id); return v ? new THREE.Vector3(v.obj.position.x, .4, v.obj.position.z) : null; };
+      let a = new THREE.Vector3(fx, 1.05, fz);
+      e.chain.forEach((id, j) => {
+        const b = at(id) || new THREE.Vector3(e.pts[j][0], .4, e.pts[j][1]), m = a.clone().lerp(b, .5), side = ((id * 7 + j * 3) % 5 - 2) * .06;
+        m.x += (b.z - a.z) * side; m.z -= (b.x - a.x) * side; m.y += .12;
+        for (const [p, q] of [[a, m], [m, b]]) if (this.fx.length < 120) { const s = this.add('spark', { life: .16, seg: true }); s.mesh.position.copy(p).lerp(q, .5); s.mesh.lookAt(q); s.mesh.scale.set(1, 1, Math.max(.01, p.distanceTo(q))); }
+        a = b;
+      });
+      return;
+    }
     if (e.kind === 'crossbow') this.add('bolt', { from, to, life: e.pierce > 1 ? .24 : .18, arc: 0, aim: true });
     else if (e.kind === 'cannon') this.add('ball', { from, to, life: .45, arc: .9, then: 'boom' });
     else if (e.kind === 'still') this.add('flask', { from, to, life: .5, arc: 1.1, then: 'cloud' });
@@ -146,6 +160,8 @@ export class Battle {
     }
     mesh.visible = true; mesh.scale.set(1, 1, 1); mesh.rotation.set(0, 0, 0);
     f.kind = kind; f.mesh = mesh; f.age = 0; list.push(f);
+    // how many of each kind were drawn, for the smoke checks (the spark of a Tesla Coil)
+    this.drawn[kind] = (this.drawn[kind] || 0) + 1;
     return f;
   }
   release(f) { f.mesh.visible = false; this.pool[f.kind].push(f.mesh); }
@@ -265,6 +281,7 @@ export class Battle {
           if ((f.puff += dt) > .07 && this.fx.length < 110) { f.puff = 0; const p = this.add('trail', { life: .45, grow: .12, op: .55 }, after); p.mesh.position.copy(f.mesh.position); }
         }
       } else if (f.ring) { const s = .3 + k * f.ring; f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .7 * (1 - k); }
+      else if (f.seg) f.mesh.material.opacity = .95 * (1 - k * k);
       else if (f.mark) { const s = f.mark * (.35 + k * .65); f.mesh.scale.set(s, 1, s); f.mesh.material.opacity = .12 + .38 * k; }
       else if (f.grow) { const s = f.grow * (.4 + k * .6); f.mesh.scale.set(s, f.flat ? s * .5 : s, s); f.mesh.material.opacity = f.op * (1 - k); }
       if (k < 1) return true;

@@ -54,3 +54,6 @@ export const BUILDINGS = {
 
 /* Reaching each of these levels doubles a building's output (the "x2 milestones"). */
 export const MILESTONES = [10, 25, 50, 100, 150, 200];
+/* A building's name after a or an, for a line that says to build one ("Build an Aluminum Works"; the smoke check of
+   2026.11.26-10 found "Build a Aluminum Works"). */
+export const aName = name => (/^[aeiou]/i.test(name) ? 'an ' : 'a ') + name;

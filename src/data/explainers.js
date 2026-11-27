@@ -479,6 +479,12 @@ export const EXPLAINERS = [
     when: () => true, at: () => ({ plot: 'derrick' }),
   },
   {
+    id: 'tesla', town: 'mesa', now: true, covers: ['tower:tesla'],
+    title: 'The Tesla Coil',
+    text: 'You can build a Tesla Coil now. Tap a stone pad. Its spark hits up to 3 raiders close together. It is the only tower that can hit airships.',
+    when: h => !!h.flags['open:tesla'], at: h => ({ spot: h.freePad ?? Object.values(h.kinds)[0] ?? 0 }),
+  },
+  {
     id: 'sb-welcome', town: 'sandybend', now: 1, covers: ['welcome:sandybend'],
     title: 'Welcome to Sandy Bend',
     text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',

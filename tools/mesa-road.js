@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { empire, capitalPick, toMesa, MESA_PLAY } from './balance.js';
+import { empire, capitalPick, toMesa, MESA_PLAY, SHARE_MAX } from './balance.js';
 import { loadGame } from '../src/core/setup.js';
 import { encode, decode } from '../src/core/save.js';
 import { TOWNS } from '../src/data/towns/index.js';
@@ -23,6 +23,8 @@ import { GOALS } from '../src/data/goals.js';
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const k = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.round(n / 1e3) + 'K';
 export const MESA_AT = [9, 14], MESA_W10 = [7, 9], SEEDS = 6;
+/* The Tesla Coil (part 2a): the active player builds one in the Mesa's first hour on at least TESLA_SEEDS of the seeds. */
+export const TESLA_SEEDS = 4;
 const MESA_GOALS = GOALS.filter(x => x.town === 'mesa' && x.within);
 
 if (arg('seed') == null) {
@@ -57,6 +59,14 @@ if (arg('seed') == null) {
       for (const x of MESA_GOALS) if (r.goals[x.id] == null || r.goals[x.id] > x.within * 60) misses.push(`seed ${seed}: goal ${x.id} not done within ${x.within} min`);
     }
   }
+  // the variety report for the Mesa's first hour (part 2a): what each kind did over every seed, and where the Tesla Coil
+  // was built; no kind does more than SHARE_MAX of the damage (the town gate of tools/balance.js)
+  const dealt = {}, built = {};
+  for (const { r } of runs) if (r && r.dealt) { for (const [kk, n] of Object.entries(r.dealt)) dealt[kk] = (dealt[kk] || 0) + n; for (const [kk, n] of Object.entries(r.bought || {})) if (n) built[kk] = (built[kk] || 0) + 1; }
+  const tot = Object.values(dealt).reduce((a, b) => a + b, 0) || 1;
+  console.log('Mesa first hour, damage by kind over every seed: ' + Object.entries(dealt).sort((a, b) => b[1] - a[1]).map(([kk, n]) => kk + ' ' + Math.round(100 * n / tot) + '%').join(', ') + ' | seeds that built each kind: ' + Object.entries(built).map(([kk, n]) => kk + ' ' + n).join(', '));
+  for (const [kk, n] of Object.entries(dealt)) { if (n / tot > SHARE_MAX) misses.push(`the Mesa: ${kk} does ${Math.round(100 * n / tot)}% of the damage (want at most ${Math.round(100 * SHARE_MAX)}%)`); else if (n / tot > SHARE_MAX * .9) close.push(`the Mesa: ${kk} does ${(100 * n / tot).toFixed(1)}% of the damage`); }
+  if ((built.tesla || 0) < TESLA_SEEDS) misses.push(`the Tesla Coil built in the Mesa on ${built.tesla || 0} of ${runs.length} seeds (want at least ${TESLA_SEEDS})`);
   for (const c of close) console.log('close ' + c);
   console.log((misses.length ? 'FAIL ' + misses.join('; ') : 'ok Thunder Mesa founded at ' + MESA_AT.join('-') + ' h on every seed, after the Telegraph Works and the Falls charter, wave 10 at 7-9 min') + ` (${((Date.now() - t0) / 60000).toFixed(1)} min)`);
   process.exitCode = misses.length ? 1 : 0;
@@ -88,5 +98,5 @@ if (arg('seed') == null) {
     console.log(`  Mesa breaches ${out.mesa.breaches.join(',') || 'none'}, best wave ${m.bestWave}, towers ${m.towers.map(t => t.kind[0] + t.level).join(' ')}`);
     console.log(`  buildings ${TOWNS.mesa.buildings.filter(b => m.level(b)).map(b => b + ' ' + m.level(b)).join(', ')}`);
   }
-  console.log('result ' + JSON.stringify({ seed: SEED, falls: fallsAt, found: out.mesaFound, held: out.mHeld || 0, signed: out.mSigned, w10: out.mesa ? out.mesa.w10 : null, early: out.mesa ? out.mesa.breaches.filter(w => w <= 3) : [], log: out.mLog, goals }));
+  console.log('result ' + JSON.stringify({ seed: SEED, falls: fallsAt, found: out.mesaFound, held: out.mHeld || 0, signed: out.mSigned, w10: out.mesa ? out.mesa.w10 : null, early: out.mesa ? out.mesa.breaches.filter(w => w <= 3) : [], log: out.mLog, goals, dealt: out.mesa ? out.mesa.dealt : {}, bought: out.mesa ? out.mesa.bought : {} }));
 }

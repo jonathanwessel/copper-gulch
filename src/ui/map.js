@@ -4,7 +4,7 @@
 import { windowRates } from '../core/explain.js';
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, aName } from '../data/buildings.js';
 import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
@@ -330,7 +330,7 @@ export function mountMap(root, game, view, shell) {
         // a good shipped in from another town: say which building there to build or upgrade
         const g = info.needs, home = g && GOODS[g].town !== id && game.towns[GOODS[g].town], mk = home && home.def.buildings.find(b => BUILDINGS[b].makes === g);
         const wheel = g && GOODS[g].grid && TOWNS[id].buildings.find(b => BUILDINGS[b].makes === g); // the power grid: upgrade the Water Wheel there
-        const fix = wheel ? ' Upgrade the ' + BUILDINGS[wheel].name + '.' : mk ? ' ' + (home.level(mk) ? 'Upgrade the ' : 'Build a ') + BUILDINGS[mk].name + ' in ' + shortOf(home.id) + '.' : '';
+        const fix = wheel ? ' Upgrade the ' + BUILDINGS[wheel].name + '.' : mk ? ' ' + (home.level(mk) ? 'Upgrade the ' + BUILDINGS[mk].name : 'Build ' + aName(BUILDINGS[mk].name)) + ' in ' + shortOf(home.id) + '.' : '';
         kids.push(el('p', 'warn', 'The ' + BUILDINGS[info.short].name + (g ? ' needs more ' + GOODS[g].name.toLowerCase() + '.' + fix : ' is short of goods.')));
       }
       const row = el('div', 'row'), go = el('button', 'btn primary buy', 'Play ' + shortOf(id)); go.id = 'mapPlay'; // the same on every card (review of 2026.11.20-10: "Back to" repeated the top button)

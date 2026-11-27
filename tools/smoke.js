@@ -1814,6 +1814,64 @@ async function run() {
     failed += bad.length ? 1 : 0;
   } finally { await bRd.close(); srvRd.close(); }
 
+  // The Tesla Coil (M6b part 2a): in Thunder Mesa a pad's card offers it once wave 4 opens it, its card shows the spark
+  // and the sky, and a real tap on its tower opens it, at phone and landscape sizes; the Gulch's pads never offer it.
+  // A spark is drawn when it fires.
+  const srvT = await start(0), bT = await chromium.launch();
+  try {
+    const bad = [];
+    for (const [name, vp] of Object.entries({ phone: [400, 860], land: [860, 400] })) for (const town of ['mesa', 'gulch']) {
+      const page = await bT.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [];
+      page.on('pageerror', e => errs.push(e.message));
+      await page.goto(srvT.url + '?coach=off&start=' + town); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { const ok = document.getElementById('newsOk'); if (ok) ok.click(); localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5);
+      const r = await page.evaluate(async () => {
+        const wait = ms => new Promise(res => setTimeout(res, ms)), g = CG.game, t = g.town, out = {};
+        g.shared.purse.coins = 1e9; t.coins = 1e9; t.wave = 5;
+        t.sell = {}; for (const k of ['aluminum', 'rubber']) { t.goods[k] = 5000; t.sell[k] = false; }
+        await wait(400);
+        const pad = t.def.board.spots.findIndex((_, i) => !t.towers.some(x => x.spot === i) && !(t.def.board.pits || []).includes(i));
+        CG.play.openSpot(pad); await wait(200);
+        const btn = document.querySelector('#card .build[data-kind="tesla"]');
+        out.offered = !!btn;
+        if (!btn) return out;
+        out.enabled = !btn.disabled; btn.click(); await wait(300);
+        out.built = t.towers.some(x => x.spot === pad && x.kind === 'tesla'); out.pad = pad;
+        CG.play.openSpot(pad); await wait(300);
+        const txt = document.getElementById('card').textContent;
+        out.lines = ['Each spark hits', 'Up to 3 raiders', 'Hits airships'].filter(s => !txt.includes(s));
+        CG.play.close();
+        // a raider by the coil: the battle fires and the spark is drawn
+        const D = await import(new URL('src/core/defense.js', location.href).href), road = D.roadOf(t), P = await import(new URL('src/core/path.js', location.href).href);
+        let best = 0, bd = 1e9; for (let s = 0; s < road.length; s += .1) { const d = P.dist(t.def.board.spots[pad], P.pointAt(road, s)); if (d < bd) { bd = d; best = s; } }
+        const before = CG.town.fxDrawn('spark');
+        Object.assign(t.waves, { phase: 'wave', timer: 999, queue: [] });
+        t.waves.foes.push({ id: 9001, kind: 'brute', lane: 0, hp: 1e12, max: 1e12, s: best, slow: 0, slowT: 0, frozenT: 1e9, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 }, { id: 9002, kind: 'raider', lane: 0, hp: 1e12, max: 1e12, s: Math.max(0, best - .5), slow: 0, slowT: 0, frozenT: 1e9, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 });
+        await wait(1500);
+        out.spark = CG.town.fxDrawn('spark') - before;
+        t.waves.foes = t.waves.foes.filter(f => f.id < 9000); t.waves.phase = 'break'; t.waves.timer = 999;
+        return out;
+      });
+      if (town === 'gulch') { if (r.offered) bad.push(name + ': a Gulch pad offers the Tesla Coil'); }
+      else {
+        if (!r.offered) bad.push(name + ': no Tesla Coil on a Mesa pad at wave 5');
+        else if (!r.enabled || !r.built) bad.push(name + ': the Tesla Coil did not build ' + JSON.stringify(r));
+        else {
+          for (const s of r.lines) bad.push(name + ': the Tesla card has no "' + s + '"');
+          if (!(r.spark > 0)) bad.push(name + ': no spark drawn when the Tesla fired (' + r.spark + ')');
+          const taps = await tapEverything(page);
+          for (const m of taps.miss.filter(x => x.includes('spot:' + r.pad + ' ')).slice(0, 3)) bad.push(name + ': tap: ' + m);
+          if (!taps.tried) bad.push(name + ': tap: nothing could be tapped');
+        }
+      }
+      if (errs.length) bad.push(name + ' ' + town + ': ' + errs[0]);
+      await page.close();
+    }
+    console.log('tesla', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await bT.close(); srvT.close(); }
+
   // Automation: once the War Office stands, the Auto button comes out with a dot and its card; the sheet has Foremen,
   // Auto-towers and Auto-research; switching Auto-towers on raises a tower; at phone, landscape and desktop sizes
   const srvA = await start(0), bA = await chromium.launch();

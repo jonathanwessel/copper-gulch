@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-10',
+    lines: [
+      'Thunder Mesa has a new tower, the Tesla Coil. It opens at wave 4. Its spark hits up to 3 raiders close together.',
+      'At level 5 pick Storm Coil, a spark that hits up to 6 raiders, or Lightning Rod, a huge bolt that goes through armor.',
+      'The Tesla Coil is the only tower that can hit airships.',
+    ],
+  },
+  {
     v: '2026.11.26-9',
     lines: [
       'The game no longer freezes for a moment when a tower first shoots or the first raider shows up.',

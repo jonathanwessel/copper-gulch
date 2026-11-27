@@ -1,7 +1,7 @@
 /* The play screen over the board: the coin bar, a tag over every plot, and the building card that slides up when a
    plot is tapped (build, upgrade, what it makes and why, and whether its good is sold). The phone shell box grows
    this into the full HUD with tabs and sheets. */
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, aName } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { build, cost, output, missing, unlocked, uses, gridOf, onGrid, isGrid } from '../core/economy.js';
 import { boomNow, sellMode, setSellMode, saturation } from '../core/market.js';
@@ -375,8 +375,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     else if (town.starved[id] && L && shortImp.length) {
       // the town that makes it may not have built its maker yet: then the line says to build it
       const g0 = shortImp[0], mk = makerOf(g0), src = game.towns[GOODS[g0].town], mid = mk && Object.keys(BUILDINGS).find(k => BUILDINGS[k] === mk);
-      const verb = src && mid && !src.level(mid) ? 'Build a ' : 'Upgrade the ';
-      card.append(el('p', 'warn', 'Not enough ' + GOODS[g0].name.toLowerCase() + '. ' + verb + (mk || { name: 'workshop' }).name + ' in ' + fromName(g0) + '.'));
+      const mkName = (mk || { name: 'workshop' }).name, act = src && mid && !src.level(mid) ? 'Build ' + aName(mkName) : 'Upgrade the ' + mkName;
+      card.append(el('p', 'warn', 'Not enough ' + GOODS[g0].name.toLowerCase() + '. ' + act + ' in ' + fromName(g0) + '.'));
     }
     else if (town.starved[id] && L) {
       // named, from the same place as the strip and the Goods sheet (clarity fix 6: "It ran out of materials" named nothing)
@@ -457,7 +457,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   const time = s => { const n = s < 60 ? Math.max(1, Math.round(s)) : Math.round(s / 60); return n + (s < 60 ? ' second' : ' minute') + (n === 1 ? '' : 's'); }; // not 84 seconds (fresh-eyes read of 2026.11.24-11)
   const shortText = c => shortfall(town, c).map(s => {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
-    if (!b || !town.level(s.maker)) return 'Build ' + (b ? 'a ' + b.name : 'more') + ' to make ' + name.toLowerCase() + '.';
+    if (!b || !town.level(s.maker)) return 'Build ' + (b ? aName(b.name) : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
     const when = 'Enough ' + name.toLowerCase() + (s.seconds < 5 ? ' in a moment.' : ' in about ' + time(s.seconds) + '.'); // a status, not a narrator (clarity fix 8a: "You will have enough" on the level-20 cards)
     return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
@@ -522,6 +522,9 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (st.hurt) line('Raiders low on health', hurtWords());
     if (st.rockets) line('Rockets', st.rockets + ' at once');
     if (st.pierce) line('Each bolt hits', 'Up to ' + st.pierce + ' raiders');
+    if (st.arcs) line('Each spark hits', 'Up to ' + (st.arcs + 1) + ' raiders');
+    if (st.bare) line('Armor', 'Does not stop it');
+    if (st.air) line('Hits airships', 'Yes');
     if (st.sharp) line('Aims at', 'The toughest raider');
     if (st.boss > 1) { const b = bossWords('{boss}'); line('Against ' + b, st.boss === 2 ? 'Twice the damage' : st.boss + ' times the damage'); }
     line('Shots', shotsWord(st.rate), 'rate'); line('Range', reachWord(st.range, st.minRange), 'range');

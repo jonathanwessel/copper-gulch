@@ -191,6 +191,13 @@ export function makeTower(type, br, lvl, fk = null) {
       // the level-20 fork: Slow Rot a green vat bubbling over, Last Call a rack of red bottles with gold caps
       if (fk === 'a') { k.cyl(-.26, 0, -.22, .11, .28, 'woodD', { seg: 8 }); k.ball(-.26, .3, -.22, .1, 'verd', { sy: .5, mat: 'glow' }); k.ball(-.2, .36, -.18, .04, 'verd', { mat: 'glow' }); }
       if (fk === 'b') { k.box(.02, 0, -.3, .3, .06, .1, 'woodD'); for (let i = 0; i < 3; i++) { k.cyl(-.08 + i * .1, .06, -.3, .035, .16, 'paintR', { seg: 6 }); k.cyl(-.08 + i * .1, .22, -.3, .02, .04, 'gold', { seg: 6, mat: 'metal' }); } } }
+    // the Tesla Coil: a copper coil wound round an iron mast on a stone foot, braced by three struts; Storm Coil adds two
+    // small coils on arms with their own sparks, Lightning Rod a tall iron spike over the ball (the head, below)
+    else if (type === 'tesla') { k.cyl(0, 0, 0, .3, .1, 'stoneD', { seg: 8 }); k.cyl(0, .1, 0, .07, .72, 'iron', { r2: .05, seg: 8, mat: 'metal' });
+      for (let i = 0; i < 6; i++) k.torus(0, .2 + i * .09, 0, .14 - i * .01, .024, 'copper', { rx: Math.PI / 2, mat: 'metal', ts: 10 });
+      for (const a of [.5, 2.6, 4.7]) k.box(Math.cos(a) * .19, 0, Math.sin(a) * .19, .04, .26, .04, 'woodD', { rz: Math.cos(a) * .35, rx: -Math.sin(a) * .35 });
+      if (br === 'a') for (const sx of [-1, 1]) { k.box(sx * .17, .52, 0, .22, .03, .03, 'iron', { mat: 'metal' }); k.cyl(sx * .28, .4, 0, .05, .24, 'copper', { seg: 6, mat: 'metal' }); k.ball(sx * .28, .68, 0, .055, 'glowI', { mat: 'glow' }); }
+      if (br === 'b') for (let i = 0; i < 3; i++) k.torus(0, .74 + i * .05, 0, .1, .018, 'gold', { rx: Math.PI / 2, mat: 'metal', ts: 10 }); }
     else { for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; k.ball(Math.cos(a) * .3, .07 + (i % 2) * .02, Math.sin(a) * .3, .1, 'sand', { sy: .6, ry: a }); } k.cyl(0, 0, 0, .06, .4, 'iron', { seg: 6 }); for (const a of [0, 2.1, 4.2]) k.box(Math.cos(a) * .12, 0, Math.sin(a) * .12, .03, .3, .03, 'iron', { rz: Math.cos(a) * .4, rx: -Math.sin(a) * .4 }); }
     if (gold) k.cyl(0, .02, 0, type === 'crossbow' ? .4 : .38, .04, 'gold', { seg: 10, mat: 'metal' });
     if (lvl >= 6) for (let i = 0; i < 3; i++) k.box(-.2 + i * .2, 0, .42, .06, .06, .06, 'gold', { mat: 'metal' });
@@ -228,6 +235,11 @@ export function makeTower(type, br, lvl, fk = null) {
     bar.add(cr); root.userData.float = 1;
   }
   else if (type === 'still') bar.add(part(k => k.ball(0, 0, 0, .001, 'copper')));
+  else if (type === 'tesla') bar.add(part(k => { // the glowing ball on top, ringed in copper (from level 6 a crown of copper points)
+    k.ball(0, .04, 0, br === 'b' ? .1 : .13, 'glowI', { mat: 'glow', det: 1 }); k.torus(0, -.02, 0, .15, .025, 'copper', { rx: Math.PI / 2, mat: 'metal', ts: 12 });
+    if (br === 'b') k.cone(0, .12, 0, .035, .42, 'iron', { seg: 6, mat: 'metal' });
+    if (lvl >= 6) for (let i = 0; i < 5; i++) { const a = i * 1.2566; k.cone(Math.cos(a) * .15, .0, Math.sin(a) * .15, .025, .1, 'copper', { seg: 4, mat: 'metal' }); }
+  }, { cast: false }));
   else {
     const spin = G(); bar.add(spin); root.userData.spin = spin;
     const n = br === 'a' ? 2 : 1;

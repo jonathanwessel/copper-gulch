@@ -67,6 +67,8 @@ export function helper(town, game = null) {
     // the Capital can found an institution or buy an upgrade (src/core/tree.js)
     treeReady: !!game && capitalOpen(game) && !!game.shared.tree && (game.shared.purse.coins >= foundCost(game) || (game.shared.capital.influence >= NODE_COST[0] && game.shared.tree.founded.length > 0)),
     starved: Object.keys(town.starved || {}).find(id => town.level(id) > 0 && town.starved[id] === true) || null,
+    // the first empty pad that is not a mortar pit, null when every one holds a tower
+    freePad: (() => { const B = town.def && town.def.board, used = new Set((town.towers || []).map(x => x.spot)), i = B ? B.spots.findIndex((_, k) => !used.has(k) && !isPitSpot(B, k)) : -1; return i >= 0 ? i : null; })(),
     firstPit: (() => { const B = town.def && town.def.board, i = B ? B.spots.findIndex((_, k) => isPitSpot(B, k)) : -1; return i >= 0 ? i : null; })(), // the first mortar pit (board.pits), null where there is none
     // a building whose good the town is holding back for towers right now
     keptPlot: Object.keys(town.buildings).find(id => town.level(id) > 0 && town.def && town.def.board && town.def.board.plots[id] && BUILDINGS[id] && ((town.keep || {})[BUILDINGS[id].makes] || 0) > 0 && (town.goods[BUILDINGS[id].makes] || 0) >= town.keep[BUILDINGS[id].makes] - 1e-6 && town.sell[BUILDINGS[id].makes] !== false) || null,
