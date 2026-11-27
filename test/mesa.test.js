@@ -49,8 +49,9 @@ test('founding Thunder Mesa pays from the purse and keeps the upgrades', () => {
   const g = falls('m2'), before = g.town.coins;
   assert.ok(foundTown(g, 'mesa'));
   assert.equal(g.shared.tree.nodes.transport, 3, 'upgrades are kept, not spent');
-  // the price comes out of the one purse, and the new town puts its start coins in once
-  assert.ok(Math.abs(before - g.towns.mesa.coins - F.coins + TOWNS.mesa.start.coins) < 1e-3, 'the price comes out of the one purse');
+  // the price comes out of the one purse, and the new town and its outpost (Tar Seep, part 3) put their start coins in once
+  assert.ok(g.towns.tarseep && !g.towns.tarseep.won, 'Tar Seep opens with it');
+  assert.ok(Math.abs(before - g.towns.mesa.coins - F.coins + TOWNS.mesa.start.coins + TOWNS.tarseep.start.coins) < 1e-3, 'the price comes out of the one purse');
   assert.equal(g.towns.mesa.level('derrick'), 1);
   assert.equal(foundTown(g, 'mesa'), null, 'once');
 });

@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { empire, capitalPick, toMesa, MESA_PLAY, SHARE_MAX } from './balance.js';
+import { empire, capitalPick, toMesa, MESA_PLAY, SHARE_MAX, SB_MAX } from './balance.js';
 import { loadGame } from '../src/core/setup.js';
 import { encode, decode } from '../src/core/save.js';
 import { TOWNS } from '../src/data/towns/index.js';
@@ -25,7 +25,8 @@ const k = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFi
 export const MESA_AT = [9, 14], MESA_W10 = [7, 9], SEEDS = 6;
 /* The Tesla Coil (part 2a): the active player builds one in the Mesa's first hour on at least TESLA_SEEDS of the seeds. */
 export const TESLA_SEEDS = 4;
-const MESA_GOALS = GOALS.filter(x => x.town === 'mesa' && x.within);
+// the Mesa's steps and its outpost's (Tar Seep, part 3), which the active player wins first, as it wins Sandy Bend
+const MESA_GOALS = GOALS.filter(x => (x.town === 'mesa' || x.town === 'tarseep') && x.within);
 
 if (arg('seed') == null) {
   // the parent: six seeds side by side, then the gates
@@ -41,11 +42,11 @@ if (arg('seed') == null) {
     });
   })));
   const misses = [], close = [];
-  console.log('Thunder Mesa from the active player\'s road (seed | Falls founded | Falls charter | Mesa founded | held to save | Mesa wave 10 | breaches 1-3):');
+  console.log('Thunder Mesa from the active player\'s road (seed | Falls founded | Falls charter | Mesa founded | held to save | Mesa wave 10 | breaches 1-3 | Tar Seep):');
   for (const { seed, code, r, tail } of runs) {
     if (!r) { misses.push(`seed ${seed}: no result (exit ${code}): ${tail}`); continue; }
     const h = r.found == null ? null : r.found / 3600;
-    console.log(`  ${seed} | ${(r.falls / 3600).toFixed(2)} h | ${r.signed ? (r.signed.at / 3600).toFixed(2) + ' h at wave ' + r.signed.wave + ', ' + r.signed.deeds + ' deeds' : 'none'} | ${h == null ? 'never' : h.toFixed(2) + ' h'} | ${Math.round(r.held / 60)} min | ${r.w10 == null ? 'never' : (r.w10 / 60).toFixed(1) + ' min'} | ${r.early.join(',') || 'none'}`);
+    console.log(`  ${seed} | ${(r.falls / 3600).toFixed(2)} h | ${r.signed ? (r.signed.at / 3600).toFixed(2) + ' h at wave ' + r.signed.wave + ', ' + r.signed.deeds + ' deeds' : 'none'} | ${h == null ? 'never' : h.toFixed(2) + ' h'} | ${Math.round(r.held / 60)} min | ${r.w10 == null ? 'never' : (r.w10 / 60).toFixed(1) + ' min'} | ${r.early.join(',') || 'none'} | Tar Seep won in ${r.ts == null ? 'never' : (r.ts / 60).toFixed(1) + ' min'}, breaches ${(r.tsBreaches || []).join(',') || 'none'}`);
     console.log(`     purse each hour: ${r.log.map(([hh, p, all]) => hh + 'h ' + k(p) + ' (' + k(all) + '/min)').join(', ')}`);
     if (h == null || h < MESA_AT[0] || h > MESA_AT[1]) misses.push(`seed ${seed}: Thunder Mesa founded at ${h == null ? 'never' : h.toFixed(2) + ' h'} (window ${MESA_AT[0]}-${MESA_AT[1]} h)`);
     else if (h < MESA_AT[0] * 1.05 || h > MESA_AT[1] * .95) close.push(`seed ${seed}: Mesa founded at ${h.toFixed(2)} h`);
@@ -56,6 +57,8 @@ if (arg('seed') == null) {
       if (!r.signed) misses.push(`seed ${seed}: the Mesa came before the Falls' charter`);
       if (r.w10 == null || r.w10 < MESA_W10[0] * 60 || r.w10 > MESA_W10[1] * 60) misses.push(`seed ${seed}: Mesa wave 10 at ${r.w10 == null ? 'never' : (r.w10 / 60).toFixed(1) + ' min'} (want ${MESA_W10[0]}-${MESA_W10[1]})`);
       if (r.early.length) misses.push(`seed ${seed}: the Mesa breached in waves ${r.early.join(',')}`);
+      // Tar Seep, its outpost (part 3): won within Sandy Bend's limit of getting there, as every outpost before it
+      if (r.ts == null || r.ts > SB_MAX * 60) misses.push(`seed ${seed}: Tar Seep won at ${r.ts == null ? 'never' : (r.ts / 60).toFixed(1) + ' min'} (want within ${SB_MAX} min)`);
       for (const x of MESA_GOALS) if (r.goals[x.id] == null || r.goals[x.id] > x.within * 60) misses.push(`seed ${seed}: goal ${x.id} not done within ${x.within} min`);
     }
   }
@@ -93,10 +96,11 @@ if (arg('seed') == null) {
   const w10 = out.mesa && out.mesa.w10 != null ? (out.mesa.w10 / 60).toFixed(1) + ' min' : 'never';
   console.log(`seed ${SEED} ${STRATEGY}: Thunder Mesa founded at ${found} (want ${MESA_AT[0]}-${MESA_AT[1]} h), held ${Math.round((out.mHeld || 0) / 60)} min to save, Mesa wave 10 at ${w10} (want ${MESA_W10[0]}-${MESA_W10[1]}) after ${MESA_PLAY} min there, took ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   if (out.mSigned) console.log(`  signed the Falls' charter at ${(out.mSigned.at / 3600).toFixed(2)} h, wave ${out.mSigned.wave}, ${out.mSigned.deeds} deeds`);
+  if (out.ts) console.log(`  Tar Seep won in ${out.ts.won == null ? 'never' : (out.ts.won / 60).toFixed(1) + ' min'}, breaches ${out.ts.breaches.join(',') || 'none'}, towers ${g.towns.tarseep.towers.map(t => t.kind[0] + t.level).join(' ')}`);
   if (out.mesa) {
     const m = g.towns.mesa;
     console.log(`  Mesa breaches ${out.mesa.breaches.join(',') || 'none'}, best wave ${m.bestWave}, towers ${m.towers.map(t => t.kind[0] + t.level).join(' ')}`);
     console.log(`  buildings ${TOWNS.mesa.buildings.filter(b => m.level(b)).map(b => b + ' ' + m.level(b)).join(', ')}`);
   }
-  console.log('result ' + JSON.stringify({ seed: SEED, falls: fallsAt, found: out.mesaFound, held: out.mHeld || 0, signed: out.mSigned, w10: out.mesa ? out.mesa.w10 : null, early: out.mesa ? out.mesa.breaches.filter(w => w <= 3) : [], log: out.mLog, goals, dealt: out.mesa ? out.mesa.dealt : {}, bought: out.mesa ? out.mesa.bought : {} }));
+  console.log('result ' + JSON.stringify({ seed: SEED, falls: fallsAt, found: out.mesaFound, held: out.mHeld || 0, signed: out.mSigned, w10: out.mesa ? out.mesa.w10 : null, early: out.mesa ? out.mesa.breaches.filter(w => w <= 3) : [], ts: out.ts ? out.ts.won : null, tsBreaches: out.ts ? out.ts.breaches : [], log: out.mLog, goals, dealt: out.mesa ? out.mesa.dealt : {}, bought: out.mesa ? out.mesa.bought : {} }));
 }

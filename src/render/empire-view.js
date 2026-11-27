@@ -91,9 +91,12 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   const sites = mapSites(game), at = Object.fromEntries(sites.map(s => [s.id, s.at]));
   // the map's box: every board as turned and every entrance's far end, kept even round the Capital so it sits in the
   // middle of the first view (the ring, owner 2026-11-22)
-  const ext = sites.flatMap(s => { const d = TOWNS[s.id]; if (!d) return [s.at]; const B = d.board; return [[0, 0], [B.cols, 0], [0, B.rows], [B.cols, B.rows]].map(p => toMap(s.id, p)).concat(footprint(s.id).gates.map(g => g.b)); });
-  const xs = ext.map(p => p[0] - CAPITAL[0]), zs = ext.map(p => p[1] - CAPITAL[1]), hx = Math.max(...xs.map(Math.abs)) + 1.5;
-  const x0 = CAPITAL[0] - hx, x1 = CAPITAL[0] + hx, z0 = CAPITAL[1] + Math.min(...zs) - 8, z1 = CAPITAL[1] + Math.max(...zs) + 3.5; // north and south as far as the land goes, so a phone gets no empty band, with room past the far and near places for their labels
+  const span = list => {
+    const ext = list.flatMap(s => { const d = TOWNS[s.id]; if (!d) return [s.at]; const B = d.board; return [[0, 0], [B.cols, 0], [0, B.rows], [B.cols, B.rows]].map(p => toMap(s.id, p)).concat(footprint(s.id).gates.map(g => g.b)); });
+    const xs = ext.map(p => p[0] - CAPITAL[0]), zs = ext.map(p => p[1] - CAPITAL[1]), hx = Math.max(...xs.map(Math.abs)) + 1.5;
+    return [CAPITAL[0] - hx, CAPITAL[0] + hx, CAPITAL[1] + Math.min(...zs) - 8, CAPITAL[1] + Math.max(...zs) + 3.5];
+  };
+  const [x0, x1, z0, z1] = span(sites); // north and south as far as the land goes, so a phone gets no empty band, with room past the far and near places for their labels
   const center = new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2);
   const root = new THREE.Group(); root.name = 'empire'; v.scene.add(root);
   const mats = mapMaterials(), add = o => { root.add(mats.apply(o)); return o; };
@@ -304,7 +307,11 @@ export function startEmpireView(canvas, game, { onTap = () => {}, onFrame = () =
   // the camera: the whole map at home; tap a town to open its card
   const rig = new CameraRig(v.cam, canvas, { center, size: Math.max(x1 - x0, z1 - z0) * 1.1, pads: [], fitCover: true, tallPitch: 1.22, widePitch: 1, onTap: (x, y) => onTap(api.siteAt(x, y), x, y) });
   rig.min = 5; rig.max = 110;
-  rig.frame(center.x, center.z, x1 - x0, z1 - z0);
+  // the first view frames the places that matter now: every town and the Capital, and an outpost once it is open. A
+  // locked outpost opens only with its town, and framing Tar Seep's land on the far east (M6b part 3) zoomed the whole
+  // map out, so in landscape the labels crowded off their own towns (smoke). The land still reaches every site.
+  const [hx0, hx1, hz0, hz1] = span(sites.filter(s => !s.outpost || game.towns[s.id]));
+  rig.frame((hx0 + hx1) / 2, (hz0 + hz1) / 2, hx1 - hx0, hz1 - hz0);
   let raf = 0, last = performance.now(), frames = 0, t = 0, sync = 0, opened = false;
   const size = { w: 0, h: 0 }; // the canvas as measured at the top of this frame (the badges read it, never the page)
   const api = {

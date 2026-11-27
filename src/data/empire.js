@@ -22,5 +22,10 @@ export const SITES = {
   falls: onRing(SLOTS.falls, RING.town),
   sandybend: onRing(SLOTS.falls, RING.outpost),
   mesa: onRing(SLOTS.mesa, RING.town),
+  // 24 degrees south of straight out and farther out than the other outposts: straight out its spoke ran round the Mesa's
+  // south side into Sandy Bend's, north of it into Dry Creek's at the plaza, and nearer in its label crowded the Mesa's
+  // and the Falls' on a phone (smoke); other distances crossed its own wagons on the way in
+  // (test/trains.test.js)
+  tarseep: onRing(SLOTS.mesa + 24, [20, RING.outpost[1]]),
 };
 export const DIORAMA = .58; // a town's board drawn on the map at this scale

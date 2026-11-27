@@ -846,7 +846,7 @@ function toFalls(seed, g, strategy, out, now) {
    its imports tended, founds the institutions again and buys Empire tree upgrades (the Rail Office's three among them),
    and once the Falls' wave and the upgrades are there and the price is no more than MESA_SAVE_MINUTES of what every
    town earns, it saves for the Mesa like the Falls (the Falls' waves held, every foreman off), until MESA_MAX minutes
-   of play from the new game. Then it founds the Mesa and plays it MESA_PLAY minutes with goals on. out.mLog: one row
+   of play from the new game. Then it founds the Mesa, wins Tar Seep (its outpost, part 3) and plays the Mesa MESA_PLAY minutes with goals on. out.mLog: one row
    each hour of play, [hour, purse, empire coins a minute, Falls best wave, Rail Office upgrades, deeds]. mesaFound is
    play time from the new game; the Mesa's wave 10 (out.mesa.w10) counts from when the player gets there.
    out.mesaSnap is the game as the player gets to the Mesa. */
@@ -883,6 +883,14 @@ export function toMesa(seed, g, strategy, out, now, { log = null, saveMinutes = 
   out.mesaFound = now(); out.mHeld = out.mSave.saving === undefined ? 0 : out.mSave.until - out.mSave.saving;
   foundTown(g, 'mesa');
   setHold(g, g.towns.falls, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
+  // Tar Seep first (part 3), as Sandy Bend before the Falls: the Mesa has no tower yet, so its waves wait meanwhile.
+  // out.ts.won counts from getting there
+  if (g.towns.tarseep) {
+    g.go('tarseep');
+    const ts = g.towns.tarseep, tsFrom = ts.t;
+    out.ts = play(seed, OUTPOST_MINUTES, strategy, null, { game: g, until: t => t.won, sign: false, tick: out.pick });
+    out.ts.won = ts.won ? out.ts.until - tsFrom : null;
+  }
   g.go('mesa');
   out.mesaSnap = encode(g, 0);
   const m = g.towns.mesa, from = m.t;
@@ -1307,7 +1315,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/balan
   misses.push(...gc.misses);
   const emp = [];
   for (const k of Object.keys(STRATEGIES)) for (let s = 1; s <= (k === 'active' ? SEEDS : RIDGE_SEEDS); s++) { const e = empire(s, k, { capital: k === 'active', falls: k === 'active' }); e.strategy = k; emp.push(e); }
-  const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true, ['mesa']);
+  const actives = emp.filter(e => e.strategy === 'active'), lg = goalCheck(actives, true, ['mesa', 'tarseep']);
   for (const r of lg.rows) console.log('  ' + r.id + ' | ' + r.times.map(t => t === null ? 'never' : (t / 60).toFixed(1)).join(' '));
   misses.push(...lg.misses);
   const mm = x => x == null ? 'never' : (x / 60).toFixed(1) + ' min';

@@ -170,6 +170,39 @@ const R = {
     crate(k, .2, .75, .18); barrel(k, .45, .8);
     return 1.4;
   },
+  // --- Tar Seep, the fourth outpost (M6b part 3) ---
+  oilwell(k, add) {
+    // a pool of black crude seeping up through the sand, a small pump jack nodding over a well head beside it, a short
+    // timber tripod over the old hole, and barrels of crude waiting to go
+    k.cyl(-.25, 0, -.2, .55, .02, 'black', { seg: 12, sx: 1.2, ao: false });
+    k.cyl(-.5, .01, .15, .24, .02, '#3a2c1e', { seg: 10, ao: false });
+    k.box(.35, 0, -.25, .5, .08, .26, 'stoneD');
+    for (const sz of [-1, 1]) k.box(.35, .08, -.25 + sz * .09, .06, .42, .04, 'iron', { rx: sz * -.12 });
+    k.box(.35, .48, -.25, .78, .07, .07, 'iron', { rz: .12, mat: 'metal' });
+    k.box(-.05, .38, -.25, .1, .22, .09, 'ink', { rz: .12 }); // the horse head over the well
+    k.cyl(-.05, 0, -.25, .05, .3, 'ironL', { seg: 6 });
+    const crank = part(k2 => { k2.cyl(0, 0, 0, .12, .04, 'iron', { rx: Math.PI / 2, seg: 10 }); k2.box(.07, -.04, .03, .12, .08, .04, 'ink'); });
+    add('spin', crank, new THREE.Vector3(.62, .2, -.12), 'z', 1.1);
+    for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; k.box(-.3 + Math.cos(a) * .18, 0, -.25 + Math.sin(a) * .18, .05, .9, .05, 'wood', { rx: Math.sin(a) * .2, rz: -Math.cos(a) * .2 }); }
+    k.box(-.3, .86, -.25, .14, .06, .14, 'woodD');
+    barrel(k, .55, .45, 0, 'black'); barrel(k, .35, .6, 0, 'black'); barrel(k, .7, .62, 0, 'woodD');
+    crate(k, -.6, .6, .18);
+    return .95;
+  },
+  rubbergrove(k, add) {
+    // a few rubber trees with tapping cups on their trunks, and sheets of raw rubber hung to dry on a rack
+    for (const [x, z, h] of [[-.6, -.55, .7], [-.1, -.6, .8], [.45, -.5, .65], [-.45, .0, .75], [.15, -.05, .7]]) {
+      k.cyl(x, 0, z, .05, h, 'bark', { r2: .04, seg: 6 });
+      k.dode(x, h - .05, z, .24, 'leafD', { sy: .8, ry: x * 5 });
+      k.dode(x + .1, h + .08, z - .05, .16, 'leaf', { sy: .8, ry: z * 5 });
+      k.cyl(x, .22, z + .06, .035, .06, 'white', { seg: 6 });
+    }
+    for (const sx of [-1, 1]) k.box(.35 + sx * .3, 0, .55, .04, .4, .04, 'woodD');
+    k.box(.35, .38, .55, .66, .03, .03, 'woodD');
+    for (let i = 0; i < 3; i++) k.box(.15 + i * .2, .14, .55, .14, .24, .01, '#d9cf9a', { ao: false });
+    for (let i = 0; i < 3; i++) k.box(-.55 + i * .17, 0, .6, .14, .1 + (i % 2) * .04, .14, '#4a4a3a');
+    return .9;
+  },
 };
 
 addRecipes(R);

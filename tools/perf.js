@@ -101,7 +101,7 @@ try {
     const f = g.addTown('falls'); op.grantOutpost(g, 'sandybend'); g.towns.sandybend.won = true; f.bestWave = 45;
     for (const [id, n] of Object.entries({ sandpit: 12, quartzmine: 10, waterwheel: 8, glassworks: 8, wiremill: 6, bulbworks: 5, dynamo: 3, telegraph: 2 })) f.buildings[id] = n;
     for (const [s, k] of [[2, 'crossbow'], [3, 'cannon'], [4, 'crossbow'], [8, 'frost'], [9, 'still']]) tower(f, s, k, 12);
-    g.addTown('mesa');
+    g.addTown('mesa'); op.grantOutpost(g, 'tarseep'); g.towns.tarseep.won = true; // its outpost behind it (part 3)
     for (const x of Object.values(g.towns)) if (x.waves) x.waves.hold = false;
     CG.go('mesa');
     for (let i = 0; i < 100 && !(CG.town && CG.town.frames > 3); i++) await wait();

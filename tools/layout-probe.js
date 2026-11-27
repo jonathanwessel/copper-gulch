@@ -68,7 +68,7 @@ try {
       const wait = ms => new Promise(r => setTimeout(r, ms)), r = CG.map.rig, out = {};
       const read = () => Object.fromEntries([...document.querySelectorAll('.mapbadge')].map(x => [x.dataset.site, x.hidden ? 'hidden' : x.classList.contains('small') ? 'small' : 'full']));
       CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(1200);
-      out.home = { labels: read(), share: CG.mapui.cover().share };
+      out.home = { labels: read(), share: CG.mapui.cover().share, near: CG.mapui.cover().near };
       for (const id of Object.keys(CG.game.towns)) {
         CG.mapui.close(); Object.assign(r.t, r.home); Object.assign(r.c, r.home); r.flick = null; await wait(400);
         CG.mapui.openSite(id); await wait(1800);

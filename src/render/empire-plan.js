@@ -36,6 +36,7 @@ export const toMap = (id, [bx, bz]) => { const B = TOWNS[id].board, [x, z] = SIT
 export const ENT_BOX = {
   wash: { l: 9.1, r: 9.2, back: 7 }, canyon: { l: 3.2, r: 3.6, back: 10.8 }, tunnel: { l: 8.2, r: 8.4, back: 7.9 },
   chute: { l: 7.9, r: 8, back: 7.3 }, bend: { l: 4.9, r: 5, back: 6.2 }, riverbed: { l: 6.9, r: 6.9, back: 6.5 },
+  gully: { l: 5.5, r: 5.5, back: 6.3 }, // Tar Seep's, from its code (2026.11.27-7): the outer banks and the back wall
 };
 /* { rect: { x, z, hx, hz }, gates: [{ a: [x, z], b: [x, z], box }] } in map units. A gate runs from its mouth on the
    board (a) out to where its model ends (b, the model squashed to SQUASH of its length), and box is all the ground the
@@ -254,6 +255,7 @@ export const FLAVOR = {
   drycreek: { kind: 'sage', n: 18, from: .6, to: 5.5 },
   falls: { kind: 'reed', n: 16, from: .5, to: 4.5 },
   mesa: { kind: 'hoodoo', n: 9, from: .9, to: 4.5 }, // Thunder Mesa's own red rock pillars, in its darker tones
+  tarseep: { kind: 'sage', n: 12, from: .6, to: 5 }, // Tar Seep's scrub round the seep
 };
 export function flavor(id, free, seed = 7) {
   const F = FLAVOR[id];

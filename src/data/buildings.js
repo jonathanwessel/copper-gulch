@@ -48,6 +48,9 @@ export const BUILDINGS = {
   // Sandy Bend, the third outpost
   sandwash: { name: 'Sand Wash', town: 'sandybend', makes: 'sand', inputs: {}, rate: .9, cost: 15, growth: 1.15, model: 'sandwash' },
   quartzdig: { name: 'Quartz Diggings', town: 'sandybend', makes: 'quartz', inputs: {}, rate: .6, cost: 40, growth: 1.15, needs: { sandwash: 2 }, model: 'quartzdig' },
+  // Tar Seep, the fourth outpost
+  oilwell: { name: 'Oil Well', town: 'tarseep', makes: 'oil', inputs: {}, rate: .9, cost: 15, growth: 1.15, model: 'oilwell' },
+  rubbergrove: { name: 'Rubber Grove', town: 'tarseep', makes: 'rubber', inputs: {}, rate: .6, cost: 40, growth: 1.15, needs: { oilwell: 2 }, model: 'rubbergrove' },
   logcamp: { name: 'Logging Camp', town: 'pinehollow', makes: 'timber', inputs: {}, rate: .9, cost: 12, growth: 1.15, model: 'logcamp' },
   claybank: { name: 'Clay Bank', town: 'pinehollow', makes: 'clay', inputs: {}, rate: .8, cost: 35, growth: 1.15, needs: { logcamp: 2 }, model: 'claybank' },
 };

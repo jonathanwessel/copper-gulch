@@ -24,10 +24,15 @@ export function newGame(seed = 'cg', start = 'drycreek') {
   return g;
 }
 
-/* A saved game. Outposts a save migration granted (game.shared.grant) are opened here, as won and running. */
+/* A saved game. Outposts a save migration granted (game.shared.grant) are opened here, as won and running. A town
+   whose outpost came in a later release than the town (Tar Seep, M6b part 3, after Thunder Mesa) opens it here as
+   founding does, new and not won, so an old save gets the new outpost to play (New choices reach old saves). */
+// only these: every other outpost shipped with its town, and a test game made without one must stay without it
+const LATE = ['tarseep'];
 export function loadGame(data) {
   const g = Game.fromJSON(data, { systems: SYSTEMS, defs: TOWNS });
   const grant = g.shared.grant;
   if (grant) { delete g.shared.grant; for (const id of Object.keys(grant)) if (TOWNS[id] && !g.towns[id]) grantOutpost(g, id); }
+  for (const t of Object.values(g.towns)) { const o = t.def && t.def.outpost; if (LATE.includes(o) && !g.towns[o]) g.addTown(o); }
   return g;
 }

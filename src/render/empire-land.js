@@ -207,6 +207,13 @@ export function entranceModels(B) {
       for (const s2 of [-1, 1]) k.box(mx + s2 * (pw / 2 + .06), 0, fz + .04, .14, 1.15, .16, frame);
       k.box(mx, 1.12, fz + .04, pw + .32, .14, .18, frame);
     }
+    // Tar Seep's gully: its old derrick leaning out over the road, so the map shows what the board shows
+    if (e.kind === 'gully') {
+      const fx = mx - half - 1.1, fz = mz - 1.4;
+      k.cone(fx + .5, .2, fz, .45, 2.6, 'wood', { seg: 4, rz: -.45 });
+      k.box(fx + 1.5, 2.45, fz, .3, .14, .3, 'woodD', { rz: -.45 });
+      k.cyl(mx + .5, -.01, mz - 1.2, .4, .02, 'black', { seg: 9, sx: 1.4 });
+    }
     out.push(k.build({ cast: true }));
   }
   return out;

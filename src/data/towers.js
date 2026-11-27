@@ -16,11 +16,11 @@
 export const TOWERS = {
   crossbow: {
     name: 'Crossbow', about: 'Fires fast, one shot at a time. Best against horsemen.', best: { runner: 2 }, bestText: 'Horsemen',
-    coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 }, mesa: { oil: 8 } }, dmg: 4, rate: 1.25, range: 2.4,
+    coins: 20, goods: { gulch: { timber: 8 }, drycreek: { stone: 6 }, ridge: { stone: 8 }, pinehollow: { timber: 6 }, falls: { sand: 8 }, sandybend: { sand: 6 }, mesa: { oil: 8 }, tarseep: { oil: 6 } }, dmg: 4, rate: 1.25, range: 2.4,
   },
   cannon: {
     name: 'Cannon', about: 'Slow, but each shot also hits the raiders around it.', bestText: 'Bunched-up raiders',
-    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 }, mesa: { bauxite: 6 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.24, // 1.24 since 2026.11.20-17 (was 1.25): with more pads one Cannon did 37% of the economy player's damage in Silver Falls
+    coins: 100, goods: { gulch: { ore: 6 }, ridge: { iron: 6 }, pinehollow: { timber: 12 }, falls: { quartz: 6 }, sandybend: { sand: 12 }, mesa: { bauxite: 6 }, tarseep: { oil: 12 } }, dmg: 13, rate: .5, range: 2.8, splash: 1.1, grow: 1.24, // 1.24 since 2026.11.20-17 (was 1.25): with more pads one Cannon did 37% of the economy player's damage in Silver Falls
   },
   frost: {
     name: 'Frost Lens', about: 'Slows every raider in range.',

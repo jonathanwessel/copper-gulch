@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-7',
+    lines: [
+      'A new outpost, Tar Seep, opens when you start Thunder Mesa. Its road comes in under an old oil tower.',
+      'Tar Seep has an Oil Well and a Rubber Grove. Hold it for 15 waves to win it.',
+      'Its crude oil and rubber go to your towns.',
+      'Already in Thunder Mesa? Tap Map, then tap Tar Seep.',
+    ],
+  },
+  {
     v: '2026.11.27-6',
     lines: [
       'Thunder Mesa and Silver Falls run smoother on phones.',

@@ -2,7 +2,7 @@
 // "The Mesa's strip asks for a Tesla Coil before the airships"). Loads the Falls-era game tools/mesa-probe.js keeps in
 // .checks/mesa-snap-<seed>.json (run mesa-probe once per seed to make it), gives it what founding the Mesa takes the way
 // mesa-probe does, founds the Mesa and lets the newcomer of tools/firstplay.js play on from there (it follows the strip).
-// Prints when the strip's Tesla step showed and cleared, the first Tesla Coil, the airships that flew and got through in
+// Prints when the strip's Tesla step showed and cleared, when it reached and won Tar Seep (within TS_MOST minutes), the first Tesla Coil, the airships that flew and got through in
 // the Mesa, its best wave, and its towers. Gate: under a fifth of the airships of waves 11-20 through, and the Tesla step clears.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,6 +20,8 @@ const MINUTES = +arg('minutes', 60), SEEDS = String(arg('seeds', arg('seed', '1,
 // it climbs to its wall at wave 39-40 (mesa-probe --minutes 60, 2026.11.27-2), so the hour measures the climb, not the step.
 const TRACE = process.argv.includes('--trace');
 export const AIR_MOST = .2, EARLY_TO = 20;
+// Tar Seep (part 3): the newcomer wins it within TS_MOST minutes of founding the Mesa (the outposts' limit in tools/balance.js)
+export const TS_MOST = 30;
 
 export function mesaNewcomer(seed, minutes = MINUTES) {
   const file = path.join('.checks', 'mesa-snap-' + seed + '.json');
@@ -33,7 +35,7 @@ export function mesaNewcomer(seed, minutes = MINUTES) {
   if (!canFound(g, 'mesa')) return { seed, err: 'cannot found the Mesa' };
   foundTown(g, 'mesa'); g.go('mesa');
   const t0 = g.stats.steps * .25, min = () => (g.stats.steps * .25 - t0) / 60;
-  const r = { seed, flew: 0, leaked: 0, fell: 0, eFell: 0, eLeaked: 0, bare: 0, stepAt: null, stepDone: null, firstTesla: null, inMesa: 0, steps: 0 };
+  const r = { seed, flew: 0, leaked: 0, fell: 0, eFell: 0, eLeaked: 0, bare: 0, stepAt: null, stepDone: null, firstTesla: null, inMesa: 0, steps: 0, tsAt: null, tsWon: null };
   const emit = g.bus.emit.bind(g.bus);
   g.bus.emit = (type, e) => {
     if (e && e.town === 'mesa') {
@@ -47,6 +49,9 @@ export function mesaNewcomer(seed, minutes = MINUTES) {
   const hook = gm => {
     r.steps++;
     if (gm.active === 'mesa') r.inMesa++;
+    // Tar Seep (part 3): when the strip took the newcomer there, and when it won it (from the Mesa's founding)
+    if (gm.active === 'tarseep' && r.tsAt == null) r.tsAt = min();
+    if (r.tsWon == null && gm.towns.tarseep && gm.towns.tarseep.won) r.tsWon = min();
     if (r.steps % 4) return false;
     if (TRACE && r.steps % 240 === 0) { const s0 = goalNow(gm); const m = gm.towns.mesa; console.log(`  ${min().toFixed(0)} min in ${gm.active}: ${s0 ? s0.id + ' ' + (s0.text || '') : '-'} | Mesa wave ${m.wave} vault ${Math.round(m.vault.hp)}/${m.vault.max} teslas ${m.towers.filter(t => t.kind === 'tesla').map(t => t.level).join(',')}`); }
     const s = gm.active === 'mesa' ? goalNow(gm) : null;
@@ -72,9 +77,9 @@ if (process.argv[1] && process.argv[1].endsWith('mesa-newcomer.js')) {
     const r = mesaNewcomer(seed);
     if (r.err) { console.log(`seed ${seed}: ${r.err}`); bad++; continue; }
     const f = x => x == null ? 'never' : x.toFixed(1) + ' min';
-    const miss = r.eShare >= AIR_MOST || (r.stepAt != null && r.stepDone == null);
+    const miss = r.eShare >= AIR_MOST || (r.stepAt != null && r.stepDone == null) || r.tsWon == null || r.tsWon > TS_MOST;
     if (miss) bad++;
-    console.log(`seed ${seed}: Tesla step shown ${f(r.stepAt)}, cleared ${f(r.stepDone)}, first Tesla ${f(r.firstTesla)}; airships in waves 11-${EARLY_TO} ${r.eLeaked} of ${r.eFlew} through (${Math.round(100 * r.eShare)}%, want under ${100 * AIR_MOST}%), ${r.bare} through with no Tesla, all hour ${Math.round(100 * r.share)}%; best wave ${r.best}, in the Mesa ${Math.round(100 * r.inMesa)}% of the time; towers ${r.towers}${miss ? '  MISS' : ''}`);
+    console.log(`seed ${seed}: Tesla step shown ${f(r.stepAt)}, cleared ${f(r.stepDone)}, first Tesla ${f(r.firstTesla)}; airships in waves 11-${EARLY_TO} ${r.eLeaked} of ${r.eFlew} through (${Math.round(100 * r.eShare)}%, want under ${100 * AIR_MOST}%), ${r.bare} through with no Tesla, all hour ${Math.round(100 * r.share)}%; Tar Seep reached ${f(r.tsAt)}, won ${f(r.tsWon)}; best wave ${r.best}, in the Mesa ${Math.round(100 * r.inMesa)}% of the time; towers ${r.towers}${miss ? '  MISS' : ''}`);
   }
   console.log(bad ? 'mesa-newcomer: ' + bad + ' miss' : 'mesa-newcomer ok');
   process.exit(bad ? 1 : 0);

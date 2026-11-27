@@ -3,7 +3,7 @@
    A builder returns { obj, plume, shade } built from merged kit parts:
      obj: the static model, merged by material;   plume: [x, y, z] where the wave's dust rises (behind the entrance);
      shade: { x, z0, z1, w } a strip of road to darken (the inside of the entrance), or null.
-   Outposts: wash (Dry Creek), chute (Pine Hollow). Towns: canyon (Copper Gulch), tunnel (Iron Ridge). Later (GDD.md): bend (Silver Falls), clouds (Thunder Mesa), fissure (Radium Springs). */
+   Outposts: wash (Dry Creek), chute (Pine Hollow). Towns: canyon (Copper Gulch), tunnel (Iron Ridge). Later (GDD.md): bend (Silver Falls), riverbed (Sandy Bend), cloud (Thunder Mesa's sky), gully (Tar Seep), fissure (Radium Springs). */
 import * as THREE from 'three';
 import { Kit, rng } from '../../render/kit.js';
 
@@ -240,6 +240,41 @@ export const ENTRANCES = {
     k.box(mx + 1.5, 0, tz - .6, .1, .5, .1, 'woodD'); k.box(mx - 1.5, 0, tz - .5, .1, .4, .1, 'woodD'); // the stumps of the legs
     return { obj: k.build({ cast: true }), plume: [mx, 2, pz - 1.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
+  /* Tar Seep (M6b part 3): a gully cut through dark oily earth, its floor streaked black with seeping crude, and an old
+     timber oil derrick on the west bank leaning out over it, its crown above the road. e: { mouth, portal, width, mesa }
+     with the gully running toward -z. The derrick's feet stand on the bank, clear of the road. */
+  gully: e => {
+    const k = new Kit({ aoH: 3 }), R = rng(71), [mx, mz] = e.mouth, [, pz] = e.portal, half = e.width / 2;
+    const tones = e.mesa || ['#6e4c3a', '#8a6248', '#5a3d2e', '#a07a5a'];
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) { // the gully's banks, higher toward the back and farther out
+      const x = mx + side * (half + .6 + i * 1.05), len = mz - pz + 1.4 - i * .3;
+      const h = .8 + i * .18 + R() * .2;
+      k.box(x, -.3, mz + .3 - len / 2, 1.15, h, len, tones[i % tones.length], { jit: .14, ao: false });
+      // boulders and slumped earth along the top and the foot, so from above it reads as eroded ground and not a slab
+      for (let j = 0; j < 4; j++) k.dode(x + (R() - .5) * .7, h - .45 + R() * .15, mz - (j + R() * .6) * len / 4, .3 + R() * .2, tones[(i + j + 1) % tones.length], { jit: .2, sy: .6 + R() * .3, ry: R() * 6 });
+      if (i === 0) for (let j = 0; j < 3; j++) k.dode(x - side * .6, .05, mz - .4 - j * 1.3 - R() * .5, .22 + R() * .12, tones[(j + 2) % tones.length], { jit: .2, sy: .7 });
+      // black streaks where crude seeps out of the bank's face
+      if (i === 0) for (let j = 0; j < 2; j++) k.box(x - side * .58, -.2, mz - .6 - R() * (len - 1), .04, .7, .18 + R() * .2, 'black', { ao: false });
+    }
+    k.box(mx, -.3, pz - 1.7, e.width + 2.6, 1.6, 1.6, tones[2], { jit: .12, ao: false });
+    for (let j = 0; j < 5; j++) k.dode(mx + (j - 2) * 1.05, 1.15, pz - 1.7 + (R() - .5) * .6, .4 + R() * .2, tones[j % tones.length], { jit: .2, sy: .6, ry: R() * 6 });
+    // pools of crude on the gully floor, beside the road's edges
+    for (const [dx, dz, r] of [[-.75, -.9, .32], [.8, -2.2, .28], [-.6, -3.3, .36]]) k.cyl(mx + dx, -.01, mz + dz, r, .02, 'black', { seg: 10, sx: 1.4, ao: false });
+    rocks(k, mx, (mz + pz) / 2, 'rockD', 'coal', 6, half * .8, 73);
+    // the derrick: four legs from a wide foot on the bank to a narrow crown leaning out over the road, braced across
+    // it stands on the first bank's top (Y0), and its crown hangs over the road's west half
+    const fx = mx - half - 1.25, fz = mz - 1.5, Y0 = .6, H = 2.8, lean = 1.9, foot = .42, top = .12;
+    const at = (sx, sz, t) => [fx + lean * t + sx * (foot + (top - foot) * t), Y0 + H * t, fz + sz * (foot + (top - foot) * t)];
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (const [sx, sz] of corners) beam(k, at(sx, sz, 0), at(sx, sz, 1), .07, 'wood');
+    for (const t of [.22, .46, .7]) for (let c = 0; c < 4; c++) beam(k, at(...corners[c], t), at(...corners[(c + 1) % 4], t), .04, 'woodD');
+    const [cx, cy, cz] = at(0, 0, 1);
+    k.box(cx, cy, cz, .3, .14, .3, 'woodD');
+    k.box(fx, Y0 - .04, fz, 1.1, .08, 1.1, 'woodD', { ry: .2 }); // the derrick floor
+    beam(k, [fx + .3, Y0, fz + .5], [mx - half - .08, .03, fz + 1.4], .07, 'iron'); // a broken pipe down into the gully
+    for (const [dx, dz] of [[-.5, .9], [-.75, 1.15]]) k.cyl(fx + dx, Y0, fz + dz, .085, .22, 'black', { r2: .075, seg: 8 });
+    return { obj: k.build({ cast: true }), plume: [mx, 2, pz - 1.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
+  },
   /* Thunder Mesa's sky lane: a storm cloud bank hanging off the board's corner, where the airships wait. Puffs of white
      over a dark gray belly, piled from the mouth back toward the portal, around the lane's height (e.height), and a
      cloud swell in place of dust before a wave that brings airships. It floats, so it never sinks for the camera
@@ -256,4 +291,11 @@ export const ENTRANCES = {
     return { obj: k.build({ cast: false }), plume: [mx + (px - mx) * .4, y + .3, mz + (pz - mz) * .4], shade: null, nocut: true, color: '#eef0f4' };
   },
 };
+/* A beam of square section w from point a to point b ([x, y, z]), as a box turned to run along a to b. */
+const UP = new THREE.Vector3(0, 1, 0), _dir = new THREE.Vector3(), _bq = new THREE.Quaternion(), _be = new THREE.Euler();
+function beam(k, a, b, w, c) {
+  _dir.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]); const L = _dir.length(); _dir.normalize();
+  _be.setFromQuaternion(_bq.setFromUnitVectors(UP, _dir), 'YXZ');
+  k.box(a[0], a[1], a[2], w, L, w, c, { rx: _be.x, ry: _be.y, rz: _be.z, order: 'YXZ' });
+}
 function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .08, z + Math.sin(a) * d, .1 + R() * .14, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }

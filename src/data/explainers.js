@@ -502,4 +502,11 @@ export const EXPLAINERS = [
     text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',
     when: () => true, at: () => ({ plot: 'sandwash' }),
   },
+  // Tar Seep, the Mesa's outpost (M6b part 3)
+  {
+    id: 'ts-welcome', town: 'tarseep', now: 1, covers: ['welcome:tarseep'],
+    title: 'Welcome to Tar Seep',
+    text: 'Hold this camp for 15 waves. Its Oil Well and Rubber Grove send crude oil and rubber to your towns.',
+    when: () => true, at: () => ({ plot: 'oilwell' }),
+  },
 ];

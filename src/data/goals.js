@@ -122,6 +122,12 @@ export const GOALS = [
   { id: 's-three', town: 'sandybend', side: true, text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, count: c => [c.towers.length, 3], ready: early(), at: c => ({ spot: c.freeSpot() }) },
   { id: 's-win', town: 'sandybend', side: true, text: 'Beat wave 15 to win Sandy Bend', doneText: 'Sandy Bend won', done: c => c.won },
   { id: 's-back', town: 'sandybend', side: true, text: 'Tap Map, then tap Silver Falls', doneText: 'Back in Silver Falls', done: c => c.won && !c.inPlay, ready: c => c.won, at: goTo('falls'), away: true },
+  // Tar Seep (M6b part 3), the Mesa's outpost: like Pine Hollow's, checked by tools/mesa-road.js within MESA_GOAL
+  { id: 't-tower', town: 'tarseep', within: MESA_GOAL, text: 'Tap a stone pad and build a Crossbow', doneText: 'Crossbow built', kind: 'crossbow', wait: 'crossbow', done: c => c.towers.length >= 1, ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  { id: 't-rubber', town: 'tarseep', within: MESA_GOAL, text: 'Tap the Rubber Grove lot, then tap Build', doneText: 'Rubber Grove built', done: c => c.lv('rubbergrove') >= 1, ready: early(c => c.unlocked('rubbergrove')), at: () => ({ plot: 'rubbergrove' }) },
+  { id: 't-three', town: 'tarseep', within: MESA_GOAL, text: 'Build Crossbows on 3 stone pads', doneText: '3 Crossbows built', kind: 'crossbow', done: c => c.towers.length >= 3, count: c => [c.towers.length, 3], ready: early(), at: c => ({ spot: c.freeSpot() }) },
+  { id: 't-win', town: 'tarseep', within: MESA_GOAL, text: 'Beat wave 15 to win Tar Seep', doneText: 'Tar Seep won', done: c => c.won },
+  { id: 't-back', town: 'tarseep', within: MESA_GOAL, text: 'Tap Map, then tap Thunder Mesa', doneText: 'Back in Thunder Mesa', done: c => c.won && !c.inPlay, ready: c => c.won, at: goTo('mesa'), away: true },
   // Silver Falls (M5): the way up its chain to the Telegraph Works. The Wire Mill uses Gulch copper and the Dynamo and
   // Telegraph Works use Ridge steel and rails, so a missing maker there sends the player to that town.
   { id: 'f-sand4', town: 'falls', text: 'Tap the Sand Pit and upgrade it to level 4', doneText: 'Sand Pit is level 4', done: c => c.lv('sandpit') >= 4, at: () => ({ plot: 'sandpit' }), within: FALLS_GOAL },
@@ -144,6 +150,9 @@ export const GOALS = [
   // 13 minutes in, and the newcomer spent its first airship waves resuming the older towns with level-1 Teslas
   { id: 'm-teslapath', town: 'mesa', within: MESA_GOAL, text: TESLA_WORDS.path, doneText: TESLA_WORDS.pathDone, done: c => c.towers.some(t => t.kind === 'tesla' && t.path), ready: c => c.built('tesla') && c.bestWave >= TESLA_PATH_FROM, at: c => ({ tower: c.topOf('tesla') }) },
   { id: 'm-pirate', town: 'mesa', within: MESA_GOAL, text: TESLA_WORDS.pirate, doneText: TESLA_WORDS.pirateDone, done: c => c.bestWave >= 20, ready: c => c.bestWave >= TESLA_PATH_FROM },
+  // Tar Seep, the Mesa's outpost (part 3): once the pirate airship is beaten the strip sends the player there, as the
+  // Ridge's sends them to Pine Hollow; the Mesa fights on behind with its Tesla Coils
+  { id: 'm-seep', town: 'mesa', within: MESA_GOAL, text: 'Tap Map, then tap Tar Seep', doneText: 'Tar Seep won', done: c => c.wonIn('tarseep'), ready: c => c.bestWave >= 20 && c.founded('tarseep'), at: goTo('tarseep'), away: true },
   { id: 'm-derrick4', town: 'mesa', within: MESA_GOAL, text: 'Tap the Oil Derrick and upgrade it to level 4', doneText: 'Oil Derrick is level 4', done: c => c.lv('derrick') >= 4, at: () => ({ plot: 'derrick' }) },
   { id: 'm-bauxite', town: 'mesa', within: MESA_GOAL, text: 'Tap the Bauxite Pit lot, then tap Build', doneText: 'Bauxite Pit built', done: c => c.lv('bauxitepit') >= 1, ready: c => c.unlocked('bauxitepit'), at: () => ({ plot: 'bauxitepit' }) },
   { id: 'm-refinery', town: 'mesa', within: MESA_GOAL, text: 'Tap the Refinery lot, then tap Build', doneText: 'Refinery built', done: c => c.lv('refinery') >= 1, ready: c => c.unlocked('refinery'), at: () => ({ plot: 'refinery' }) },

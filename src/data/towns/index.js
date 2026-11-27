@@ -6,12 +6,13 @@ import { PINEHOLLOW } from './pinehollow.js';
 import { FALLS } from './falls.js';
 import { SANDYBEND } from './sandybend.js';
 import { MESA } from './mesa.js';
+import { TARSEEP } from './tarseep.js';
 
-export const TOWNS = { drycreek: DRYCREEK, gulch: GULCH, ridge: RIDGE, pinehollow: PINEHOLLOW, falls: FALLS, sandybend: SANDYBEND, mesa: MESA };
+export const TOWNS = { drycreek: DRYCREEK, gulch: GULCH, ridge: RIDGE, pinehollow: PINEHOLLOW, falls: FALLS, sandybend: SANDYBEND, mesa: MESA, tarseep: TARSEEP };
 /* Is pad i of a board a mortar pit? board.pits lists them by index (pads added later go after the pits, so a saved
    tower keeps its pad, owner 2026-11-20); an older board without the list has its pits from board.far on. */
 export const isPitSpot = (B, i) => (B.pits ? B.pits.includes(i) : i >= (B.far ?? B.spots.length));
-export const TOWN_ORDER = ['drycreek', 'gulch', 'pinehollow', 'ridge', 'sandybend', 'falls', 'mesa'];
+export const TOWN_ORDER = ['drycreek', 'gulch', 'pinehollow', 'ridge', 'sandybend', 'falls', 'tarseep', 'mesa'];
 /* A board's lanes in the order the battle numbers them (src/core/defense.js, lanesOf): the road, then the river where
    there is one (boats), then the sky where there is one (airships, Thunder Mesa from M6b part 2b). Each is
    { key, line, entrance }: its points before the vault, and the entrance its raiders stay hidden in. */

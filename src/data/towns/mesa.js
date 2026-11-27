@@ -14,9 +14,7 @@ export const MESA = {
   top: 'airships',
   start: { coins: 600, buildings: { derrick: 1 } },
   imports: ['wire', 'dynamos', 'steel'], // wire and dynamos from Silver Falls, steel from Iron Ridge
-  // Tar Seep, its outpost, ships in part 3 (PLAN.md M6b); until then the chain rule's outpost check reads `outpostSoon`
-  outpost: null,
-  outpostSoon: 'tarseep',
+  outpost: 'tarseep', // its outpost, opened with it (M6b part 3)
   // a first pass like the Falls' (70 s, rushMore 6); the probe in part 1a (tools/mesa-probe.js) checks wave 10
   // airships from wave 11, after the first boss (part 2b): every airEvery-th raider flies the sky lane, where only the Tesla Coil reaches it
   waves: { pace: 72, rushMore: 6, airEvery: 5, airFrom: 11 },

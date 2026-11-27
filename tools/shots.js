@@ -445,6 +445,17 @@ const MESA = [
   ['mesa-tesla', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { x.level = 6; x.path = 'a'; } CG.play.openSpot(1); }],
   ['mesa-tesla-path', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { x.level = 4; x.path = null; } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],
   ['mesa-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('mesa'); }],
+  // Tar Seep, the Mesa's outpost (part 3): its card on the map, the flight there with its welcome card, the camp, and its
+  // gully under the leaning derrick with the dust before a wave
+  ['tarseep-map', () => { CG.mapui.openSite('tarseep'); }],
+  ['tarseep-intro', async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    CG.flyTo('tarseep'); for (let i = 0; i < 80 && !(CG.town && CG.game.active === 'tarseep' && CG.town.frames > 5); i++) await wait(100);
+    delete CG.game.shared.seen['ts-welcome']; CG.game.cardAt = null; CG.coach.wake();
+    for (let i = 0; i < 60 && CG.coach.current !== 'ts-welcome'; i++) await wait(100);
+  }],
+  ['tarseep', () => { CG.coach.dismiss(); CG.coach.wake(false); CG.town.rig.reset(); }],
+  ['tarseep-entry', () => { const t = CG.game.town, r = CG.town.rig, B = t.def.board, v = { x: B.entrance.mouth[0] - .6, z: -1.2, yaw: .25, pitch: .55, dist: 9 }; Object.assign(r.t, v); Object.assign(r.c, v); Object.assign(t.waves, { phase: 'break', timer: 4.5, hold: false, queue: [], foes: [] }); }],
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ONLY = process.argv[3]; // optional: only this run (gulch, outpost, ridge, falls or mesa)
