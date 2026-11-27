@@ -227,6 +227,26 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (card.classList.contains('morepin') !== (m && atFoot)) card.classList.toggle('morepin', m && atFoot);
   };
   card.addEventListener('scroll', cardMore, { passive: true });
+  // a card whose rows run past its room is made a little shorter, so it stops at a row's edge and no row rests half under
+  // its pinned price bar (clarity fix 8v: Hire foreman and Makes sat half under it on short screens). Once a card, size
+  // and content; a card the player has scrolled is left alone
+  let trimKey = '';
+  const trimCard = () => {
+    const pin = !card.hidden && card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
+    const sig = () => pin ? openId + ':' + innerWidth + 'x' + innerHeight + ':' + card.scrollHeight + ':' + card.childElementCount + ':' + hudTop + ',' + hudTopL + ',' + sideBot : '';
+    if (sig() === trimKey) return;
+    // measured untrimmed (a card that runs past its room has the same scroll height either way, so the key holds)
+    if (card.style.maxHeight) card.style.maxHeight = '';
+    trimKey = sig();
+    if (!pin || card.scrollTop > 2 || card.scrollHeight - card.clientHeight <= 4) return;
+    const p = pin.getBoundingClientRect(), c = card.getBoundingClientRect();
+    // the rows shift down by the cut, so the bar's top lands in the gap between the row it cut and the one before
+    const rows = [...card.children].filter(n => n !== pin && n.getClientRects().length).map(n => n.getBoundingClientRect()).sort((a, b) => a.top - b.top);
+    const i = rows.findIndex(r => r.top < p.top - 1 && r.bottom > p.top + 1);
+    if (i < 0) return;
+    const above = rows.slice(0, i).reduce((m, r) => Math.max(m, r.bottom), c.top), cut = Math.ceil(p.top - (above + rows[i].top) / 2);
+    if (cut > 0 && c.height - cut >= 140) card.style.maxHeight = Math.round(c.height - cut) + 'px';
+  };
   ui.append(tags, hud, strip, card, mark, banner);
   root.append(ui);
   requestAnimationFrame(placeToasts); // a toast from the switch here came before this top bar
@@ -363,7 +383,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const shortImp = imp.filter(g => (town.goods[g] || 0) < uses(town, id, g));
     // where shipped goods come from, unless the short warning below says it (review of 2026.11.20-11: "Bricks come by
     // wagon" beside "Not enough bricks" on the Boiler Shop)
-    if (imp.length && !(town.starved[id] && L && shortImp.length && !gridShort && town.starved[id] !== 'towers')) card.append(el('p', 'uses', imp.map(g => GOODS[g].name).join(' and ') + (imp.length > 1 || /[^s]s$/.test(GOODS[imp[0]].name) ? ' come' : ' comes') + ' by wagon from ' + fromName(imp[0]) + '.'));
+    if (imp.length && !(town.starved[id] && L && shortImp.length && !gridShort && town.starved[id] !== 'towers')) card.append(el('p', 'uses', 'Gets ' + imp.map(g => GOODS[g].name.toLowerCase()).join(' and ') + ' from ' + fromName(imp[0]) + '.')); // what it does (clarity fix 8w: "Wire comes by wagon from Silver Falls" narrated, and "Wire from Silver Falls" read as a fragment)
     if (gridShort) { /* said above */ }
     else if (town.starved[id] === 'towers' && L) {
       // held back by the tower reserve (src/core/economy.js, WORKSHOP): the yard has the input, the towers come first
@@ -688,7 +708,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
   // follow the camera every frame from their projected point (no reads of the page, which would force a layout);
   // what it points at, and the size of a button or tag, are looked up five times a second (measure).
-  let cardTop = 0, hudTop = 0, sideBot = -1, coverBoxes = [], stripUp = -1, foldSig = '';
+  let cardTop = 0, hudTop = 0, hudTopL = -1, sideBot = -1, coverBoxes = [], stripUp = -1, foldSig = '';
   /* A short landscape screen: the side buttons sit in one row beside Pause and Hold waves until that row would run over
      them, then fold into 3 columns, then 2, and last Pause and Hold waves drop under the wave bar (review of
      2026.11.23-6: at 860x400 six side buttons covered Hold waves, so "Resume waves" read "Resu"). Tried only when what
@@ -759,11 +779,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // the stone pad card covered their bottom edge)
       const ht = Math.round(Math.max(top, ct - 6) + 6);
       if (ht > 6 && ht !== hudTop) { hudTop = ht; ui.style.setProperty('--hudtop', ht + 'px'); }
+      // the left column's foot alone: on a short phone held upright the band of map over a card starts there, beside
+      // the side column (clarity fix 8v, index.html)
+      const lb = left.getBoundingClientRect(), hl = lb.height ? Math.round(lb.bottom + 6) : 0;
+      if (hl !== hudTopL) { hudTopL = hl; ui.style.setProperty('--hudtopl', hl + 'px'); }
       const cb = openId && !card.hidden ? card.getBoundingClientRect() : null;
       // the goods strip too: a selection never slides under it (review of 2026.11.20-8: in landscape the strip covered
       // the selected Lumber Camp)
       const sb = strip.hidden ? null : strip.getBoundingClientRect();
-      viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null, sb && sb.height ? { l: sb.left, t: sb.top, r: sb.right, b: sb.bottom } : null);
+      // the board left of the side column, under the left column, when that ends higher (clarity fix 8v)
+      const sd = side.getBoundingClientRect(), beside = cb && cb.height && sd.height && hl && hl < top - 40 ? { l: sd.left, t: hl } : null;
+      viewApi.setView(top, cb && cb.height ? { l: cb.left, t: cb.top, r: cb.right, b: cb.bottom } : null, sb && sb.height ? { l: sb.left, t: sb.top, r: sb.right, b: sb.bottom } : null, beside);
     }
     if (goal.hidden) stripBox = null; else { const b = goal.getBoundingClientRect(); stripBox = { x: b.left, y: b.top, w: b.width, h: b.height }; }
     // what a level tag may never show cut in half under: the top bar's buttons, the goods strip and an open card or
@@ -976,7 +1002,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // held after a loss, Resume waves is the one lit button (clarity fix 8f: Perks was gold beside it)
     perksBtn.classList.toggle('on', !heldAfterLoss(town) && (perksToPick(game) > 0 || deedsFor(town) > 0));
     if (cardAcc > .25 && openId) { cardAcc = 0; paintCard(false); }
-    cardMore(); // five times a second, with the top bar
+    trimCard(); cardMore(); // five times a second, with the top bar
   }
   /* Take this town's screen down (switching towns builds a new one). */
   // a toast about this town's own things goes with it, so it never shows in the next place (review of 2026.11.23-6: Iron

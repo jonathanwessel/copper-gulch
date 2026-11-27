@@ -24,6 +24,13 @@ try {
   for (let i = 0; i < 100 && !(await page.evaluate(() => !!(CG.town && CG.town.frames > 3))); i++) await sleep(100);
   await page.evaluate(async () => {
     const g = CG.game, t = g.town; t.bestWave = 20; t.coins = 1e9;
+    // smoke's crowded state (box 8v): Iron Ridge founded and on hold, so the back button and Map carry a dot, and seven
+    // goods in stock, so the goods strip runs two rows
+    (await import('./src/core/empire.js')).foundTown(g, 'ridge'); g.towns.ridge.bestWave = 30; g.towns.ridge.waves.hold = true;
+    Object.assign(t.goods, { timber: 9999, ore: 9999, copper: 9999, bricks: 9999, planks: 9999, tools: 9999, clay: 9999 });
+    for (const k of Object.keys(t.goods)) t.sell[k] = false;
+    // and To arms cooling down, as smoke leaves it: its clock line makes the side column deeper
+    t.arms = { t: 0, cd: 120, clock: 0 };
     (await import('./src/core/capital.js')).foundCapital(g); g.shared.purse.coins = 1e9;
     for (const k of ['war', 'university']) (await import('./src/core/tree.js')).foundInstitution(g, k);
     g.shared.tree.nodes.war = 3;
@@ -49,11 +56,14 @@ try {
         const p = pin && pin.getBoundingClientRect(), hud = document.querySelector('.hud').getBoundingClientRect();
         const picks = [...c.querySelectorAll('.pathbtn, .pick, button[data-path]')].map(n => { const q = n.getBoundingClientRect(); return Math.round(q.top) + '-' + Math.round(q.bottom); });
         const rows = [...c.children].filter(n => n.getClientRects().length).map(n => (n.className || n.tagName).toString().split(' ')[0] + ' ' + Math.round(n.getBoundingClientRect().height)).join(', ');
-        return { rows, card: Math.round(r.top) + '-' + Math.round(r.bottom), scroll: c.scrollHeight - c.clientHeight, bar: p ? Math.round(p.top) + '-' + Math.round(p.bottom) : '-', hudBottom: Math.round(hud.bottom), picks: picks.join(' ') };
+        const top = [...document.querySelector('.hud').querySelectorAll(':scope > *, .hudtop > *')].filter(n => n.getClientRects().length).map(n => (n.id || n.className.toString().split(' ')[0]) + ' ' + Math.round(n.getBoundingClientRect().top) + '-' + Math.round(n.getBoundingClientRect().bottom)).join(', ');
+        const out = [...c.querySelectorAll('.pathbar .option > .btn')].filter(n => { const q = n.getBoundingClientRect(); return q.top < r.top - 1 || q.bottom > r.bottom + 1; }).length;
+        return { out, top, rows, card: Math.round(r.top) + '-' + Math.round(r.bottom), scroll: c.scrollHeight - c.clientHeight, bar: p ? Math.round(p.top) + '-' + Math.round(p.bottom) : '-', hudBottom: Math.round(hud.bottom), picks: picks.join(' ') };
       });
       await page.screenshot({ path: path.join(dir, name + '-' + w + 'x' + h + '.png') });
+      if (geo.out) out.push(geo.out + ' Choose button out of view');
       if (out.length) bad++;
-      console.log(`${name} ${w}x${h}: ${out.length ? out.join('; ') : 'ok'} | card ${geo.card} (scrolls ${geo.scroll} px), bar ${geo.bar}, top bar to ${geo.hudBottom}${geo.picks ? ', picks ' + geo.picks : ''}${process.argv.includes('--rows') ? ' | rows ' + geo.rows : ''}`);
+      console.log(`${name} ${w}x${h}: ${out.length ? out.join('; ') : 'ok'} | card ${geo.card} (scrolls ${geo.scroll} px), bar ${geo.bar}, top bar to ${geo.hudBottom}${geo.picks ? ', picks ' + geo.picks : ''}${process.argv.includes('--rows') ? ' | rows ' + geo.rows + ' | top ' + geo.top : ''}`);
     }
   }
   if (errs.length) { console.log('page errors: ' + errs.join('; ')); bad++; }

@@ -413,7 +413,7 @@ const MESA = [
   // card the first time one is out, and its raider card
   ['mesa-sky', async () => {
     const t = CG.game.town, D = await import(new URL('src/core/defense.js', location.href).href), hp = D.wavesOf(t).hp(t.wave) * 1.6 * 40; // tough, so they are still up for the card shots
-    CG.play.close(); CG.town.rig.reset(); t.wave = Math.max(t.wave, D.wavesOf(t).airFrom); // airships come from this wave
+    CG.play.close(); CG.town.rig.reset(); t.wave = Math.max(t.wave, D.wavesOf(t).airFrom); t.bestWave = Math.max(t.bestWave || 0, t.wave); // airships come from this wave; a won wave raises the best, as in play (clarity fix 8w: the strip read Wave 10 / 10 under Wave 11)
     if (t.waves.phase !== 'wave') Object.assign(t.waves, { phase: 'wave', timer: 999, queue: [] });
     [2.6, 9, 17, 25].forEach((s, i) => t.waves.foes.push({ id: 9200 + i, kind: 'airship', lane: 1, hp: hp * (i === 1 ? .55 : 1), max: hp, s, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 }));
   }],

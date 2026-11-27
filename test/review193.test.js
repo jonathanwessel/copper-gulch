@@ -10,7 +10,9 @@ test('a building output names its good as the unit, singular for exactly 1', () 
   assert.equal(perSecond(2.4, GOODS.planks), '2.4 planks a second');
   assert.equal(perSecond(1, GOODS.glass), '1 glass a second');
   assert.equal(perSecond(1, GOODS.lightbulbs || Object.values(GOODS).find(g => g.name === 'Light bulbs')), '1 light bulb a second');
-  assert.equal(perSecond(.5, GOODS.ore || Object.values(GOODS).find(g => g.name === 'Copper ore')), '0.5 copper ore a second');
+  assert.equal(perSecond(.5, GOODS.ore || Object.values(GOODS).find(g => g.name === 'Copper ore')), '30 copper ore a minute'); // under 1 a second, a minute (clarity fix 8w)
+  assert.equal(perSecond(.45, Object.values(GOODS).find(g => g.name === 'Motors')), '27 motors a minute');
+  assert.equal(perSecond(.001, GOODS.planks), '1 plank a minute');
 });
 
 test('the research button counts down as a clock, rounded up, never 0 while it runs', () => {

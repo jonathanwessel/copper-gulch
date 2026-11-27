@@ -84,8 +84,11 @@ export class CameraRig {
     if (first) { this.c.x = x; this.c.z = z; this.fitted = false; } // the opening view starts framed, without a glide
   }
   /* What covers the board: top, the lower edge of the top bar; cover, the open card's box { l, t, r, b } or null. */
-  setView(top, cover, low = null) {
+  setView(top, cover, low = null, beside = null) {
     this.view.cover = cover; this.view.low = low; // low: the goods strip's box at the bottom, or null
+    // beside: { l, t } when the top bar's left column ends higher than its side column, the free board left of the side
+    // column (l, its left edge) from t down (clarity fix 8v: a short phone's card rises beside the side column)
+    this.view.beside = beside;
     if (Math.abs(top - this.view.top) > 4) { this.view.top = top; this.fitKey = ''; }
     if (this.fitCover) { const k = coverSide(cover, this.el); if (k !== this.coverKey) { this.coverKey = k; this.fitKey = ''; } }
   }
@@ -223,6 +226,9 @@ export class CameraRig {
       { l: r.left, r: cv.l, t: top, b: H },   // left of it
       { l: cv.r, r: W, t: top, b: H },        // right of it
     ];
+    // left of the side column, above the card, when the left column ends higher (clarity fix 8v)
+    const bs = this.view.beside;
+    if (bs && bs.t < Math.min(top, cv.t) - 40) raw.push({ l: r.left, r: Math.min(W, bs.l - 4), t: bs.t, b: cv.t });
     // a part the goods strip runs across ends at the strip's top (review of 2026.11.20-8)
     if (lw) for (const a of raw) if (lw.l < a.r && lw.r > a.l && lw.t < a.b && lw.t > a.t) a.b = lw.t - 28; // room for the building under its point
     const fits = a => e.l + e.r + 16 <= a.r - a.l && e.u + e.d + 16 <= a.b - a.t; // the whole circle fits in this part

@@ -80,8 +80,8 @@ export const PATHS = {
      armor (arcs and fall: the jumps and each jump's share the path gives in place of the tower's own; bare: armor does
      not stop the hit). */
   tesla: {
-    a: { name: 'Storm Coil', about: 'Its spark hits up to 6 raiders, each one softer.', arcs: 5, fall: .9, dmg: .8 },
-    b: { name: 'Lightning Rod', about: 'A huge bolt at 1 raider. It goes through armor.', arcs: 0, dmg: 2.4, range: 1.2, bare: true },
+    a: { name: 'Storm Coil', about: 'Its spark jumps to 6 raiders, weaker each jump.', arcs: 5, fall: .9, dmg: .8 },
+    b: { name: 'Lightning Rod', about: 'Hits 1 raider very hard, through its armor.', arcs: 0, dmg: 2.4, range: 1.2, bare: true },
   },
 };
 

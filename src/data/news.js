@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-4',
+    lines: [
+      'Cards on phones are taller, so you see every switch and both upgrade choices.',
+      'The Upgrade button is always at the bottom of a card.',
+      'A slow building now shows what it makes a minute, like 27 motors a minute.',
+      'The two Tesla Coil upgrades say plainly what they do.',
+    ],
+  },
+  {
     v: '2026.11.27-2',
     lines: [
       'In Thunder Mesa the Goal now asks for a Tesla Coil before the airships come, and lights a pad that reaches their path.',

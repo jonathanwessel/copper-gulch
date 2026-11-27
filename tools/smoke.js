@@ -1998,7 +1998,7 @@ async function run() {
   const srvA = await start(0), bA = await chromium.launch();
   try {
     for (const [name, vp] of Object.entries({ phone: [400, 860], land: [860, 400], desk: [1366, 800] })) {
-      const page = await bA.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [], bad = [], known = [];
+      const page = await bA.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [], bad = [];
       page.on('pageerror', e => errs.push(e.message));
       await page.goto(srvA.url + '?coach=off&start=gulch'); await waitFor(page, () => window.CG && CG.ready);
       // the page before this one left a save, so What's new is up on the title: close it as a player would
@@ -2079,11 +2079,10 @@ async function run() {
         bad.push(...(await uncovered(page)).map(b => 'crowded card ' + vp2.join('x') + ': ' + b));
         // a building at level 10 with its foreman row (review of 2026.11.23-7: the switch sat under the pinned price bar)
         await page.evaluate(() => { const t = CG.game.town; CG.play.close(); t.buildings.camp = Math.max(10, t.level('camp')); CG.play.open('camp'); }); await sleep(400);
-        // at the sizes 8s added (375 and 360 wide, 740 and 640 by 360) the card's pinned price bar covers a row. Clarity
-        // fix 8u fixed it with four side buttons (tools/short-probe.js), but this top bar has six and is 80-90 px deeper,
-        // so here they print as known until box 8v; at the home sizes they fail
-        const short = vp2 !== vp && (name === 'phone' || vp2[1] < 375);
-        (short ? known : bad).push(...(await uncovered(page)).map(b => 'building card at level 10 ' + vp2.join('x') + ': ' + b));
+        // at the sizes 8s added (375 and 360 wide, 740 and 640 by 360) the card's pinned price bar covered a row with all
+        // six side buttons out (known until clarity fix 8v: the card now rises beside the side column on a short phone, and
+        // a card that runs past its room stops at a row's edge)
+        bad.push(...(await uncovered(page)).map(b => 'building card at level 10 ' + vp2.join('x') + ': ' + b));
         // a tower's upgrade choice: both Choose buttons show whole in the card at every size (clarity fix 8u: on a short
         // phone the second sat below the card's edge), and a card with more below shades its foot (uncovered)
         const pick = await page.evaluate(async () => {
@@ -2094,15 +2093,13 @@ async function run() {
           const c = document.getElementById('card').getBoundingClientRect(), bs = [...document.querySelectorAll('#card .pathbar .option > .btn')];
           if (bs.length !== 2) return bs.length + ' Choose buttons';
           const out = bs.filter(n => { const q = n.getBoundingClientRect(); return q.top < c.top - 1 || q.bottom > c.bottom + 1; });
-          // out of view, the card must say there is more (its shaded foot); with the shade it is known, box 8v
-          const shaded = document.getElementById('card').classList.contains('more');
-          return out.length ? (shaded ? 'known: ' : '') + out.length + ' Choose button out of view (card ' + Math.round(c.top) + '-' + Math.round(c.bottom) + ')' : null;
+          // both always show whole (known with a shaded foot until clarity fix 8v)
+          return out.length ? out.length + ' Choose button out of view (card ' + Math.round(c.top) + '-' + Math.round(c.bottom) + ')' : null;
         });
-        if (pick) (pick.startsWith('known: ') && short ? known : bad).push('pick card ' + vp2.join('x') + ': ' + pick.replace('known: ', ''));
+        if (pick) bad.push('pick card ' + vp2.join('x') + ': ' + pick);
         bad.push(...(await uncovered(page)).map(b => 'pick card ' + vp2.join('x') + ': ' + b));
         await page.evaluate(() => { const t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 3); });
       }
-      if (known.length) console.log('auto ' + name + ' known, box 8v: ' + known.join('; '));
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

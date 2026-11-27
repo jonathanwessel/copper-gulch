@@ -493,7 +493,7 @@ export const EXPLAINERS = [
   {
     id: 'airship', town: 'mesa', now: true, covers: ['sky'],
     title: 'Airships',
-    text: 'An airship is flying over your town. Only a Tesla Coil can hit it. Each airship that gets in takes 2 hits off your vault. Tap an airship to see its health.',
+    text: 'An airship is flying over your town. Only a Tesla Coil can hit it. Each airship that reaches your vault takes 2 hits off it. Tap an airship to see its health.',
     when: h => h.airOut != null, at: h => (h.airOut != null ? { foe: h.airOut } : null),
   },
   {

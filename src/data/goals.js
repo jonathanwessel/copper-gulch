@@ -32,7 +32,7 @@ const MESA_GOAL = 1860;
 export const TESLA_FROM = 7, TESLA_ASK = 1, TESLA_PATH_FROM = 11;
 export const TESLA_WORDS = {
   text: 'Tap a stone pad and build a Tesla Coil', done: 'Tesla Coil built',
-  path: 'Upgrade a Tesla Coil to level 5 and pick a path', pathDone: 'Tesla Coil path picked',
+  path: 'Raise a Tesla Coil to level 5, pick its upgrade', pathDone: 'Tesla Coil upgrade picked',
   pirate: 'Stop the pirate airship at wave 20', pirateDone: 'Pirate airship stopped',
 };
 
@@ -48,7 +48,7 @@ export const GOALS = [
   { id: 'dc-up', town: 'drycreek', text: 'Tap a Crossbow, then tap Upgrade', doneText: 'Crossbow is level 2', done: c => c.topLevel() >= 2, ready: early(), at: c => ({ tower: c.lowTower() }) },
   { id: 'dc-call', town: 'drycreek', text: 'Tap Call now for bonus coins and an early wave', doneText: 'Wave called early', done: c => c.called(), ready: early(c => c.towers.length >= 3 && c.bestWave >= 2), at: () => ({ el: '#callWave' }) },
   { id: 'dc-mine5', town: 'drycreek', text: 'Tap the Copper Camp and upgrade it to level 5', doneText: 'Copper Camp is level 5', done: c => c.lv('dmine') >= 5, ready: early(c => c.lv('dmine') >= 1), at: () => ({ plot: 'dmine' }) },
-  { id: 'dc-path', town: 'drycreek', text: 'Upgrade a Crossbow to level 5 and pick a path', doneText: 'Crossbow path picked', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
+  { id: 'dc-path', town: 'drycreek', text: 'Raise a Crossbow to level 5 and pick its upgrade', doneText: 'Crossbow upgrade picked', done: c => c.pathed(), ready: early(), at: c => ({ tower: c.topTower() }) },
   { id: 'dc-win', town: 'drycreek', text: 'Beat wave 10 to open Copper Gulch', doneText: 'Copper Gulch is open', done: c => c.won },
   { id: 'dc-go', town: 'drycreek', text: 'Tap Map, then tap Copper Gulch', doneText: 'You are in Copper Gulch', done: c => c.visited('gulch'), ready: c => c.won, at: goTo('gulch'), away: true },
   // Copper Gulch
@@ -63,7 +63,7 @@ export const GOALS = [
   { id: 'g-frost', town: 'gulch', text: 'Tap a stone pad and build a Frost Lens', doneText: 'Frost Lens built', kind: 'frost', done: c => c.built('frost'), ready: c => c.lv('saw') >= 1 && c.lv('pit') >= 1, at: c => ({ spot: c.freeSpot() }) },
   { id: 'g-mine5', town: 'gulch', text: 'Tap the Copper Mine and upgrade it to level 5', doneText: 'Copper Mine is level 5', done: c => c.lv('mine') >= 5, ready: c => c.lv('mine') >= 1, at: () => ({ plot: 'mine' }) },
   { id: 'g-smelter', town: 'gulch', text: 'Tap the Smelter lot, then tap Build', doneText: 'Smelter built', done: c => c.lv('smelter') >= 1, ready: c => c.unlocked('smelter'), at: () => ({ plot: 'smelter' }) },
-  { id: 'g-path', town: 'gulch', text: 'Upgrade a tower to level 5 and pick a path', doneText: 'Tower path picked', done: c => c.pathed(), at: c => ({ tower: c.topTower() }) },
+  { id: 'g-path', town: 'gulch', text: 'Raise a tower to level 5 and pick its upgrade', doneText: 'Tower upgrade picked', done: c => c.pathed(), at: c => ({ tower: c.topTower() }) },
   { id: 'g-wave10', town: 'gulch', text: 'Stop the war wagon at wave 10', doneText: 'War wagon stopped', done: c => c.bestWave >= 10 },
   { id: 'g-mortar', town: 'gulch', text: 'Tap a Mortar pit and build a Mortar', doneText: 'Mortar built', kind: 'mortar', done: c => c.built('mortar'), ready: c => c.open('mortar'), at: c => ({ spot: c.freePit() }) },
   // later goals: within (minutes from a new game) is how soon the careful bot must do them (tools/balance.js)
@@ -87,7 +87,7 @@ export const GOALS = [
   // the Ridge's climb (clarity fix 3b part 2): every Ridge goal was a building, so the newcomer met its wave-10 boss with
   // every tower at level 1 and lost it for 30 minutes, and the climbs to waves 30 and 52 had nothing on the strip but
   // the wave. Tower goals that show up as the best wave climbs.
-  { id: 'r-path', town: 'ridge', text: 'Upgrade a tower to level 5 and pick a path', doneText: 'Tower path picked', done: c => c.pathed(), ready: c => c.bestWave >= 7, at: c => ({ tower: c.topTower() }), within: RIDGE_GOAL },
+  { id: 'r-path', town: 'ridge', text: 'Raise a tower to level 5 and pick its upgrade', doneText: 'Tower upgrade picked', done: c => c.pathed(), ready: c => c.bestWave >= 7, at: c => ({ tower: c.topTower() }), within: RIDGE_GOAL },
   { id: 'r-pine', town: 'ridge', text: 'Tap Map, then tap Pine Hollow', doneText: 'Pine Hollow won', done: c => c.wonIn('pinehollow'), ready: c => c.lv('furnace') >= 1 && c.founded('pinehollow'), at: goTo('pinehollow'), away: true, within: RIDGE_GOAL },
   { id: 'r-up10', town: 'ridge', text: 'Upgrade a tower to level 10', doneText: 'A tower is level 10', done: c => c.towers.filter(t => t.level >= 10).length >= 1, ready: c => c.bestWave >= 12, at: c => ({ tower: c.upTo(10) }), within: RIDGE_GOAL },
   { id: 'r-five5', town: 'ridge', text: 'Upgrade 5 towers to level 5', doneText: '5 towers are level 5', done: c => c.towers.filter(t => t.level >= 5).length >= 5, count: c => [c.towers.filter(t => t.level >= 5).length, 5], ready: c => c.bestWave >= 17, at: c => ({ tower: c.upTo(5) }), within: RIDGE_GOAL },

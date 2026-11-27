@@ -97,7 +97,7 @@ test('Sandy Bend has its own goals, walking to the win and back to Silver Falls;
 
 test('a selection slides clear of the goods strip as well as the card', () => {
   const cam = read('src/render/camera.js');
-  assert.match(cam, /setView\(top, cover, low = null\)/);
+  assert.match(cam, /setView\(top, cover, low = null[,)]/); // (clarity fix 8v added a fourth, beside)
   assert.match(cam, /if \(lw\) for \(const a of raw\) if \(lw\.l < a\.r && lw\.r > a\.l && lw\.t < a\.b && lw\.t > a\.t\) a\.b = lw\.t - 28;/);
   assert.match(read('src/ui/play.js'), /viewApi\.setView\(top, cb && cb\.height \? .* : null, sb && sb\.height/);
 });

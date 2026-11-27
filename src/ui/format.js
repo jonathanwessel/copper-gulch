@@ -176,9 +176,11 @@ export function ago(ms) {
 /* A building's output with its good as the unit (review of 2026.11.19-3: "1 a second" said 1 of what?): "1 plank a second",
    "2.4 planks a second", "0.5 copper ore a second". Goods named in the plural drop the s for exactly 1 (not glass). */
 export const oneOf = good => { const name = good.name.toLowerCase(); return /[^s]s$/.test(name) ? name.slice(0, -1) : name; };
+/* Under 1 a second it is a minute, in whole goods (clarity fix 8w: "0.45 motors a second" was a decimal a player does
+   not picture): "27 motors a minute". */
 export function perSecond(n, good) {
-  const v = fmt(n);
-  return v + ' ' + (v === '1' ? oneOf(good) : good.name.toLowerCase()) + ' a second';
+  const m = n > 0 && n < .995 ? Math.max(1, Math.round(n * 60)) : 0, v = m ? String(m) : fmt(n);
+  return v + ' ' + (v === '1' ? oneOf(good) : good.name.toLowerCase()) + (m ? ' a minute' : ' a second');
 }
 
 /* Rows that add up to their total as written (review of 2026.11.19-5: "4.7 + 0.6 + 0.0" under "+5.4/s"). The total is

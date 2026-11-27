@@ -55,7 +55,7 @@ test('chips, Best against and landscape cards keep one layout', () => {
   assert.match(html, /\.goodstrip\.narrow \.goodchip b \{ grid-row: 1; grid-column: 2;/);
   assert.ok(play.includes("key ? 'statrow' : 'statline'"));
   assert.match(html, /> \.statline \{ grid-column: auto; display: flex; flex-direction: column;/);
-  assert.match(html, /\.card > \.buybar:not\(\.pathbar\) \{ order: 99; \}/);
+  assert.match(html, /\.card > \.buybar:not\(\.pathbar\) \{ order: 99;/); // at every size since clarity fix 8v
   assert.match(html, /\.pathhead \{ display: flex; flex-wrap: wrap;/);
 });
 

@@ -227,7 +227,7 @@ test('the Mesa strip asks for Tesla Coils before the airships', async () => {
   const { TESLA_WORDS } = await import('../src/data/goals.js');
   assert.deepEqual(TESLA_WORDS, {
     text: 'Tap a stone pad and build a Tesla Coil', done: 'Tesla Coil built',
-    path: 'Upgrade a Tesla Coil to level 5 and pick a path', pathDone: 'Tesla Coil path picked',
+    path: 'Raise a Tesla Coil to level 5, pick its upgrade', pathDone: 'Tesla Coil upgrade picked',
     pirate: 'Stop the pirate airship at wave 20', pirateDone: 'Pirate airship stopped',
   });
   for (const w of Object.values(TESLA_WORDS)) assert.deepEqual(textIssues(w), []);

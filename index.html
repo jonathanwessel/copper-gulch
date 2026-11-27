@@ -315,6 +315,12 @@ html.flat .tag { position: static; transform: none !important; }
 @media (orientation: portrait), (min-height: 501px) {
   .play .card { max-height: calc(100% - var(--hudtop, 10px) - 130px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
 }
+/* held upright the band is measured from the left column and the card stops only at the side column's foot, so with
+   every side button out it rises beside them, and what it is open for shows left of them (clarity fix 8v: the Motor
+   Works card at 400 by 860 started under the side column with Sell spare below its edge) */
+@media (orientation: portrait) {
+  .play .card { max-height: calc(100% - max(var(--hudtopl, var(--hudtop, 10px)) + 130px, var(--sidebot, 10px)) - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
+}
 /* a wide screen has room beside the card, where the camera puts what it is open for, so the card takes the height and
    does not scroll (clarity fix 8c: a level 19 tower card scrolled on a desktop under 130 px of empty map) */
 @media (min-width: 1000px) and (min-height: 501px) {
@@ -371,6 +377,10 @@ html.flat .tag { position: static; transform: none !important; }
    landscape scrolled Play half out of view) */
 .card > .row:has(> #buy), .card > .buybar, #mapCard > .row:has(> #mapPlay, > #mapFound) { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px; padding: 6px 12px; background: var(--panel); border-top: 2px solid var(--line); box-shadow: 0 -3px 0 rgba(22, 15, 11, .35); }
 /* more below a card's edge (play.js cardMore): a shade at its foot, or just above its pinned buy bar */
+/* the price and Upgrade come last at every size, pinned to the bottom edge, and the switches scroll under them, so the
+   order is one and nothing shows cut below the pinned bar (review of 2026.11.20-13: Sell spare timber and Keep for towers
+   cut at the bottom in landscape; clarity fix 8v: Sell spare came above Upgrade in landscape and below it elsewhere) */
+.card > .buybar:not(.pathbar) { order: 99; margin-bottom: -12px; } /* it takes the card's foot padding, as it does when pinned, so a few px of padding never count as more below (8v) */
 .card.more::after { content: ''; position: sticky; bottom: -12px; z-index: 2; height: 18px; margin: -26px -12px 0; pointer-events: none; background: linear-gradient(rgba(14, 9, 6, 0), rgba(14, 9, 6, .55)); }
 .card.morepin > .row:has(> #buy), .card.morepin > .buybar { box-shadow: 0 -3px 0 rgba(22, 15, 11, .35), 0 -24px 16px -8px rgba(14, 9, 6, .8); }
 .card > .buybar { display: grid; gap: 6px; }
@@ -408,9 +418,6 @@ html.flat .tag { position: static; transform: none !important; }
   .card > .explain:not(.why) > .statline > span { font-size: .72rem; color: var(--muted); line-height: 1.1; }
   .card > .explain:not(.why) > .statline > b { line-height: 1.2; text-align: left; }
   .card > .buybar { gap: 4px; padding-block: 4px; }
-  /* the price and Upgrade come last, pinned to the bottom edge, and the switches scroll under them, so nothing shows
-     cut below the pinned bar (review of 2026.11.20-13: Sell spare timber and Keep for towers cut at the bottom) */
-  .card > .buybar:not(.pathbar) { order: 99; }
   .card .row > .buy { min-height: 38px; padding-block: 4px; font-size: 1.1rem; }
   .card .row > .btn.small { min-height: 34px; }
   .card > p.uses { font-size: .82rem; line-height: 1.25; }
@@ -444,6 +451,10 @@ html.flat .tag { position: static; transform: none !important; }
     .card .row > .buy { min-height: 34px; }
     .card .switchrow > .btn.switch, .card .keeprow > .btn.switch { font-size: .72rem; line-height: 1.1; }
     .card > .stat { min-height: 28px; }
+    /* a pick card's price in one row with its label, so both Choose buttons show whole with the top bar full (clarity
+       fix 8v: 8 px under the card at 740 and 640 by 360 with To arms's clock in the side column) */
+    .card > .pathbar .pathcost { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; }
+    .card > .pathbar .pathcost > .costrow { flex-basis: auto; margin: 0; }
   }
   /* the price sits beside Upgrade, not over it, so the pinned bar takes one row (2026.11.23-9: at 667x375 and 932x430
      a level-10 building card's rows sat under a two-row bar) */
@@ -843,6 +854,12 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
    side, so the action and the rows over it show whole (tools/short-probe.js, smoke's crowded check). */
 @media (orientation: portrait) and (max-height: 760px) {
   .play .card { max-height: calc(100% - var(--hudtop, 10px) - 100px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); gap: 6px; }
+  /* with every side button out the side column ran 130 px under the left one and the card started under it, about 160
+     px tall (clarity fix 8v): the band of map is measured from the left column, the card stops only at the side
+     column's foot, and the camera puts what the card is open for left of the side column (camera.js keep) */
+  .play .card { max-height: calc(100% - max(var(--hudtopl, var(--hudtop, 10px)) + 100px, var(--sidebot, 10px)) - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); }
+  .side { gap: 4px; }
+  .side .btn { min-height: 32px; padding-block: 2px; }
   .card > .buybar:not(.pathbar) { grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; gap: 4px 10px; padding-block: 5px; }
   .card > .buybar:not(.pathbar) > .costrow { margin: 0; }
   .card > .buybar:not(.pathbar) > :not(.costrow) { grid-column: 2; grid-row: 1; }
