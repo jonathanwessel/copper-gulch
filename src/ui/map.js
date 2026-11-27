@@ -436,6 +436,7 @@ export function mountMap(root, game, view, shell) {
         // a red dot: the place needs you and its state word does not say so in red (needsYou, the Map button's own
         // source, clarity fix 5). A low vault shows in its red count and a short workshop on the card, since Map shows
         // no dot for them (review of 2026.11.20-18: one dot meant three things)
+        B.needs = !!needsYou(game, s.id) || stateNeeds(ss); // kept on a phone with a card open (clarity fix 8t)
         B.b.classList.toggle('dot', !!needsYou(game, s.id) && !stateNeeds(ss));
         B.b.classList.remove('gold');
       } else if (s.id === 'capital' && capitalOpen(game)) {
@@ -481,7 +482,9 @@ export function mountMap(root, game, view, shell) {
       // and Sandy Bend's on Silver Falls with the Gulch's card open)
       // Across the bottom means most of the screen's width: a desktop's card sits low in the middle, a third of the width,
       // and read as across, so every other label hid with room all round it (clarity fix 8g)
-      if (cardBox && s.id !== openId && openId && badge[openId] && cardBox.r - cardBox.l > W * .7) { B.b.hidden = true; continue; }
+      // A place that needs you keeps its label even then (clarity fix 8t: with a card open on a phone no town showed that
+      // it was on hold or had lost, against the map rule in games/CLAUDE.md); it still hides where it would sit on another
+      if (cardBox && s.id !== openId && openId && badge[openId] && cardBox.r - cardBox.l > W * .7 && !B.needs) { B.b.hidden = true; continue; }
       // a town off the screen has no label: clamped to the edge, they piled up under the coins (review of 2026.11.20-3, the
       // Capital close-up)
       if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H + 40) { B.b.hidden = true; continue; }

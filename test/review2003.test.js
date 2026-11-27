@@ -21,7 +21,7 @@ test('a good the towers keep all of says the extra is sold, so it agrees with Se
 test('the map card says Full or the hits left, and the contract names its good', () => {
   assert.equal(vaultHits({ vault: { hp: 20, max: 20 } }), '20');
   assert.equal(vaultHits({ vault: { hp: 1, max: 20 } }), '1');
-  assert.equal(sentWords({ got: 108.7, need: 270, good: 'timber' }), 'Sent 108 of 270 timber');
+  assert.match(sentWords({ got: 108.7, need: 270, good: 'timber' }), /108 .*270 timber$/); // its words: test/words.test.js
   assert.ok(!/'A town that makes/.test(read('src/ui/map.js').split('\n').find(l => l.startsWith('const whatIs'))));
 });
 

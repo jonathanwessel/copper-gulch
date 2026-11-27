@@ -68,6 +68,8 @@ export const priceLabel = price => { const s = each(price); return s[0].toUpperC
 /* What each mode does, one short line beside its picture in the Goods sheet's picker (review of 2026.11.23-1: "Skip busts"
    and "Booms only" were flagged twice, so the picker says what each does instead of a third wording). The price words
    are the boom line's own, up and down (clarity fix 8h: "crashed" and "way up" beside "Price up" and "Price down"). */
+/* The label over the one price of a tower's two upgrade choices (clarity fix 8u: "Either one costs" read as a sentence that stops). */
+export const PICK_PRICE = 'Price for either';
 export const MODE_LINES = { always: 'Sells spare goods whenever you have some.', skip: 'Stops selling while the price is down.', boom: 'Sells only while the price is up.', off: 'Never sells spare goods.' };
 /* The Goods sheet's button for a good: Sell spare, then its mode. selling false is Off (the old switch). */
 export function goodsSwitch({ selling = true, mode = selling ? 'always' : 'off' }) {

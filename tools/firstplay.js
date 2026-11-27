@@ -133,8 +133,9 @@ export function goalTap(game, town, rng) {
 /* One newcomer's first session: a new game in Dry Creek, then the Gulch once it opens, for `minutes` of play. */
 /* hook(game, seconds, r), when given, runs after every step; it returns true to end the run early (tools/playthrough.js
    records the moments a newcomer meets this way). */
-export function newcomer(seed, minutes = MINUTES, hook = null) {
-  const g = newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
+/* start, when given, is a game to play on in place of a new one (tools/mesa-newcomer.js: the Mesa from a Falls-era game). */
+export function newcomer(seed, minutes = MINUTES, hook = null, start = null) {
+  const g = start || newGame('first-' + seed), rng = new Rng('newcomer-' + seed);
   const heldFrom = {}, lostBuys = {};
   const r = { held2: { longest: 0, town: null, at: 0 }, goalHeld: {}, seed, ridgeAt: null, savedFrom: null, firstTower: null, dcWon: null, gulchAt: null, wave10: null, breaches: [], buys: 0, wrong: 0, goalTaps: 0, research: 0, taps: [], stuck: { longest: 0, at: 0 }, tabsUsed: [], log: [] };
   let next = rng.range(...WAIT), lastNews = 0, lastLeak = { drycreek: -99, gulch: -99 }, lastGap = 0;

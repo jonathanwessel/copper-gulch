@@ -21,6 +21,8 @@ const ang = (x, z) => Math.atan2(x, z); // a ground direction's angle; turning t
 export const CLEAR = 44;
 /* pixels a selection keeps below the top bar (review of 2026.11.20-4: a selected Mortar pit sat under the goal strip) */
 const TOP_GAP = 56;
+/* The smallest band above a card a selection slides into on a screen held upright (clarity fix 8u: 100 px on a short phone). */
+export const ABOVE_SHORT = 98;
 /* The room a selection keeps from the screen's left and right edges (review of 2026.11.20-5: in landscape a selected pit
    at the left edge, half off the screen, counted as on screen). */
 const SIDE_GAP = 72;
@@ -273,7 +275,9 @@ export class CameraRig {
       // thin strip above a side card, near the horizon, and the screen filled with mesas)
       // a part beside the card may be shorter (80): in landscape the goods strip left 107 px above it beside a choice
       // card, so no part was big enough and the selected Still stayed under the card (fresh-eyes read of 2026.11.25-8)
-      if (a.w < 120 || a.h < (a === parts[0] ? 120 : 80)) continue;
+      // on a short phone held upright the band above the card is 100 px (clarity fix 8u, index.html), so the part
+      // above takes ABOVE_SHORT there
+      if (a.w < 120 || a.h < (a === parts[0] ? (H - r.top < W - r.left ? 120 : ABOVE_SHORT) : 80)) continue;
       if (rad > 0 && !a.o && parts.some(b => b.o && b.w >= 120 && b.h >= 120)) continue; // a part its circle fits in comes first (review of 2026.11.20-7: a pit inside the thin part left of a desktop card stayed with its circle off the edge)
       if (inside(a)) return;
       const x = a.r < a.l ? (a.l + a.r) / 2 : Math.min(a.r, Math.max(a.l, q.x)), y = a.b < a.t ? (a.t + a.b) / 2 : Math.min(a.b, Math.max(a.t, q.y));

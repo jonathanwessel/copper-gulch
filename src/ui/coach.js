@@ -174,6 +174,13 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
       let cx = p ? p.x : 0, cy = p ? p.y : 0;
       if (p && target.worker !== undefined) { const hp = locate({ plot: target.worker }); if (hp) { const dx = p.x - hp.x, dy = p.y - hp.y, d = Math.hypot(dx, dy) || 1; cx += dx / d * 6; cy += dy / d * 6; } }
       if (p) r = { x: cx - half, y: cy - half, w: 2 * half, h: 2 * half };
+      // the box keeps to the room between the top bar and the goods strip: on a short landscape screen that room is
+      // smaller than the box, and the map cannot slide past the board's edge, so the box dipped over the counts
+      // (clarity fix 8u: the airship card at 860 by 400 in a real Mesa game)
+      if (r) {
+        const gs = document.getElementById('goodsStrip'), gt = gs && !gs.hidden && gs.offsetParent !== null ? gs.getBoundingClientRect().top - 4 : innerHeight;
+        if (r.y + r.h > gt && gt - r.y >= 28) r.h = gt - r.y;
+      }
     }
     hole.hidden = !r;
     if (r) Object.assign(hole.style, { left: Math.round(r.x) + 'px', top: Math.round(r.y) + 'px', width: Math.round(r.w) + 'px', height: Math.round(r.h) + 'px' });

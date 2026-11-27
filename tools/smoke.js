@@ -67,7 +67,7 @@ export async function uncovered(page) {
       card.dispatchEvent(new Event('scroll')); // the shade is read on a scroll and four times a second
       const more = card.scrollHeight - card.scrollTop - card.clientHeight > 4;
       // the shade sits where the cut is: above a buy bar pinned at the foot, or at the foot itself when the bar sits higher
-      const pin = card.querySelector(':scope > .buybar, :scope > .row:has(> #buy)');
+      const pin = card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
       const atFoot = vis(pin) && R(pin).bottom >= R(card).bottom - 4;
       const shaded = atFoot ? (getComputedStyle(pin).boxShadow.match(/rgba?\(/g) || []).length >= 2 : getComputedStyle(card, '::after').content !== 'none';
       if (more && !shaded) bad.push('the card has more below its edge and no shade ' + (atFoot ? 'above its pinned bar' : 'at its foot'));
@@ -1083,7 +1083,10 @@ async function run() {
         const T = CG.game.town, was = T.goods.timber, mk = CG.game.shared.market, rate = mk.rate.timber; mk.rate.timber = 0; T.goods.timber = Math.ceil((T.keep || {}).timber || 0) + 60;
         document.getElementById('goodsBtn').click(); await wait(300);
         sheet.querySelector('[data-why="timber"]').click(); await wait(400);
-        out.price = /Usual price/.test(sheet.textContent) && /coins? (each|per)/.test(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || ''); // the price bar's front says the price (no total row, review of 2026.11.20-7)
+        // the price sits at the rows' foot as their sum, "Pays now", and the line above steps aside (clarity fix 8t; until then
+        // the price bar's front said it, review of 2026.11.20-7)
+        const tot = sheet.querySelector('.explain.why .total');
+        out.price = /Usual price/.test(sheet.textContent) && !!tot && /^Pays now/.test(tot.textContent) && /coins? (each|per)/.test(tot.textContent) && !(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || '');
         T.goods.timber = 0; await wait(600);
         out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Usual price/.test(sheet.textContent);
         if (!out.price || !out.noneToSell) out.priceText = sheet.textContent.slice(0, 400);
@@ -1631,7 +1634,7 @@ async function run() {
         bad.push(...(await check(page)).map(b => 'capital card: ' + b));
         await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(700);
         const run = await page.evaluate(() => ({ active: !!CG.game.shared.capital.active, drop: !!document.getElementById('contractDrop'), badge: document.querySelector('.mapbadge[data-site="capital"]').textContent }));
-        if (!run.active || !run.drop || !/Sent [0-9]/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
+        if (!run.active || !run.drop || !/Contract [0-9.]+[KMB]? [/] [0-9]/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
         await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
         if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
         bad.push(...(await check(page)).map(b => 'capital contract: ' + b));
@@ -1959,10 +1962,10 @@ async function run() {
         t.waves.foes = t.waves.foes.filter(f => f.id < 9000); t.waves.phase = 'break'; t.waves.timer = 999;
         return out;
       });
-      if (town === 'mesa' && (!r.spot || r.spot.card !== 'airship' || !r.spot.shown || !r.spot.covers || r.spot.button || r.spot.strip > 24)) bad.push(name + ': the airship card\'s spotlight is not on the airship ' + JSON.stringify(r.spot));
-      // the box may dip a little into the goods strip on a short landscape screen, where the room between the top bar and
-      // the strip is smaller than the box; past a quarter of it the box frames the counts (seen red: 67 px with the strip
-      // left out of the room the spotlight can use)
+      if (town === 'mesa' && (!r.spot || r.spot.card !== 'airship' || !r.spot.shown || !r.spot.covers || r.spot.button || r.spot.strip > 1)) bad.push(name + ': the airship card\'s spotlight is not on the airship ' + JSON.stringify(r.spot));
+      // the box keeps clear of the goods strip even on a short landscape screen, where the room between the top bar and
+      // the strip is smaller than the box: it shrinks to the room (clarity fix 8u; until then it might dip 24 px, and a
+      // real Mesa game's shot dipped more; seen red: 67 px with the strip left out of the room the spotlight can use)
       if (town === 'mesa' && r.stressed) stressed.push(name);
       if (town === 'gulch') { if (r.sky || r.entrances.some(e => e.sky)) bad.push(name + ': Copper Gulch has a sky lane or a cloud bank'); }
       else {
@@ -2076,13 +2079,30 @@ async function run() {
         bad.push(...(await uncovered(page)).map(b => 'crowded card ' + vp2.join('x') + ': ' + b));
         // a building at level 10 with its foreman row (review of 2026.11.23-7: the switch sat under the pinned price bar)
         await page.evaluate(() => { const t = CG.game.town; CG.play.close(); t.buildings.camp = Math.max(10, t.level('camp')); CG.play.open('camp'); }); await sleep(400);
-        // at the sizes 8s added (375 and 360 wide, 740 and 640 by 360) the card's pinned price bar still covers a
-        // row: box 8u (cards on short screens) fixes it and turns these into failures; until then they print, never pass unseen
+        // at the sizes 8s added (375 and 360 wide, 740 and 640 by 360) the card's pinned price bar covers a row. Clarity
+        // fix 8u fixed it with four side buttons (tools/short-probe.js), but this top bar has six and is 80-90 px deeper,
+        // so here they print as known until box 8v; at the home sizes they fail
         const short = vp2 !== vp && (name === 'phone' || vp2[1] < 375);
         (short ? known : bad).push(...(await uncovered(page)).map(b => 'building card at level 10 ' + vp2.join('x') + ': ' + b));
-        await page.evaluate(() => CG.play.close());
+        // a tower's upgrade choice: both Choose buttons show whole in the card at every size (clarity fix 8u: on a short
+        // phone the second sat below the card's edge), and a card with more below shades its foot (uncovered)
+        const pick = await page.evaluate(async () => {
+          const t = CG.game.town, D = await import('./src/core/defense.js'); CG.play.close();
+          if (!t.towers.some(x => x.spot === 3)) D.buildTower(CG.game, t, 3, 'crossbow');
+          const tw = t.towers.find(x => x.spot === 3); if (!tw) return 'no tower on pad 3'; tw.level = 4; tw.path = null; CG.play.openSpot(3);
+          await new Promise(r => setTimeout(r, 400));
+          const c = document.getElementById('card').getBoundingClientRect(), bs = [...document.querySelectorAll('#card .pathbar .option > .btn')];
+          if (bs.length !== 2) return bs.length + ' Choose buttons';
+          const out = bs.filter(n => { const q = n.getBoundingClientRect(); return q.top < c.top - 1 || q.bottom > c.bottom + 1; });
+          // out of view, the card must say there is more (its shaded foot); with the shade it is known, box 8v
+          const shaded = document.getElementById('card').classList.contains('more');
+          return out.length ? (shaded ? 'known: ' : '') + out.length + ' Choose button out of view (card ' + Math.round(c.top) + '-' + Math.round(c.bottom) + ')' : null;
+        });
+        if (pick) (pick.startsWith('known: ') && short ? known : bad).push('pick card ' + vp2.join('x') + ': ' + pick.replace('known: ', ''));
+        bad.push(...(await uncovered(page)).map(b => 'pick card ' + vp2.join('x') + ': ' + b));
+        await page.evaluate(() => { const t = CG.game.town; CG.play.close(); t.towers = t.towers.filter(x => x.spot !== 3); });
       }
-      if (known.length) console.log('auto ' + name + ' known, box 8u: ' + known.join('; '));
+      if (known.length) console.log('auto ' + name + ' known, box 8v: ' + known.join('; '));
       bad.push(...errs);
       console.log('auto ' + name, bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
       failed += bad.length ? 1 : 0;

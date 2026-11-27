@@ -43,7 +43,7 @@ import { workerCard } from './worker.js';
 import { contractDone, contractMissed, capitalSheet, capitalReadyWords } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, modeState } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, modeState, PICK_PRICE } from './format.js';
 import { heart } from './heart.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
@@ -220,7 +220,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the shade at the foot, where the cut row is
   const cardMore = () => {
     const m = !card.hidden && card.scrollHeight - card.scrollTop - card.clientHeight > 4;
-    const pin = m && card.querySelector(':scope > .buybar, :scope > .row:has(> #buy)');
+    // (a tower's upgrade choice is never pinned, so its card shades its foot: clarity fix 8u, the pick card on a short screen)
+    const pin = m && card.querySelector(':scope > .buybar:not(.pathbar), :scope > .row:has(> #buy)');
     const atFoot = !!pin && pin.getBoundingClientRect().bottom >= card.getBoundingClientRect().bottom - 4;
     if (card.classList.contains('more') !== (m && !atFoot)) card.classList.toggle('more', m && !atFoot);
     if (card.classList.contains('morepin') !== (m && atFoot)) card.classList.toggle('morepin', m && atFoot);
@@ -555,7 +556,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
       // one name for both picks (review of 2026.11.23-9: "Pick an upgrade" against "Pick a path")
       pt.append(el('b', null, 'Pick an upgrade'), el('small', null, 'Can\'t be undone'));
       const pc = costRow(c, true); // one price above two Choose buttons (review of 2026.11.19-13), on its own row under Pick a path with no label (review of 2026.11.20-13: "Either path 9.99M / 2.31K coins" read as a cut-off label, and Bricks wrapped)
-      const pw = el('div', 'pathcost'); pw.append(el('small', null, 'Either one costs'), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
+      const pw = el('div', 'pathcost'); pw.append(el('small', null, PICK_PRICE), pc); // says both paths cost the same (review of 2026.11.20-14), now that the price comes first
       ph.append(pt, pw); bar.append(ph);
       for (const [key, P] of Object.entries(choices)) {
         const opt = el('div', 'option'), txt = el('div'); txt.append(el('b', null, P.name), el('span', null, bossWords(P.about)));
@@ -739,7 +740,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (sw !== stripW) { stripW = sw; strip.style.maxWidth = sw; strip.style.width = sw; strip.classList.toggle('beside', !!sw); } // three columns there, so every name and count fits
     // a phone held upright with more goods than three columns hold: four smaller chips a row, name under the count, so
     // fewer goods hide behind a more box (review of 2026.11.20-3: "more boxes hide goods")
-    const dense = !sw && !shortLand() && innerWidth < 600 && stripGoods(town).length > 6;
+    // and on a short phone held upright, from the fourth good, so the card above the strip gets the room (clarity fix 8u)
+    const dense = !sw && !shortLand() && innerWidth < 600 && (stripGoods(town).length > 6 || (innerHeight <= 760 && innerHeight > innerWidth && stripGoods(town).length > 3));
     { const nw = !!sw || shortLand() || dense, one = shortLand() && (!sw || oneFits(parseInt(sw))); if (strip.classList.contains('narrow') !== nw) strip.classList.toggle('narrow', nw); if (strip.classList.contains('oneline') !== one) strip.classList.toggle('oneline', one); } // a short landscape screen: one row of small chips, beside a side card too, so a picked building or its ring has room above it (review of 2026.11.20-14: short-land, pit-land, foreman-wait-land)
     room = stripRoom(strip); // the strip's two rows, read here with the other measures (the layout is fresh)
     // a frame on the board never covers the goal strip it belongs to (it would hide the words): kept here, read 5 times a second

@@ -115,7 +115,7 @@ test('the strip lines of clarity fix 3b part 2', async () => {
   assert.equal(CAPITAL_HOLD.text, 'Tap Hold waves while you save for the Capital');
   // part 2b: the Capital's gate passing
   const { capitalReadyWords } = await import('../src/ui/capital.js');
-  assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), "Iron Ridge's best wave is 30. The Capital costs 25K coins.");
+  assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), 'Save 25K coins to build the Capital on the Map.');
   assert.deepEqual(textIssues(capitalReadyWords({ town: 'ridge', coins: 25000 })), []);
   const text = id => GOALS.find(g => g.id === id).text;
   assert.equal(text('r-steel'), 'Tap the Steel Mill lot, then tap Build');
@@ -221,4 +221,33 @@ test('clarity fixes 8q and 8r: the price rows, the Capital label and the red lin
   const short = EXPLAINERS.find(e => e.id === 'short');
   assert.equal(short.text, 'A red line under a building level means it ran out of what it needs. Tap the building to see what it is missing.');
   assert.deepEqual(textIssues(short.text), []);
+});
+
+test('the Mesa strip asks for Tesla Coils before the airships', async () => {
+  const { TESLA_WORDS } = await import('../src/data/goals.js');
+  assert.deepEqual(TESLA_WORDS, {
+    text: 'Tap a stone pad and build a Tesla Coil', done: 'Tesla Coil built',
+    path: 'Upgrade a Tesla Coil to level 5 and pick a path', pathDone: 'Tesla Coil path picked',
+    pirate: 'Stop the pirate airship at wave 20', pirateDone: 'Pirate airship stopped',
+  });
+  for (const w of Object.values(TESLA_WORDS)) assert.deepEqual(textIssues(w), []);
+});
+
+test('one label over the price of both upgrade choices', async () => {
+  const { PICK_PRICE } = await import('../src/ui/format.js');
+  assert.equal(PICK_PRICE, 'Price for either');
+  assert.deepEqual(textIssues(PICK_PRICE), []);
+});
+
+test('the steps to a Capital building a town needs are short', async () => {
+  const { INST_WORDS } = await import('../src/core/goals.js');
+  assert.equal(INST_WORDS.build('Rail Office', 'open', 'Thunder Mesa'), 'Build the Rail Office in the Capital to open Thunder Mesa');
+  assert.equal(INST_WORDS.up('Rail Office', 'open', 'Thunder Mesa'), 'Upgrade the Rail Office in the Capital to open Thunder Mesa');
+  for (const w of [INST_WORDS.build('Rail Office', 'open', 'Thunder Mesa'), INST_WORDS.up('Rail Office', 'open', 'Thunder Mesa')]) assert.deepEqual(textIssues(w), []);
+});
+
+test('the Capital label says what its goods are for', async () => {
+  const { sentWords } = await import('../src/ui/capital.js');
+  assert.equal(sentWords({ got: 2080.4, need: 8200, good: 'rails' }), 'Contract 2.08K / 8.2K rails');
+  assert.deepEqual(textIssues(sentWords({ got: 108.7, need: 270, good: 'timber' })), []);
 });

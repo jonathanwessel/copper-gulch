@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-2',
+    lines: [
+      'In Thunder Mesa the Goal now asks for a Tesla Coil before the airships come, and lights a pad that reaches their path.',
+      'Then it asks you to raise a Tesla Coil to level 5 and to stop the pirate airship at wave 20.',
+      'On short phones, cards are taller and both upgrade choices show with their Choose buttons.',
+      'A selected tower keeps its shape inside its glow.',
+      'Open a good in Goods to see what it pays now at the foot of its price rows.',
+    ],
+  },
+  {
     v: '2026.11.27-1',
     lines: [
       'Thunder Mesa has a new boss from wave 20, the pirate airship. Only a Tesla Coil can hit it up high.',

@@ -44,6 +44,14 @@ const TOWN_NAMES = Object.fromEntries(Object.entries(TOWNS).map(([id, t]) => [id
 /* A sheet: build(body) fills it; frame(dt) (optional, returned by build) runs while it is open. A frame function may
    carry .sync, called by sync() right after the play screen repaints its top bar and goods strip, so a sheet that
    shows the same numbers repaints in that frame (review of 2026.11.19-7: Goods read 46 copper ore beside the strip's 45). */
+/* A good's price rows with their sum at the foot, in the words the closed row uses ("Under 1 coin each"): with the sum
+   above the rows, "Demand high, Up 60%" over a crashed price read as two prices (clarity fix 8t). */
+export const PAYS_NOW = 'Pays now';
+function paysBox(ex, words) {
+  const box = explainBox(ex, { total: null, pct: true }), r = el('div', 'total');
+  r.append(el('span', null, PAYS_NOW), el('b', null, words)); box.append(r);
+  return box;
+}
 export function createSheets(root, { onOpen = () => {} } = {}) {
   const back = el('div', 'scrim'); back.hidden = true;
   const sheet = el('section', 'sheet'); sheet.id = 'sheet'; sheet.hidden = true; sheet.setAttribute('role', 'dialog');
@@ -247,16 +255,18 @@ export function goodsSheet(game, town, focus = null) {
         // 1:11 more. Price still down." beside "Boom Up 60%" read as a contradiction, flagged on the fourth wording)
         const bmx = boomNow(game), evClock = bmx && bmx.good === g ? boomClock(bmx.left) + String.fromCharCode(160) + 'left' : ''; // the time and its word never part (fresh-eyes read of 2026.11.26-8: a dot ended a line)
         const ex2 = evClock ? { ...ex, rows: ex.rows.map(x => (x.event ? { ...x, label: x.label + ' ' + evClock } : x)) } : ex;
-        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)]))) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [explainBox(ex2, { total: null, pct: true })])); }
         const sat = saturation(game, g);
         const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
+        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) + pl) : '';
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [paysBox(ex2, pl)])); }
         const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
         if (r.level.textContent !== pw1) r.level.textContent = pw1;
         // the price the player gets says so, beside the open rows' usual price (clarity fix 8r: "Base price 1 coin" beside
         // "Under 1 coin each" named two prices)
         // open with none spare, its note says what it would pay, so the label above it steps aside (one fact once)
-        const pl2 = open[g] && note && have - kept < 1 ? '' : 'Pays ' + pl[0].toLowerCase() + pl.slice(1);
+        // open with its rows, the price sits at the rows' foot as their sum (clarity fix 8t: "Demand high, Up 60%" over a
+        // crashed price, with the sum above the rows, read as two prices)
+        const pl2 = open[g] && (!note || have - kept < 1) ? '' : 'Pays ' + pl[0].toLowerCase() + pl.slice(1);
         if (r.plabel.textContent !== pl2) r.plabel.textContent = pl2;
         setSwitch(r.sw, 'Sell spare', modeState(mode), selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)

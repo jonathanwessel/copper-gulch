@@ -70,6 +70,15 @@ export function laneFor(town, kind) {
   if (!b || !(F.water || F.air)) return 0;
   return Math.max(0, laneIndex(b, F.water ? 'river' : 'sky'));
 }
+/* How much of the sky lane a level-1 tower of this kind on this spot reaches, in lane units (0 with no sky lane): the
+   goal strip's Tesla step lights the free pad that reaches the most of it (PLAN.md M6b). */
+export function skyReach(town, spot, kind = 'tesla') {
+  const b = town.def && town.def.board, i = b && b.sky ? laneIndex(b, 'sky') : -1, p = b && b.spots[spot];
+  if (i < 0 || !p) return 0;
+  const L = lanesOf(town)[i], r = TOWERS[kind].range; let n = 0;
+  for (let s = 0; s <= L.length; s += .1) if (dist(p, pointAt(L, s)) <= r) n += .1;
+  return n;
+}
 /* Does wave w bring airships here? A town with a sky lane sends every waves.airEvery-th raider by air from waves.airFrom. */
 export const airWave = (town, w) => { const W = wavesOf(town), b = town.def && town.def.board; return !!(W.airEvery && b && b.sky && w >= (W.airFrom || 1)); };
 

@@ -26,6 +26,15 @@ const FALLS_GOAL = 600;
 /* Thunder Mesa (M6b part 1b): within MESA_GOAL minutes of a new game, the top of the Mesa's 20-30 h window and the
    hour the player plays there (tools/mesa-road.js checks them). */
 const MESA_GOAL = 1860;
+/* The Mesa's Tesla step (M6b): from wave TESLA_FROM, TESLA_ASK Tesla Coils before the airships of wave 11. One: asked
+   for two, the active player's Tesla Coils did 36% of the Mesa's first-hour damage, over the variety line (2026.11.27-2),
+   and one with the path step kept the newcomer's airships of waves 11-20 to 0-12% through. */
+export const TESLA_FROM = 7, TESLA_ASK = 1, TESLA_PATH_FROM = 11;
+export const TESLA_WORDS = {
+  text: 'Tap a stone pad and build a Tesla Coil', done: 'Tesla Coil built',
+  path: 'Upgrade a Tesla Coil to level 5 and pick a path', pathDone: 'Tesla Coil path picked',
+  pirate: 'Stop the pirate airship at wave 20', pirateDone: 'Pirate airship stopped',
+};
 
 export const GOALS = [
   // Dry Creek Outpost, where a new game starts
@@ -128,6 +137,13 @@ export const GOALS = [
   // Thunder Mesa (PLAN.md M6b, part 1a): the way up its chain to the Airship Works. The Motor Works uses Falls wire, the
   // Automobile Plant Ridge steel and the Airship Works Falls dynamos, so a missing maker there sends the player to that
   // town. The active player's road there (tools/mesa-road.js) checks each within MESA_GOAL.
+  // airships fly from wave 11 and only the Tesla Coil reaches them, so from wave 7 the strip asks for one before the
+  // Mesa's own workshops (PLAN.md M6b: no step asked for it, and the newcomer builds what the strip asks)
+  { id: 'm-tesla', town: 'mesa', within: MESA_GOAL, text: TESLA_WORDS.text, doneText: TESLA_WORDS.done, kind: 'tesla', wait: 'tesla', done: c => c.towers.filter(t => t.kind === 'tesla').length >= TESLA_ASK, ...(TESLA_ASK > 1 ? { count: c => [Math.min(TESLA_ASK, c.towers.filter(t => t.kind === 'tesla').length), TESLA_ASK] } : {}), ready: c => c.open('tesla') && c.bestWave >= TESLA_FROM, at: c => ({ spot: c.skySpot() }) },
+  // then one of them to its path, and the first pirate airship: without these the Mesa's strip ran out of steps about
+  // 13 minutes in, and the newcomer spent its first airship waves resuming the older towns with level-1 Teslas
+  { id: 'm-teslapath', town: 'mesa', within: MESA_GOAL, text: TESLA_WORDS.path, doneText: TESLA_WORDS.pathDone, done: c => c.towers.some(t => t.kind === 'tesla' && t.path), ready: c => c.built('tesla') && c.bestWave >= TESLA_PATH_FROM, at: c => ({ tower: c.topOf('tesla') }) },
+  { id: 'm-pirate', town: 'mesa', within: MESA_GOAL, text: TESLA_WORDS.pirate, doneText: TESLA_WORDS.pirateDone, done: c => c.bestWave >= 20, ready: c => c.bestWave >= TESLA_PATH_FROM },
   { id: 'm-derrick4', town: 'mesa', within: MESA_GOAL, text: 'Tap the Oil Derrick and upgrade it to level 4', doneText: 'Oil Derrick is level 4', done: c => c.lv('derrick') >= 4, at: () => ({ plot: 'derrick' }) },
   { id: 'm-bauxite', town: 'mesa', within: MESA_GOAL, text: 'Tap the Bauxite Pit lot, then tap Build', doneText: 'Bauxite Pit built', done: c => c.lv('bauxitepit') >= 1, ready: c => c.unlocked('bauxitepit'), at: () => ({ plot: 'bauxitepit' }) },
   { id: 'm-refinery', town: 'mesa', within: MESA_GOAL, text: 'Tap the Refinery lot, then tap Build', doneText: 'Refinery built', done: c => c.lv('refinery') >= 1, ready: c => c.unlocked('refinery'), at: () => ({ plot: 'refinery' }) },

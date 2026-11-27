@@ -5,7 +5,7 @@
    Events: 'goal:done' { id, town }. */
 import { GOALS } from '../data/goals.js';
 import { unlocked, missing, cost, isOutpost } from './economy.js';
-import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall, bossOn, nextBoss } from './defense.js';
+import { towerOpen, isPit, towerAt, fitsSpot, towerCost, canPay, bossWave, atWall, bossOn, nextBoss, skyReach } from './defense.js';
 import { FOES } from '../data/foes.js';
 import { TOWERS, SELL_BACK } from '../data/towers.js';
 import { GOODS } from '../data/goods.js';
@@ -39,6 +39,8 @@ export function goalContext(game, town) {
     visited: id => !!sh.visited[id] || game.active === id,
     back: game.back, // the place the back button goes to (src/core/game.js)
     freeSpot: () => free(false), freePit: () => free(true),
+    // the free stone pad whose Tesla Coil reaches the most of the sky lane (the first free pad when there is no sky)
+    skySpot: () => { let b = null, bn = 0; for (let i = 0; i < spots.length; i++) { if (isPit(town, i) || towerAt(town, i) || !fitsSpot(town, i, 'tesla')) continue; const n = skyReach(town, i); if (n > bn) { b = i; bn = n; } } return b ?? free(false); },
     canBuild: kind => canPay(town, towerCost(town, kind)),
     // what is still missing to pay for a tower, as words that count down ("5 more coins and 3 more timber")
     shortText: kind => {
@@ -49,6 +51,7 @@ export function goalContext(game, town) {
     },
     lowTower: () => by((a, b) => a.level < b.level),
     topTower: () => by((a, b) => a.level > b.level, t => !t.path),
+    topOf: kind => by((a, b) => a.level > b.level, t => t.kind === kind && !t.path), // the highest tower of a kind with no path yet
     upTo: lvl => by((a, b) => a.level > b.level, t => t.level < lvl), // the highest tower still under that level
     // the tower whose next level costs the fewest coins: the quickest help in a fight
     wallUps: () => (town.lost && town.lost.ups) || 0, // the upgrades made at the wall since it held (RESUME_WALL)
@@ -263,6 +266,14 @@ function lockedStep(game, town, g) {
    so selling it loses almost nothing) is swapped back: "Tap the Crossbow, tap Sell, then build a Frost Lens there". */
 export const SWAP_BELOW = 5;
 /* The strip's words for these steps, pinned in test/words.test.js. */
+/* The steps to a town that needs a Capital building or its upgrades (Thunder Mesa's Rail Office). Short, with the
+   spotlight on Map showing the first tap and the Capital's label saying the same task (clarity fix 8t: "Tap Map, the
+   Capital, Buildings, then upgrade the Rail Office to open Thunder Mesa" ran to four lines on a phone). Pinned in
+   test/words.test.js. */
+export const INST_WORDS = {
+  build: (inst, verb, town) => 'Build the ' + inst + ' in the Capital to ' + verb + ' ' + town,
+  up: (inst, verb, town) => 'Upgrade the ' + inst + ' in the Capital to ' + verb + ' ' + town,
+};
 export const REBUILD_WORDS = {
   build: (pad, name) => 'Tap the ' + pad + ' and build ' + aName(name) + ' again',
   swap: (now, name) => 'Tap the ' + now + ', tap Sell, then build ' + aName(name) + ' there',
@@ -503,8 +514,8 @@ export function nextStep(game) {
   const ns = Object.entries(s.f.nodes || {}).find(([inst, n]) => nodesHeld(game, inst) < n);
   if (ns) {
     const [inst, n] = ns, iname = INSTITUTIONS.find(i => i.id === inst).name, built = capitalOpen(game) && instFounded(game, inst);
-    if (!built) return { id: 'next:' + s.id + ':inst', next: s.id, inst, text: 'Tap Map, the Capital, Buildings, then build the ' + iname + ' to ' + verb + ' ' + s.name, at: () => ({ el: '#mapBtn' }), done: () => false };
-    return { id: 'next:' + s.id + ':nodes', next: s.id, inst, text: 'Tap Map, the Capital, Buildings, then upgrade the ' + iname + ' to ' + verb + ' ' + s.name, meter: g2 => [nodesHeld(g2, inst), n], post: ' upgrades', at: () => ({ el: '#mapBtn' }), done: () => false };
+    if (!built) return { id: 'next:' + s.id + ':inst', next: s.id, inst, text: INST_WORDS.build(iname, verb, s.name), at: () => ({ el: '#mapBtn' }), done: () => false };
+    return { id: 'next:' + s.id + ':nodes', next: s.id, inst, text: INST_WORDS.up(iname, verb, s.name), meter: g2 => [nodesHeld(g2, inst), n], post: ' upgrades', at: () => ({ el: '#mapBtn' }), done: () => false };
   }
   if (from.coins + 1e-9 < s.f.coins) return { id: 'next:' + s.id + ':coins', next: s.id, text: 'Save coins to ' + verb + ' ' + s.name, need: s.f.coins, at: () => ({ el: '#coins' }), done: () => false };
   return { id: 'next:' + s.id + ':go', next: s.id, text: 'Tap Map, then tap ' + (s.id === 'capital' ? 'the Capital' : s.name) + (s.id === 'capital' ? ' to build it' : ' to start it'), at: () => ({ el: '#mapBtn' }), done: () => false };

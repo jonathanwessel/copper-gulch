@@ -24,9 +24,11 @@ export class Selection {
     this.dead.position.y = this.inner.position.y = .004;
     // the reach circles stay visible where the ground beyond the yard rises over them
     for (const m of [this.range, this.fill, this.dead, this.inner]) m.material.depthTest = false;
-    // the glow: an open cylinder, bright at the ground and fading upward, drawn additively (one mesh, one material)
+    // the glow: an open cylinder, bright at the ground and fading upward, drawn additively (one mesh, one material).
+    // Only its far wall is drawn, behind the object, so the model keeps its shape in front of the light (clarity fix 8u:
+    // with both walls a selected Tesla Coil washed out to a plain yellow ring)
     this.glowMat = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide, fog: false,
       uniforms: { uColor: { value: new THREE.Color('#ffc24a') }, uOp: { value: .5 } },
       vertexShader: 'varying float vY; void main(){ vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
       fragmentShader: 'uniform vec3 uColor; uniform float uOp; varying float vY; void main(){ float a = (1. - vY); gl_FragColor = vec4(uColor, a * a * uOp); }',

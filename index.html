@@ -434,6 +434,17 @@ html.flat .tag { position: static; transform: none !important; }
     .card .keeprow > .btn.small { min-height: 30px; }
     .cardhead { padding-bottom: 2px; }
   }
+  /* a level-10 building card at 740 and 640 by 360 ran 37 px past its room, its foreman row half under the price bar
+     (clarity fix 8u): tighter gaps, a lower head and bar, and the switch words a size smaller, so it fits whole. Only at
+     365 tall and under: at 667 by 375 it moved the cut onto Hire foreman */
+  @media (max-height: 365px) {
+    .card { gap: 3px; }
+    .cardhead { padding-top: 7px; }
+    .card > .buybar { padding-block: 2px; }
+    .card .row > .buy { min-height: 34px; }
+    .card .switchrow > .btn.switch, .card .keeprow > .btn.switch { font-size: .72rem; line-height: 1.1; }
+    .card > .stat { min-height: 28px; }
+  }
   /* the price sits beside Upgrade, not over it, so the pinned bar takes one row (2026.11.23-9: at 667x375 and 932x430
      a level-10 building card's rows sat under a two-row bar) */
   .card > .buybar:not(.pathbar) { grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; }
@@ -825,6 +836,25 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
   .coins b { font-size: 1rem; }
   .side .btn { min-width: 68px; padding: 4px 5px; font-size: .8rem; }
   #armsBtn::before, #armsBtn .btime { font-size: .64rem; } /* its clock line set the side column's width */
+}
+/* a short phone held upright (clarity fix 8u, 2026-11-27): at 375 by 667 and 360 by 640 the card under the top bar,
+   the 130 px band of map and the goods strip was about 190 px tall, its two-row price bar took half of it, and a tower's
+   upgrade choices sat below its edge. A smaller band, the price beside Upgrade in one row, and the two choices side by
+   side, so the action and the rows over it show whole (tools/short-probe.js, smoke's crowded check). */
+@media (orientation: portrait) and (max-height: 760px) {
+  .play .card { max-height: calc(100% - var(--hudtop, 10px) - 100px - max(10px, env(safe-area-inset-bottom)) - var(--striph, 0px)); gap: 6px; }
+  .card > .buybar:not(.pathbar) { grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; gap: 4px 10px; padding-block: 5px; }
+  .card > .buybar:not(.pathbar) > .costrow { margin: 0; }
+  .card > .buybar:not(.pathbar) > :not(.costrow) { grid-column: 2; grid-row: 1; }
+  .card > .buybar:not(.pathbar) > .costrow ~ :not(.row) { grid-column: 1 / -1; grid-row: auto; }
+  .card .row > .buy { min-height: 40px; padding-block: 4px; }
+  .card > .pathbar { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .card > .pathbar > .pathhead, .card > .pathbar > .pathnotes { grid-column: 1 / -1; }
+  .card > .pathbar > .pathhead > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+  .card > .pathbar > .option { display: grid; grid-template-rows: auto 1fr auto; align-items: start; gap: 4px; padding: 5px 6px; }
+  .card > .pathbar > .option > div > span { font-size: .8rem; line-height: 1.2; }
+  .card > .pathbar > .option > .btn { min-height: 32px; width: 100%; }
+  .goodstrip.narrow { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); } /* four goods a row at 360 wide */
 }
 </style>
 <script>
