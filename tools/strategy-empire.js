@@ -24,7 +24,7 @@ if (argv.includes('--one')) {
     ridgeAtCap: e.capSave ? e.capSave.final.best : null, ridgeBest: rt ? rt.bestWave : null, ridgeWave: rt ? rt.wave : null,
     log: e.fLog || [], towers: Object.entries(kinds).map(([k, v]) => k + ' ' + v.sort((a, b) => b - a).join(',')).join(' · '),
     pads: (rt ? rt.towers.length : 0) + '/' + spots, losses: rt ? (rt.breaches || 0) : null, end: g.stats.steps * .25,
-    mesaRun: toMesa && e.fallsFound != null, mesa: e.mesaFound ?? null, mHeld: e.mHeld || 0, mSigned: e.mSigned || null,
+    mesaRun: toMesa && e.fallsFound != null, mesa: e.mesaFound ?? null, mHeld: e.mHeld || 0, mPrice: e.mPriceMin ?? null, mSigned: e.mSigned || null,
     mW10: e.mesa ? e.mesa.w10 : null, mEarly: e.mesa ? e.mesa.breaches.filter(w => w <= 3) : [], fallsBest: g.towns.falls ? g.towns.falls.bestWave : null,
     mLog: (e.mLog || []).map(([hh, p, all, best]) => [hh, Math.round(p / 1e3), Math.round(all / 1e3), best]),
     mTowers: g.towns.mesa ? g.towns.mesa.towers.map(t => t.kind[0] + t.level).join(' ') : '',
@@ -50,7 +50,7 @@ const lane = async () => {
     const r = JSON.parse(line); runs.push(r);
     const half = r.log.filter(([t]) => Math.abs(t * 2 - Math.round(t * 2)) < .05).map(([t, w2, k]) => `${t}h w${w2} ${k}K`).join(' ');
     console.log(`${r.who} ${r.seed} | Dry Creek ${h(r.dc)} | Ridge ${h(r.found)} | Capital ${h(r.capital)} (Ridge best ${r.ridgeAtCap}) | Falls ${h(r.falls)} | Ridge best ${r.ridgeBest}, pads ${r.pads}, ${r.towers} | ${half}`);
-    if (r.mesaRun) console.log(`   Mesa ${h(r.mesa)} (Falls best ${r.fallsBest}, charter ${r.mSigned ? h(r.mSigned.at) + ' w' + r.mSigned.wave : 'none'}, held ${Math.round(r.mHeld / 60)} min) | wave 10 ${r.mW10 == null ? 'never' : (r.mW10 / 60).toFixed(1) + ' min'} | breaches 1-3 ${r.mEarly.join(',') || 'none'} | ${r.mTowers} | each hour ${r.mLog.map(([hh, p, all, b]) => hh + 'h ' + p + 'K ' + all + 'K/min w' + b).join(', ')}`);
+    if (r.mesaRun) console.log(`   Mesa ${h(r.mesa)} (Falls best ${r.fallsBest}, charter ${r.mSigned ? h(r.mSigned.at) + ' w' + r.mSigned.wave : 'none'}, held ${Math.round(r.mHeld / 60)} min${r.mPrice == null ? '' : ' of a ' + Math.round(r.mPrice) + ' min price'}) | wave 10 ${r.mW10 == null ? 'never' : (r.mW10 / 60).toFixed(1) + ' min'} | breaches 1-3 ${r.mEarly.join(',') || 'none'} | ${r.mTowers} | each hour ${r.mLog.map(([hh, p, all, b]) => hh + 'h ' + p + 'K ' + all + 'K/min w' + b).join(', ')}`);
   }
 };
 await Promise.all(Array.from({ length: lanes }, lane));
@@ -79,6 +79,9 @@ for (const r of rows) {
   for (const x of runs.filter(y => y.who === r.w && y.mesa != null)) {
     if (x.mW10 == null || x.mW10 < W10[0] * 60 || x.mW10 > W10[1] * 60) misses.push(`${r.w} ${x.seed}: Mesa wave 10 at ${x.mW10 == null ? 'never' : (x.mW10 / 60).toFixed(1) + ' min'} (want ${W10.join('-')})`);
     if (x.mEarly.length) misses.push(`${r.w} ${x.seed}: the Mesa breached in waves ${x.mEarly.join(',')}`);
+    // the Mesa's save holds at most twice its price over the income when it started, plus 10 minutes for a short price
+    // (the long Mesa saves box, 2026.11.26-10: the Ridge's and Sandy Bend's foremen spent 52-87 minute saves)
+    if (x.mPrice != null && x.mHeld / 60 > 2 * x.mPrice + 10) misses.push(`${r.w} ${x.seed}: the Mesa save held ${Math.round(x.mHeld / 60)} min for a price of ${Math.round(x.mPrice)} min of income (want at most twice, plus 10)`);
   }
 }
 console.log(misses.length ? misses.map(m => 'FAIL ' + m).join('\n') : 'ok');

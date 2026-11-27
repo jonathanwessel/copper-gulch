@@ -755,7 +755,10 @@ export function empire(seed, strategy = 'active', { ridgeMinutes = RIDGE_MINUTES
     if (foundCapital(g)) {
       out.capital = now(); out.capHeld = out.capSave.saving === undefined ? 0 : out.capSave.until - out.capSave.saving;
       setHold(g, rt, false); for (const x of Object.values(g.towns)) for (const id of Object.keys(x.foremen || {})) setForeman(x, id, true);
-      const c = capitalOf(g), pick = out.pick = capitalPick(g, out, now, others), tr = out.tree, at = () => now() - out.capital;
+      // every town but the one in play, read each tick: the list from when the Capital opened left out Iron Ridge (in play
+      // then), Silver Falls and Sandy Bend, so their foremen spent the Mesa's save (2026.11.26-10: held 52-87 min against
+      // about 27 min of price; tools/mesa-road.js already passed this)
+      const c = capitalOf(g), pick = out.pick = capitalPick(g, out, now, t => Object.values(g.towns).filter(x => x !== t)), tr = out.tree, at = () => now() - out.capital;
       const nextInst = () => TREE_ORDER.find(id => !founded(g, id));
       const ts = (t, r) => { const n = nextInst(); return !!n && foundBlock(g, n) === 'coins' && foundCost(g) <= TREE_SAVE_MINUTES * (r.all || 0); };
       play(seed, CAP_PLAY, strategy, null, { game: g, sign: false, goals: true, save: ts, tick: pick });
@@ -811,6 +814,10 @@ export function toMesa(seed, g, strategy, out, now, { log = null, saveMinutes = 
   let hour = Math.ceil(now() / 3600 + 1e-9);
   const tick = (g2, t, r) => {
     r.noInst = !!r.savingNow; out.pick(g2, t, r); fallsTick(t, imp);
+    // what every town earns, read each minute of the save: the price over its median is the save's fair length, and a save
+    // held over twice that is traced (the long Mesa saves box). Not the first reading: minmax seed 6 began its save on a
+    // minute of 319K a minute, then earned a steady 120K, so a 25-minute save read as a 7-minute price.
+    if (r.savingNow && Math.round(t.t) % 60 === 0 && r.all > 0) (out.mRates ||= []).push(r.all);
     // a player saving for the Mesa stops raising the makers in other towns (2026.11.26-6: on seed 3 they took 40M of a
     // 3M save over six hours)
     if (!r.savingNow && Math.round(t.t) % 60 === 0) tendImports(g2, t, imp);
@@ -822,6 +829,7 @@ export function toMesa(seed, g, strategy, out, now, { log = null, saveMinutes = 
   out.mSave = play(seed, Math.max(1, MESA_MAX - now() / 60), strategy, null, { game: g, sign: short() > 0, signAt: Math.max(1, short()), goals: true, save: ms, tick, until: () => canFound(g, 'mesa') });
   out.mSigned = out.mSave.signed ? { at: now() - (g.towns.falls.t - out.mSave.signed.at), deeds: out.mSave.signed.deeds, wave: out.mSave.signed.wave } : null;
   out.mImports = imp;
+  if (out.mRates && out.mRates.length) { const a = out.mRates.slice().sort((x, y) => x - y); out.mPriceMin = F.coins / a[a.length >> 1]; }
   if (!canFound(g, 'mesa')) { out.mesaFound = null; return; }
   out.mesaFound = now(); out.mHeld = out.mSave.saving === undefined ? 0 : out.mSave.until - out.mSave.saving;
   foundTown(g, 'mesa');
