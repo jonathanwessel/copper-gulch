@@ -49,16 +49,21 @@ const GradeShader = {
    an 8-bit target already tone mapped and in screen colors (the target says it is an XR target, which is the one case
    where three.js does that), then one full-screen triangle blurs only across edges: four corner reads find the edge's
    direction, flat areas stop there, and edges take two or four reads along it. On the software GPU in tools/perf.js
-   multisampling ran the fragment shader for every sample and cost a third of the frame; this is one cheap pass. */
+   multisampling ran the fragment shader for every sample and cost a third of the frame; this is one cheap pass.
+   The five reads that find an edge land on whole pixels, so they are texelFetch reads: a filtered read costs four
+   fetches on a software GPU even at a pixel's middle (perf headroom box, 2026.11.27-5). Only the reads along an
+   edge, which fall between pixels, blend. */
 const FxaaShader = {
   uniforms: { tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uPx; varying vec2 vUv;
     const vec3 L = vec3(.299, .587, .114);
+    vec3 at(ivec2 p, ivec2 e) { return texelFetch(tDiffuse, clamp(p, ivec2(0), e), 0).rgb; }
     void main(){
-      vec3 nw = texture2D(tDiffuse, vUv + vec2(-1., -1.) * uPx).rgb, ne = texture2D(tDiffuse, vUv + vec2(1., -1.) * uPx).rgb;
-      vec3 sw = texture2D(tDiffuse, vUv + vec2(-1., 1.) * uPx).rgb, se = texture2D(tDiffuse, vUv + vec2(1., 1.) * uPx).rgb;
-      vec3 m = texture2D(tDiffuse, vUv).rgb;
+      ivec2 p = ivec2(gl_FragCoord.xy), edge = textureSize(tDiffuse, 0) - 1;
+      vec3 nw = at(p + ivec2(-1, -1), edge), ne = at(p + ivec2(1, -1), edge);
+      vec3 sw = at(p + ivec2(-1, 1), edge), se = at(p + ivec2(1, 1), edge);
+      vec3 m = at(p, edge);
       float lnw = dot(nw, L), lne = dot(ne, L), lsw = dot(sw, L), lse = dot(se, L), lm = dot(m, L);
       float lo = min(lm, min(min(lnw, lne), min(lsw, lse))), hi = max(lm, max(max(lnw, lne), max(lsw, lse)));
       if (hi - lo < max(.0833, hi * .166)) { gl_FragColor = vec4(m, 1.); return; }
@@ -81,7 +86,9 @@ export function makeSky(top = '#5f93c8', mid = '#f0c99a', bot = '#c9905e') {
     fragmentShader: 'uniform vec3 top, mid, bot; varying vec3 vP; void main(){ float h = vP.y; vec3 c = h > 0. ? mix(mid, top, smoothstep(0., .5, h)) : mix(mid, bot, smoothstep(0., .2, -h)); gl_FragColor = vec4(c, 1.); }',
   });
   const m = new THREE.Mesh(new THREE.SphereGeometry(90, 24, 12), mat);
-  m.frustumCulled = false; m.renderOrder = -1;
+  // drawn after the rest of the solid world, so the ground in front of it hides most of the dome before it is shaded
+  // (it was drawn first, under everything: a whole screen of sky shaded and then covered; perf headroom box, 2026.11.27-5)
+  m.frustumCulled = false; m.renderOrder = 1e6;
   return m;
 }
 

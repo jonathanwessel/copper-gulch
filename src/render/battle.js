@@ -8,7 +8,8 @@
    flight time while a red ring on the ground closes in on where it will land; Shrapnel's burning ground is drawn from
    the town's fires, one pooled disc each. */
 import * as THREE from 'three';
-import { makeFoe, makeTower } from '../assets/models/units.js';
+import { makeTower } from '../assets/models/units.js';
+import { FoeBatches } from './foe-batch.js';
 import { part, mergeStatic } from './kit.js';
 import { lanesOf, speedOf } from '../core/defense.js';
 import { isPitSpot, laneDefs, laneHides } from '../data/towns/index.js';
@@ -22,9 +23,8 @@ import { padFooting, blobMesh } from './dress.js';
 const _up = new THREE.Vector3(0, 1, 0), FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
 
 const towerKey = t => t.kind + (t.path || '') + (t.fork || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
-const barGeo = new THREE.PlaneGeometry(1, 1), _q = new THREE.Quaternion();
-const barBack = new THREE.MeshBasicMaterial({ color: '#1d120c', depthTest: false, transparent: true });
-const barFill = new THREE.MeshBasicMaterial({ color: '#f07067', depthTest: false, transparent: true });
+const BAR_BACK = new THREE.Color('#1d120c'), BAR_FILL = new THREE.Color('#f07067');
+const _bx = new THREE.Vector3(), _bo = new THREE.Vector3();
 const FX = {
   bolt: new THREE.MeshBasicMaterial({ color: '#ffe6b0' }),
   ball: new THREE.MeshStandardMaterial({ color: '#2b2830', metalness: .6, roughness: .4 }),
@@ -72,6 +72,18 @@ export class Battle {
     // a soft shadow under each raider, drawn over the road (which pulls itself toward the camera too)
     this.blobs = blobMesh(FOE_BLOBS, .8); this.blobs.material.polygonOffsetFactor = -6; this.blobs.renderOrder = 1;
     this.blobs.count = 0; this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.group.add(this.blobs);
+    // every hurt raider's health bar in one draw call: a dark back and its red fill as two copies each, drawn far to
+    // near so a nearer bar lies over a farther one, as the separate meshes did (perf headroom box, 2026.11.27-5: two
+    // draw calls a raider, 50 of them in a busy Mesa wave)
+    this.bars = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, transparent: true }), FOE_BLOBS * 2);
+    this.bars.material.userData.own = true;
+    this.bars.name = 'bars'; this.bars.frustumCulled = false; this.bars.renderOrder = 5; this.bars.count = 0;
+    this.bars.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    for (let i = 0; i < FOE_BLOBS * 2; i++) this.bars.setColorAt(i, i % 2 ? BAR_FILL : BAR_BACK);
+    this.group.add(this.bars); this.barList = [];
+    // every kind of raider drawn in batches, one draw call a part for all raiders of the kind (src/render/foe-batch.js);
+    // every kind is built now, so the warm-up draws each one and no first raider builds a shader mid-wave
+    this.foeBatches = new FoeBatches(this.group, Object.keys(FOES), FOE_BLOBS); this.foeList = [];
     this.shadowMoved = false;
     // a stone pad on every spot, merged into one mesh (a tap on a pad finds its spot through the ground: board.spotAt)
     const B = this.town.def.board;
@@ -176,8 +188,6 @@ export class Battle {
      first time it draws, so the set is also drawn once, in front of the camera, into a tiny target nobody sees. */
   warm(renderer, scene, cam, target = null) {
     const tmp = new THREE.Group(); this.group.add(tmp);
-    for (const k of Object.keys(FOES)) tmp.add(makeFoe(k));
-    tmp.add(new THREE.Mesh(barGeo, barBack), new THREE.Mesh(barGeo, barFill));
     const fx = Object.keys(KINDS).map(k => this.add(k, { life: 0 }, []));
     const ahead = cam.getWorldDirection(new THREE.Vector3()).multiplyScalar(3).add(cam.position);
     tmp.position.copy(this.group.worldToLocal(ahead));
@@ -206,6 +216,22 @@ export class Battle {
     this.group.remove(tmp);
   }
 
+  /* The health bars of every hurt raider in sight, facing the camera: a back (the bar's full width plus a rim) and the
+     fill from its left end, as wide as the health left. */
+  drawBars(cam) {
+    const list = this.barList; list.length = 0;
+    for (const u of this.foes.values()) if (u.obj.visible && u.hp < .999) { u.camD = u.obj.position.distanceToSquared(cam.position); list.push(u); }
+    list.sort((a, b) => b.camD - a.camD); // far first, so a nearer bar draws over it
+    let n = 0;
+    for (const u of list) {
+      if (n >= FOE_BLOBS * 2) break;
+      const k = u.obj.scale.x, r = u.hp, at = _bp.copy(u.obj.position); at.y += u.barY * k;
+      _bm.compose(at, cam.quaternion, _bs.set((u.w + .06) * k, .1 * k, k)); this.bars.setMatrixAt(n++, _bm);
+      _bo.copy(at).add(_bx.set(-u.w * (1 - r) / 2 * k, 0, .001 * k).applyQuaternion(cam.quaternion));
+      _bm.compose(_bo, cam.quaternion, _bs.set(Math.max(1e-4, u.w * r) * k, .06 * k, k)); this.bars.setMatrixAt(n++, _bm);
+    }
+    this.bars.count = n; this.bars.visible = n > 0; if (n) this.bars.instanceMatrix.needsUpdate = true;
+  }
   /* alpha: how far the clock is into the next step (0-1); steps: the game's step count, to see when it moved. */
   update(dt, t, cam, alpha = 1, steps = 0) {
     const ws = this.town.waves, alive = new Set(), moved = steps !== this.steps;
@@ -214,13 +240,11 @@ export class Battle {
       alive.add(f.id);
       let u = this.foes.get(f.id);
       if (!u) {
-        const obj = makeFoe(f.kind), boss = FOES[f.kind].boss, w = boss ? 1.1 : .55;
-        const back = new THREE.Mesh(barGeo, barBack), fill = new THREE.Mesh(barGeo, barFill), bar = new THREE.Group();
-        back.scale.set(w + .06, .1, 1); fill.scale.set(w, .06, 1); fill.position.z = .001; bar.add(back, fill); bar.position.y = boss ? 1.25 : 1.05; bar.renderOrder = 5;
-        back.renderOrder = fill.renderOrder = 5; obj.add(bar);
+        const obj = this.foeBatches.make(f.kind), boss = FOES[f.kind].boss, w = boss ? 1.1 : .55;
         if (boss) obj.scale.setScalar(1.4);
         obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); // a soft shadow under it instead (foeBlobs), on every tier
-        this.group.add(obj); u = { obj, bar, fill, w, boss, phase: Math.random() * 6, s0: f.s, s1: f.s }; this.foes.set(f.id, u);
+        // the bar's height over the raider's feet (in the raider's own size, so a boss's sits higher), drawn by this.bars
+        this.group.add(obj); u = { obj, barY: boss ? 1.25 : 1.05, hp: 1, w, boss, phase: Math.random() * 6, s0: f.s, s1: f.s }; this.foes.set(f.id, u);
       }
       if (moved) { u.s0 = u.s1; u.s1 = f.s; }
       const s = u.s0 + (u.s1 - u.s0) * alpha;
@@ -247,16 +271,18 @@ export class Battle {
       }
       if (d.legs) d.legs.forEach((l, i) => { l.rotation.x = Math.sin(u.phase + i * Math.PI) * .6 * walk; });
       if (d.wheels) for (const w of d.wheels) w.children[0].rotation.z -= dt * 4 * walk;
-      const r = Math.max(0, f.hp / f.max); u.fill.scale.x = u.w * r; u.fill.position.x = -u.w * (1 - r) / 2;
-      u.bar.quaternion.copy(cam.quaternion).premultiply(_q.copy(u.obj.quaternion).invert());
-      u.bar.visible = r < .999;
+      u.hp = Math.max(0, f.hp / f.max);
     }
     for (const id of this.staged) { // a burst of dust at the boss as its stage starts
       const u = this.foes.get(id); if (!u || this.fx.length > 110) continue;
       const p = this.add('trail', { life: .8, grow: 1.1, op: .8 }); p.mesh.position.set(u.obj.position.x, u.obj.userData.air ? u.obj.position.y : .3, u.obj.position.z);
     }
     this.staged.length = 0;
-    for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); disposeTree(u.obj); this.foes.delete(id); }
+    // a raider's tree holds no geometry of its own (its kind's batches do), so it is only taken away
+    for (const [id, u] of this.foes) if (!alive.has(id)) { this.group.remove(u.obj); this.foes.delete(id); }
+    this.foeList.length = 0; for (const u of this.foes.values()) this.foeList.push(u.obj);
+    this.foeBatches.draw(this.foeList);
+    this.drawBars(cam);
     // a soft round shadow under every raider in sight, in one draw call, so raiders need no sun shadow (that redrew the
     // shadow map every frame of a wave: Room on the Silver Falls script gate, 2026.11.21-4)
     let nb = 0;

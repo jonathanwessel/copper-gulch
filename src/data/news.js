@@ -3,6 +3,13 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-5',
+    lines: [
+      'Big waves run smoother on phones, above all in Thunder Mesa and Silver Falls.',
+      'Raiders and their health bars look the same, but take far less work to draw.',
+    ],
+  },
+  {
     v: '2026.11.27-4',
     lines: [
       'Cards on phones are taller, so you see every switch and both upgrade choices.',

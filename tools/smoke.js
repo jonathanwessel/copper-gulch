@@ -277,11 +277,25 @@ async function run() {
         for (let i = 0; i < 40 && ![...v.battle.foes.values()].some(u => u.obj.visible); i++) await wait(100);
         const seen = [...v.battle.foes.values()].filter(u => u.obj.visible).length;
         let cast = 0; for (const u of v.battle.foes.values()) u.obj.traverse(o => { if (o.isMesh && o.castShadow) cast++; });
+        // raiders are drawn in batches (src/render/foe-batch.js): no batch casts a sun shadow either
+        for (const e of v.battle.foeBatches.kinds.values()) for (const m of e.parts) if (m.castShadow) cast++;
+        // and every visible part of every visible raider is in its batch, where the raider's own node stands
+        const fb = v.battle.foeBatches; fb.draw([...v.battle.foes.values()].map(u => u.obj));
+        let want = 0, placed = 0; const at = new v.view.cam.position.constructor(), q = new v.view.cam.position.constructor(), mm = v.view.cam.matrixWorld.clone();
+        for (const u of v.battle.foes.values()) {
+          if (!u.obj.visible) continue; const e = fb.kinds.get(u.obj.userData.kind);
+          const walk = o => { if (!o.visible) return; const p = o.userData.part; if (p !== undefined) { want++; at.setFromMatrixPosition(o.matrixWorld); const m = e.parts[p];
+            for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, mm); if (q.setFromMatrixPosition(mm).distanceTo(at) < 1e-3) { placed++; break; } } } for (const c of o.children) walk(c); };
+          walk(u.obj);
+        }
+        const batched = { want, placed, ...fb.stats() };
         const d0 = v.shadowDraws, f0 = v.frames; await wait(1000); const rate = (v.shadowDraws - d0) / Math.max(1, v.frames - f0);
         const t = CG.game.town, d1 = v.shadowDraws; t.buildings.camp = (t.buildings.camp || 0) + 1; await wait(700);
-        return { seen, blobs: v.battle.blobs.count, cast, auto: sm.autoUpdate, rate: +rate.toFixed(2), redrawn: v.shadowDraws > d1 };
+        return { seen, batched, blobs: v.battle.blobs.count, cast, auto: sm.autoUpdate, rate: +rate.toFixed(2), redrawn: v.shadowDraws > d1 };
       });
       if (shade.seen && shade.blobs < shade.seen) bad.push('a raider has no soft shadow under it: ' + JSON.stringify(shade));
+      // perf headroom box (2026.11.27-5): raiders drawn in batches must all be drawn, each part where its raider is
+      if (shade.seen && (!shade.batched.want || shade.batched.placed < shade.batched.want || shade.batched.parts < shade.batched.want)) bad.push('a raider part is not drawn where its raider is: ' + JSON.stringify(shade.batched));
       // tapping a raider (owner, 2026-11-22): a real tap on a moving raider opens its card with its name and health, the
       // ring follows it, and the game keeps running
       const foeTap = await page.evaluate(async () => {
@@ -292,6 +306,10 @@ async function run() {
         for (let i = 0; i < 80 && !p; i++) {
           for (const k of v.battle.foes.keys()) { const q = v.projectFoe(k); if (q && q.x > 20 && q.x < cv.clientWidth - 20 && q.y > 20 && q.y < cv.clientHeight - 20) { id = k; p = q; break; } }
           if (!p) await wait(100);
+          // in landscape the first raiders of wave 1 walk a stretch of road under the screen's foot, and on a busy machine
+          // none came up in time (seen in four runs, 2026.11.26-27): after 3 seconds the map slides to one, as a player's
+          // finger would
+          if (!p && i === 30) { const k = [...v.battle.foes.keys()].find(z => v.battle.foes.get(z).obj.visible); if (k !== undefined) v.bring({ foe: k }, cv.clientWidth / 2, cv.clientHeight / 2); }
         }
         if (!p) return { none: true, phase: t.waves.phase, wave: t.wave, foes: t.waves.foes.length, q: t.waves.queue.length, at: [...v.battle.foes.keys()].slice(0, 4).map(k => { const q = v.projectFoe(k); return q ? Math.round(q.x) + ',' + Math.round(q.y) : 'x'; }), cam: [v.rig.t.x, v.rig.t.z, v.rig.t.dist].map(x => +(+x).toFixed(1)) };
         const rc = cv.getBoundingClientRect(), x = rc.left + p.x + 4, y = rc.top + p.y + 3; // a little off its middle, as a finger is
