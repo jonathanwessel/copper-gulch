@@ -65,9 +65,10 @@ export function pickFoe(cam, el, board, battle, clientX, clientY) {
   let best = null, bd = Infinity;
   for (const [id, u] of battle.foes) {
     if (!u.obj.visible) continue;
-    const p = u.obj.position, s = project(cam, el, _f.set(p.x, p.y + (u.boss ? .7 : .4), p.z));
+    // an airship's middle is its gas bag, and it is drawn long, so it is found from farther (part 2b)
+    const air = !!u.obj.userData.air, p = u.obj.position, s = project(cam, el, _f.set(p.x, p.y + (u.boss ? .7 : air ? .55 : .4), p.z));
     if (!s) continue;
-    const near = u.boss ? FOE_NEAR * 1.6 : FOE_NEAR, d = Math.hypot(s.x - x, s.y - y) / near;
+    const near = u.boss ? FOE_NEAR * 1.6 : air ? FOE_NEAR * 1.3 : FOE_NEAR, d = Math.hypot(s.x - x, s.y - y) / near;
     if (d <= 1 && d < bd) { bd = d; best = { id, u, px: d * near }; }
   }
   if (!best) return null;

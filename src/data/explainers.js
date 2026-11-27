@@ -485,6 +485,12 @@ export const EXPLAINERS = [
     when: h => !!h.flags['open:tesla'], at: h => ({ spot: h.freePad ?? Object.values(h.kinds)[0] ?? 0 }),
   },
   {
+    id: 'airship', town: 'mesa', now: true, covers: ['sky'],
+    title: 'Airships',
+    text: 'An airship is flying over your town. Only a Tesla Coil can hit it. Each airship that gets in takes 2 hits off your vault. Tap an airship to see its health.',
+    when: h => h.airOut != null, at: h => (h.airOut != null ? { foe: h.airOut } : null),
+  },
+  {
     id: 'sb-welcome', town: 'sandybend', now: 1, covers: ['welcome:sandybend'],
     title: 'Welcome to Sandy Bend',
     text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',

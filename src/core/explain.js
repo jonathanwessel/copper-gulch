@@ -141,7 +141,7 @@ export function explainVault(town) {
   ex.left = Math.max(0, Math.ceil(town.vault.hp));
   ex.mend = mendHits(town); // hits back for each wave beaten, as the battle gives them
   const boss = (town.def && town.def.boss) || 'wagon';
-  ex.raiders = Object.entries(FOES).filter(([k, f]) => (!f.boss || k === boss) && (!f.only || (FOES[boss].stages || []).some(st => st.drop === k)) && (!f.water || !!(town.def.board && town.def.board.river))).map(([k, f]) => ({ kind: k, label: f.name, hits: f.leak }));
+  ex.raiders = Object.entries(FOES).filter(([k, f]) => (!f.boss || k === boss) && (!f.only || (FOES[boss].stages || []).some(st => st.drop === k)) && (!f.water || !!(town.def.board && town.def.board.river)) && (!f.air || !!(town.def.board && town.def.board.sky))).map(([k, f]) => ({ kind: k, label: f.name, hits: f.leak }));
   return ex;
 }
 

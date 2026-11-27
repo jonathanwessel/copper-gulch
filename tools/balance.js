@@ -18,7 +18,7 @@ import { GOALS } from '../src/data/goals.js';
 import { goalNow, goalContext } from '../src/core/goals.js';
 import { build, cost, unlocked, missing, output, uses, buildingsOf, isOutpost, gridOf, onGrid, isGrid } from '../src/core/economy.js';
 import { price as marketPrice } from '../src/core/market.js';
-import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, forkNext, forkOf, hurtFactor, foeStatus } from '../src/core/defense.js';
+import { RUSH, rushOf, setHold, bestFactor, oldGround, buildTower, upgradeTower, towerCost, towerStats, canPay, towerAt, towerOpen, fitsSpot, roadOf, isPit, callEarly, bossWave, wavesOf, lanesOf, airWave, forkNext, forkOf, hurtFactor, foeStatus } from '../src/core/defense.js';
 import { pointAt, dist } from '../src/core/path.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { GOODS } from '../src/data/goods.js';
@@ -28,7 +28,7 @@ import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, want
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
-import { TOWNS } from '../src/data/towns/index.js';
+import { TOWNS, laneDefs } from '../src/data/towns/index.js';
 import { canFound, foundTown, nodesHeld } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, capitalOf, takeContract, spareRate as capSpare } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
@@ -55,18 +55,42 @@ let CALL = !process.argv.includes('--no-call');
 export const setCall = on => { CALL = on; };
 const SPACING = 1.1; // about how far apart raiders ride, in world units
 
+/* Each lane's share of a wave's raiders, in the order of lanesOf: every boatEvery-th raider rides the river, every
+   airEvery-th flies the sky once airships come (airWave; Thunder Mesa from M6b part 2b), the rest ride the road. */
+export function laneShares(town, w = town.wave) {
+  const keys = laneDefs(town.def.board).map(l => l.key), W = wavesOf(town);
+  const boat = keys.includes('river') ? 1 / (W.boatEvery || 3) : 0, air = keys.includes('sky') && airWave(town, w) ? 1 / W.airEvery : 0;
+  return keys.map(k => (k === 'river' ? boat : k === 'sky' ? air : 1 - boat - air));
+}
+/* The sky lane (part 2b): only a tower that reaches the sky hits airships, and nothing else stops one, so a careful
+   player counts the sky a tower covers AIR_NEED times its share of the wave, and more while airships get through: times
+   1 + AIR_LEAK x the share of the last waves' airships that reached the vault (skyLeak), which a player sees happen.
+   (A guess from standing below read 95% with one Tesla Coil where 30-40% got through, and built a second Tesla before
+   wave 10 on every seed, which put the Mesa's wave 10 at 9.2-9.3 minutes.) */
+export let AIR_NEED = 1, AIR_LEAK = 15;
+/* Airships seen reaching each town's vault: { flew, got } per wave, fading by AIR_FADE a wave (play() fills it). */
+const AIR_SEEN = new WeakMap(), AIR_FADE = .7;
+export function seeAir(town, what) {
+  const a = AIR_SEEN.get(town) || { flew: 0, got: 0 };
+  if (what === 'wave') { a.flew *= AIR_FADE; a.got *= AIR_FADE; } else a[what]++;
+  AIR_SEEN.set(town, a);
+}
+export function skyLeak(town) { const a = AIR_SEEN.get(town); return a && a.flew > .5 ? a.got / a.flew : 0; }
 /* Road units inside a ring [lo, hi] around a spot (memoized per board: spot numbers repeat across towns, and a run
    that played Iron Ridge first used to read the Ridge's numbers for the Gulch's pads). A river town counts the river
-   too, each lane weighted by the share of raiders that ride it (every boatEvery-th raider comes by boat). */
+   too, each lane weighted by the share of raiders that ride it (every boatEvery-th raider comes by boat), and a town
+   with a sky counts the sky lane only for a tower that reaches it (air), AIR_NEED times. */
 const COVER = new WeakMap();
-export function cover(town, spot, lo, hi) {
-  const b = town.def.board, key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2);
+export function cover(town, spot, lo, hi, air = false) {
+  const b = town.def.board, shares = laneShares(town), need = air && b.sky ? AIR_NEED * (1 + AIR_LEAK * skyLeak(town)) : 0;
+  const key = spot + ':' + lo.toFixed(2) + ':' + hi.toFixed(2) + ':' + (air ? 1 : 0) + ':' + shares.map(x => x.toFixed(3)).join(',') + ':' + need.toFixed(2);
   if (!COVER.has(b)) COVER.set(b, new Map());
   const m = COVER.get(b);
   if (!m.has(key)) {
-    const lanes = lanesOf(town), p = b.spots[spot], boat = lanes.length > 1 ? 1 / (wavesOf(town).boatEvery || 3) : 0; let n = 0;
+    const lanes = lanesOf(town), keys = laneDefs(b).map(l => l.key), p = b.spots[spot]; let n = 0;
     lanes.forEach((r, i) => {
-      const w = lanes.length > 1 ? (i ? boat : 1 - boat) : 1;
+      const w = keys[i] === 'sky' ? shares[i] * need : shares[i];
+      if (!(w > 0)) return;
       for (let s = 0; s <= r.length; s += .1) { const d = dist(p, pointAt(r, s)); if (d >= lo && d <= hi) n += .1 * w; }
     });
     m.set(key, n);
@@ -106,8 +130,9 @@ export function along(town, spot, lo, hi) {
 export let STAND_FLOOR = .02, STAND_EFF = 6;
 const STAND = new WeakMap(), STEP_S = .25;
 /* The coming wave's raider on a lane: its health and speed, by the wave kinds open at wave w (boats on the river). */
-function laneFoe(town, w, river) {
-  if (river) return { hp: wavesOf(town).hp(w) * FOES.boat.hp, speed: FOES.boat.speed };
+function laneFoe(town, w, lane = 'road') {
+  if (lane === 'river') return { hp: wavesOf(town).hp(w) * FOES.boat.hp, speed: FOES.boat.speed };
+  if (lane === 'sky') return { hp: wavesOf(town).hp(w) * FOES.airship.hp, speed: FOES.airship.speed };
   let n = 0, hp = 0, sp = 0;
   for (const T of Object.values(WAVE_TYPES)) if (w >= T.from) for (const [k, c] of Object.entries(T.mix)) if (w >= FOES[k].from && !FOES[k].water) { n += c; hp += c * FOES[k].hp * (T.hp || 1); sp += c * FOES[k].speed; }
   return n ? { hp: wavesOf(town).hp(w) * hp / n, speed: sp / n } : { hp: wavesOf(town).hp(w), speed: 1 };
@@ -115,11 +140,12 @@ function laneFoe(town, w, river) {
 function standing(town) {
   const w = town.wave + 2, key = w + ':' + town.towers.map(t => t.spot + t.kind + t.level + (t.path || '') + (t.fork || '')).join(','), got = STAND.get(town);
   if (got && got.key === key) return got.lanes;
-  const b = town.def.board, share = {}, lanes = lanesOf(town).map((r, li) => {
-    const n = Math.floor(r.length / STEP_S) + 1, hits = new Float64Array(n), pts = [], foe = laneFoe(town, w, li > 0);
+  const b = town.def.board, keys = laneDefs(b).map(l => l.key), share = {}, lanes = lanesOf(town).map((r, li) => {
+    const n = Math.floor(r.length / STEP_S) + 1, hits = new Float64Array(n), pts = [], foe = laneFoe(town, w, keys[li]);
     for (let i = 0; i < n; i++) pts.push(pointAt(r, i * STEP_S));
     for (const t of town.towers) {
       const st = towerStats(town, t), p = b.spots[t.spot], lo = st.minRange || 0, inside = [];
+      if (keys[li] === 'sky' && !st.air) continue; // only a tower that reaches the sky wears down airships
       for (let i = 0; i < n; i++) { const d = dist(p, pts[i]); if (d >= lo && d <= st.range) inside.push(i); }
       if (!inside.length) continue;
       share[t.kind] ??= hitShare(town, t.kind, w);
@@ -134,10 +160,11 @@ function standing(town) {
   return lanes;
 }
 export function standShare(town, spot, lo, hi) {
-  const p = town.def.board.spots[spot], all = standing(town), boat = all.length > 1 ? 1 / (wavesOf(town).boatEvery || 3) : 0;
+  const p = town.def.board.spots[spot], all = standing(town), shares = laneShares(town), keys = laneDefs(town.def.board).map(l => l.key);
   let n = 0, up = 0;
   all.forEach((L, li) => {
-    const w = all.length > 1 ? (li ? boat : 1 - boat) : 1;
+    // a slow reaches only the raiders on the ground: the slowing towers never reach the sky
+    const w = keys[li] === 'sky' ? 0 : shares[li];
     L.pts.forEach((q, i) => { const d = dist(p, q); if (d >= lo && d <= hi) { n += w; up += w * L.up[i]; } });
   });
   return n ? up / n : 1;
@@ -216,7 +243,7 @@ export let PULSE_CAP = 4;
 export let ARC_HITS = .8, ROD_SHARE = .92;
 export const arcGain = (n, fall) => { let g = 1; for (let j = 1; j <= n; j++) g += ARC_HITS * fall ** j; return g; };
 /* For tools/fork-runs.js --sets: try a worth number without editing this file. */
-export const tune = (k, v) => { if (k === 'archits') ARC_HITS = v; if (k === 'rod') ROD_SHARE = v; if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; if (k === 'standfloor') STAND_FLOOR = v; if (k === 'standeff') STAND_EFF = v; if (k === 'stand') STAND_ON = !!v; };
+export const tune = (k, v) => { if (k === 'airneed') AIR_NEED = v; if (k === 'airleak') AIR_LEAK = v; if (k === 'archits') ARC_HITS = v; if (k === 'rod') ROD_SHARE = v; if (k === 'slowextra') SLOW_EXTRA = v; if (k === 'alone') ALONE_SLOW = v; if (k === 'pulsecap') PULSE_CAP = v; if (k === 'pline') PIERCE_LINE = v; if (k === 'sharpboss') SHARP_BOSS = v; if (k === 'sharpcover') SHARP_COVER = v; if (k === 'sharpfrom') SHARP_FROM = v; if (k === 'hits') ROCKET_HITS = v; if (k === 'hurtat') HURT_AT = v; if (k === 'rotlives') ROT_LIVES = v; if (k === 'hurtbase') HURT.base = v; if (k === 'hurtgain') HURT.gain = v; if (k === 'standfloor') STAND_FLOOR = v; if (k === 'standeff') STAND_EFF = v; if (k === 'stand') STAND_ON = !!v; };
 /* standShare in worth, off by default and on with --stand (or tune('stand', 1)). 2026.11.26-3: on, it took the
    active bot's late Falls Frost share from 35% to 25-32%, and every try tipped a gate of a weaker player, who leans on
    a slow by the vault to stop breaches (min-max's Silver Falls 29% behind against 25%, idle's later hours under 90%,
@@ -257,7 +284,7 @@ export function worth(town, t, support = true) {
   if (st.poison) dps += st.poison * ahead(town, t.kind, town.wave, true) * Math.min(1, st.rate * POISON_SECONDS) * targets(st.cloud) / share; // past armor
   if (st.slow) dps *= 1 + (slowPart + far) * 2; // slowed raiders take longer to pass every tower
   if (st.fire) dps *= 1.35;
-  let w = dps * cover(town, t.spot, st.minRange, st.range);
+  let w = dps * cover(town, t.spot, st.minRange, st.range, st.air);
   // a slowing tower also gives the towers around it more time to shoot
   if (st.slow && support) for (const o of town.towers) if (o.spot !== t.spot && o.kind !== t.kind && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += (slowPart + far) * .5 * worth(town, o, false);
   // poison eats armor: the towers around it land more on armored raiders (its own hit is left out, as a careful guess)
@@ -418,6 +445,11 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
   r.lastAge = 1; r.calls = 0;
   on('wave:clear', e => { if (mine(e)) r.lastAge = t.waves.age / wavesOf(t).pace; });
   on('leak', e => { if (!mine(e)) return; if (r.leakAt !== t.wave) r.bump += .5; r.leakAt = t.wave; });
+  // airships seen getting through or falling, in every town of the game (skyLeak)
+  const ship = e => { const x = g.towns[e.town], f = x && x.waves.foes.find(y => y.id === e.foe); return f && FOES[f.kind].air ? x : null; };
+  on('leak', e => { const x = ship(e); if (x) { seeAir(x, 'flew'); seeAir(x, 'got'); } });
+  on('kill', e => { const x = e.kind && FOES[e.kind] && FOES[e.kind].air ? g.towns[e.town] : null; if (x) seeAir(x, 'flew'); });
+  on('wave:start', e => { const x = g.towns[e.town]; if (x && x.def.board && x.def.board.sky) seeAir(x, 'wave'); });
   on('breach', e => { if (mine(e) && e.why === 'boss') r.bossLost = (r.bossLost || 0) + 1; });
   on('wave:clear', e => { if (mine(e) && bossWave(t, e.wave)) r.bossLost = 0; });
   on('wave:clear', e => {

@@ -8,13 +8,14 @@
 // try skips the empire run (--fresh runs it again).
 import fs from 'node:fs';
 import path from 'node:path';
-import { empire, playFalls } from './balance.js';
+import { empire, playFalls, tune } from './balance.js';
 import { loadGame } from '../src/core/setup.js';
 import { encode, decode } from '../src/core/save.js';
 import { foundTown, canFound } from '../src/core/empire.js';
 import { TOWNS } from '../src/data/towns/index.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
+if (arg('airneed') != null) tune('airneed', +arg('airneed')); if (arg('airleak') != null) tune('airleak', +arg('airleak')); // the sky lane's weight in the bots' guess (part 2b)
 const SEED = +arg('seed', 1), MINUTES = +arg('minutes', 20), STRATEGY = arg('strategy', 'active');
 const snapFile = path.join('.checks', 'mesa-snap-' + SEED + '.json');
 let g;
@@ -37,8 +38,12 @@ g.shared.charter.deeds = Math.max(g.shared.charter.deeds, F.deeds || 0); // the 
 if (!canFound(g, 'mesa')) { console.log('cannot found the Mesa'); process.exit(1); }
 foundTown(g, 'mesa'); g.go('mesa');
 // playFalls times wave 10 from the Falls' own clock; the Mesa's starts at 0 when it is founded
+// the sky lane (part 2b): count the airships that fly and the ones that reach the vault
+const air = { flew: 0, leaked: 0, fell: 0 }, emit = g.bus.emit.bind(g.bus);
+g.bus.emit = (type, e) => { if (e && e.town === 'mesa') { if (type === 'kill' && e.kind === 'airship') air.fell++; if (type === 'leak') { const f = g.towns.mesa.waves.foes.find(x => x.id === e.foe); if (f && f.kind === 'airship') air.leaked++; } } return emit(type, e); };
 const m = g.towns.mesa, from = m.t, r = playFalls(SEED, g, STRATEGY, MINUTES, null);
 r.w10 = r.wave10 == null ? null : r.wave10 - from;
 const w10 = r.w10 == null ? 'never' : (r.w10 / 60).toFixed(1) + ' min';
 console.log(`seed ${SEED} ${STRATEGY}: Mesa wave 10 at ${w10} (want 7-9), breaches in waves 1-3: ${r.breaches.filter(w => w <= 3).join(',') || 'none'}, all breaches ${r.breaches.join(',') || 'none'}, best wave ${m.bestWave} after ${MINUTES} min`);
+console.log(`  airships: ${air.fell} brought down, ${air.leaked} reached the vault`);
 console.log(`  towers ${m.towers.map(t => t.kind[0] + t.level).join(' ')}, buildings ${TOWNS.mesa.buildings.filter(b => m.level(b)).map(b => b + ' ' + m.level(b)).join(', ')}`);

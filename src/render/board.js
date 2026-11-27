@@ -104,6 +104,8 @@ export class Board {
     this.vault = town.def.store === 'stockpile' ? makeStockpile() : makeVault(1); this.vault.position.set(B.vault[0], 0, B.vault[1]); this.vault.rotation.y = 0; this.group.add(this.vault);
     // where the raiders come from (every lane has one; see src/assets/models/entrances.js)
     this.entrances = gates.map(e => new Entrance(this, e));
+    // the sky lane's cloud bank (part 2b)
+    if (B.sky && B.sky.entrance) this.entrances.push(new Entrance(this, { ...B.sky.entrance, height: B.sky.height }, true));
     this.entrance = this.entrances[0] || null;
     // smoke puffs: one instanced mesh for the whole board
     this.puffs = []; this.smokeT = 0;

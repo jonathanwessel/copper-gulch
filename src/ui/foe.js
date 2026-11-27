@@ -87,7 +87,7 @@ export function foeCard(card, town, f, { store = 'vault', onClose = () => {} } =
   const fx = el('div', 'foefx'), worth = el('p', 'uses', v0.worth);
   // the tower that hits it hardest, as a labeled row like Health and Armor (review of 2026.11.22-12)
   const best = el('div', 'foestat best');
-  best.append(el('span', 'flabel', BEST_LABEL), el('b', null, v0.best.tower || ''));
+  best.append(el('span', 'flabel', v0.best.label || BEST_LABEL), el('b', null, v0.best.tower || ''));
   card.append(head, hp.row);
   if (ar) card.append(ar.row);
   card.append(fx, ...(v0.best.tower ? [best] : []), worth); // no row when no tower hits it harder

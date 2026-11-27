@@ -240,5 +240,20 @@ export const ENTRANCES = {
     k.box(mx + 1.5, 0, tz - .6, .1, .5, .1, 'woodD'); k.box(mx - 1.5, 0, tz - .5, .1, .4, .1, 'woodD'); // the stumps of the legs
     return { obj: k.build({ cast: true }), plume: [mx, 2, pz - 1.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
+  /* Thunder Mesa's sky lane: a storm cloud bank hanging off the board's corner, where the airships wait. Puffs of white
+     over a dark gray belly, piled from the mouth back toward the portal, around the lane's height (e.height), and a
+     cloud swell in place of dust before a wave that brings airships. It floats, so it never sinks for the camera
+     (nocut), and it has no shade on the ground. */
+  cloud: e => {
+    const k = new Kit({ ao: false }), R = rng(97), [mx, mz] = e.mouth, [px, pz] = e.portal, y = e.height || 1.7, half = e.width / 2;
+    // soft round puffs, white on top and gray lower down, piled higher toward the back, over a flat dark storm belly
+    for (let i = 0; i < 26; i++) {
+      const t = R(), x = mx + (px - mx) * t + (R() - .5) * e.width * 1.3, z = mz + (pz - mz) * t + (R() - .5) * e.width * 1.1;
+      const r = .4 + R() * .45 + t * .4, up = (R() - .25) * .8 + t * .5;
+      k.ball(x, y + up, z, r, up > .35 ? '#e8ebf1' : up > 0 ? '#c9cfd9' : '#9ea7b4', { det: 1, sy: .7 });
+    }
+    for (let i = 0; i < 7; i++) { const t = i / 6; k.ball(mx + (px - mx) * t + (R() - .5) * half, y - .35, mz + (pz - mz) * t + (R() - .5) * half, .75 + R() * .3, '#596270', { det: 1, sy: .3 }); }
+    return { obj: k.build({ cast: false }), plume: [mx + (px - mx) * .4, y + .3, mz + (pz - mz) * .4], shade: null, nocut: true, color: '#eef0f4' };
+  },
 };
 function rocks(k, x, z, c1, c2, n, r, seed) { const R = rng(seed); for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; k.dode(x + Math.cos(a) * d, .05 + R() * .08, z + Math.sin(a) * d, .1 + R() * .14, R() < .5 ? c1 : c2, { ry: R() * 3, sy: .7 + R() * .4 }); } }

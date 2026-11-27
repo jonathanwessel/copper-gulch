@@ -4,6 +4,9 @@
    wagon, Iron Ridge: the armored train, Silver Falls: the ironclad steamer, the outposts: the smaller bandit wagon).
    water: it rides the river (lane 1) in a town that has one; a town with a river sends every waves.boatEvery-th raider
    by boat.
+   air: it flies the sky lane (board.sky) in a town that has one, over everything: only a tower that reaches the sky
+   (TOWERS[kind].air, the Tesla Coil) can hit it, and no blast, cloud or fire on the ground does (canHit in
+   src/core/defense.js). A town with a sky sends every waves.airEvery-th raider by air from waves.airFrom.
    stages: a boss changes as it is hurt (owner, 2026-11-22: "the stage the boss was in, for example when the crew got
    off the war wagon"). Each stage starts once its health falls to `at` of its most: it drops `n` raiders of kind
    `drop` beside it (their health from the wave's, like any raider), its pace becomes `speed` times its own, and its
@@ -24,6 +27,8 @@ export const FOES = {
   train:  { name: 'Armored train', hp: 19, speed: .75, bounty: 35, leak: 10, armor: .4, from: 10, boss: true,
     stages: [{ at: .5, key: 'plates', speed: 1.15, armor: .15 }] },
   boat:   { name: 'Riverboat', hp: 2.2, speed: .85, bounty: 2, leak: 2, armor: .2, from: 1, water: true },
+  // the airship (M6b part 2b): a gas bag over a gondola of raiders, slow, and too high for every tower but the Tesla Coil
+  airship: { name: 'Airship', hp: 1.6, speed: .8, bounty: 2, leak: 2, armor: 0, from: 1, air: true },
   steamer: { name: 'Ironclad steamer', hp: 18, speed: .62, bounty: 40, leak: 10, armor: .45, from: 10, boss: true, water: true,
     stages: [{ at: 1 / 3, key: 'steam', speed: 1.1 }] },
 };

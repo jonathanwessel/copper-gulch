@@ -3,6 +3,14 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.26-11',
+    lines: [
+      'Airships now raid Thunder Mesa after wave 10. They fly out of the storm clouds over the town to your vault.',
+      'Only a Tesla Coil can hit an airship. Each airship that gets in takes 2 hits off your vault.',
+      'Tap an airship to see its health. Its shadow shows where it flies.',
+    ],
+  },
+  {
     v: '2026.11.26-10',
     lines: [
       'Thunder Mesa has a new tower, the Tesla Coil. It opens at wave 4. Its spark hits up to 3 raiders close together.',

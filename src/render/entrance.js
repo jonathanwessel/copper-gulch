@@ -3,19 +3,21 @@
    merged by material, the shade is one quad, and the plume is one instanced mesh. Reads the town; never changes it. */
 import * as THREE from 'three';
 import { ENTRANCES } from '../assets/models/entrances.js';
-import { bossWave } from '../core/defense.js';
+import { bossWave, airWave } from '../core/defense.js';
 
 const CUT = .3; // how tall an entrance's walls stand (of full height) when they would hide the board
 const MAX = 40, WARN = 6, AFTER = 3; // puffs in the plume; seconds before a wave it starts, and after it stops
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
 export class Entrance {
-  constructor(board, e = board.def.entrance) {
+  /* sky: the sky lane's cloud bank (part 2b), which swells only before a wave that brings airships. */
+  constructor(board, e = board.def.entrance, sky = false) {
     const make = ENTRANCES[e.kind];
+    this.sky = sky;
     this.town = board.town; this.group = new THREE.Group(); this.group.name = 'entrance';
     const built = make({ ...e, mesa: board.def.look && board.def.look.mesa });
     built.obj.traverse(o => { o.renderOrder = -1; }); // drawn before the ground, so the ground under it is skipped
-    this.group.add(built.obj); this.obj = built.obj; this.cut = 1;
+    this.group.add(built.obj); this.obj = built.obj; this.cut = 1; this.nocut = !!built.nocut;
     // the way the entrance runs, out from the board (mouth toward portal): seen from that side or across, its walls
     // would hide the road and the pads beside it, so they sink (cutaway) until the camera looks in from the board
     const [mx, mz] = e.mouth, [px, pz] = e.portal || [mx, mz - 1], L = Math.hypot(px - mx, pz - mz) || 1;
@@ -32,7 +34,7 @@ export class Entrance {
     }
     this.at = new THREE.Vector3(...built.plume);
     this.puffs = []; this.emit = 0;
-    this.plume = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: '#c99a68', emissive: '#4a3220', flatShading: true, transparent: true, opacity: .82, depthWrite: false }), MAX);
+    this.plume = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: built.color || '#c99a68', emissive: built.color ? '#6a7080' : '#4a3220', flatShading: true, transparent: true, opacity: .82, depthWrite: false }), MAX);
     this.plume.material.userData.own = true;
     this.plume.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.plume.count = 0; this.plume.frustumCulled = false; this.plume.castShadow = false;
     this.plume.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 3), 3);
@@ -43,6 +45,7 @@ export class Entrance {
   cue() {
     const t = this.town, ws = t.waves;
     if (!ws) return 0;
+    if (this.sky && !airWave(t, t.wave)) return 0; // no airships in this wave: the clouds stay still
     const boss = bossWave(t, t.wave) ? 2 : 1;
     if (ws.phase === 'break') return ws.timer < WARN && !ws.hold ? boss : 0; // held waves do not come
     return this.since < AFTER ? boss : 0; // the first seconds of the wave
@@ -53,7 +56,7 @@ export class Entrance {
     return CUT + (1 - CUT) * Math.min(1, Math.max(0, (k - .45) / .4));
   }
   update(dt, view = null) {
-    if (view) {
+    if (view && !this.nocut) {
       const h = this.height(view.yaw);
       this.cut += (h - this.cut) * (1 - Math.pow(.02, dt));
       const y = Math.round(this.cut * 200) / 200;

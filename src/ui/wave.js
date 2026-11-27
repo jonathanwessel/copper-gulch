@@ -4,7 +4,7 @@
    has its picture and the tower that hits it hardest (review of 2026.11.19-14). */
 import { FOES, WAVE_TYPES } from '../data/foes.js'; // WAVE_TYPES: which raiders a wave can bring
 import { TOWERS } from '../data/towers.js';
-import { bossWave, wavesOf, towerOpen } from '../core/defense.js';
+import { bossWave, wavesOf, towerOpen, airWave } from '../core/defense.js';
 import { drawFoe } from '../art/foes.js';
 import { WON_LINE, clock } from './state.js';
 
@@ -52,7 +52,13 @@ export function bestTower(town, kind) {
 export const BEST_LABEL = 'Weak to';
 /* tower null when no tower hits it harder, and then the row is left out (review of 2026.11.23-7: "Best tower · Any" was
    flagged both as an empty row in 2026.11.20-3 and as filler, so by the twice-flagged rule it goes). */
-export const bestView = (town, kind) => { const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null }; };
+/* An air raider (the airship, part 2b) names the only towers that reach it, the one thing a player tapping it needs
+   (fresh-eyes read of 2026.11.26-11: its card said "No effects" and its coins, not that). */
+export const AIR_LABEL = 'Hit only by';
+export const bestView = (town, kind) => {
+  if (FOES[kind] && FOES[kind].air) return { label: AIR_LABEL, tower: Object.keys(TOWERS).filter(k => TOWERS[k].air).map(k => TOWERS[k].name).join(', ') || null };
+  const b = bestTower(town, kind); return { label: BEST_LABEL, tower: b ? TOWERS[b].name : null };
+};
 export const bestLine = (town, kind) => { const v = bestView(town, kind); return v.tower ? v.label + ' · ' + v.tower : ''; };
 
 /* The raiders card's lead line during a wave: how many are on the road and how many are still to come out. */
@@ -81,6 +87,7 @@ export function waveInfo(town) {
   for (const [t, T] of Object.entries(WAVE_TYPES)) if (w >= T.from && (t === 'mixed' || w >= 4)) for (const k of Object.keys(T.mix)) if (w >= FOES[k].from) kinds.add(k);
   if (!kinds.size) kinds.add('raider');
   if (wavesOf(town).boatEvery && town.def.board && town.def.board.river) kinds.add('boat');
+  if (airWave(town, w)) kinds.add('airship');
   if (bossWave(town, w)) kinds.add(boss);
   return { lines, kinds: [...kinds].map(kind => ({ kind, n: null })), can: true };
 }

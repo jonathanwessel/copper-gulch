@@ -22,13 +22,15 @@ export const ROAD_CHECK = async () => {
   const W = cv.clientWidth, H = cv.clientHeight, E = C.ROAD_EDGE || 14;
   const top = Math.max(...[...document.querySelectorAll('.hud .hudleft, .hud .hudright')].map(n => n.getBoundingClientRect().bottom));
   const strip = document.getElementById('goodsStrip'), low = strip && !strip.hidden ? strip.getBoundingClientRect().top : H;
-  const V = v.cam.position.constructor, lanes = D.lanesOf(t), B = t.def.board, hides = [(B.entrance && B.entrance.hide) || 0, (B.river && B.river.entrance && B.river.entrance.hide) || 0];
+  const V = v.cam.position.constructor, lanes = D.lanesOf(t), B = t.def.board, T = await import('./src/data/towns/index.js'), hides = T.laneHides(B);
+  // each lane's own hide, and the sky lane (part 2b) at the height its airships fly
+  const ys = T.laneDefs(B).map(l => (l.key === 'sky' ? (B.sky.height || 1.7) + .3 : .3));
   const out = [], side = [], up = [];
   lanes.forEach((L, i) => {
     let n = 0, on = 0, sd = 0, tp = 0;
     const from = hides[i] || 0;
     for (let s = from; s <= L.length; s += .1) {
-      const [x, z] = P.pointAt(L, s), q = new V(x, .3, z).project(v.cam), p = { x: (q.x + 1) / 2 * W, y: (1 - q.y) / 2 * H };
+      const [x, z] = P.pointAt(L, s), q = new V(x, ys[i], z).project(v.cam), p = { x: (q.x + 1) / 2 * W, y: (1 - q.y) / 2 * H };
       const inX = p.x >= E && p.x <= W - E, inY = p.y >= top && p.y <= low;
       n++; if (inX && inY) on++; if (!inX) sd++; else if (!inY) tp++;
     }

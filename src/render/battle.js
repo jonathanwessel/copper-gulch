@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { makeFoe, makeTower } from '../assets/models/units.js';
 import { part, mergeStatic } from './kit.js';
 import { lanesOf, speedOf } from '../core/defense.js';
-import { isPitSpot } from '../data/towns/index.js';
+import { isPitSpot, laneDefs, laneHides } from '../data/towns/index.js';
 import { polyDist } from './terrain.js';
 import { bridgeLift } from './board.js';
 import { pointAt } from '../core/path.js';
@@ -19,7 +19,7 @@ import { FOES } from '../data/foes.js';
 import { FIRE } from '../data/towers.js';
 import { disposeTree } from './board.js';
 import { padFooting, blobMesh } from './dress.js';
-const FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
+const _up = new THREE.Vector3(0, 1, 0), FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
 
 const towerKey = t => t.kind + (t.path || '') + (t.fork || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
 const barGeo = new THREE.PlaneGeometry(1, 1), _q = new THREE.Quaternion();
@@ -63,7 +63,9 @@ export class Battle {
     this.river = this.town.def.board.river ? this.town.def.board.river.path : null; // raiders cross it on bridges (its path only: the leg into the vault lifted raiders by the vault, 2026-11-22)
     const B0 = this.town.def.board;
     this.roadPts = [...B0.road, B0.vault]; // the road as points, for the steamer's stack (the lanes are path objects) // raiders stay hidden inside their lane's entrance
-    this.hideS = [(B0.entrance && B0.entrance.hide) || 0, (B0.river && B0.river.entrance && B0.river.entrance.hide) || 0];
+    this.hideS = laneHides(B0);
+    // what each lane is (road, river, sky): boats bob on the water, airships fly at the sky lane's height (part 2b)
+    this.laneKeys = laneDefs(B0).map(l => l.key); this.skyY = (B0.sky && B0.sky.height) || 1.7;
     this.pads = []; this.towers = new Map(); this.foes = new Map(); this.fx = []; this.pool = {}; this.steps = -1;
     // a soft shadow under each raider, drawn over the road (which pulls itself toward the camera too)
     this.blobs = blobMesh(FOE_BLOBS, .8); this.blobs.material.polygonOffsetFactor = -6; this.blobs.renderOrder = 1;
@@ -134,7 +136,7 @@ export class Battle {
       return;
     }
     if (e.chain) { // the Tesla Coil: a jagged spark from the ball to each raider in turn (two legs a jump, bent at a point beside the line)
-      const at = id => { const v = this.foes.get(id); return v ? new THREE.Vector3(v.obj.position.x, .4, v.obj.position.z) : null; };
+      const at = id => { const v = this.foes.get(id); return v ? new THREE.Vector3(v.obj.position.x, v.obj.position.y + (v.obj.userData.air ? .35 : .4), v.obj.position.z) : null; };
       let a = new THREE.Vector3(fx, 1.05, fz);
       e.chain.forEach((id, j) => {
         const b = at(id) || new THREE.Vector3(e.pts[j][0], .4, e.pts[j][1]), m = a.clone().lerp(b, .5), side = ((id * 7 + j * 3) % 5 - 2) * .06;
@@ -223,10 +225,11 @@ export class Battle {
       const lane = this.lanes[f.lane || 0] || this.lanes[0], [x, z] = pointAt(lane, s), [x2, z2] = pointAt(lane, s + .3);
       // up the bridge and over (a comment here once swallowed the next two statements, so from 2026.11.19 raiders never
       // turned along the road and showed inside their entrance: review of 2026.11.20-10)
-      u.obj.position.set(x, f.lane ? -.05 + Math.sin(t * 2.2 + u.phase) * .015 : this.river ? bridgeLift(polyDist(x, z, this.river).d) : 0, z);
+      const key = this.laneKeys[f.lane || 0];
+      u.obj.position.set(x, key === 'sky' ? this.skyY + Math.sin(t * 1.3 + u.phase * .1) * .06 : key === 'river' ? -.05 + Math.sin(t * 2.2 + u.phase) * .015 : this.river ? bridgeLift(polyDist(x, z, this.river).d) : 0, z);
       u.obj.rotation.y = Math.atan2(x2 - x, z2 - z); u.obj.visible = s >= this.hideS[f.lane || 0];
       // the steamer folds its stack back to pass under a bridge
-      if (u.obj.userData.stack) { const want = f.lane && polyDist(x, z, this.roadPts).d < 1.3 ? -1.35 : 0, st = u.obj.userData.stack; st.rotation.x += (want - st.rotation.x) * Math.min(1, dt * 5); }
+      if (u.obj.userData.stack) { const want = key === 'river' && polyDist(x, z, this.roadPts).d < 1.3 ? -1.35 : 0, st = u.obj.userData.stack; st.rotation.x += (want - st.rotation.x) * Math.min(1, dt * 5); }
       const walk = f.frozenT > 0 ? 0 : (f.slowT > 0 ? .5 : 1), d = u.obj.userData;
       u.phase += dt * 9 * walk * speedOf(f);
       // a boss shows its stage: the crew gone from the wagon, the plates off the train, steam from the steamer's stack
@@ -254,8 +257,9 @@ export class Battle {
     let nb = 0;
     for (const u of this.foes.values()) {
       if (!u.obj.visible || nb >= FOE_BLOBS) continue;
-      const w = u.boss ? 1.7 : .95;
-      _bm.compose(_bp.set(u.obj.position.x, Math.max(0, u.obj.position.y) + .04, u.obj.position.z), _bq, _bs.set(w, 1, w)); this.blobs.setMatrixAt(nb++, _bm);
+      const air = !!u.obj.userData.air, w = u.boss ? 1.7 : air ? 1.25 : .95;
+      // an airship's shadow lies on the ground far under it, long like its gas bag (part 2b)
+      _bm.compose(_bp.set(u.obj.position.x, air ? .04 : Math.max(0, u.obj.position.y) + .04, u.obj.position.z), _bq.setFromAxisAngle(_up, u.obj.rotation.y), _bs.set(air ? w * .6 : w, 1, air ? w * 1.4 : w)); this.blobs.setMatrixAt(nb++, _bm);
     }
     this.blobs.count = nb; this.blobs.visible = nb > 0; if (nb) this.blobs.instanceMatrix.needsUpdate = true;
     // towers turn toward their last target; shadowMoved: a tower head turned or a tower rose, so its shadow moved

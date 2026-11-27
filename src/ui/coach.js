@@ -15,8 +15,8 @@ import { unlocked } from '../core/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { charterOffered, perksToPick } from '../core/charter.js';
 import { isOutpost } from '../core/economy.js';
-import { towerIn, normalTowers, crowdOf, forkNext, foeStatus } from '../core/defense.js';
-import { isPitSpot } from '../data/towns/index.js';
+import { towerIn, normalTowers, crowdOf, forkNext, foeStatus, lanesOf } from '../core/defense.js';
+import { isPitSpot, laneHides, laneIndex } from '../data/towns/index.js';
 import { bossName } from './lost.js';
 import { tabs, dots } from '../core/reveal.js';
 import { nextTowns } from '../core/empire.js';
@@ -43,11 +43,20 @@ export function helper(town, game = null) {
     towerCount: normalTowers(town),
     // a raider out of its entrance, for the raider card's explainer: one with an effect on it when there is one
     foeOut: (() => {
-      const B = town.def && town.def.board, hide = [(B && B.entrance && B.entrance.hide) || 0, (B && B.river && B.river.entrance && B.river.entrance.hide) || 0];
+      const B = town.def && town.def.board, hide = B ? laneHides(B) : [0];
       const out = (ws.foes || []).filter(f => f.hp > 0 && f.s > hide[f.lane || 0] + 1.5);
       if (!out.length) return null;
       const fx = out.find(f => foeStatus(town, f).effects.length);
       return { id: (fx || out[0]).id, fx: !!fx };
+    })(),
+    // an airship out of its cloud bank (part 2b), for the airship's explainer: the one nearest the middle of its lane,
+    // over the middle of the town (the one just out of the clouds sits under the side buttons on a phone, and one by the
+    // vault at the board's edge, where the map cannot slide it clear of the goods strip in landscape), or null
+    airOut: (() => {
+      const B = town.def && town.def.board, hide = B ? laneHides(B) : [0];
+      const out = (ws.foes || []).filter(x => x.hp > 0 && FOES[x.kind] && FOES[x.kind].air && x.s > hide[x.lane || 0] + 1.5);
+      const half = out.length ? lanesOf(town)[laneIndex(B, 'sky')].length / 2 : 0, mid = s => Math.abs(s - half);
+      return out.length ? out.reduce((a, b) => (mid(b.s) < mid(a.s) ? b : a)).id : null;
     })(),
     // a building whose workers are out on the road (Call to arms), for the workers' card explainer
     workerOut: town.arms && town.arms.t > 1 ? (militia(town)[0] || {}).id || null : null,
@@ -133,13 +142,16 @@ export function startCoach({ game, town, root, locate = () => null, pause = () =
   function freeArea(p) {
     const ui = document.getElementById('play-ui'), top = ui ? parseFloat(getComputedStyle(ui).getPropertyValue('--hudtop')) || 0 : 0;
     const c = card.getBoundingClientRect(), m = 48;
-    const foot = c.height && c.top > innerHeight / 2 ? c.top : innerHeight; // a card left at the top from the last one is no floor
+    // a card left at the top from the last one is no floor; the goods strip at the foot is one (fresh-eyes read of
+    // 2026.11.26-11: in landscape the airship's box lay under the strip, the card at the side)
+    const gs = document.getElementById('goodsStrip'), gt = gs && !gs.hidden && gs.offsetParent !== null ? gs.getBoundingClientRect().top : innerHeight;
+    const foot = Math.min(gt, c.height && c.top > innerHeight / 2 ? c.top : innerHeight);
     // a short wide screen has no room for the card under a spotlight, so the card goes to the side (place, side) and the
     // free part is the side of the screen the spotlight is already on, the card on the other (clarity fix 8l: in landscape
     // the vault mid-screen sent the card over the top bar, and the map could not slide the vault, at the board's edge,
     // to the left)
     const cw = card.offsetWidth + 32, right = p && p.x > innerWidth / 2;
-    if (innerWidth > innerHeight && innerHeight - card.offsetHeight - 32 < Math.max(top, 0) + 2 * m + 96 && innerWidth - cw > 2 * m + 96) return { l: right ? cw + m : m, r: right ? innerWidth - m : innerWidth - cw - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, innerHeight - m) };
+    if (innerWidth > innerHeight && innerHeight - card.offsetHeight - 32 < Math.max(top, 0) + 2 * m + 96 && innerWidth - cw > 2 * m + 96) return { l: right ? cw + m : m, r: right ? innerWidth - m : innerWidth - cw - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, Math.min(innerHeight, gt) - m) };
     return { l: m, r: innerWidth - m, t: Math.max(top, 0) + m, b: Math.max(Math.max(top, 0) + 2 * m + 1, foot - m) };
   }
   function place() {

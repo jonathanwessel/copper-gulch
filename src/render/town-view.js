@@ -7,6 +7,7 @@ import { saveQuality, autoQuality } from './quality.js';
 import { Board } from './board.js';
 import { CameraRig, ROAD_STEP } from './camera.js';
 import { lanesOf } from '../core/defense.js';
+import { laneHides } from '../data/towns/index.js';
 import { pointAt } from '../core/path.js';
 import { Battle } from './battle.js';
 import { Selection } from './select.js';
@@ -52,7 +53,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
       const tg = selection.target, B = town.def.board;
       if (!tg) return;
       // a raider: the map slides only when it walks under the card, so its ring stays in sight (it never chases it)
-      if (tg.foe !== undefined) { const u = battle.foes.get(tg.foe); if (u) rig.keep({ x: u.obj.position.x, y: .4, z: u.obj.position.z }, 'f' + tg.foe, 0); return; }
+      if (tg.foe !== undefined) { const u = battle.foes.get(tg.foe); if (u) rig.keep({ x: u.obj.position.x, y: u.obj.position.y + .4, z: u.obj.position.z }, 'f' + tg.foe, 0); return; }
       // a building's workers by the road: kept clear of the card like a raider (smoke, 2026.11.22-11: a worker target
       // fell through to the pads and threw every frame)
       if (tg.worker !== undefined) { const p = board.militia.points().find(q => q.id === tg.worker); if (p) rig.keep({ x: p.x, y: .3, z: p.z }, 'w' + tg.worker, 0); return; }
@@ -61,6 +62,8 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     },
     /* Slide the map so a tip card's target ({ plot }, { spot }, { tower } or { vault }) lands on screen point (x, y). */
     bring(tg, x, y) {
+      // a raider (an airship coming out of the clouds under the side buttons, part 2b): where it is drawn now
+      if (tg.foe !== undefined) { const u = battle.foes.get(tg.foe); return !!u && rig.slideTo({ x: u.obj.position.x, y: u.obj.position.y + .4, z: u.obj.position.z }, x, y); }
       const B = town.def.board, at = tg.vault ? B.vault : tg.plot ? B.plots[tg.plot] : B.spots[tg.spot !== undefined ? tg.spot : tg.tower];
       return !!at && rig.slideTo({ x: at[0], y: tg.plot || tg.vault ? .6 : .3, z: at[1] }, x, y);
     },
@@ -81,9 +84,13 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
     fxDrawn: kind => battle.drawn[kind] || 0,
     projectPoint: (x, y, z) => project(v.cam, canvas, new THREE.Vector3(x, y, z), size),
     /* Where each raider on the road is drawn on screen (client pixels), for the level pills that step aside for them. */
-    foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, .45, u.obj.position.z), size); if (p) out.push(p); } return out; },
+    foePoints: () => { const out = []; for (const u of battle.foes.values()) if (u.obj.visible) { const p = project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + .45, u.obj.position.z), size); if (p) out.push(p); } return out; },
     /* Where a raider is drawn on screen, or null when it is gone or hidden in its entrance. */
-    projectFoe: id => { const u = battle.foes.get(id); return u && u.obj.visible ? project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + (u.boss ? .7 : .4), u.obj.position.z), size) : null; },
+    projectFoe: id => { const u = battle.foes.get(id); return u && u.obj.visible ? project(v.cam, canvas, _a.set(u.obj.position.x, u.obj.position.y + (u.boss ? .7 : u.obj.userData.air ? .55 : .4), u.obj.position.z), size) : null; },
+    /* How a raider is drawn: its height, whether it shows, and whether it flies (smoke: airships at the sky lane's height). */
+    foeDrawn: id => { const u = battle.foes.get(id); return u ? { y: u.obj.position.y, visible: u.obj.visible, air: !!u.obj.userData.air, shadows: battle.blobs.count } : null; },
+    /* The lanes' entrances drawn on this board (smoke: the sky lane's cloud bank). */
+    entrances: () => board.entrances.map(e => ({ sky: !!e.sky, puffs: e.puffs.length })),
     /* Where a building's workers stand on screen while they are called to arms, or null. */
     projectWorker: id => { const p = board.militia.points().find(q => q.id === id); return p ? project(v.cam, canvas, _a.set(p.x, .3, p.z), size) : null; },
     projectSpot: i => { const [x, z] = town.def.board.spots[i], tw = town.towers.find(t => t.spot === i); return project(v.cam, canvas, new THREE.Vector3(x, tw ? 1.25 : .3, z), size); },
@@ -136,7 +143,7 @@ export function startTownView(canvas, game, { onTap = () => {}, onFrame = () => 
 
 /* Points along each lane, every ROAD_STEP units, from where its raiders come out of the entrance to the vault. */
 export function roadPoints(town) {
-  const B = town.def.board, hide = [(B.entrance && B.entrance.hide) || 0, (B.river && B.river.entrance && B.river.entrance.hide) || 0], out = [];
+  const B = town.def.board, hide = laneHides(B), out = [];
   lanesOf(town).forEach((L, i) => { for (let s = hide[i] || 0; s <= L.length; s += ROAD_STEP) out.push(pointAt(L, s)); });
   return out;
 }

@@ -10,7 +10,7 @@ import { root } from './serve.js';
 import { shellFiles } from './bump-version.js';
 import { GOODS } from '../src/data/goods.js';
 import { BUILDINGS } from '../src/data/buildings.js';
-import { TOWNS, TOWN_ORDER, isPitSpot } from '../src/data/towns/index.js';
+import { TOWNS, TOWN_ORDER, isPitSpot, laneDefs } from '../src/data/towns/index.js';
 import { FORKS, TOWERS, PATHS, NORMAL_REACH } from '../src/data/towers.js';
 import { makePath, pointAt, dist } from '../src/core/path.js';
 import { FOES } from '../src/data/foes.js';
@@ -159,6 +159,7 @@ export function requiredFeatures() {
   for (const t of TOWN_ORDER) f.add('welcome:' + t);                                  // every town says hello
   for (const x of Object.values(FOES)) if (x.boss) f.add(x === FOES.wagon ? 'boss' : 'boss:' + Object.keys(FOES).find(k => FOES[k] === x));
   if (Object.keys(PATHS).length) f.add('path');
+  if (TOWN_ORDER.some(t => TOWNS[t].board && TOWNS[t].board.sky)) f.add('sky'); // a town with a sky lane teaches its airships (part 2b)
   for (const k of Object.keys(FORKS)) f.add(k === 'still' ? 'fork' : 'fork:' + k); // the second fork at level 20, one card per kind
   if (Object.values(FOES).some(x => x.boss)) f.add('boss');
   return [...f];
@@ -309,7 +310,7 @@ export function mapRules(towns = TOWNS, order = TOWN_ORDER) {
     if (!b) continue;
     // every lane has a real entrance, with a builder in the entrance models
     const builders = read('src/assets/models/entrances.js');
-    for (const [lane, e] of [['road', b.entrance], ...(b.river ? [['river', b.river.entrance]] : [])]) {
+    for (const { key: lane, entrance: e } of laneDefs(b)) {
       if (!e || !e.kind) p.push(id + ': the ' + lane + ' has no entrance');
       else if (!new RegExp('^\\s+' + e.kind + ':\\s*\\(?\\w*\\)?\\s*=>', 'm').test(builders)) p.push(id + ': no model for the entrance "' + e.kind + '"');
     }

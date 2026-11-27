@@ -70,7 +70,10 @@ export class Selection {
     const u = this.battle.foes.get(id);
     this.group.visible = !!u; // gone: its card says so, and the ring goes
     if (!u) return;
-    this.group.position.set(u.obj.position.x, Math.max(0, u.obj.position.y) + .035, u.obj.position.z);
+    // an airship (part 2b): the ring goes round the airship itself in the sky (fresh-eyes read of 2026.11.26-11: a ring on
+    // its shadow read as picking the road), and the glow rises to it
+    const air = !!u.obj.userData.air;
+    this.group.position.set(u.obj.position.x, Math.max(0, u.obj.position.y) + (air ? .3 : .035), u.obj.position.z);
     this.square.visible = false; this.ring.visible = true;
     this.range.visible = this.fill.visible = this.dead.visible = this.inner.visible = false; this.reach = 0;
     const big = u.boss ? 1.5 : 1, s = big * (1 + pulse * .08);

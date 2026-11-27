@@ -1872,6 +1872,95 @@ async function run() {
     failed += bad.length ? 1 : 0;
   } finally { await bT.close(); srvT.close(); }
 
+  // The sky lane (M6b part 2b): in Thunder Mesa an airship flies out of the cloud bank at the sky lane's height with
+  // its shadow on the ground, stays on screen at the home view, and a real tap on it opens its raider card with the
+  // ring under it; the cloud bank swells before a wave with airships. Copper Gulch has no sky and no cloud bank.
+  const srvS = await start(0), bS = await chromium.launch();
+  try {
+    const bad = [], stressed = [];
+    for (const [name, vp] of Object.entries({ phone: [400, 860], land: [860, 400] })) for (const town of ['mesa', 'gulch']) {
+      const page = await bS.newPage({ viewport: { width: vp[0], height: vp[1] } }), errs = [];
+      page.on('pageerror', e => errs.push(e.message));
+      await page.goto(srvS.url + '?coach=off&start=' + town); await waitFor(page, () => window.CG && CG.ready);
+      await page.evaluate(() => { const ok = document.getElementById('newsOk'); if (ok) ok.click(); localStorage.clear(); document.getElementById('play').click(); });
+      await waitFor(page, () => window.CG && CG.town && CG.town.frames > 5);
+      const r = await page.evaluate(async () => {
+        const wait = ms => new Promise(res => setTimeout(res, ms)), v = CG.town, t = CG.game.town, cv = document.getElementById('view'), out = {};
+        const D = await import(new URL('src/core/defense.js', location.href).href);
+        out.sky = !!t.def.board.sky; out.entrances = v.entrances();
+        if (!out.sky) return out;
+        // a wave with airships is next: the cloud bank swells
+        CG.play.close(); t.wave = D.wavesOf(t).airFrom; t.waves.hold = false; t.waves.timer = 4; await wait(1500);
+        out.swell = v.entrances().find(e => e.sky).puffs;
+        t.waves.hold = true; t.waves.timer = 999;
+        // an airship halfway along the sky lane, held still, and one more coming out of the clouds
+        const sky = D.lanesOf(t)[1], mid = sky.length * .5;
+        Object.assign(t.waves, { phase: 'wave', timer: 999, queue: [] });
+        t.waves.foes.push({ id: 9101, kind: 'airship', lane: 1, hp: 1e12, max: 1e12, s: mid, slow: 0, slowT: 0, frozenT: 1e9, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 },
+          { id: 9102, kind: 'airship', lane: 1, hp: 1e12, max: 1e12, s: .3, slow: 0, slowT: 0, frozenT: 1e9, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 });
+        await wait(600);
+        out.drawn = v.foeDrawn(9101); out.hidden = v.foeDrawn(9102);
+        const p = v.projectFoe(9101); out.onScreen = !!p && p.x > 10 && p.x < cv.clientWidth - 10 && p.y > 10 && p.y < cv.clientHeight - 10;
+        if (p) {
+          const rc = cv.getBoundingClientRect(), x = rc.left + p.x + 4, y = rc.top + p.y + 3;
+          for (const type of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, bubbles: true, isPrimary: true, pointerType: 'touch' }));
+          await wait(400);
+          const card = document.getElementById('card'), sel = v.selection.target, ring = v.selection.group.position, u = out.drawn;
+          out.card = { open: !card.hidden && card.classList.contains('foecard'), name: (card.querySelector('h2') || {}).textContent, foe: sel && sel.foe };
+          const at = D.lanesOf(t)[1], P = await import(new URL('src/core/path.js', location.href).href), xz = P.pointAt(at, mid);
+          out.ring = { y: ring.y, off: Math.hypot(ring.x - xz[0], ring.z - xz[1]), card: [...card.querySelectorAll('.foestat.best span, .foestat.best b')].map(n => n.textContent).join(' ') };
+        }
+        CG.play.close();
+        // the airship's card: its spotlight lies on the airship it names, never on a button, with one airship just out of
+        // the clouds (under the side buttons on a phone) and one in over the town
+        const { EXPLAINERS } = await import(new URL('src/data/explainers.js', location.href).href), seen = CG.game.shared.seen;
+        for (const e of EXPLAINERS) seen[e.id] = e.id !== 'airship'; delete seen.airship; CG.game.cardAt = null;
+        // force the stress: the airship the card names (the one farthest in) goes where it is drawn under a button or the
+        // goods strip, when such a place is on its lane, and the other stays just out of the clouds
+        const second = t.waves.foes.find(f => f.id === 9102), first = t.waves.foes.find(f => f.id === 9101), btnAt = q => { if (!q) return null; const n = document.elementsFromPoint(q.x + rc0.left, q.y + rc0.top).find(m => m.closest && (m.closest('button') || m.closest('#goodsStrip'))); return n ? (n.closest('button') || n.closest('#goodsStrip')).textContent.trim().slice(0, 30) : null; }, rc0 = cv.getBoundingClientRect();
+        second.s = 4.2;
+        // first where the box round it would reach down over the goods strip; then, if the lane has no such place, a
+        // place on the lane under a button
+        // just above it, where the box round the airship would reach down over the counts
+        { const gs = document.getElementById('goodsStrip').getBoundingClientRect(), L = D.lanesOf(t)[1].length;
+          for (let s = L * .35; s < L * .97 && !out.stressed; s += .2) { first.s = s; await wait(60); const q = v.projectFoe(9101); if (q && q.x > 60 && q.x < cv.clientWidth - 60 && q.y + rc0.top > gs.top - 44 && q.y + rc0.top < gs.top - 4) out.stressed = 'just above the goods strip'; } }
+        for (let s = D.lanesOf(t)[1].length * .35; s < D.lanesOf(t)[1].length * .97 && !out.stressed; s += .3) { first.s = s; await wait(80); out.stressed = btnAt(v.projectFoe(9101)); }
+        if (!out.stressed) first.s = mid;
+        CG.coach.wake(); for (let i = 0; i < 40 && CG.coach.current !== 'airship'; i++) await wait(100);
+        await wait(700);
+        const tg = CG.coach.target(), hn = document.querySelector('#coach .hole'), h = hn.getBoundingClientRect(), q = tg && v.projectFoe(tg.foe), rc = cv.getBoundingClientRect();
+        const cx = h.left + h.width / 2, cy = h.top + h.height / 2, under = document.elementsFromPoint(cx, cy).find(n => n.closest && (n.closest('button') || n.closest('#goodsStrip')) && !n.closest('#coach'));
+        out.spot = { card: CG.coach.current, foe: tg && tg.foe, shown: !hn.hidden, covers: !!q && q.x + rc.left >= h.left && q.x + rc.left <= h.right && q.y + rc.top >= h.top && q.y + rc.top <= h.bottom, button: under ? under.textContent.trim() : null, strip: (() => { const g = document.getElementById('goodsStrip'); return g && !g.hidden && h.bottom > g.getBoundingClientRect().top + 2 ? Math.round(h.bottom - g.getBoundingClientRect().top) : 0; })() };
+        CG.coach.dismiss(); CG.coach.wake(false);
+        t.waves.foes = t.waves.foes.filter(f => f.id < 9000); t.waves.phase = 'break'; t.waves.timer = 999;
+        return out;
+      });
+      if (town === 'mesa' && (!r.spot || r.spot.card !== 'airship' || !r.spot.shown || !r.spot.covers || r.spot.button || r.spot.strip > 24)) bad.push(name + ': the airship card\'s spotlight is not on the airship ' + JSON.stringify(r.spot));
+      // the box may dip a little into the goods strip on a short landscape screen, where the room between the top bar and
+      // the strip is smaller than the box; past a quarter of it the box frames the counts (seen red: 67 px with the strip
+      // left out of the room the spotlight can use)
+      if (town === 'mesa' && r.stressed) stressed.push(name);
+      if (town === 'gulch') { if (r.sky || r.entrances.some(e => e.sky)) bad.push(name + ': Copper Gulch has a sky lane or a cloud bank'); }
+      else {
+        const skyY = 1.7;
+        if (!r.sky || r.entrances.filter(e => e.sky).length !== 1) bad.push(name + ': the Mesa has no cloud bank ' + JSON.stringify(r.entrances));
+        if (!(r.swell > 3)) bad.push(name + ': the cloud bank did not swell before a wave with airships (' + r.swell + ' puffs)');
+        if (!r.drawn || !r.drawn.air || !r.drawn.visible || Math.abs(r.drawn.y - skyY) > .15) bad.push(name + ': the airship is not drawn in the sky ' + JSON.stringify(r.drawn));
+        if (!r.drawn || !(r.drawn.shadows >= 1)) bad.push(name + ': no shadow under the airship');
+        if (r.hidden && r.hidden.visible) bad.push(name + ': an airship inside the cloud bank shows');
+        if (!r.onScreen) bad.push(name + ': the airship halfway along the sky lane is off screen at the home view');
+        if (!r.card || !r.card.open || r.card.name !== 'Airship' || r.card.foe !== 9101) bad.push(name + ': a tap on the airship did not open its card ' + JSON.stringify(r.card));
+        if (!r.ring || Math.abs(r.ring.y - skyY) > .5 || r.ring.off > .3) bad.push(name + ': the ring is not round the airship ' + JSON.stringify(r.ring));
+        if (!r.ring || r.ring.card !== 'Hit only by Tesla Coil') bad.push(name + ': the airship card does not say only the Tesla Coil hits it ' + JSON.stringify(r.ring && r.ring.card));
+      }
+      if (errs.length) bad.push(name + ' ' + town + ': ' + errs[0]);
+      await page.close();
+    }
+    if (!stressed.length) bad.push('no place on the sky lane under a button at any size, so the spotlight was never stressed');
+    console.log('sky', bad.length ? 'FAIL ' + bad.join('; ') : 'ok');
+    failed += bad.length ? 1 : 0;
+  } finally { await bS.close(); srvS.close(); }
+
   // Automation: once the War Office stands, the Auto button comes out with a dot and its card; the sheet has Foremen,
   // Auto-towers and Auto-research; switching Auto-towers on raises a tower; at phone, landscape and desktop sizes
   const srvA = await start(0), bA = await chromium.launch();

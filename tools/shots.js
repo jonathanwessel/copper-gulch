@@ -409,6 +409,21 @@ const MESA = [
     for (const [s, k] of [[0, 'crossbow'], [1, 'tesla'], [2, 'frost'], [3, 'still'], [4, 'crossbow'], [5, 'cannon'], [6, 'tesla'], [t.def.board.far, 'mortar']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); }
     CG.play.close(); t.wave = Math.max(t.wave, 5); document.getElementById('callWave').click();
   }],
+  // the sky lane (part 2b): airships flying the lane over the fight, one coming out of the cloud bank, then the airship's
+  // card the first time one is out, and its raider card
+  ['mesa-sky', async () => {
+    const t = CG.game.town, D = await import(new URL('src/core/defense.js', location.href).href), hp = D.wavesOf(t).hp(t.wave) * 1.6 * 40; // tough, so they are still up for the card shots
+    CG.play.close(); CG.town.rig.reset(); t.wave = Math.max(t.wave, D.wavesOf(t).airFrom); // airships come from this wave
+    if (t.waves.phase !== 'wave') Object.assign(t.waves, { phase: 'wave', timer: 999, queue: [] });
+    [2.6, 9, 17, 25].forEach((s, i) => t.waves.foes.push({ id: 9200 + i, kind: 'airship', lane: 1, hp: hp * (i === 1 ? .55 : 1), max: hp, s, slow: 0, slowT: 0, frozenT: 0, poison: 0, poisonT: 0, rot: 0, eat: 0, brittle: 0 }));
+  }],
+  // this run has the cards off (?coach=off): every other card counts as seen and the cards wake for this one only
+  ['mesa-airship-intro', async () => {
+    const { EXPLAINERS } = await import(new URL('src/data/explainers.js', location.href).href), seen = CG.game.shared.seen;
+    for (const e of EXPLAINERS) seen[e.id] = e.id !== 'airship'; delete seen.airship; CG.game.cardAt = null; CG.coach.wake();
+    for (let i = 0; i < 60 && CG.coach.current !== 'airship'; i++) await new Promise(r => setTimeout(r, 100));
+  }],
+  ['mesa-airship-card', () => { CG.coach.dismiss(); CG.coach.wake(false); const f = CG.game.town.waves.foes.find(x => x.kind === 'airship' && x.hp > 0); if (f) CG.play.openFoe(f.id); }],
   // the Tesla Coil's card at level 6 on Storm Coil, and the pick of its two paths on the other one
   ['mesa-tesla', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { x.level = 6; x.path = 'a'; } CG.play.openSpot(1); }],
   ['mesa-tesla-path', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { x.level = 4; x.path = null; } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],

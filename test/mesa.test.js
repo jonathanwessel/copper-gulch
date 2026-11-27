@@ -78,9 +78,9 @@ test('every Mesa workshop runs on its inputs, and wire, dynamos and steel are it
   for (const k of TOWNS.mesa.goods) assert.equal(GOODS[k].town, 'mesa');
 });
 
-test('the Mesa road: raiders only, and wave 10 brings the war wagon until the airship comes', () => {
+test('the Mesa: a road and a sky lane, and wave 10 brings the war wagon until the Sky pirate comes', () => {
   const g = mesa('m4'), t = g.town;
-  assert.equal(lanesOf(t).length, 1, 'one lane, the road');
+  assert.equal(lanesOf(t).length, 2, 'the road and the sky lane (part 2b)');
   assert.equal(planWave(t, 10, 'mixed').pop(), 'wagon', 'the war wagon at wave 10');
   assert.ok(!planWave(t, 4, 'mixed').includes('boat'), 'no river, no boats');
   for (const k of Object.keys(TOWERS)) assert.ok(TOWERS[k].goods.mesa, k + ' can be built in the Mesa');

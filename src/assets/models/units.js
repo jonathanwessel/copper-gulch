@@ -158,6 +158,29 @@ FOE.steamer = () => {
   stack.position.set(0, .39, -.05); root.add(stack); root.userData.stack = stack;
   return root;
 };
+FOE.airship = () => {
+  // the airship (Thunder Mesa's sky lane): a fat, round-nosed cream gas bag with red bands and four tail fins, a dark
+  // wooden gondola of masked raiders slung under it, and two engines out on struts with turning propellers, so from
+  // above it reads as an airship and not a shell (fresh-eyes read of 2026.11.26-11: "they look like bombs"). It faces +z
+  // like every raider and is drawn at the sky lane's height (src/render/battle.js); its "wheels" are the propellers.
+  const root = G(); root.userData = { air: true };
+  root.add(part(k => {
+    k.ball(0, .58, 0, .34, 'white', { det: 2, sz: 1.75 });
+    for (const z of [-.24, .24]) k.ball(0, .58, z, .342, 'paintR', { det: 2, sz: .16 });
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; k.box(Math.cos(a) * .17, .58 + Math.sin(a) * .17, -.52, .02 + Math.abs(Math.sin(a)) * .22, .02 + Math.abs(Math.cos(a)) * .22, .2, 'paintR'); }
+    for (const sx of [-1, 1]) for (const z of [-.14, .16]) k.box(sx * .11, .3, z, .012, .2, .012, 'bark', { rz: sx * .25, ao: false });
+    k.box(0, .12, 0, .26, .13, .5, 'woodD'); k.box(0, .25, 0, .28, .02, .52, 'wood');
+    for (const z of [-.1, .12]) { k.box(0, .27, z, .1, .09, .08, 'paintR', { ao: false }); k.box(0, .36, z, .08, .08, .08, 'skin', { ao: false }); }
+    // the engines: a strut out from each side of the bag to a dark pod
+    for (const sx of [-1, 1]) { k.box(sx * .33, .42, -.12, .26, .025, .04, 'iron', { mat: 'metal' }); k.cyl(sx * .46, .42, -.02, .06, .24, 'black', { rx: Math.PI / 2, seg: 8 }); }
+  }));
+  const props = [-1, 1].map(sx => {
+    const prop = part(k => { for (let i = 0; i < 2; i++) k.box(0, 0, 0, .035, .26, .015, 'woodL', { rz: i * Math.PI / 2 }); });
+    const hold = G(); hold.add(prop); hold.position.set(sx * .46, .42, -.28); root.add(hold); return hold;
+  });
+  root.userData.wheels = props;
+  return root;
+};
 function barrelBits(k) { k.cyl(-.1, .24, -.42, .06, .12, 'wood', { seg: 8 }); k.box(.1, .24, -.42, .1, .08, .08, 'woodL'); }
 
 export function makeFoe(kind) {

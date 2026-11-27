@@ -23,7 +23,7 @@ import { demand, output, buildingsOf } from './economy.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { Town } from './town.js';
 import { STEP } from './clock.js';
-import { isPitSpot } from '../data/towns/index.js';
+import { isPitSpot, laneDefs, laneIndex } from '../data/towns/index.js';
 import { ARMS } from '../data/arms.js';
 
 /* The boss on the road now, or null: the one of this wave still standing. The boss bar shows while it is there, and the
@@ -45,16 +45,23 @@ export const bossWave = (town, w) => { const W = wavesOf(town); return !town.won
 export const RAID_LOSS = .25;
 
 const PATH_CACHE = new WeakMap();
-/* The town's lanes as paths that end at the vault: lane 0 is the road; a river town (board.river) has the river as
-   lane 1, which only boats ride (FOES[kind].water). */
+/* The town's lanes as paths that end at the vault, in the order of laneDefs (src/data/towns/index.js): lane 0 is the
+   road; a river town (board.river) has the river next, which only boats ride (FOES[kind].water), and a town with a sky
+   (board.sky, Thunder Mesa) has the sky lane last, which only airships ride (FOES[kind].air). */
 export function lanesOf(town) {
   const b = town.def.board;
-  if (!PATH_CACHE.has(b)) PATH_CACHE.set(b, [makePath([...b.road, b.vault]), ...(b.river ? [makePath([...b.river.path, b.vault])] : [])]);
+  if (!PATH_CACHE.has(b)) PATH_CACHE.set(b, laneDefs(b).map(l => makePath([...l.line, b.vault])));
   return PATH_CACHE.get(b);
 }
 export const roadOf = town => lanesOf(town)[0];
-/* The lane a raider rides: boats take the river where there is one. */
-export const laneFor = (town, kind) => (FOES[kind].water && town.def && town.def.board && town.def.board.river ? 1 : 0);
+/* The lane a raider rides: boats take the river and airships the sky where the town has one, everyone else the road. */
+export function laneFor(town, kind) {
+  const b = town.def && town.def.board, F = FOES[kind];
+  if (!b || !(F.water || F.air)) return 0;
+  return Math.max(0, laneIndex(b, F.water ? 'river' : 'sky'));
+}
+/* Does wave w bring airships here? A town with a sky lane sends every waves.airEvery-th raider by air from waves.airFrom. */
+export const airWave = (town, w) => { const W = wavesOf(town), b = town.def && town.def.board; return !!(W.airEvery && b && b.sky && w >= (W.airFrom || 1)); };
 
 // --- towers: stats and costs -----------------------------------------------------------------------------------------
 /* The second fork a tower took at FORK_LEVEL (t.fork, 'a' or 'b'), or {}. */
@@ -164,6 +171,8 @@ export function planWave(town, w, type) {
   // a river town sends every boatEvery-th raider down the river by boat (no random draw, so other towns are untouched)
   const every = wavesOf(town).boatEvery;
   if (every && town.def.board && town.def.board.river) for (let i = every - 1; i < q.length; i += every) q[i] = 'boat';
+  // a town with a sky sends every airEvery-th raider by air (the same way: no random draw, so the stream is untouched)
+  if (airWave(town, w)) { const air = wavesOf(town).airEvery; for (let i = air - 1; i < q.length; i += air) q[i] = 'airship'; }
   if (bossWave(town, w)) q.push((town.def && town.def.boss) || 'wagon');
   return q;
 }

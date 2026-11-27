@@ -108,6 +108,11 @@ try {
     for (const k of m.def.goods) { m.goods[k] = 500; m.sell[k] = false; }
     for (const [id, n] of Object.entries({ derrick: 12, bauxitepit: 10, rubberfarm: 8, refinery: 8, aluminum: 6, tireworks: 6, motorworks: 4, autoplant: 3, airshipworks: 2 })) m.buildings[id] = n;
     for (const [s, k] of [[0, 'crossbow'], [1, 'cannon'], [2, 'crossbow'], [3, 'frost'], [4, 'still']]) { CG.play.openSpot(s); const b = document.querySelector('#card .build[data-kind="' + k + '"]'); if (b) b.click(); else tower(m, s, k, 1); }
+    // the sky lane (part 2b): a wave with airships and two Tesla Coils under their lane; --eval "window.NO_SKY = 1" turns
+    // the airships off for an A/B of what the sky lane costs
+    const D = await import('./src/core/defense.js'); m.flags['open:tesla'] = true; tower(m, 5, 'tesla', 8); tower(m, 6, 'tesla', 8);
+    m.wave = D.wavesOf(m).airFrom + 2; if (window.NO_SKY) D.wavesOf(m).airFrom = 999;
+    m.waves.timer = 1; // called at the end of its wait, so the wave comes at its own size (no rush)
     CG.play.close(); document.getElementById('callWave').click();
   });
   else if (TOWN === 'map') await p.evaluate(async () => {
