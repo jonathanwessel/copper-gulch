@@ -130,7 +130,7 @@ const SCREENS = [
   ['dots', () => { CG.play.close(); const g = CG.game, t = g.town; (g.shared.seen ||= {}).goods = true; t.flags['open:research'] = true; t.coins = Math.max(t.coins, 5000); t.lab = null; for (const k of Object.keys(t.flags)) if (k.startsWith('listed:')) delete t.flags[k]; }],
   ['goods', () => { CG.play.close(); CG.play.openGoods(); }],
   // a boom on the first good of the strip, and its row's four sell modes open (Market depth, part 1)
-  ['goods-boom', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: 1.6, left: 72 }; m.event = { [g]: 1.6 }; m.wait = 999; CG.play.close(); CG.play.openGoods(g); await wait(300); const b = document.querySelector('#sheet .option button[data-good="' + g + '"]'); if (b) b.click(); }],
+  ['goods-boom', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: 1.6, left: 72 }; m.event = { [g]: 1.6 }; m.wait = 999; m.rate[g] = 0; CG.play.close(); CG.play.openGoods(g); await wait(300); const b = document.querySelector('#sheet .option button[data-good="' + g + '"]'); if (b) b.click(); }],
   // a bust on the same good, its row opened to say why the price is low (review of 2026.11.23-1: the words in a boom and a bust)
   ['goods-bust', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: .45, left: 48 }; m.event = { [g]: .45 }; m.wait = 999; CG.play.sheets.close(); CG.play.openGoods(g); await wait(300); }],
   // the same row with its causes unfolded by a tap on Pays now (clarity fix 8x)
@@ -494,6 +494,14 @@ async function shot(pg, f, size) {
     return tw.spent < list * .5 ? tw.kind + ' level ' + tw.level + ' spent ' + Math.round(tw.spent) + ' of ' + Math.round(list) : '';
   });
   if (sold) errs.push(size + ': ' + path.basename(f) + ' a tower set by hand without its spend (' + sold + ')');
+  // an open sheet never scrolls sideways (clarity fix 8aa: the Goods sheet's open price row ran past its edge in
+  // why-price, a state smoke's own Goods check never reached); cards join with box 8ac, which fixes the raider card's
+  const side = await pg.evaluate(() => { const sb = document.querySelector('#sheet:not([hidden]) .sheetbody'); return sb && sb.scrollWidth > sb.clientWidth + 1 ? sb.scrollWidth + ' > ' + sb.clientWidth : ''; });
+  if (side) errs.push(size + ': ' + path.basename(f) + ' the open sheet scrolls sideways (' + side + ')');
+  // an open sell picker ends above the sheet's foot fade wherever the sheet has room for it (clarity fix 8aa: Off sat
+  // under the fade in goods-boom; smoke's own Goods sheet has one good and nothing to scroll, so it could not see it)
+  const cut = await pg.evaluate(() => { const p = document.querySelector('#sheet:not([hidden]) .sellpick:not([hidden])'), sb = p && p.closest('.sheetbody'); if (!p || !sb.classList.contains('more')) return ''; const r = p.getBoundingClientRect(), b = sb.getBoundingClientRect(); return r.height + 40 <= b.height && r.bottom > b.bottom - 28 ? Math.round(r.bottom) + ' > ' + Math.round(b.bottom - 28) : ''; });
+  if (cut) errs.push(size + ': ' + path.basename(f) + ' the sell picker ends under the sheet fade (' + cut + ')');
 }
 /* Every page gets a speech engine with one on-device voice that only records what it is asked to say, so the speaker
    button on the cards and the Read aloud settings show the same on every machine, and nothing is spoken. */
@@ -512,6 +520,7 @@ try {
     for (const [name, go] of SCREENS) {
       await p.evaluate(go); if (name === 'town') for (let i = 0; i < 100 && !(await p.evaluate(() => !!(window.CG && CG.game && CG.town))); i++) await sleep(100); /* a slow start once left the next scene with no game */ await sleep(name === 'town' ? 3000 : name === 'fight' ? 12000 : name === 'mortar' ? 450 : name === 'rockets' ? 30 : name === 'entry' ? 3500 : name === 'entry2' ? 4000 : name === 'why-income' ? 6000 : name === 'foreman' ? 1800 : 1200); // foreman: past the goal's Done strip for the level the jump to 10 passed (review of 2026.11.20-7)
       if (process.env.SHOT_NAMES && !process.env.SHOT_NAMES.split(',').includes(name)) continue; // a quick look at a few screens (the others still run, in order)
+      if (process.env.SHOT_PROBE) console.log(name, size, JSON.stringify(await p.evaluate(new Function('return (' + process.env.SHOT_PROBE + ')'))));
       const f = path.join(dir, `${name}-${size}.png`); await shot(p, f, size);
     }
     await p.close();

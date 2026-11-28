@@ -880,6 +880,10 @@ async function run() {
           b.click(); await wait(80);
           const btns = [...pick.querySelectorAll('[data-mode]')], sheet = document.getElementById('sheet').getBoundingClientRect();
           out.opens = (out.opens ?? true) && !pick.hidden && btns.length === 4;
+          // the picker ends above the sheet's 30 px foot fade wherever the sheet has room for it (clarity fix 8aa: Off sat
+          // under the fade with the list snapped back to its good's row)
+          // (the fade shows only while more lies below: a picker at the list's end needs only to sit inside the sheet)
+          if (mode === 'skip') { await wait(200); const sbe = document.querySelector('#sheet .sheetbody'), body = sbe.getBoundingClientRect(), pr = pick.getBoundingClientRect(); out.pickWhole = pr.height + 40 > body.height || pr.bottom <= body.bottom - (sbe.classList.contains('more') ? 28 : 0); if (!out.pickWhole) { delete out.pickWhole; out['pickWhole (picker ' + Math.round(pr.top) + '-' + Math.round(pr.bottom) + ', sheet ' + Math.round(body.top) + '-' + Math.round(body.bottom) + ', scroll ' + Math.round(document.querySelector('#sheet .sheetbody').scrollTop) + ')'] = false; } }
           out.fits = (out.fits ?? true) && btns.every(x => { const r = x.getBoundingClientRect(); return r.height >= 30 && r.left >= sheet.left - 1 && r.right <= sheet.right + 1 && x.scrollWidth <= x.clientWidth + 1; });
           btns.find(x => x.dataset.mode === mode).click(); await wait(80);
           // every mode by its picture, and every row of the picker is one line beside its picture (clarity fix 8h: Always
@@ -919,7 +923,7 @@ async function run() {
         out.bust = !!chip && chip.classList.contains('bust') && box(chip) === b0 && !!row && !!evl && evl.hidden && getComputedStyle(row, '::before').borderTopWidth === '8px' && /^Price down for 0:\d\d more$/.test(row.getAttribute('aria-label') || '') && /Demand low 0:\d\d\sleft/.test(rowsText());
         // a boom over a good sold low: the line says the price is still down, and the arrow points down (clarity fix 8k)
         m.boom = { good: 'timber', f: 1.6, left: 70 }; m.event = { timber: 1.6 }; m.rate.timber = 1e6; await wait(450);
-        out.stillDown = !!chip && chip.classList.contains('bust') && !chip.classList.contains('boom') && !!row && !!evl && evl.hidden && /^Demand high for \d:\d\d more\. Price still down\.$/.test(row.getAttribute('aria-label') || '') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /Demand high \d:\d\d\sleft/.test(rowsText()) && /Down \d+%/.test(rowsText());
+        out.stillDown = !!chip && chip.classList.contains('bust') && !chip.classList.contains('boom') && !!row && !!evl && evl.hidden && /^Demand high for \d:\d\d more\. Price still down\.$/.test(row.getAttribute('aria-label') || '') && getComputedStyle(row, '::before').borderTopWidth === '8px' && /Demand high \d:\d\d\sleft/.test(rowsText()) && !!rowEl.querySelector('.paysrow .arrows.down') && !/%/.test(rowsText()); // arrows, not percents (clarity fix 8aa)
         m.rate.timber = keep.rate || 0; delete keep.rate;
         Object.assign(m, keep); await wait(450);
         if (openedRow) { rowEl.click(); await wait(200); } // closed again, as the checks after this one find it
@@ -1128,11 +1132,14 @@ async function run() {
         // the price bar's front said it, review of 2026.11.20-7)
         // clarity fix 8x: folded, one Pays now row and no causes; a tap on it unfolds them over it
         const pr = sheet.querySelector('[data-why="timber"] .paysrow');
-        out.folded = !!pr && /^Pays now/.test(pr.textContent) && !/Usual price/.test(sheet.textContent) && pr.getAttribute('aria-expanded') === 'false';
+        // one form with the closed rows, "Pays 2 coins each" (clarity fix 8aa)
+        out.folded = !!pr && /^Pays (under )?\d+ coins? each/.test(pr.textContent) && !/Usual price/.test(sheet.textContent) && pr.getAttribute('aria-expanded') === 'false';
         if (pr) pr.click(); await wait(400);
         out.unfolds = sheet.querySelector('[data-why="timber"] .paysrow')?.getAttribute('aria-expanded') === 'true' && /Usual price/.test(sheet.textContent);
+        // the open rows never make the sheet scroll sideways (clarity fix 8aa: three arrows and the price ran past its edge)
+        { const ev0 = mk.event; mk.event = { timber: .35 }; await wait(450); const sb = sheet.querySelector('.sheetbody'); out.arrowed = !!sheet.querySelector('[data-why="timber"] .paysrow .arrows.down'); out.noSideways = !!sb && sb.scrollWidth <= sb.clientWidth + 1; if (!out.noSideways) out.sideways = [sb.scrollWidth, sb.clientWidth]; mk.event = ev0; await wait(450); } // a drop puts its arrow on the row, the widest it gets
         const tot = sheet.querySelector('.explain.why .total');
-        out.price = /Usual price/.test(sheet.textContent) && !!tot && /^Pays now/.test(tot.textContent) && /coins? (each|per)/.test(tot.textContent) && !(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || '');
+        out.price = /Usual price/.test(sheet.textContent) && !!tot && /^Pays /.test(tot.textContent) && /coins? (each|per)/.test(tot.textContent) && !/%/.test(sheet.querySelector('[data-why="timber"]')?.textContent || '') && !(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || '');
         T.goods.timber = 0; await wait(600);
         out.noneToSell = /once you have some to sell/.test(sheet.textContent) && !/Usual price/.test(sheet.textContent);
         if (!out.price || !out.noneToSell) out.priceText = sheet.textContent.slice(0, 400);

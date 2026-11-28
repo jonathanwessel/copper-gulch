@@ -58,7 +58,7 @@ test('map labels keep a clear gap, wider than a red dot sticks out', () => {
 test('level pills step aside for raiders instead of fading, and toasts from the Capital stay on the map', () => {
   const css = read('index.html');
   assert.doesNotMatch(css, /\.play\.fighting \.tag\.quiet \.tl \{ opacity/);
-  assert.match(css, /\.tag\.quiet\.overfoe \.tl \{ opacity: 0; \}/);
+  assert.match(css, /\.tag\.quiet\.overfoe \{ opacity: 0; \}/); // on the tag's own layer since clarity fix 8aa
   assert.match(read('src/render/town-view.js'), /foePoints: \(\) =>/);
   assert.match(read('src/main.js'), /dropToasts\('capital'\)/);
   assert.match(css, /\.goal\.new \{ animation: slideIn/); // the goal strip slides in solid

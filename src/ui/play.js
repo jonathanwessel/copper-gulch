@@ -958,7 +958,10 @@ export function mountPlay(root, game, viewApi, shell = {}) {
         if (t.dataset.side !== side) { t.dataset.side = side; t.classList.toggle('offl', side === 'l'); t.classList.toggle('offr', side === 'r'); }
         const sv = sx + 'px'; if (t.style.getPropertyValue('--sx') !== sv) t.style.setProperty('--sx', sv);
       } else if (t.dataset.side) { t.dataset.side = ''; t.classList.remove('offl', 'offr'); t.style.removeProperty('--sx'); } // only when it moved; sub-pixel: whole pixels make tags step as the camera glides
-      const over = !!(foes && !full && p && foes.length && (() => { const [tw, th] = tagSize.get(t) || [32, 32]; return foes.some(f => Math.abs(f.x - px) < tw / 2 + 14 && f.y > py - th - 14 && f.y < py + 18); })());
+      // the goal tag dims too, with a wider margin, since it is lifted over its building and a raider beside it read as its
+      // owner (clarity fix 8aa: "Lumber Camp · Level 1" beside the war wagon)
+      const om = marked ? 44 : 14;
+      const over = !!(foes && (marked || !full) && p && foes.length && (() => { const [tw0, th] = tagSize.get(t) || [32, 32], tw = marked ? Math.max(tw0, markW - 10) : tw0; return foes.some(f => Math.abs(f.x - px) < tw / 2 + om && f.y > py - th - om && f.y < py + 18 + (marked ? 50 : 0)); })());
       if (t.classList.contains('overfoe') !== over) t.classList.toggle('overfoe', over);
       const sh = !!(L && town.starved[id] === true); // held for towers is not a problem to fix
       t.classList.toggle('short', sh);

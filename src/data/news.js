@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.28-1',
+    lines: [
+      'On the Goods sheet, every price reads the same way, like Pays 2 coins each. An arrow shows if it went up or down.',
+      'Health bars of raiders side by side get thinner, so each bar stays over its own raider.',
+      'Level numbers on buildings step aside while raiders walk past.',
+      'The goal label fades a little while raiders pass next to it.',
+      'Sell spare shows all four choices without cutting the last one.',
+    ],
+  },
+  {
     v: '2026.11.27-9',
     lines: [
       'Cold Snap, the Frost Lens upgrade at level 20, hits harder.',

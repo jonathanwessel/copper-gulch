@@ -12,7 +12,7 @@ import { EATS_ARMOR, eatWords } from '../src/data/towers.js';
 import { EFFECT_WORDS, fxLeft } from '../src/ui/foe.js';
 import { STAGE_WORDS, STAGE_LINES } from '../src/data/foes.js';
 import { BEST_LABEL } from '../src/ui/wave.js';
-import { priceRow, charterWords, boomWords } from '../src/ui/sheets.js';
+import { priceRow, charterWords, boomWords, paysLine, moveArrows } from '../src/ui/sheets.js';
 import { moreWord } from '../src/ui/explain.js';
 import { sayable } from '../src/audio/speech.js';
 
@@ -252,4 +252,10 @@ test('the Capital label says what its goods are for', async () => {
   const { sentWords } = await import('../src/ui/capital.js');
   assert.equal(sentWords({ got: 2080.4, need: 8200, good: 'rails' }), '2.08K / 8.2K'); // clarity fix 8x: the good's picture and a bar say the rest
   assert.deepEqual(textIssues(sentWords({ got: 108.7, need: 270, good: 'timber' })), []);
+});
+
+test('the price rows on the Goods sheet (clarity fix 8aa)', () => {
+  assert.equal(paysLine('Under 1 coin each'), 'Pays under 1 coin each');
+  assert.equal(paysLine('2 coins each'), 'Pays 2 coins each');
+  assert.deepEqual([.9, .5, .1, 1.1, 1.5, 2].map(m => moveArrows(m).words), ['Pays a little less', 'Pays less', 'Pays much less', 'Pays a little more', 'Pays more', 'Pays much more']);
 });

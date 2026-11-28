@@ -9,7 +9,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { saturation, eventFactor, boomNow, sellMode, setSellMode, SELL_MODES } from '../core/market.js';
 import { explainPrice } from '../core/explain.js';
 import { goodStall, stallWords } from '../core/stall.js';
-import { explainBox } from './explain.js';
+import { explainBox, unitText } from './explain.js';
 import { encode } from '../core/save.js';
 import { loadGame } from '../core/setup.js';
 import { SLOTS, activeSlot, slotSummary, importText, clearSave } from './storage.js';
@@ -49,14 +49,38 @@ const TOWN_NAMES = Object.fromEntries(Object.entries(TOWNS).map(([id, t]) => [id
    over "Under 1 coin each" read as boom and bust at once, flagged twice, so the control changed and not the words).
    Unfolded, the causes sit over it and it stays their sum at the foot (clarity fix 8t: with the sum above the rows,
    "Demand high, Up 60%" over a crashed price read as two prices). s: the price against its usual one. */
-export const PAYS_NOW = 'Pays now';
+export const PAYS_NOW = 'Pays';
 export const paysWay = s => (s > 1.05 ? 'up' : s < .95 ? 'down' : '');
+/* A good's price in one form on its row, folded or not, open or closed: "Pays 2 coins each", "Pays under 1 coin each"
+   (clarity fix 8aa: the open row read "Pays now · Under 1 coin each" while a closed one read "Pays 2 coins each"). */
+export const paysLine = pl => PAYS_NOW + ' ' + pl[0].toLowerCase() + pl.slice(1);
+/* Which way a cause moves a price, one arrow, a picture in place of a percent (clarity fix 8aa: "Sold a lot
+   lately Down 99%" over "Demand low Down 55%" were two percents a 12-year-old cannot add, after four wordings of these
+   rows, so by the twice-flagged rule the control changed). The words are its label, read aloud and on a hover, and say how
+   much. One arrow, never two or three: the fresh-eyes read of the first try found three arrows beside the one by the
+   good's name and in the goods strip, and the open row ran wider than the sheet. */
+export function moveArrows(m) {
+  const up = m > 1, d = up ? m - 1 : 1 - m, n = d < .02 ? 0 : d < .25 ? 1 : d < .6 ? 2 : 3;
+  const words = !n ? '' : (up ? ['Pays a little more', 'Pays more', 'Pays much more'] : ['Pays a little less', 'Pays less', 'Pays much less'])[n - 1];
+  return { way: n ? (up ? 'up' : 'down') : '', n, words };
+}
+export function arrowsEl(m) {
+  const a = moveArrows(m), box = el('span', 'arrows' + (a.way ? ' ' + a.way : ''));
+  box.setAttribute('role', 'img'); box.setAttribute('aria-label', a.words); box.title = a.words; box.hidden = !a.n;
+  if (a.n) box.append(el('i', 'paysway ' + a.way));
+  return box;
+}
 function paysBox(ex, words, s, unfolded, toggle) {
-  const box = unfolded ? explainBox(ex, { total: null, pct: true }) : el('div', 'explain why');
-  const r = el('button', 'total paysrow'), way = paysWay(s), arrow = el('i', 'paysway' + (way ? ' ' + way : ''));
-  arrow.setAttribute('aria-hidden', 'true'); arrow.hidden = !way;
+  const box = el('div', 'explain why');
+  // unfolded: the usual price, then each cause with its arrows and, for a boom or bust, its time left under its name
+  if (unfolded) for (const x of ex.rows) {
+    const row = el('div', 'paycause'), name = el('span', null, x.label);
+    if (x.clock) name.append(' ', el('small', 'payclock', x.clock));
+    row.append(name, x.base !== undefined ? el('b', null, unitText(ex.unit, x.base)) : arrowsEl(x.mul)); box.append(row);
+  }
+  const r = el('button', 'total paysrow');
   r.type = 'button'; r.setAttribute('aria-expanded', String(!!unfolded));
-  r.append(el('span', null, PAYS_NOW), arrow, el('b', null, words)); box.append(r);
+  r.append(el('span', null, paysLine(words)), arrowsEl(s)); box.append(r);
   box.classList.add('paysbox'); if (!unfolded) box.classList.add('folded');
   r.addEventListener('click', e => { e.stopPropagation(); toggle(); });
   return box;
@@ -204,8 +228,14 @@ export function goodsSheet(game, town, focus = null) {
     const inView = (row, end = row) => {
       if (!row.isConnected) return;
       const b = body.getBoundingClientRect(), r = { top: row.getBoundingClientRect().top, bottom: end.getBoundingClientRect().bottom }, top = (stockRow.isConnected ? stockRow.getBoundingClientRect().bottom : b.top) + 4;
-      if (r.top < top) body.scrollTop -= top - r.top;
-      else if (r.bottom > b.bottom - 4) body.scrollTop += Math.min(r.bottom - b.bottom + 4, r.top - top);
+      // the picker ends above the 30 px fade at the sheet's foot (.sheetbody.more), so its last mode reads whole
+      const foot = end === row ? 4 : 32;
+      // the sell picker shows whole, every mode on screen, even when its good's row then slides under the pinned switch
+      // (clarity fix 8aa: Off sat cut under the sheet's fade, with the row's name kept whole above it; a row 2 px under
+      // the switch took the scroll-up branch first, so the picker was never placed)
+      if (end !== row && r.bottom > b.bottom - foot) body.scrollTop += Math.min(r.bottom - b.bottom + foot, end.getBoundingClientRect().top - top);
+      else if (r.top < top) body.scrollTop -= top - r.top;
+      else if (r.bottom > b.bottom - foot) body.scrollTop += Math.min(r.bottom - b.bottom + foot, r.top - top);
     };
     const shown = () => Object.entries(BUILDINGS).filter(([id, b]) => b.town === town.id && town.level(id) > 0 && !GOODS[b.makes].grid).map(([, b]) => b.makes);
     // goods shipped in from another town: what is in stock, and where it comes from (never sold here)
@@ -263,20 +293,21 @@ export function goodsSheet(game, town, focus = null) {
         // the demand row carries its own time left, so no sentence about it sits over the rows (clarity fix 8r: "Boom for
         // 1:11 more. Price still down." beside "Boom Up 60%" read as a contradiction, flagged on the fourth wording)
         const bmx = boomNow(game), evClock = bmx && bmx.good === g ? boomClock(bmx.left) + String.fromCharCode(160) + 'left' : ''; // the time and its word never part (fresh-eyes read of 2026.11.26-8: a dot ended a line)
-        const ex2 = evClock ? { ...ex, rows: ex.rows.map(x => (x.event ? { ...x, label: x.label + ' ' + evClock } : x)) } : ex;
+        const ex2 = evClock ? { ...ex, rows: ex.rows.map(x => (x.event ? { ...x, clock: evClock } : x)) } : ex;
         const sat = saturation(game, g);
-        const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
+        const [pl] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
         const pnet = sat * eventFactor(game, g);
-        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) + pl + paysWay(pnet) + !!parts[g]) : '';
+        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, x.clock || '', moveArrows(x.mul || 1).n, x.base])) + pl + moveArrows(pnet).n + paysWay(pnet) + !!parts[g]) : '';
         if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [paysBox(ex2, pl, pnet, !!parts[g], () => { parts[g] = !parts[g]; paint(); })])); }
-        const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
-        if (r.level.textContent !== pw1) r.level.textContent = pw1;
+        // the closed row's move as the same arrows the open one shows (clarity fix 8aa), and none while open with its rows
+        const lv = !open[g] || note ? moveArrows(pnet) : { n: 0, way: '' }, lvs = lv.n + lv.way;
+        if (r.level.dataset.arrows !== lvs) { r.level.dataset.arrows = lvs; r.level.replaceChildren(...(lv.n ? [arrowsEl(pnet)] : [])); }
         // the price the player gets says so, beside the open rows' usual price (clarity fix 8r: "Base price 1 coin" beside
         // "Under 1 coin each" named two prices)
         // open with none spare, its note says what it would pay, so the label above it steps aside (one fact once)
         // open with its rows, the price sits at the rows' foot as their sum (clarity fix 8t: "Demand high, Up 60%" over a
         // crashed price, with the sum above the rows, read as two prices)
-        const pl2 = open[g] && (!note || have - kept < 1) ? '' : 'Pays ' + pl[0].toLowerCase() + pl.slice(1);
+        const pl2 = open[g] && (!note || have - kept < 1) ? '' : paysLine(pl);
         if (r.plabel.textContent !== pl2) r.plabel.textContent = pl2;
         setSwitch(r.sw, 'Sell spare', modeState(mode), selling);
         r.sw.setAttribute('aria-expanded', String(!!picking[g])); // its mode shows once, on the picked button, while the four are open (review of 2026.11.22-3)
