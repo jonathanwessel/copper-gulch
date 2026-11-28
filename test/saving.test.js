@@ -7,13 +7,13 @@ import { earnRate, readyIn, readyWords, EARN_WINDOW } from '../src/core/goals.js
 import { textIssues } from '../tools/audit.js';
 
 test('the time words count whole minutes, then hours in steps of 5 minutes', () => {
-  assert.equal(readyWords(readyIn(136, 500, 4.55)), 'about 2 min to go');
-  assert.equal(readyWords(60), 'about 1 min to go');
-  assert.equal(readyWords(61), 'about 2 min to go');
+  assert.equal(readyWords(readyIn(136, 500, 4.55)), 'about 2 minutes to go');
+  assert.equal(readyWords(60), 'about 1 minute to go');
+  assert.equal(readyWords(61), 'about 2 minutes to go');
   assert.equal(readyWords(30), 'under a minute to go');
-  assert.equal(readyWords(3599), 'about 60 min to go');
-  assert.equal(readyWords(3601), 'about 1 h 5 min to go');
-  assert.equal(readyWords(7200), 'about 2 h to go');
+  assert.equal(readyWords(3599), 'about 60 minutes to go');
+  assert.equal(readyWords(3601), 'about 1 hour 5 minutes to go');
+  assert.equal(readyWords(7200), 'about 2 hours to go');
   assert.equal(readyWords(40000), 'over 10 hours to go');
   assert.equal(readyWords(null), '');
 });

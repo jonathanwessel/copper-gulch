@@ -23,6 +23,8 @@ export const MAT = {
   metal: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .45, metalness: .55 }),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true }),      // windows, furnaces, crystals: brighter at night, they bloom
   fire: new THREE.MeshBasicMaterial({ vertexColors: true }),      // always bright: flames, sparks, tracers
+  // smooth shading for soft round things (the Mesa's cloud bank: flat shading made its puffs read as boulders, clarity fix 8y)
+  soft: new THREE.MeshLambertMaterial({ vertexColors: true }),
 };
 MAT.glow.color.setScalar(.6); MAT.fire.color.setScalar(2.2);
 
@@ -32,7 +34,7 @@ export function rng(seed) { let s = (seed * 9301 + 49297) % 233280 || 1; return 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 /* A Kit collects parts; build() merges them by material into a Group. Positions are the part's base center (y = bottom). */
 export class Kit {
-  constructor(opt = {}) { this.parts = { solid: [], metal: [], glow: [], fire: [] }; this.ao = opt.ao !== false; this.aoH = opt.aoH || .9; }
+  constructor(opt = {}) { this.parts = { solid: [], metal: [], glow: [], fire: [], soft: [] }; this.ao = opt.ao !== false; this.aoH = opt.aoH || .9; }
   add(geo, x, y, z, c, o = {}) {
     let g = geo.index ? geo.toNonIndexed() : geo; geo !== g && geo.dispose();
     if (g.attributes.uv) g.deleteAttribute('uv');
@@ -86,7 +88,7 @@ export class Kit {
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, MAT[k]); m.castShadow = opt.cast !== false && k !== 'fire' && k !== 'glow'; m.receiveShadow = opt.receive !== false && k !== 'fire'; grp.add(m);
     }
-    this.parts = { solid: [], metal: [], glow: [], fire: [] };
+    this.parts = { solid: [], metal: [], glow: [], fire: [], soft: [] };
     return grp;
   }
 }

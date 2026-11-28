@@ -104,15 +104,16 @@ test('the sell modes say what each does, and a boom never reads as a drop (revie
 
 test('a coin goal says how long is left if you save (clarity fix 2, reworded by the review of 2026.11.23-3)', async () => {
   const { readyWords } = await import('../src/core/goals.js');
-  assert.equal(readyWords(80), 'about 2 min to go');
+  assert.equal(readyWords(80), 'about 2 minutes to go');
   assert.equal(readyWords(30), 'under a minute to go');
-  assert.equal(readyWords(4500), 'about 1 h 15 min to go');
+  assert.equal(readyWords(4500), 'about 1 hour 15 minutes to go');
 });
 
 test('the strip lines of clarity fix 3b part 2', async () => {
   const { CAPITAL_HOLD } = await import('../src/core/goals.js');
   const { GOALS } = await import('../src/data/goals.js');
-  assert.equal(CAPITAL_HOLD.text, 'Tap Hold waves while you save for the Capital');
+  assert.equal(CAPITAL_HOLD.text, 'Save coins to build the Capital'); // clarity fix 8x: the save's words, with its own Hold waves button
+  assert.ok(CAPITAL_HOLD.hold && CAPITAL_HOLD.saveNeed > 0 && !CAPITAL_HOLD.need);
   // part 2b: the Capital's gate passing
   const { capitalReadyWords } = await import('../src/ui/capital.js');
   assert.equal(capitalReadyWords({ town: 'ridge', coins: 25000 }), 'Save 25K coins to build the Capital on the Map.');
@@ -129,7 +130,6 @@ test('the strip lines of the newcomer climb fix', async () => {
     [REBUILD_WORDS.build('stone pad', 'Frost Lens'), 'Tap the stone pad and build a Frost Lens again'],
     [REBUILD_WORDS.build('Mortar pit', 'Mortar'), 'Tap the Mortar pit and build a Mortar again'],
     [REBUILD_WORDS.swap('Crossbow', 'Frost Lens'), 'Tap the Crossbow, tap Sell, then build a Frost Lens there'],
-    [REBUILD_WORDS.hold('Silver Falls'), 'Tap Hold waves while you save to open Silver Falls'],
     [REBUILD_WORDS.play('Silver Falls'), 'Tap Map, then tap Silver Falls'],
   ];
   for (const [got, want] of lines) { assert.equal(got, want); assert.deepEqual(textIssues(got), [], got); }
@@ -170,8 +170,10 @@ test('the price has one pair of words, up and down, clarity fix 8i', async () =>
 test('the boss tip card names the boss on the bar, never the word boss, clarity fix 8i', () => {
   const e = EXPLAINERS.find(x => x.id === 'boss-bar');
   assert.equal(e.head({ boss: 'armored train' }), 'The armored train');
-  assert.equal(e.say({ boss: 'armored train' }), 'The armored train changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.');
-  for (const s of [e.title, e.text, e.say({ boss: 'war wagon' })]) { assert.ok(!/boss/i.test(s), s); assert.deepEqual(textIssues(s), [], s); }
+  // clarity fix 8y: what its stage does, then what its card shows
+  assert.equal(e.say({ boss: 'armored train', bossKind: 'train' }), 'At half health its armor plates fall off, and it speeds up. Tap its bar at the top to see how hurt it is, its armor and what it is weak to.');
+  assert.equal(e.say({ boss: 'bandit wagon', bossKind: 'bandits' }), 'At half health two horsemen ride off it, and the wagon slows down. Tap its bar at the top to see how hurt it is, its armor and what it is weak to.');
+  for (const s of [e.title, e.text, ...['wagon', 'bandits', 'train', 'steamer', 'skypirate'].map(k => e.say({ boss: k, bossKind: k })).filter(Boolean)]) { assert.ok(!/boss/i.test(s), s); assert.deepEqual(textIssues(s), [], s); }
 });
 
 test('the words of clarity fixes 8j and 8k', async () => {
@@ -248,6 +250,6 @@ test('the steps to a Capital building a town needs are short', async () => {
 
 test('the Capital label says what its goods are for', async () => {
   const { sentWords } = await import('../src/ui/capital.js');
-  assert.equal(sentWords({ got: 2080.4, need: 8200, good: 'rails' }), 'Contract 2.08K / 8.2K rails');
+  assert.equal(sentWords({ got: 2080.4, need: 8200, good: 'rails' }), '2.08K / 8.2K'); // clarity fix 8x: the good's picture and a bar say the rest
   assert.deepEqual(textIssues(sentWords({ got: 108.7, need: 270, good: 'timber' })), []);
 });

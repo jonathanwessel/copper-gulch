@@ -12,6 +12,9 @@ import { ARMS } from './arms.js';
 import { GOODS } from './goods.js';
 import { BUILDINGS } from './buildings.js';
 import { BOOM } from '../core/market.js';
+import { FOES, STAGE_AHEAD } from './foes.js';
+/* What a boss's card shows, the card its bar opens (src/ui/foe.js: health, armor, what it is weak to). */
+export const BOSS_CARD = 'Tap its bar at the top to see how hurt it is, its armor and what it is weak to.';
 export const EXPLAINERS = [
   // Dry Creek Outpost, where a new game starts
   {
@@ -72,8 +75,10 @@ export const EXPLAINERS = [
     // it names the town's own boss, the name on the bar (clarity fix 8i: "The boss bar" and "boss" were words no other screen used)
     title: 'The war wagon',
     head: h => (h.boss ? 'The ' + h.boss : null),
-    text: 'The war wagon changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.',
-    say: h => (h.boss ? 'The ' + h.boss + ' changes when it is badly hurt. Tap its bar at the top to see what your towers did to it.' : null),
+    // what its stage does, then what the card its bar opens shows (clarity fix 8y: "changes when it is badly hurt" and
+    // "what your towers did to it" named neither)
+    text: STAGE_AHEAD.crew + ' ' + BOSS_CARD,
+    say: h => (h.bossKind && FOES[h.bossKind] && FOES[h.bossKind].stages ? STAGE_AHEAD[FOES[h.bossKind].stages[0].key] + ' ' + BOSS_CARD : null),
     when: h => h.bossUp, at: () => ({ el: '#bossBar' }),
   },
   // Copper Gulch

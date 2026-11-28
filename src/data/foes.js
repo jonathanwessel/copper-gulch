@@ -45,6 +45,15 @@ export const FOES = {
 /* The same stage on the raider card, in a sentence: the bar has a picture and an arrow beside its few words, the card a
    chip with room (clarity fix 8b: "Crew off, slower" on the card read as a note). */
 export const STAGE_LINES = { crew: 'The crew jumped off. The wagon is slower.', horsemen: 'The horsemen rode off. The wagon is slower.', plates: 'Its plates fell off. It is faster.', steam: 'It is at full steam. It is faster.', bail: 'The crew slid down to the road. The airship flies low now, and every tower can hit it.' };
+/* What each stage will do, for the boss's first card, before it happens (clarity fix 8y: "changes when it is badly
+   hurt" said nothing of what happens). */
+export const STAGE_AHEAD = {
+  crew: 'At half health its crew jumps off and runs on, and the wagon slows down.',
+  horsemen: 'At half health two horsemen ride off it, and the wagon slows down.',
+  plates: 'At half health its armor plates fall off, and it speeds up.',
+  steam: 'At a third of its health it goes to full steam and speeds up.',
+  bail: 'At half health its crew slides down to the road, and the airship flies low where every tower can hit it.',
+};
 export const STAGE_WORDS = { crew: 'Crew off, slower', horsemen: 'Horsemen off, slower', plates: 'Plates off, faster', steam: 'Full steam, faster', bail: 'Crew off, sinking' };
 
 /* Kinds of wave: weights of each raider, a count factor, a health factor and a spacing factor. */

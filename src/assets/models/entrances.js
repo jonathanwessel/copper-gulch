@@ -275,19 +275,19 @@ export const ENTRANCES = {
     for (const [dx, dz] of [[-.5, .9], [-.75, 1.15]]) k.cyl(fx + dx, Y0, fz + dz, .085, .22, 'black', { r2: .075, seg: 8 });
     return { obj: k.build({ cast: true }), plume: [mx, 2, pz - 1.6], shade: { x: mx, z0: mz + .2, z1: pz - .2, w: e.width * .8 } };
   },
-  /* Thunder Mesa's sky lane: a storm cloud bank hanging off the board's corner, where the airships wait. Puffs of white
-     over a dark gray belly, piled from the mouth back toward the portal, around the lane's height (e.height), and a
+  /* Thunder Mesa's sky lane: a storm cloud bank hanging off the board's corner, where the airships wait. Smooth puffs of
+     white over light gray ones (clarity fix 8y: faceted puffs over a dark flat belly read as boulders on a slab), piled from the mouth back toward the portal, around the lane's height (e.height), and a
      cloud swell in place of dust before a wave that brings airships. It floats, so it never sinks for the camera
      (nocut), and it has no shade on the ground. */
   cloud: e => {
     const k = new Kit({ ao: false }), R = rng(97), [mx, mz] = e.mouth, [px, pz] = e.portal, y = e.height || 1.7, half = e.width / 2;
-    // soft round puffs, white on top and gray lower down, piled higher toward the back, over a flat dark storm belly
+    // soft round puffs, white on top and pale gray lower down, piled higher toward the back, over a few wide gray puffs
     for (let i = 0; i < 26; i++) {
       const t = R(), x = mx + (px - mx) * t + (R() - .5) * e.width * 1.3, z = mz + (pz - mz) * t + (R() - .5) * e.width * 1.1;
       const r = .4 + R() * .45 + t * .4, up = (R() - .25) * .8 + t * .5;
-      k.ball(x, y + up, z, r, up > .35 ? '#e8ebf1' : up > 0 ? '#c9cfd9' : '#9ea7b4', { det: 1, sy: .7 });
+      k.ball(x, y + up, z, r, up > .35 ? '#f2f4f8' : up > 0 ? '#dde2ea' : '#c3cad5', { det: 2, sy: .7, mat: 'soft' });
     }
-    for (let i = 0; i < 7; i++) { const t = i / 6; k.ball(mx + (px - mx) * t + (R() - .5) * half, y - .35, mz + (pz - mz) * t + (R() - .5) * half, .75 + R() * .3, '#596270', { det: 1, sy: .3 }); }
+    for (let i = 0; i < 7; i++) { const t = i / 6; k.ball(mx + (px - mx) * t + (R() - .5) * half, y - .3, mz + (pz - mz) * t + (R() - .5) * half, .7 + R() * .3, '#b3bbc7', { det: 2, sy: .5, mat: 'soft' }); }
     return { obj: k.build({ cast: false }), plume: [mx + (px - mx) * .4, y + .3, mz + (pz - mz) * .4], shade: null, nocut: true, color: '#eef0f4' };
   },
 };

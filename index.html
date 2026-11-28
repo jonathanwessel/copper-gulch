@@ -200,6 +200,9 @@ html.no3d body { background: var(--bg); }
 .goal[hidden] { display: none; }
 .goal .glabel { flex: none; padding: 3px 6px; background: var(--copper); color: #1d120c; font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
 .goal .gtext { min-width: 0; text-wrap: balance; }
+/* a save's own Hold waves button on the strip (clarity fix 8x) */
+.goal .ghold { flex: none; margin-left: auto; padding: 5px 8px; min-height: 30px; display: inline-flex; align-items: center; background: var(--panel-2); color: var(--ink); border: 2px solid var(--copper); font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.goal .ghold[hidden] { display: none; }
 .goal.new { animation: slideIn .3s both; } /* slides in solid: a fade read as see-through (review of 2026.11.20-5) */
 .goal.done { border-color: var(--good); }
 .goal.done .glabel { background: var(--good); }
@@ -353,6 +356,15 @@ html.flat .tag { position: static; transform: none !important; }
 .explain.why b { color: var(--ink); font-weight: 600; white-space: nowrap; }
 .explain .total { margin-top: 3px; padding-top: 3px; border-top: 2px solid var(--line); }
 .explain .total span, .explain .total b { color: var(--gold); }
+/* a good's price now on the Goods sheet, a tap unfolds its causes over it (src/ui/sheets.js paysBox, clarity fix 8x) */
+.explain .paysrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 3px 0 0; font: inherit; text-align: left; background: none; border: 0; border-top: 2px solid var(--line); cursor: pointer; }
+.explain.folded .paysrow { margin-top: 0; padding-top: 0; border-top: 0; }
+.explain .paysrow span { flex: 1; white-space: nowrap; }
+/* an open-or-closed chevron, a line and not a solid arrow, so it never reads as the price's own arrow beside it */
+.explain .paysrow::after { content: ""; flex: none; width: 6px; height: 6px; margin: 0 4px 0 2px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); }
+.explain .paysrow[aria-expanded="true"]::after { transform: translateY(-2px) rotate(45deg); }
+.paysway { flex: none; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; }
+.paysway.up { border-bottom: 8px solid #5fd36a; } .paysway.down { border-top: 8px solid #e0503a; } .paysway[hidden] { display: none; }
 .explain .statrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 30px; margin: 0 -6px; padding: 0 6px; background: none; border: 0; border-bottom: 2px dotted #5a4030; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .explain .statrow.on { background: #1f150f; }
 .explain .statrow b::after, .stat b::after { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 2px 1px 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); }
@@ -521,6 +533,7 @@ html.flat .tag { position: static; transform: none !important; }
 }
 .mapbadge b { font-size: .85rem; color: var(--copper-hi); white-space: nowrap; }
 .mapbadge .mline { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mapbadge .mgood { width: 12px; height: 12px; } .mapbadge .mgood[hidden] { display: none; } /* the Capital's contract good (clarity fix 8x) */
 .mapbadge .mvault { display: inline-flex; gap: 4px; align-items: center; }
 .mapbadge .heart { width: 11px; height: 10px; }
 .mapbadge .mvault[hidden] { display: none; }
@@ -724,6 +737,7 @@ html.flat .tag { position: static; transform: none !important; }
 .btn.switch .pip .modepic { vertical-align: -2px; }
 .goodchip b { color: var(--ink); font-size: .9rem; min-width: 5ch; text-align: right; margin-left: 4px; flex: none; }
 .gicon { display: inline-block; flex: none; width: 14px; height: 14px; border: 2px solid #000; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .3); }
+.gicon.dark { border-color: #000; box-shadow: inset 4px 4px 0 rgba(255, 255, 255, .42), 0 0 0 1px #8a7560; } /* a dark good's square (darkGood in src/ui/format.js): a pixel shine on the fill and a thin light edge, so it reads filled, not empty */
 /* a cost on a card: the coins, then each good as have / need, red when short */
 .labaway { display: grid; gap: 6px; margin-top: 10px; } /* the other towns' research, after this town's own list (owner, 2026-11-22) */
 .labaway[hidden], .labaway .goods[hidden] { display: none; }
@@ -845,6 +859,9 @@ button.option.labrow::after { content: '›'; flex: none; font-weight: 700; colo
   .wave .call { padding: 2px 4px; }
   .coins { grid-template-columns: auto 3.2rem; column-gap: 4px; padding: 3px 6px; }
   .coins b { font-size: 1rem; }
+  /* the rate in the 3.2rem column whole: "+4.86K/s" at .8rem ran 53 px in its 51 and lost its s (clarity fix 8y; smoke
+     measures the text's own width, as scrollWidth rounds a 2 px cut away) */
+  .coins .inc { font-size: .72rem; }
   .side .btn { min-width: 68px; padding: 4px 5px; font-size: .8rem; }
   #armsBtn::before, #armsBtn .btime { font-size: .64rem; } /* its clock line set the side column's width */
 }

@@ -3,6 +3,16 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-8',
+    lines: [
+      'When you save for a new place, the Goal shows your coins and has its own Hold waves button.',
+      'On the Goods sheet, tap Pays now to see why a price is up or down.',
+      'Health bars of raiders side by side no longer run together.',
+      'A boss card tells you what the boss does when it is half beaten.',
+      'The Thunder Mesa cloud bank looks like clouds, and dark goods like crude oil are easier to see.',
+    ],
+  },
+  {
     v: '2026.11.27-7',
     lines: [
       'A new outpost, Tar Seep, opens when you start Thunder Mesa. Its road comes in under an old oil tower.',

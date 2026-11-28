@@ -127,7 +127,9 @@ test('the save for Silver Falls starts with Hold waves, and a town lost away doe
   assert.equal(townSaveNext(g).id, 'next:falls:coins');
   let s = goalNow(g);
   assert.equal(s.id, 'next:falls:hold');
-  assert.equal(s.text, REBUILD_WORDS.hold('Silver Falls'));
+  // clarity fix 8x: the save's own words and count, with its own Hold waves button
+  assert.equal(s.text, townSaveNext(g).text);
+  assert.ok(s.hold && s.saveNeed === townSaveNext(g).need && !s.need);
   assert.deepEqual(textIssues(s.text), [], s.text);
   setHold(g, r, true);
   assert.equal(goalNow(g).id, 'next:falls:coins', 'held to save: no Resume waves step');

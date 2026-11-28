@@ -44,12 +44,21 @@ const TOWN_NAMES = Object.fromEntries(Object.entries(TOWNS).map(([id, t]) => [id
 /* A sheet: build(body) fills it; frame(dt) (optional, returned by build) runs while it is open. A frame function may
    carry .sync, called by sync() right after the play screen repaints its top bar and goods strip, so a sheet that
    shows the same numbers repaints in that frame (review of 2026.11.19-7: Goods read 46 copper ore beside the strip's 45). */
-/* A good's price rows with their sum at the foot, in the words the closed row uses ("Under 1 coin each"): with the sum
-   above the rows, "Demand high, Up 60%" over a crashed price read as two prices (clarity fix 8t). */
+/* A good's price now, one row in the words the closed row uses ("Under 1 coin each") with an arrow the way the price
+   has moved, and its causes folded behind a tap on it, as a rate's parts are (clarity fix 8x: "Down 99%" over "Up 60%"
+   over "Under 1 coin each" read as boom and bust at once, flagged twice, so the control changed and not the words).
+   Unfolded, the causes sit over it and it stays their sum at the foot (clarity fix 8t: with the sum above the rows,
+   "Demand high, Up 60%" over a crashed price read as two prices). s: the price against its usual one. */
 export const PAYS_NOW = 'Pays now';
-function paysBox(ex, words) {
-  const box = explainBox(ex, { total: null, pct: true }), r = el('div', 'total');
-  r.append(el('span', null, PAYS_NOW), el('b', null, words)); box.append(r);
+export const paysWay = s => (s > 1.05 ? 'up' : s < .95 ? 'down' : '');
+function paysBox(ex, words, s, unfolded, toggle) {
+  const box = unfolded ? explainBox(ex, { total: null, pct: true }) : el('div', 'explain why');
+  const r = el('button', 'total paysrow'), way = paysWay(s), arrow = el('i', 'paysway' + (way ? ' ' + way : ''));
+  arrow.setAttribute('aria-hidden', 'true'); arrow.hidden = !way;
+  r.type = 'button'; r.setAttribute('aria-expanded', String(!!unfolded));
+  r.append(el('span', null, PAYS_NOW), arrow, el('b', null, words)); box.append(r);
+  box.classList.add('paysbox'); if (!unfolded) box.classList.add('folded');
+  r.addEventListener('click', e => { e.stopPropagation(); toggle(); });
   return box;
 }
 export function createSheets(root, { onOpen = () => {} } = {}) {
@@ -174,7 +183,7 @@ export function ordersPanel(game, town) {
 /* The Goods sheet. A good shows once its building is built. */
 export function goodsSheet(game, town, focus = null) {
   return body => {
-    const list = el('div', 'goods'), rows = {}, open = {}, whySig = {}, picking = {};
+    const list = el('div', 'goods'), rows = {}, open = {}, whySig = {}, picking = {}, parts = {};
     if (focus) open[focus] = true; // tapped on the goods strip: that good opens with its price explained
     // one switch for the whole town (owner, 2026-11-19: keep more for towers, with no tuning good by good)
     // no line under it: each good's row says how many it keeps, and Lots doubles them there (review of 2026.11.20-3:
@@ -257,8 +266,9 @@ export function goodsSheet(game, town, focus = null) {
         const ex2 = evClock ? { ...ex, rows: ex.rows.map(x => (x.event ? { ...x, label: x.label + ' ' + evClock } : x)) } : ex;
         const sat = saturation(game, g);
         const [pl, pw] = priceRow(ex.value, sat * eventFactor(game, g)); // a boom or bust moves it too (review of 2026.11.22-3: "Boom" beside "Down 99%")
-        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) + pl) : '';
-        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [paysBox(ex2, pl)])); }
+        const pnet = sat * eventFactor(game, g);
+        const ws = open[g] ? (note || JSON.stringify(ex2.rows.map(x => [x.label, Math.round((x.mul || x.base) * 100)])) + pl + paysWay(pnet) + !!parts[g]) : '';
+        if (ws !== whySig[g]) { whySig[g] = ws; r.why.replaceChildren(...(!open[g] ? [] : note ? [el('p', 'uses', note)] : [paysBox(ex2, pl, pnet, !!parts[g], () => { parts[g] = !parts[g]; paint(); })])); }
         const pw1 = open[g] && !note ? '' : pw; // open, its rows say each move, so the drop is said once (clarity fix 8a)
         if (r.level.textContent !== pw1) r.level.textContent = pw1;
         // the price the player gets says so, beside the open rows' usual price (clarity fix 8r: "Base price 1 coin" beside

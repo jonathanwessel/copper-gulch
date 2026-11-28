@@ -20,11 +20,13 @@ import { FOES } from '../data/foes.js';
 import { FIRE } from '../data/towers.js';
 import { disposeTree } from './board.js';
 import { padFooting, blobMesh } from './dress.js';
+import { barLift } from './bar-plan.js';
 const _up = new THREE.Vector3(0, 1, 0), FOE_BLOBS = 96, _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bq = new THREE.Quaternion();
 
 const towerKey = t => t.kind + (t.path || '') + (t.fork || '') + (t.level >= 6 ? 2 : t.level >= 3 ? 1 : 0);
 const BAR_BACK = new THREE.Color('#1d120c'), BAR_FILL = new THREE.Color('#f07067');
-const _bx = new THREE.Vector3(), _bo = new THREE.Vector3();
+const _bx = new THREE.Vector3(), _bo = new THREE.Vector3(), _br = new THREE.Vector3(), _bu = new THREE.Vector3();
+const _px = new Float32Array(FOE_BLOBS), _py = new Float32Array(FOE_BLOBS), _pw = new Float32Array(FOE_BLOBS), _ph = new Float32Array(FOE_BLOBS); // the bars placed so far this frame (barLift)
 const FX = {
   bolt: new THREE.MeshBasicMaterial({ color: '#ffe6b0' }),
   ball: new THREE.MeshStandardMaterial({ color: '#2b2830', metalness: .6, roughness: .4 }),
@@ -222,10 +224,16 @@ export class Battle {
     const list = this.barList; list.length = 0;
     for (const u of this.foes.values()) if (u.obj.visible && u.hp < .999) { u.camD = u.obj.position.distanceToSquared(cam.position); list.push(u); }
     list.sort((a, b) => b.camD - a.camD); // far first, so a nearer bar draws over it
-    let n = 0;
+    let n = 0, m = 0;
+    _br.set(1, 0, 0).applyQuaternion(cam.quaternion); _bu.set(0, 1, 0).applyQuaternion(cam.quaternion);
     for (const u of list) {
       if (n >= FOE_BLOBS * 2) break;
       const k = u.obj.scale.x, r = u.hp, at = _bp.copy(u.obj.position); at.y += u.barY * k;
+      // stacked over a bar it would touch, far ones first (BAR_GAP)
+      const bx = at.dot(_br), by = at.dot(_bu), bw = (u.w + .06) * k, bh = .1 * k, want = barLift(bx, by, bw, bh, m, _px, _py, _pw, _ph);
+      _px[m] = bx; _py[m] = by + want; _pw[m] = bw; _ph[m] = bh; m++;
+      u.lift = (u.lift || 0) + (want - (u.lift || 0)) * .3;
+      if (u.lift > 1e-4) at.addScaledVector(_bu, u.lift);
       _bm.compose(at, cam.quaternion, _bs.set((u.w + .06) * k, .1 * k, k)); this.bars.setMatrixAt(n++, _bm);
       _bo.copy(at).add(_bx.set(-u.w * (1 - r) / 2 * k, 0, .001 * k).applyQuaternion(cam.quaternion));
       _bm.compose(_bo, cam.quaternion, _bs.set(Math.max(1e-4, u.w * r) * k, .06 * k, k)); this.bars.setMatrixAt(n++, _bm);

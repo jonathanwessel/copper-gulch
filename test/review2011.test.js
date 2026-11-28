@@ -49,7 +49,7 @@ test('nothing said twice: the price note, Perks, the Boiler Shop', () => {
   assert.ok(sheets.includes("'After signing'") && !sheets.includes('Sign now and you have'));
   assert.ok(!sheets.includes('saves by itself'));
   assert.match(play, /if \(imp\.length && !\(town\.starved\[id\] && L && shortImp\.length/, 'come by wagon only when not short');
-  assert.ok(play.includes("' in a moment.'"));
+  assert.ok(!play.includes("' in a moment.'")); // clarity fix 8x: a wait under 20 seconds gets no line
 });
 
 test('plainer words for the old-wave bonus, the foreman, the hold goal and the stock switch', () => {

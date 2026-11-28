@@ -346,6 +346,10 @@ async function run() {
         const shown = !bar.hidden, name = (bar.querySelector('.bname') || {}).textContent, w0 = box(bar), mid = others();
         const widths = new Set([w0]);
         for (const k of [.9, .7, .55]) { f.hp = max * k; await wait(250); widths.add(box(bar)); }
+        // clarity fix 8y: the stage line keeps off the boss. The map slides the boss to just under the top bar, where a toast
+        // goes first, so the check can go red
+        const hudLow = Math.max(0, ...[...document.querySelectorAll('.hud .hudleft, .hud .hudright')].map(n => n.getBoundingClientRect().bottom));
+        CG.town.bring({ foe: f.id }, innerWidth / 2, Math.min(innerHeight * .5, hudLow + 50)); await wait(700);
         f.hp = max * (F.stages[0].at - .05); await wait(500); widths.add(box(bar));
         // the stage is a picture now, with its words as the label (review of 2026.11.23-9); the picture must be drawn
         const sn = bar.querySelector('.bstage'), stage = sn && sn.children.length === 1 ? sn.getAttribute('aria-label') : 'no picture', after = others();
@@ -354,6 +358,10 @@ async function run() {
         const { STAGE_LINES } = await import('./src/data/foes.js'), ui = await import(new URL('src/ui/play.js', location.href).href);
         const said = (bar.querySelector('.bname') || {}).textContent, toasted = ui.toastsNow().includes(STAGE_LINES[F.stages[0].key]), arrow = !!bar.querySelector('.sarrow');
         const af = bar.querySelector('.abar i'), armorFill = F.armor > 0 ? !!af && af.getBoundingClientRect().width > 0 : true;
+        let tn = null;
+        for (let i = 0; i < 30 && !(tn = [...document.querySelectorAll('.toast')].find(n => n.textContent === STAGE_LINES[F.stages[0].key] && !n.classList.contains('wait'))); i++) await wait(200);
+        const fb = ui.foeBox(CG.town, f.id), tr = tn && tn.getBoundingClientRect(), m = 12;
+        const offBoss = !tn ? 'no toast' : !fb ? 'boss off screen' : !(tr.left < fb.right - m && tr.right > fb.left + m && tr.top < fb.bottom - m && tr.bottom > fb.top + m) ? 'ok' : 'over the boss ' + JSON.stringify({ toast: [tr.left, tr.top, tr.right, tr.bottom].map(Math.round), boss: [fb.left, fb.top, fb.right, fb.bottom].map(Math.round) });
         bar.click(); await wait(250);
         const card = document.getElementById('card'), cardName = (card.querySelector('h2') || {}).textContent, opened = !card.hidden && card.classList.contains('foecard');
         CG.play.close();
@@ -361,9 +369,11 @@ async function run() {
         const down = (bar.querySelector('.bname') || {}).textContent; widths.add(box(bar));
         await wait(2200);
         const gone = bar.hidden;
+        if (CG.town.rig.reset) CG.town.rig.reset(); // the map back home after the slide to the boss, for the checks after it
         ws.foes = ws.foes.filter(x => x.kind === F.stages[0].drop ? false : true);
-        return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone, said, toasted, arrow, armorFill };
+        return { hiddenFirst, shown, name, want: F.name, widths: [...widths], stage, wantStage: STAGE_WORDS[F.stages[0].key], same: before === mid && mid === after, before, after, cardName, opened, down, gone, said, toasted, arrow, armorFill, offBoss };
       });
+      if (bossBar.offBoss !== 'ok' && bossBar.offBoss !== 'boss off screen') bad.push('the boss stage line keeps off the boss (8y): ' + bossBar.offBoss);
       if (bossBar.said !== bossBar.want || !bossBar.toasted || bossBar.arrow || !bossBar.armorFill) bad.push('the boss bar name, stage toast, arrow or armor fill (8n): ' + JSON.stringify({ said: bossBar.said, toasted: bossBar.toasted, arrow: bossBar.arrow, armorFill: bossBar.armorFill }));
       // the workers called to arms can be tapped too (roadmap review 2026.11.22-9): a real tap on a pair by the road
       // opens their card with their building's name and the seconds left, the ring sits on them, and it says Back to work!
@@ -521,9 +531,13 @@ async function run() {
         out.on = !t.reserveOff.timber && t.keep.timber > 0;
         CG.town.pause('smoke', true); t.goods.timber = 0; CG.play.openSpot(3); await wait(400); // paused, so the camp makes none meanwhile
         const sh = document.querySelector('#card .short, #card .soon'), low = [...document.querySelectorAll('#card .costrow .need.low')].map(n => n.textContent);
-        out.short = !!sh && /Lumber Camp|Enough timber in about/.test(sh.textContent); // a wait under 20 s has no advice
+        // a wait under 20 s has no line at all (clarity fix 8x), so the check reads the wait the card is built from
+        const D = await import(new URL('src/core/defense.js', location.href).href), tw = D.towerAt(t, 3);
+        const wt = D.shortfall(t, tw ? D.towerCost(t, tw.kind, tw.level) : D.towerCost(t, 'crossbow', 0)).find(s => s.good === 'timber');
+        out.wait = 'wait ' + (wt ? wt.seconds : 'none');
+        out.short = wt && wt.seconds !== null && wt.seconds < 20 ? !sh : !!sh && /Lumber Camp|Enough timber in about/.test(sh.textContent);
         // "Enough timber in about ..." is good news: plain ink, not red (#f07067)
-        out.calm = !!sh && (/^Enough /.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
+        out.calm = !sh ? out.short : (/^Enough /.test(sh.textContent) === sh.classList.contains('soon')) && (!sh.classList.contains('soon') || !/240, 112, 103/.test(getComputedStyle(sh).color));
         out.haveNeed = low.some(x => /^\d+ timberhave 0$/.test(x)); // the price, then have under it, red when short (review of 2026.11.20-14)
         // coins too, kept up with the purse in place (review 2026-11-18): short shows red, enough shows plain
         // (the card is rebuilt when the coins cross the price, so the cell is looked up again each time)
@@ -573,6 +587,11 @@ async function run() {
           painted = painted && document.querySelector('#goodsStrip .goodchip b').textContent === fmtLive(n);
           for (const r of ['+0/s', '+8.1/s', '+999/s', '+99.9K/s', '+1.00M/s']) {
             inc.textContent = r; winfo.textContent = info;
+            // the cell holds its longest form whole (clarity fix 8y: "+4.86K/s" lost its s on a 400 px phone)
+            const cb = document.querySelector('.hud .coins b');
+            // the text's own width against the cell's, since scrollWidth rounds a cut of a pixel or two away
+            const textW = n => { const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect().width; };
+            for (const n of [inc, cb]) if (textW(n) > n.getBoundingClientRect().width + .25) (out.cut ??= []).push(n.textContent);
             const b = boxes(); first ??= b;
             b.forEach((x, i) => { const f0 = first[i]; if (!f0 || f0[0] !== x[0] || f0[1] !== x[1] || f0[2] !== x[2] || f0[3] !== x[3]) out.moved.push(x[0] + ' at ' + n + '/' + w + '/' + r + ': ' + JSON.stringify(f0) + ' -> ' + JSON.stringify(x)); });
           }
@@ -599,6 +618,7 @@ async function run() {
       if (!still.waveCard) bad.push('the wave number did not open the raiders card');
       if (still.waveSame !== true) bad.push('the raiders card and the wave bar name different waves: ' + still.waveSame);
       for (const m of still.moved) bad.push('live numbers: a HUD cell moved or changed size: ' + m);
+      if (still.cut) bad.push('live numbers: the coins cell cuts ' + [...new Set(still.cut)].join(', '));
       // every object opens with one tap (owner rule): a real click (browser hit testing, so a HUD box over the map counts)
       // on the middle of every pad and plot, in the home view, turned and zoomed in, must open that object's card. A
       // middle under a real button or off screen is skipped (the player moves the map), and the skips are counted.
@@ -890,6 +910,9 @@ async function run() {
         const rowEl = document.querySelector('#sheet [data-why="timber"]');
         const openedRow = !!rowEl && rowEl.getAttribute('aria-expanded') !== 'true';
         if (openedRow) { rowEl.click(); await wait(300); }
+        // and its causes, folded behind Pays now since clarity fix 8x
+        const pr = rowEl && rowEl.querySelector('.paysrow');
+        if (pr && pr.getAttribute('aria-expanded') !== 'true') { pr.click(); await wait(300); }
         const rowsText = () => (rowEl && rowEl.textContent) || '';
         out.row = !!row && !row.hidden && !!evl && evl.hidden && /^Price up for \d:\d\d more$/.test(row.getAttribute('aria-label') || '') && getComputedStyle(row, '::before').borderBottomWidth === '8px' && /Demand high \d:\d\d\sleft/.test(rowsText()) && !/Boom/.test(rowsText());
         m.boom = { good: 'timber', f: .6, left: 30 }; m.event = { timber: .6 }; await wait(450);
@@ -1103,6 +1126,11 @@ async function run() {
         sheet.querySelector('[data-why="timber"]').click(); await wait(400);
         // the price sits at the rows' foot as their sum, "Pays now", and the line above steps aside (clarity fix 8t; until then
         // the price bar's front said it, review of 2026.11.20-7)
+        // clarity fix 8x: folded, one Pays now row and no causes; a tap on it unfolds them over it
+        const pr = sheet.querySelector('[data-why="timber"] .paysrow');
+        out.folded = !!pr && /^Pays now/.test(pr.textContent) && !/Usual price/.test(sheet.textContent) && pr.getAttribute('aria-expanded') === 'false';
+        if (pr) pr.click(); await wait(400);
+        out.unfolds = sheet.querySelector('[data-why="timber"] .paysrow')?.getAttribute('aria-expanded') === 'true' && /Usual price/.test(sheet.textContent);
         const tot = sheet.querySelector('.explain.why .total');
         out.price = /Usual price/.test(sheet.textContent) && !!tot && /^Pays now/.test(tot.textContent) && /coins? (each|per)/.test(tot.textContent) && !(sheet.querySelector('[data-why="timber"] .plabel')?.textContent || '');
         T.goods.timber = 0; await wait(600);
@@ -1651,8 +1679,10 @@ async function run() {
         if (!open.open || open.takes < 1 || !/Influence/.test(open.text) || !open.dio) bad.push('the Capital card after it is built is wrong (' + JSON.stringify({ ...open, text: open.text.slice(0, 120) }) + ')');
         bad.push(...(await check(page)).map(b => 'capital card: ' + b));
         await page.evaluate(() => document.querySelector('#mapCard [data-contract]').click()); await sleep(700);
-        const run = await page.evaluate(() => ({ active: !!CG.game.shared.capital.active, drop: !!document.getElementById('contractDrop'), badge: document.querySelector('.mapbadge[data-site="capital"]').textContent }));
-        if (!run.active || !run.drop || !/Contract [0-9.]+[KMB]? [/] [0-9]/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
+        // clarity fix 8x: the label shows the good's picture, the count and a bar, no word (its card is open, so the line
+        // waits hidden: the picture is checked by its state, not its size)
+        const run = await page.evaluate(() => { const b = document.querySelector('.mapbadge[data-site="capital"]'), pic = b.querySelector('.mgood'), bar = b.querySelector('.sbar'); return { active: !!CG.game.shared.capital.active, drop: !!document.getElementById('contractDrop'), badge: b.textContent, pic: !!pic && !pic.hidden && pic.dataset.good === CG.game.shared.capital.active.good, bar: !!bar }; });
+        if (!run.active || !run.drop || !run.pic || !run.bar || /Contract/.test(run.badge) || !/[0-9.]+[KMB]? [/] [0-9]/.test(run.badge)) bad.push('taking a contract did not show it (' + JSON.stringify(run) + ')');
         await page.evaluate(() => { const a = CG.game.shared.capital.active; a.got = a.need; });
         if (!await waitFor(page, () => CG.game.shared.capital.filled === 1 && CG.game.shared.capital.influence > 0 && [...document.querySelectorAll('.toast')].some(n => /delivered. You got/.test(n.textContent)), 4000)) bad.push('a full contract did not pay or say so');
         bad.push(...(await check(page)).map(b => 'capital contract: ' + b));

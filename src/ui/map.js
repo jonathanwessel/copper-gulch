@@ -8,12 +8,12 @@ import { BUILDINGS, aName } from '../data/buildings.js';
 import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
-import { fmt, fmtLive, splitLive, vaultCount, rateShort, HITS_LEFT } from './format.js';
+import { fmt, fmtLive, splitLive, vaultCount, rateShort, HITS_LEFT, darkGood } from './format.js';
 import { heart } from './heart.js';
 import { lostLine, lostToast, retryLine } from './lost.js';
 import { capitalOpen, capitalOf, foundCapital } from '../core/capital.js';
 import { CAPITAL_DEF, CAPITAL_ABOUT } from '../data/capital.js';
-import { capitalPanel, contractDone, contractMissed, sentWords, influenceWords } from './capital.js';
+import { capitalPanel, contractDone, contractMissed, sentWords, sentShare, influenceWords } from './capital.js';
 import { treeCalls, influence, nodeCost, founded as instFounded } from '../core/tree.js';
 import { capitalAsk } from '../core/goals.js';
 import { retryState } from '../core/automation.js';
@@ -272,8 +272,10 @@ export function mountMap(root, game, view, shell) {
     b.append(nm, line, st, bar); line.append(extra); // the wave and what it earns on one line: two lines tall, so a label covers less of the town above it (review of 2026.11.20-13: Iron Ridge's label over Pine Hollow)
     b.addEventListener('click', () => openSite(s.id));
     badges.append(b);
-    badge[s.id] = { b, line, vault, fill, extra, wave: el('span'), st, mark, word, bar, barFill };
-    badge[s.id].line.prepend(badge[s.id].wave, vault);
+    // the Capital's contract: the good's picture before its count (clarity fix 8x)
+    const gpic = el('i', 'gicon mgood'); gpic.hidden = true;
+    badge[s.id] = { b, line, vault, fill, extra, wave: el('span'), st, mark, word, bar, barFill, gpic };
+    badge[s.id].line.prepend(gpic, badge[s.id].wave, vault);
   }
 
   let openId = null, acc = 1, lastTap = { id: null, t: 0 }, cap = null;
@@ -441,8 +443,13 @@ export function mountMap(root, game, view, shell) {
         B.b.classList.remove('gold');
       } else if (s.id === 'capital' && capitalOpen(game)) {
         const c = capitalOf(game), a = c.active;
-        setText(B.wave, capitalAsk(game) || (a ? sentWords(a) : 'Take a contract')); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent") // it names the contract (review 2026-11-18)
-        B.vault.hidden = true; B.st.hidden = B.bar.hidden = true; B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
+        const ask = capitalAsk(game), sent = !ask && !!a;
+        setText(B.wave, ask || (a ? sentWords(a) : 'Take a contract')); // the card's figure (review of 2026.11.19-13: "40% done" against "16 of 42 sent")
+        // a running contract: the good's picture, its count and a bar (clarity fix 8x)
+        B.gpic.hidden = !sent;
+        if (sent && B.gpic.dataset.good !== a.good) { B.gpic.dataset.good = a.good; B.gpic.style.background = GOODS[a.good].color; B.gpic.classList.toggle('dark', darkGood(GOODS[a.good].color)); B.gpic.setAttribute('aria-label', GOODS[a.good].name); B.gpic.title = GOODS[a.good].name; }
+        B.vault.hidden = true; B.st.hidden = true; B.bar.hidden = !sent || openId === 'capital'; // with its card open the card says it, as the line
+        if (sent) { const w = (100 * sentShare(a)).toFixed(1) + '%'; if (B.barFill.style.width !== w) B.barFill.style.width = w; B.bar.dataset.state = 'contract'; } B.line.hidden = openId === 'capital'; setText(B.extra, ''); // the Influence is under the coins (review of 2026.11.20-10), and its open card says the contract (review of 2026.11.20-4: the figure three times on one screen)
         B.b.classList.toggle('dot', !a || treeCalls(game)); B.b.classList.add('gold'); // gold: something ready to take, not a problem
       } else {
         const lr = lockedRules(game, s.id);

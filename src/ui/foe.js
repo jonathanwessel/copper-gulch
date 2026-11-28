@@ -32,7 +32,6 @@ export function foeView(town, f, store = 'vault') {
     armor: st.armorFull > 0 ? { text: 'Blocks ' + pct(st.armor) + (st.eaten > 0 ? ', was ' + pct(st.armorFull) : ''), share: st.armor, full: st.armorFull } : null,
     // a boss's stage leads its effects, in the boss bar's words (one state, one source: both read foeStatus)
     effects: [...(st.stage ? [{ key: 'stage', word: STAGE_LINES[st.stage], left: '' }] : []), ...st.effects.map(e => ({ key: e.key, word: EFFECT_WORDS[e.key], left: e.key === 'spread' ? '' : fxLeft(e.left) }))],
-    none: 'No effects.', // review of 2026.11.22-9: "Nothing on it now" read as a narrator
     worth: coins(st.worth), best: bestView(town, f.kind, f),
     gone: st.gone === 'down' ? F.name + ' down!' : st.gone === 'through' ? 'It got to the ' + store + '.' : null,
   };
@@ -43,7 +42,6 @@ export function foeLines(town, f, store) {
   const v = foeView(town, f, store), out = [v.name, 'Health', v.health.text];
   if (v.armor) out.push('Armor', v.armor.text);
   for (const e of v.effects) out.push(e.word, e.left);
-  if (!v.effects.length) out.push(v.none);
   if (v.best.tower) out.push(v.best.label, v.best.tower);
   out.push(v.worth);
   if (v.gone) out.push(v.gone);
@@ -109,11 +107,12 @@ export function foeCard(card, town, f, { store = 'vault', onClose = () => {} } =
     if (ar) {
       set(ar.num, v.armor.text); ar.fill.style.width = (100 * v.armor.share).toFixed(1) + '%'; ar.ghost.style.width = (100 * v.armor.full).toFixed(1) + '%';
     }
-    // the effects are built again only when the set of them changes; the seconds are written in place
+    // the effects are built again only when the set of them changes; the seconds are written in place. With none the
+    // row stays empty at its own height (clarity fix 8x: "No effects." said nothing a player acts on)
     const s = v.effects.map(e => e.key).join();
-    if (s !== sig || !fx.firstChild) {
+    if (s !== sig || (!fx.firstChild && v.effects.length)) {
       sig = s;
-      fx.replaceChildren(...(v.effects.length ? v.effects.map(e => { const c = el('span', 'fx'); c.dataset.fx = e.key; c.append(mark(e.key), el('span', 'fxword', e.word), el('b', 'fxleft', e.left)); return c; }) : [el('span', 'fxnone', v.none)]));
+      fx.replaceChildren(...(v.effects.length ? v.effects.map(e => { const c = el('span', 'fx'); c.dataset.fx = e.key; c.append(mark(e.key), el('span', 'fxword', e.word), el('b', 'fxleft', e.left)); return c; }) : []));
     } else for (const e of v.effects) { const n = fx.querySelector('[data-fx="' + e.key + '"] .fxleft'); if (n) set(n, e.left); }
     return true;
   };

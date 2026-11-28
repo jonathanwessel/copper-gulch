@@ -92,7 +92,7 @@ test('Sandy Bend has its own goals, walking to the win and back to Silver Falls;
   const g = newGame('sb1', 'gulch'); g.addTown('sandybend'); g.go('sandybend'); g.step(.25);
   assert.equal(goalNow(g, false).id, 's-tower');
   for (const id of ['f-copper', 'f-steel', 'f-rails', 'r-tools']) assert.match(GOALS.find(x => x.id === id).text, /^Tap Map, /, id + ' names what to tap');
-  assert.equal(GOALS.find(x => x.id === 'g-hold').text, 'Tap Hold waves while you save for Iron Ridge');
+  assert.equal(GOALS.find(x => x.id === 'g-hold').text, GOALS.find(x => x.id === 'g-save').text); // clarity fix 8x: the save's words, with its own Hold waves button
 });
 
 test('a selection slides clear of the goods strip as well as the card', () => {

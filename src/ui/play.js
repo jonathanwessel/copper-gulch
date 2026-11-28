@@ -43,7 +43,7 @@ import { workerCard } from './worker.js';
 import { contractDone, contractMissed, capitalSheet, capitalReadyWords } from './capital.js';
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, modeState, PICK_PRICE } from './format.js';
+import { fmt, fmtDmg, fmtLive, sellsFor, perSecond, oneOf, vaultCount, haveWords, modeState, PICK_PRICE, darkGood } from './format.js';
 import { heart } from './heart.js';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /* Pixels the goal's tag stands above its building, on a stem, so its frame never covers the building it names. */
@@ -54,7 +54,7 @@ const rate = n => fmtLive(n) + '/s';
 /* On a stone pad's card once the town has its list-price towers: why a new one costs more (src/core/defense.js, crowdFactor). */
 export const crowdLine = town => { const n = normalTowers(town); return n >= crowdOf(town) ? 'You have ' + n + ' towers here. Each new tower costs more.' : ''; };
 /* A good's square, in its color (GOODS[g].color). */
-const goodIcon = g => { const i = el('i', 'gicon'); i.style.background = GOODS[g].color || '#888'; return i; };
+const goodIcon = g => { const i = el('i', 'gicon' + (darkGood(GOODS[g].color) ? ' dark' : '')); i.style.background = GOODS[g].color || '#888'; return i; };
 
 /* The toast when a research item ends: its name and level, and the vault's new heart count when it adds hearts. */
 export function researchDoneWords(town, e) {
@@ -130,12 +130,16 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // the goal strip (src/core/goals.js): one short goal at a time through the first half hour; tap it to point again
   const goal = el('button', 'goal'); goal.id = 'goal'; goal.hidden = true;
   const goalTag = el('span', 'glabel', 'Goal'), goalWords = el('span', 'gtext');
-  goal.append(goalTag, goalWords);
+  // a save that holds the waves carries its own small Hold waves button (clarity fix 8x; holdStep in src/core/goals.js).
+  // A part of the strip's button, so a tap on it holds instead of pointing
+  const goalHold = el('span', 'ghold', 'Hold waves'); goalHold.id = 'goalHold'; goalHold.setAttribute('role', 'button'); goalHold.hidden = true;
+  goal.append(goalTag, goalWords, goalHold);
   const mark = el('div', 'goalmark'); mark.id = 'goalMark'; mark.hidden = true;
   // a goal on the board opens the card of what it names, so an upgrade's price shows as have / need there (clarity fix
   // 3b part 2: "Tap the Rolling Mill and upgrade it to level 5" had no count, and a count beside the level was read as one
   // number in two reviews); a goal on a button only points at it again
-  goal.addEventListener('click', () => {
+  goal.addEventListener('click', e => {
+    if (e.target && e.target.closest && e.target.closest('#goalHold')) { if (!town.waves.hold) hold.click(); return; }
     const at = goalCur && typeof goalCur.at === 'function' && doneFor <= 0 ? goalCur.at(goalContext(game, town)) || {} : {}, s = at.spot ?? at.tower;
     if (at.plot && BUILDINGS[at.plot] && town.def.buildings.includes(at.plot)) { open(at.plot); return; }
     if (s !== null && s !== undefined && !at.el) { openSpot(s); return; }
@@ -480,9 +484,11 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     const name = GOODS[s.good].name, b = s.maker && BUILDINGS[s.maker];
     if (!b || !town.level(s.maker)) return 'Build ' + (b ? aName(b.name) : 'more') + ' to make ' + name.toLowerCase() + '.';
     if (s.seconds === null) return 'Upgrade the ' + b.name + ' to make more ' + name.toLowerCase() + '.';
-    const when = 'Enough ' + name.toLowerCase() + (s.seconds < 5 ? ' in a moment.' : ' in about ' + time(s.seconds) + '.'); // a status, not a narrator (clarity fix 8a: "You will have enough" on the level-20 cards)
-    return s.seconds < 20 ? when : when + ' Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a short wait needs no advice
-  });
+    // a wait under 20 seconds gets no line: the have / need count above it rises as you watch (clarity fix 8x: "Enough
+    // copper ore in a moment." beside a red count gave no time and added little)
+    if (s.seconds < 20) return null;
+    return 'Enough ' + name.toLowerCase() + ' in about ' + time(s.seconds) + '. Upgrade the ' + b.name + ' to make ' + name.toLowerCase() + ' faster.'; // a status, not a narrator (clarity fix 8a)
+  }).filter(Boolean);
   // names the goods, not amounts: the cost row above has them (review of 2026.11.19-9: "20 copper and 20 bricks are set aside" said the cost twice)
   const keepText = c => { const g = Object.keys(c.goods).filter(k => ((town.keep || {})[k] || 0) > 0); if (!g.length) return ''; return keepLine(g.map(k => GOODS[k].name.toLowerCase()), pathNext ? 'path' : 'upgrade'); };
   // "You will have enough ... in about 4 seconds" is good news, so it reads in plain ink, not red (review 2026-11-18)
@@ -624,13 +630,17 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     // a boss's new stage says itself once, in the raider card's words, while the bar keeps the boss's name and shows the
     // stage as its picture (clarity fix 8n: the picture alone read as nothing; the fresh-eyes read of this release found
     // the words in the name's place read as a narrator and flipped the bar between a name and a sentence)
-    game.bus.on('stage', e => { if (e.town === town.id && STAGE_LINES[e.stage] && FOES[e.kind] && FOES[e.kind].boss) toast(STAGE_LINES[e.stage], 3000, { kind: 'boss' }); }),
+    // the line keeps off the boss itself and its health bar, where it is on screen as the line shows (clarity fix 8y: on a
+    // phone "The crew jumped off" lay over the wagon's own bar)
+    game.bus.on('stage', e => { if (e.town === town.id && STAGE_LINES[e.stage] && FOES[e.kind] && FOES[e.kind].boss) toast(STAGE_LINES[e.stage], 3000, { kind: 'boss', avoid: () => foeBox(shell.view, e.foe) }); }),
     // the boss toast goes when its wave ends, won or lost (clarity fix 8i: it stayed under the Wave 20 lost card)
     game.bus.on('wave:clear', e => { if (e.town === town.id) dropToasts('boss'); }),
     game.bus.on('charter:offer', e => { if (e.town === town.id && !isOutpost(town)) toast('You can sign the charter for ' + e.deeds + (e.deeds === 1 ? ' deed' : ' deeds') + '. Tap Perks.', 4000, { kind: 'here' }); }), // only where Perks shows (review of 2026.11.23-6: in Pine Hollow)
     game.bus.on('contract:done', e => { if (!game.catching) toast(contractDone(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
     game.bus.on('contract:miss', e => { if (!game.catching) toast(contractMissed(e) + ' Tap Map, then Capital, to take another contract.', 5000, { kind: 'tomap' }); }),
-    game.bus.on('capital:ready', e => { if (!game.catching) toast(capitalReadyWords(e), 5000); }),
+    // only with the goal strip off: the strip already says the save with its count (fresh-eyes read of 2026.11.27-8: the
+    // toast said it a second time over the map)
+    game.bus.on('capital:ready', e => { if (!game.catching && (game.shared.goals || {}).off) toast(capitalReadyWords(e), 5000); }),
     game.bus.on('order:done', e => { if (!game.catching) toast(orderDone(e, e.town === town.id), 4000); }),
     game.bus.on('order:miss', e => { if (!game.catching && !e.gaveUp) toast(orderMissed(e, e.town === town.id), 5000); }),
     game.bus.on('arms:end', e => { if (e.town === town.id) toast('Your workers are back at work.', 2500); }),
@@ -668,7 +678,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // meter: the empire's next step counts a wave or deeds the same way (src/core/goals.js, nextStep)
   // a coin goal also says how soon it is ready if you save, at the empire's income over the last minute (clarity fix 2)
   let earnPer = 0;
-  const readyOf = g => { const w = readyWords(readyIn(town.coins, g.need, earnPer)); return w ? ', ' + w : ''; };
+  const needOf = g => g.need || g.saveNeed || 0; // a hold step shows its save's count (saveNeed) without being a coin goal for the bots
+  const readyOf = g => { const w = readyWords(readyIn(town.coins, needOf(g), earnPer)); return w ? ', ' + w : ''; };
   /* The strip's step, then each fact as its own sentence (clarity fix 8a: "Tap Map, then add a building to the Capital · 21.0K / 40K coins · about 6 min to go" joined three facts with dots). */
   const joinFact = (t, x) => (x ? t.replace(/[.]?$/, '. ') + x[0].toUpperCase() + x.slice(1) : t);
   /* A place's name never breaks across lines on the strip (review of 2026.11.23-6: "Save coins to open Iron / Ridge"). */
@@ -679,7 +690,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
   // a goal for several towers counts them, "2 / 5", have / need like every other count on the strip (clarity fix 8n:
   // "0 of 5" towers beside "2 / 5 deeds"), and a coin count names coins (review of 2026.11.23-7)
   const countOf = g => { if (!g.count) return ''; const [a, b] = g.count(goalContext(game, town)); return Math.min(a, b) + ' / ' + b; };
-  const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(joinFact(t, g.meter ? meterWords(g, game) : g.need && town.coins < g.need ? fmtLive(Math.floor(town.coins)) + ' / ' + fmt(g.need) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g))); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
+  const goalWordsOf = g => { const t = goalText(game, town, g); return keepNames(joinFact(t, g.meter ? meterWords(g, game) : needOf(g) && town.coins < needOf(g) ? fmtLive(Math.floor(town.coins)) + ' / ' + fmt(needOf(g)) + (/coins/.test(t) ? '' : ' coins') + readyOf(g) : countOf(g))); }; // whole coins (review of 2026.11.23-2: "2.9 / 30"), and only while short (review of 2026.11.23-6: "9.99M / 250" beside a lot the purse could buy 40,000 times)
   function paintGoal(dt) {
     const ws = town.waves, boss = ws.phase !== 'break' && bossWave(town, town.wave);
     const g0 = goalNow(game), lostUp = !!(g0 && g0.resume && document.getElementById('lostCard')), sh = game.shared.goals || { done: {} };
@@ -694,7 +705,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     if (doneFor > 0) { doneFor -= dt; if (doneFor > 0) return; goal.classList.remove('done'); setText(goalTag, 'Goal'); if (!now) goal.hidden = true; } // nothing next: the finished goal's words go too
     if ((now && now.id) === goalId) return;
     if (goalId && sh.done[goalId]) {
-      doneFor = 1.4; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.doneText || goalCur.text); goalId = null; goalCur = null;
+      doneFor = 1.4; goalHold.hidden = true; goal.classList.add('done'); setText(goalTag, 'Done'); if (goalCur) setText(goalWords, goalCur.doneText || goalCur.text); goalId = null; goalCur = null;
       // only with no next goal at all (reviews of 2026.11.23-6 and -7: beside "Reach wave 30 in Iron Ridge" and the Capital's first building)
       if (!now && goalsOf(town.id).every(g => sh.done[g.id])) toast('You finished every goal in this town.', 4000, { kind: 'here' });
       return;
@@ -703,6 +714,7 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     goal.hidden = !now;
     if (!now) return;
     setText(goalWords, goalWordsOf(now));
+    goalHold.hidden = !now.hold;
     goal.classList.remove('new'); void goal.offsetWidth; goal.classList.add('new');
   }
   // the spotlight on what the goal says to tap: a pulsing frame over it, under the cards and sheets. Things on the board
@@ -803,6 +815,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     for (const t of Object.values(tag)) if (!t.hidden) tagSize.set(t, [t.offsetWidth, t.offsetHeight]);
     const coachUp = document.getElementById('coach'), busy = sheets.current || (coachUp && !coachUp.hidden) || doneFor > 0;
     markTg = !busy && goalCur && goalCur.at ? goalCur.at(goalContext(game, town)) : null;
+    // the spotlight lies on the strip's own Hold waves, the button its step carries (clarity fix 8x)
+    if (markTg && markTg.el === '#holdWaves' && goalCur.hold && !goalHold.hidden) markTg = { el: goalHold };
     markBox = null;
     // the card of the spotlit pad or building is open: point at its Build, Upgrade or path button instead
     const s = markTg && (markTg.spot ?? markTg.tower);
@@ -969,7 +983,8 @@ export function mountPlay(root, game, viewApi, shell = {}) {
     lastIncome = incomeNow(); const per = lastIncome.value; // every town and outpost pays into the one purse
     earnPer = per; // the strip's time to go and the top bar's rate are one number
     setText(coinNum, fmtLive(town.coins)); setText(inc, '+' + rate(per));
-    if (goalCur && (goalCur.need || goalCur.meter || goalCur.heldText || goalCur.count) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
+    // a hold step's save count too (saveNeed; fresh-eyes read of 2026.11.27-8: its count and time to go froze at the first paint)
+    if (goalCur && (needOf(goalCur) || goalCur.meter || goalCur.heldText || goalCur.count) && doneFor <= 0) setText(goalWords, goalWordsOf(goalCur));
     paintStrip(); paintCoinCosts();
     sheets.sync(); // Goods and Income paint in this frame, with the very numbers the top bar and strip just wrote
     const ws = town.waves;
@@ -1042,9 +1057,18 @@ export function usedLine(used, g) {
 }
 /* Every toast showing or waiting its turn, for the smoke test (a toast behind another is not on the page yet). */
 export const toastsNow = () => [...(toasts.up ? [toasts.up.text] : []), ...toasts.queue.map(q => q.text)];
-export function toast(text, ms = 4000, { first = false, kind = '' } = {}) {
+/* The screen box round a raider and its health bar (client pixels), or null when it is not on screen. A toast about a
+   raider keeps off it (toast's avoid). */
+export function foeBox(viewApi, id) {
+  const p = viewApi && viewApi.projectFoe ? viewApi.projectFoe(id) : null;
+  return p ? { left: p.x - FOE_BOX.x, right: p.x + FOE_BOX.x, top: p.y - FOE_BOX.up, bottom: p.y + FOE_BOX.down } : null;
+}
+export const FOE_BOX = { x: 80, up: 60, down: 95 }; // a boss stands about 100 px tall on a phone, below its bar's point
+/* avoid: a function giving a screen box the toast keeps off, read once as it first shows, so the toast never hops after
+   it (a raider walks on, but the toast stays where it was placed). */
+export function toast(text, ms = 4000, { first = false, kind = '', avoid = null } = {}) {
   if ((toasts.up && toasts.up.text === text) || toasts.queue.some(q => q.text === text)) return;
-  if (first) toasts.queue.unshift({ text, ms, kind }); else toasts.queue.push({ text, ms, kind });
+  if (first) toasts.queue.unshift({ text, ms, kind, avoid }); else toasts.queue.push({ text, ms, kind, avoid });
   if (toasts.queue.length > 3) { if (first) toasts.queue.pop(); else toasts.queue.shift(); }
   if (!toasts.up) nextToast();
 }
@@ -1072,6 +1096,7 @@ export function clearOfCards(t) {
 export function clearOfBadges(t, labels = true) {
   if (!t.isConnected) return null;
   const all = [...boxes('.hud .hudleft, .hud .hudright, .card, .sheet, .goodstrip, .lostcard' + (labels ? ', .mapbadge, .mapkeep' : '')), ...boxes('#coach').filter(r => r.height < innerHeight * .8)];
+  if (toasts.el === t && toasts.up && toasts.up.box) all.push(toasts.up.box);
   const a = t.getBoundingClientRect(), from = underHud() ?? a.top;
   const hitAt = y => all.some(r => a.left < r.right && a.right > r.left && y < r.bottom && y + a.height > r.top);
   for (let y = Math.ceil(from); y + a.height < innerHeight - 8; y += 6) if (!hitAt(y)) return y;
@@ -1103,6 +1128,7 @@ function nextToast() {
   const t = el('div', 'toast', q.text); t.setAttribute('role', 'status');
   document.body.append(t);
   toasts.up = q; toasts.el = t; toasts.left = toasts.queue.length ? Math.min(q.ms, 2500) : q.ms; toasts.last = performance.now();
+  q.box = q.avoid ? q.avoid() : null;
   showIfRoom(t);
   // placed again every tick: a card opened by the same tap, the new town's top bar after a switch, a sheet closing
   const tick = () => {

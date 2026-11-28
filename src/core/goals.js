@@ -93,7 +93,13 @@ const capitalNext = game => { const s = nextStep(game); return s && s.next === '
    without getting there, since its waves ran on and the strip sent it to the Gulch to resume its waves, which spent
    the save on towers each time. Returns the step while only coins are missing or it can be opened now, or null. */
 export const townSaveNext = game => { if (!capitalOpen(game)) return null; const s = nextStep(game); return s && s.next && s.next !== 'capital' && (s.need || s.id.endsWith(':go')) ? s : null; };
-const holdFor = s => s.next === 'capital' ? CAPITAL_HOLD : { id: 'next:' + s.next + ':hold', next: s.next, text: REBUILD_WORDS.hold(TOWNS[s.next].name), at: () => ({ el: '#holdWaves' }), done: () => false };
+/* The first step of a save that holds the waves (the Capital's, a new town's, and Iron Ridge's g-hold in
+   src/data/goals.js): the save's own words and count, with a small Hold waves button on the strip beside them (hold:
+   true), so the act sits by the goal it serves (clarity fix 8x: "Tap Hold waves while you save for the Capital" was
+   flagged twice as advice with no reason, so the control changed). saveNeed: the count the strip shows; not need, which
+   would make the newcomer bot save before it holds (tools/firstplay.js goalNeed), so its id and tap stay as they were. */
+export const holdStep = (id, next, text, need) => ({ id, next, hold: true, text, saveNeed: need, at: () => ({ el: '#holdWaves' }), done: () => false });
+const holdFor = s => holdStep('next:' + s.next + ':hold', s.next, s.text, s.need);
 /* A town saving for the Capital: the town that pays for it once past its wave, and while the save is on, every town
    but an outpost. A player who holds its waves to save is not asked to resume them until the Capital stands (clarity
    fix 3), and neither is one that lost while saving (clarity fix 3b part 2: on seed 2 "Build more towers, then tap
@@ -151,7 +157,7 @@ export function wallStep(game, ready = false) {
    showed during a boss wave in the town in play). The play screen keeps such a goal off the strip during a boss wave. */
 export const sendsAway = g => !!(g && (g.there || g.away));
 /* The first step of the Capital's save in the town that pays for it (clarity fix 3b part 2). */
-export const CAPITAL_HOLD = { id: 'next:capital:hold', next: 'capital', text: 'Tap Hold waves while you save for the Capital', at: () => ({ el: '#holdWaves' }), done: () => false };
+export const CAPITAL_HOLD = holdStep('next:capital:hold', 'capital', 'Save coins to build the Capital', CAPITAL_DEF.found.coins);
 
 /* A boss fight in the town in play with few hits left (clarity fix 5; review 5: "2 hearts left in a boss fight while the
    strip talks about Iron Ridge"): the strip stays on the fight and names a tap that helps now, the tower whose next
@@ -277,7 +283,6 @@ export const INST_WORDS = {
 export const REBUILD_WORDS = {
   build: (pad, name) => 'Tap the ' + pad + ' and build ' + aName(name) + ' again',
   swap: (now, name) => 'Tap the ' + now + ', tap Sell, then build ' + aName(name) + ' there',
-  hold: town => 'Tap Hold waves while you save to open ' + town,
   play: town => 'Tap Map, then tap ' + town,
 };
 export function rebuildStep(game, town) {
@@ -539,14 +544,15 @@ export const readyIn = (have, need, perSec) => need > have + 1e-9 && perSec > 0 
 /* "about 4 min to go": the time left to the goal's count. Whole minutes (it changes at most once a minute), hours and
    minutes past an hour in steps of 5 minutes, "over 10 hours to go" past that; "" when there is no time to show. The
    first words, "ready in about 1:20", were read as having no subject and "over an hour" as too vague to act on (review
-   of 2026.11.23-3), so the time counts down to the coins the strip just showed. */
+   of 2026.11.23-3), so the time counts down to the coins the strip just showed. Words in full, never "min" or "h"
+   (clarity fix 8x: the abbreviation read badly in a three-line step). */
 export function readyWords(s) {
   if (s == null) return '';
   if (s < 60) return 'under a minute to go';
-  if (s < 3600) return 'about ' + Math.ceil(s / 60) + ' min to go';
+  if (s < 3600) { const m = Math.ceil(s / 60); return 'about ' + m + (m === 1 ? ' minute' : ' minutes') + ' to go'; }
   if (s > READY_MAX) return 'over 10 hours to go';
   const m = Math.ceil(s / 300) * 5, h = Math.floor(m / 60), r = m % 60;
-  return 'about ' + h + ' h' + (r ? ' ' + r + ' min' : '') + ' to go';
+  return 'about ' + h + (h === 1 ? ' hour' : ' hours') + (r ? ' ' + r + ' minutes' : '') + ' to go';
 }
 
 /* The words the strip shows for a goal: its text, or, for a goal with wait: kind while that tower can't be paid yet,

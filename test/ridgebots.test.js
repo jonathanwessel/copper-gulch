@@ -29,7 +29,8 @@ test('the goal strip says to hold the waves and save for Iron Ridge, then to tap
   g = gulch('rb1', 20, 500);
   const hold = goalNow(g);
   assert.equal(hold.id, 'g-hold');
-  assert.equal(hold.text, 'Tap Hold waves while you save for Iron Ridge');
+  assert.equal(hold.text, 'Save coins to open Iron Ridge'); // clarity fix 8x: the save's words, with its own Hold waves button
+  assert.ok(hold.hold && hold.saveNeed === TOWNS.ridge.found.coins && !hold.need);
   assert.deepEqual(hold.at(goalContext(g, g.town)), { el: '#holdWaves' });
   g.town.waves.hold = true; g.step(.25); // held: that step is done, and the next one counts the coins
   const save = goalNow(g);

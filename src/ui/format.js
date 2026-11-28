@@ -214,3 +214,11 @@ export function splitLive(total, values) {
   const write = u => (tenths ? (u / 10).toFixed(1) : step === 1 ? String(u) : fmtLive(u * step * (1 + 1e-9)));
   return { total: fmtLive(total), rows: got.map((u, i) => (u > 0 ? write(u) : raw[i] > 0 ? underRate(values[i]) : null)), under: got.map((u, i) => !(u > 0) && raw[i] > 0) };
 }
+
+/* A color's contrast with the panels a good's square sits on (WCAG ratio against --panel, #3b2a20). Under PANEL_CONTRAST
+   the square gets a light rim and a sheen (.gicon.dark), so a dark good (crude oil, coal, tires) never reads as an empty
+   square (clarity fix 8y: the crude oil chip looked blank). */
+export const PANEL_CONTRAST = 1.6;
+const lum = hex => { const v = parseInt(hex.slice(1), 16), c = [v >> 16, (v >> 8) & 255, v & 255].map(x => { x /= 255; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+export const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+export const darkGood = color => !!color && /^#[0-9a-f]{6}$/i.test(color) && contrast(color, '#3b2a20') < PANEL_CONTRAST;

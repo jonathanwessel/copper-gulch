@@ -38,9 +38,10 @@ function eta(game, o, running = false) {
 /* The toast when a contract is full. */
 /* A running contract's figure, on the card and the map label: "Sent 108 of 270 timber" (review of 2026.11.20-3: the
    label did not say what is sent). */
-// the Capital's map label: what the goods are for, then have / need (clarity fix 8t: "Sent 2.08K of 8.2K rails" said
-// nothing of what for). Words pinned in test/words.test.js.
-export const sentWords = a => 'Contract ' + fmt(Math.floor(a.got)) + ' / ' + fmt(a.need) + ' ' + lower(a.good);
+// the Capital's map label: the good's picture, have / need and a bar, no word (clarity fix 8x: "Sent" and then
+// "Contract" were both flagged, so the label shows it instead of naming it). Pinned in test/words.test.js.
+export const sentWords = a => fmt(Math.floor(a.got)) + ' / ' + fmt(a.need);
+export const sentShare = a => (a.need > 0 ? Math.max(0, Math.min(1, a.got / a.need)) : 0);
 /* The toast when the Capital's town first beats its wave (clarity fix 3b part 2b). */
 // what the toast says once only the coins are left (clarity fix 8t: "Iron Ridge's best wave is 30. The Capital costs 25K
 // coins." read as a narrator), so it says what the player does next; "You can now build" read as already affordable

@@ -133,6 +133,8 @@ const SCREENS = [
   ['goods-boom', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: 1.6, left: 72 }; m.event = { [g]: 1.6 }; m.wait = 999; CG.play.close(); CG.play.openGoods(g); await wait(300); const b = document.querySelector('#sheet .option button[data-good="' + g + '"]'); if (b) b.click(); }],
   // a bust on the same good, its row opened to say why the price is low (review of 2026.11.23-1: the words in a boom and a bust)
   ['goods-bust', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), m = CG.game.shared.market, chip = document.querySelector('#goodsStrip .goodchip'), g = chip ? chip.dataset.good : 'timber'; m.boom = { good: g, f: .45, left: 48 }; m.event = { [g]: .45 }; m.wait = 999; CG.play.sheets.close(); CG.play.openGoods(g); await wait(300); }],
+  // the same row with its causes unfolded by a tap on Pays now (clarity fix 8x)
+  ['goods-bust-parts', async () => { const b = document.querySelector('#sheet .paysrow'); if (b) b.click(); await new Promise(r => setTimeout(r, 300)); }],
   // town orders on the Goods sheet (Market depth, part 2): a board with a rush offer, then one order running
   ['orders', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), g = CG.game, t = g.town, o = g.shared.orders; const m = g.shared.market; m.boom = null; m.event = {}; o.wait = 0;
     o.towns[t.id] = { rep: 64, offers: [{ id: 1, good: 'timber', need: 330, got: 0, coins: 412, minutes: 5.5, time: 660, left: 660, rush: false, age: 0 }, { id: 2, good: 'planks', need: 60, got: 0, coins: 318, minutes: 2.5, time: 210, left: 210, rush: true, age: 0 }], active: null, n: 3, wait: 999, filled: 7, missed: 1 };
@@ -442,8 +444,9 @@ const MESA = [
   }],
   ['mesa-pirate-low', async () => { const p = window.__pirate; if (p) p.hp = p.max * .44; await new Promise(r => setTimeout(r, 1800)); }],
   // the Tesla Coil's card at level 6 on Storm Coil, and the pick of its two paths on the other one
-  ['mesa-tesla', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { x.level = 6; x.path = 'a'; } CG.play.openSpot(1); }],
-  ['mesa-tesla-path', () => { const t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { x.level = 4; x.path = null; } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],
+  // spent counts every level, so its sell price is real (clarity fix 8x: a level-6 Storm Coil sold for 54 like a level 4)
+  ['mesa-tesla', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, x = t.towers.find(y => y.spot === 1 && y.kind === 'tesla'); if (x) { let spent = 0; for (let L = 0; L < 6; L++) spent += D.towerCost(t, 'tesla', L).coins; Object.assign(x, { level: 6, path: 'a', spent }); } CG.play.openSpot(1); }],
+  ['mesa-tesla-path', async () => { const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, x = t.towers.find(y => y.spot === 6 && y.kind === 'tesla'); if (x) { let spent = 0; for (let L = 0; L < 4; L++) spent += D.towerCost(t, 'tesla', L).coins; Object.assign(x, { level: 4, path: null, spent }); } t.coins = 1e10; CG.game.shared.purse.coins = 1e10; CG.play.openSpot(6); }],
   ['mesa-map', async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); CG.openMap(); for (let i = 0; i < 40 && !(CG.map && CG.map.frames > 5); i++) await wait(100); CG.mapui.openSite('mesa'); }],
   // Tar Seep, the Mesa's outpost (part 3): its card on the map, the flight there with its welcome card, the camp, and its
   // gully under the leaning derrick with the dust before a wave
@@ -479,6 +482,18 @@ async function shot(pg, f, size) {
     return under ? id + ' under ' + (under.id || under.className) : '';
   });
   if (hid) errs.push(size + ': ' + path.basename(f) + ' the goal names ' + hid);
+  // a tower card's Sell price is real: a shot that sets a tower's level by hand counts its spend too (seen three
+  // times: a level-4 Mortar sold for 240 like a new one, 2026.11.19-5; a level-6 Storm Coil for 54 like a level 4,
+  // clarity fix 8x). Half the list price is the floor, since research and perks make towers cheaper
+  const sold = await pg.evaluate(async () => {
+    const id = CG.play && CG.play.current && CG.play.current(), m = /^spot:(\d+)$/.exec(id || ''), sell = document.getElementById('sellTowerHead');
+    if (!m || !sell || sell.offsetParent === null) return '';
+    const D = await import(new URL('src/core/defense.js', location.href).href), t = CG.game.town, tw = D.towerAt(t, +m[1]);
+    if (!tw) return '';
+    let list = 0; for (let L = 0; L < tw.level; L++) list += D.towerCost(t, tw.kind, L).coins;
+    return tw.spent < list * .5 ? tw.kind + ' level ' + tw.level + ' spent ' + Math.round(tw.spent) + ' of ' + Math.round(list) : '';
+  });
+  if (sold) errs.push(size + ': ' + path.basename(f) + ' a tower set by hand without its spend (' + sold + ')');
 }
 /* Every page gets a speech engine with one on-device voice that only records what it is asked to say, so the speaker
    button on the cards and the Read aloud settings show the same on every machine, and nothing is spoken. */
