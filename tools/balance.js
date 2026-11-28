@@ -28,7 +28,7 @@ import { canHire, hireCost, hireForeman, setForeman, foremanWait, nextGain, want
 import { deedsFor, deedsHeld, signCharter, pickPerk, perkState } from '../src/core/charter.js';
 import { PERKS } from '../src/data/perks.js';
 import { FOES, WAVE_TYPES } from '../src/data/foes.js';
-import { TOWNS, laneDefs } from '../src/data/towns/index.js';
+import { TOWNS, TOWN_ORDER, laneDefs } from '../src/data/towns/index.js';
 import { canFound, foundTown, nodesHeld } from '../src/core/empire.js';
 import { canFoundCapital, foundCapital, capitalOf, takeContract, spareRate as capSpare } from '../src/core/capital.js';
 import { CAPITAL_DEF } from '../src/data/capital.js';
@@ -226,6 +226,12 @@ export function lineShare(town, spot, hi) {
 export let SLOW_EXTRA = 7;
 /* Blizzard: see ALONE_SLOW in worth (set from tools/fork-runs.js). */
 export let ALONE_SLOW = 4;
+/* The same two numbers for a player who counts only the raiders still standing (PLAN.stand, standShare: the active
+   player from Silver Falls on), set from tools/fork-runs.js in 2026.11.27-9 with Cold Snap's hits at .65: there
+   SLOW_EXTRA and ALONE_SLOW gave Cold Snap no Falls pad on 4 of 6 seeds, where runs of the waves gave it 4-14, and
+   10 and 3 agreed with the runs on 26 and 32 of 38 Falls pads on seeds 1 and 2. Each pair is the one its own guess was
+   set by: 10 and 3 for every player put seed 4's Ridge at Blizzard on no pad (the runs give it 4 of 36). */
+export const STAND_SLOW = { extra: 10, alone: 3 };
 /* The share of the road in a lens's reach that none of the other lenses near it reaches (lane 0, every 0.4). */
 export function aloneShare(town, spot, hi, near) {
   const r = lanesOf(town)[0], b = town.def.board, p = b.spots[spot], others = near.map(o => [b.spots[o.spot], towerStats(town, o).range]);
@@ -247,7 +253,9 @@ export const tune = (k, v) => { if (k === 'airneed') AIR_NEED = v; if (k === 'ai
 /* standShare in worth, off by default and on with --stand (or tune('stand', 1)). 2026.11.26-3: on, it took the
    active bot's late Falls Frost share from 35% to 25-32%, and every try tipped a gate of a weaker player, who leans on
    a slow by the vault to stop breaches (min-max's Silver Falls 29% behind against 25%, idle's later hours under 90%,
-   the newcomer's coins lost to falls 272K against 175K). The Frost Lens box in PLAN.md (M6a) holds the next step. */
+   the newcomer's coins lost to falls 272K against 175K). So since 2026.11.27-9 only the active player uses it (its
+   strategy's `stand`, passed to options by play): the others lean on a slow by the vault, where their towers only just
+   hold, and keep the old guess. --stand still turns it on for every strategy. */
 export let STAND_ON = process.argv.includes('--stand');
 /* Poison eats armor (EATS_ARMOR, st.eat): a careful player counts what a Still adds to the hits of the towers around it, on the
    share EAT_REACH of raiders it poisons before they pass them, shared with the other Stills on that stretch. A Still
@@ -259,7 +267,7 @@ export const EAT_REACH = .5;
 /* Last Call (FORKS.still.b) hits a hurt raider harder: a careful player guesses a raider has lost HURT_AT times the share
    of the road behind it by the time it passes the tower (tools/fork-runs.js sets it). */
 let HURT_AT = .5;
-export const PLAN = { level: 0 };
+export const PLAN = { level: 0, stand: false };
 export const eatSoon = (t, st) => st.eat || ((st.poison || st.rot) && PLAN.level >= EATS_ARMOR.from ? EATS_ARMOR.share : 0);
 /* Damage a tower deals per second to a column of raiders passing through its reach, times the road it covers. */
 export function worth(town, t, support = true) {
@@ -268,10 +276,10 @@ export function worth(town, t, support = true) {
   const near = town.towers.filter(o => o.kind === t.kind && o.spot !== t.spot && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range), share = 1 + near.length;
   // a raider walks at the strongest slow on it, so a lens that slows more than the others there (Cold Snap, 2026.11.24-2)
   // has the extra to itself and shares only the common part
-  const top = st.slow ? Math.max(0, ...near.map(o => towerStats(town, o).slow)) : 0, slowPart = (st.slow > top ? st.slow - top + top / share : st.slow / share) + (SLOW_EXTRA - 1) * Math.max(0, st.slow - Math.max(top, TOWERS[t.kind].slow || 0)),
+  const top = st.slow ? Math.max(0, ...near.map(o => towerStats(town, o).slow)) : 0, slowPart = (st.slow > top ? st.slow - top + top / share : st.slow / share) + ((PLAN.stand ? STAND_SLOW.extra : SLOW_EXTRA) - 1) * Math.max(0, st.slow - Math.max(top, TOWERS[t.kind].slow || 0)),
     // Blizzard (a fork that reaches farther than the tower would without it): road in its reach that no other lens
     // near it reaches is chilled by it alone, and a careful player counts that share's slow ALONE_SLOW times
-    far = st.slow && forkOf(t).range > 1 ? ALONE_SLOW * aloneShare(town, t.spot, st.range, near) * st.slow : 0;
+    far = st.slow && forkOf(t).range > 1 ? (PLAN.stand ? STAND_SLOW.alone : ALONE_SLOW) * aloneShare(town, t.spot, st.range, near) * st.slow : 0;
   const at = st.hurt || st.rot ? along(town, t.spot, st.minRange, st.range) : null;
   let dps = st.dmg * st.rate * (st.sharp ? ahead(town, 'sharp', town.wave, false, 0, SHARP_BOSS) : ahead(town, t.kind, town.wave, !!st.bare, 0, st.boss)) * (st.pierce ? 1 + (st.pierce - 1) * Math.min(1, PIERCE_LINE * lineShare(town, t.spot, st.range)) : 1) * (st.sharp ? Math.max(.5, 1 + SHARP_COVER * (cover(town, t.spot, st.minRange, st.range) - SHARP_FROM)) : 1) * (st.hurt ? hurtFactor({ hp: 1 - Math.min(1, HURT_AT * at.mid), max: 1 }) : 1);
   // Slow Rot: every raider in its cloud rots for the rest of the road (past armor), counted in road units like cover
@@ -294,7 +302,7 @@ export function worth(town, t, support = true) {
     for (const o of town.towers) if (o.spot !== t.spot && o.kind !== 'still' && dist(town.def.board.spots[o.spot], town.def.board.spots[t.spot]) < st.range + towerStats(town, o).range) w += gain(o) * EAT_REACH * worth(town, o, false) / share;
   }
   // a slow (and a lens's own pulse) counts only on the raiders still standing in its reach (standShare)
-  if (st.slow && STAND_ON) w *= standShare(town, t.spot, st.minRange || 0, st.range);
+  if (st.slow && (STAND_ON || PLAN.stand)) w *= standShare(town, t.spot, st.minRange || 0, st.range);
   return w;
 }
 /* What one more level of a building earns per coin it costs: the extra units it makes a second at today's market
@@ -332,7 +340,11 @@ export const MIX = .3;
 /* Every purchase the defense could make now: { kind, spot, path, value per coin, can afford }. A new tower also uses up
    a pad, and pads are few, so a build is charged half of what the average tower has had spent on it so far: early on
    cheap towers fill pads, later a pad is worth saving for a strong tower. */
-export function options(town) {
+export function options(town, stand = false) {
+  const was = PLAN.stand; PLAN.stand = stand;
+  try { return pickList(town); } finally { PLAN.stand = was; }
+}
+function pickList(town) {
   const out = [], pad = town.towers.length ? .5 * town.towers.reduce((a, x) => a + x.spent, 0) / town.towers.length : 0;
   for (const t of town.towers) {
     const c = towerCost(town, t.kind, t.level), now = worth(town, t);
@@ -380,8 +392,12 @@ const bossExtra = (t, r, S = {}) => (bossWave(t, t.wave) ? S.prep ?? BOSS.prep :
 const guard = (w, r) => (r && w - r.leakAt <= GUARD.waves ? GUARD.levels : 0);
 /* A boss wave among the next n waves (the coming one counts). */
 export const bossSoon = (t, n) => { for (let k = 0; k < n; k++) if (bossWave(t, t.wave + k)) return true; return false; };
+/* Whether a strategy's slowing towers use the standing guess in this town (S.stand: true, or a rule by town). */
+export const standFor = (S, t) => (typeof S.stand === 'function' ? S.stand(t) : !!S.stand);
 export const STRATEGIES = {
-  active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r) },
+  // stand: from Silver Falls on, its slowing towers count only the raiders still standing in their reach (standShare,
+  // the Frost Lens box; before the Falls it changed the road to the Capital that idle starts from, 2026.11.27-9)
+  active: { want: w => 1 + Math.ceil(w / 2.8), level: (w, r) => 1.4 + w / 2.9 + guard(w, r), stand: t => TOWN_ORDER.indexOf(t.id) >= TOWN_ORDER.indexOf('falls') },
   // bossSave: from this many waves before a boss the towers come before the town, and it keeps its coins for the
   // upgrade it wants when it cannot pay yet (PLAN.md M6a, minmax's wave 20: with the town first it bought buildings
   // through waves 16-19, met the war wagon with 854 coins and its Cannons a level short at 895, and lost on 2 of 6 seeds)
@@ -490,7 +506,7 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     const w = t.wave, want = S.want(w) + (r.bossLost || 0);
     let lv = S.level(w, r) + bossExtra(t, r, S);
     // every pad full (no tower can be built anywhere): a strategy with a `full` curve raises its towers on it instead
-    if (S.full && !options(t).some(o => !o.up)) lv = Math.max(lv, S.full(w) + bossExtra(t, r, S));
+    if (S.full && !options(t, standFor(S, t)).some(o => !o.up)) lv = Math.max(lv, S.full(w) + bossExtra(t, r, S));
     PLAN.level = lv; // what a Still will eat once its level target reaches EATS_ARMOR.from (eatSoon)
     // the goal strip asks for a kind it has not built yet (after the first boss): it builds one once it can pay, even
     // with all the towers it wants (seed 4 had a Mortar's coins and goods from minute 25 and its pads full, and built
@@ -498,12 +514,12 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // every tower evenly: a lone new level-1 tower holds back all its upgrades (wave 20 at 21.2 min against 18.6)
     const gk0 = t.bestWave >= 10 && stripKind(g, t);
     if (gk0 && !S.even) {
-      const o = options(t).filter(o => !o.up && o.kind === gk0 && o.can).sort((x, y) => y.value - x.value)[0]; // its best pad (a second Tesla Coil where it reaches the sky)
+      const o = options(t, standFor(S, t)).filter(o => !o.up && o.kind === gk0 && o.can).sort((x, y) => y.value - x.value)[0]; // its best pad (a second Tesla Coil where it reaches the sky)
       if (o && buildTower(g, t, o.spot, o.kind)) { r.bought[o.kind] = (r.bought[o.kind] || 0) + 1; if (t.t <= 3600) r.firstBuy[o.kind] ??= Math.round(t.t / 60); return true; }
     }
     if (t.towers.length >= want && !t.towers.some(x => x.level < lv)) return false;
     if (urgent && t.towers.length >= want && !t.towers.some(x => x.level < lv - 1.5) && t.vault.hp >= .6 * t.vault.max) return false;
-    let opts = options(t).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
+    let opts = options(t, standFor(S, t)).filter(o => o.can && (o.up ? o.level < lv : t.towers.length < want));
     if (S.even) { const low = Math.min(...t.towers.map(x => x.level)); opts = opts.filter(o => !o.up || o.level === low).sort((x, y) => (x.up - y.up) || (y.value - x.value)); }
     // a few strong towers, but no more than two of a kind (where only one kind can be built, Dry Creek, it keeps its
     // few towers: two Crossbows could not stop the bandit wagon once boss waves became gates)
@@ -521,14 +537,14 @@ export function play(seed, minutes = MINUTES, strategy = 'active', watch = null,
     // nearly there, rather than build a weak one, while the vault is holding (returns true: the coins wait, the town
     // does not spend them either)
     if (!S.even && !S.ups && t.towers.length && t.vault.hp >= .6 * t.vault.max) {
-      const ready = options(t).filter(o => !o.can && !o.up && t.towers.length < want && towerCost(t, o.kind, 0).coins <= t.coins + SAVE_GAP
+      const ready = options(t, standFor(S, t)).filter(o => !o.can && !o.up && t.towers.length < want && towerCost(t, o.kind, 0).coins <= t.coins + SAVE_GAP
         && Object.entries(towerCost(t, o.kind, 0).goods).every(([k, n]) => t.has(k, n)))[0];
       if (ready && (!pick || ready.value > SAVE_FOR * pick.value)) return true;
     }
     // a min-max player saves for the boss: with a boss among the next waves it keeps its coins for the upgrade it wants
     // once that upgrade's goods are in the yard (returns true: the town does not spend them either)
     if (!pick && S.bossSave && bossSoon(t, S.bossSave)) {
-      const up = options(t).filter(o => o.up && o.level < lv && Object.entries(towerCost(t, o.kind, o.level).goods).every(([k, n]) => t.has(k, n)))[0];
+      const up = options(t, standFor(S, t)).filter(o => o.up && o.level < lv && Object.entries(towerCost(t, o.kind, o.level).goods).every(([k, n]) => t.has(k, n)))[0];
       if (up) return true;
     }
     if (!pick) return false;
@@ -1124,6 +1140,7 @@ export function strategies(seeds = SEEDS) {
    no pad is a miss. Also prints the forks the bots took on the way. Each finish (a level-5 path with a fork, 4 per
    kind) must also be the best pick on some pad over all the runs (owner, 2026-11-22, the Crossbow's fork: "each of the
    4 Crossbow finishes is the best buy in some bot run"). */
+export const FORK_CLOSE = 2;
 export function forkCheck(actives) {
   const rows = [], misses = [], finish = {};
   for (const e of actives) for (const id of ['ridge', 'falls']) {
@@ -1136,13 +1153,17 @@ export function forkCheck(actives) {
         if (!fitsSpot(t, i, kind)) continue;
         for (const path of Object.keys(PATHS[kind])) {
           t.towers = keep.filter(x => x.spot !== i).concat([{ spot: i, kind, level: FORK_LEVEL - 1, path, fork: null, cd: 0, spent: 0, pulses: 0 }]);
-          const o = options(t).filter(o => o.up && o.spot === i).sort((a, b) => b.value - a.value)[0];
+          // judged with the active player's own guess in that town (standFor), since these are its towns
+          const o = options(t, standFor(STRATEGIES.active, t)).filter(o => o.up && o.spot === i).sort((a, b) => b.value - a.value)[0];
           if (o) { won[o.path]++; const f = kind + ' ' + PATHS[kind][path].name + ' + ' + FORKS[kind][o.path].name; finish[f] = (finish[f] || 0) + 1; }
         }
       }
       t.towers = keep;
       rows.push({ seed: e.dc.seed, town: id, kind, won, took: (e.falls && e.falls.forks) || {} });
       for (const [k, n] of Object.entries(won)) if (!n) misses.push(`seed ${e.dc.seed}: ${FORKS[kind][k].name} is the best pick on no pad in ${id}`);
+      // a side best on only a pad or two is a close line (2026.11.27-9: seed 4's Ridge had Blizzard on 2 of 36 pads for
+      // releases with no line, and the next change to the Frost guess tipped it to none)
+      for (const [k, n] of Object.entries(won)) if (n > 0 && n <= FORK_CLOSE) CLOSE.push(`seed ${e.dc.seed}: ${FORKS[kind][k].name} is the best pick on ${n} pad${n === 1 ? '' : 's'} in ${id}`);
     }
   }
   for (const kind of Object.keys(FORKS)) for (const p of Object.values(PATHS[kind])) for (const k of Object.values(FORKS[kind])) {

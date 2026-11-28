@@ -67,9 +67,23 @@ test('a won outpost reads Raids with the time to the next raid, and its card say
 test('a town away with no tower waits for the player, in red', () => {
   const g = newGame('ms3'); winOutpost(g, g.town);
   const s = siteState(g, 'gulch');
-  assert.equal(s.state, 'wait'); assert.equal(stateWord(s), 'No towers'); assert.equal(stateNeeds(s), true);
-  assert.equal(stateLines(s)[0], 'Wave 1 waits until you build a tower here.');
+  assert.equal(s.state, 'wait'); assert.equal(stateWord(s), 'Waiting'); assert.equal(stateNeeds(s), true);
+  assert.equal(stateLines(s)[0], 'Wave 1 waits until you go there.');
   assert.equal(siteState(g, 'ridge'), null, 'a place not open has no state');
+});
+
+// clarity fix 8z (one state one source): the map card's wait line says what the clock does, so going there starts it
+test('a town that waits for the player counts down once it is in play, as its card says', () => {
+  const g = newGame('ms3b'); winOutpost(g, g.town);
+  const t = g.towns.gulch, before = t.waves.timer;
+  g.advance(5);
+  assert.equal(t.waves.timer, before, 'away with no tower, its clock waits');
+  assert.equal(siteState(g, 'gulch').state, 'wait');
+  g.go('gulch'); g.advance(5);
+  assert.ok(t.waves.timer < before, 'in play, it counts down with no tower');
+  const s = siteState(g, 'gulch');
+  assert.equal(s.state, 'next');
+  assert.match(stateLines(s)[0], /^Wave 1 comes in \d+:\d\d\.$/);
 });
 
 test('every label word fits its 12-character cell, and a hold Auto will lift reads Retry soon', () => {

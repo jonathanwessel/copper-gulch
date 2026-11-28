@@ -1,3 +1,3 @@
 // Set by tools/bump-version.js, together with sw.js and version.json.
-export const GAME_VERSION = '2026.11.27-8';
-export const GAME_NEWS = 'Saves for a new place get their own Hold waves button';
+export const GAME_VERSION = '2026.11.27-9';
+export const GAME_NEWS = 'Cold Snap hits harder and town cards name their outposts';

@@ -20,7 +20,7 @@ export const EXPLAINERS = [
   {
     id: 'dc-welcome', town: 'drycreek', now: 1, covers: ['welcome:drycreek', 'system:goals'],
     title: 'Welcome to Dry Creek',
-    text: 'Raiders are on their way to this camp. Hold them off for 10 waves and Copper Gulch opens. Do what the Goal at the top says.',
+    text: 'Raiders are on their way to this outpost. Hold them off for 10 waves and Copper Gulch opens. Do what the Goal at the top says.',
     when: () => true, at: () => ({ el: '#goal' }),
   },
   {
@@ -442,7 +442,7 @@ export const EXPLAINERS = [
   {
     id: 'ph-welcome', town: 'pinehollow', now: 1, covers: ['welcome:pinehollow'],
     title: 'Welcome to Pine Hollow',
-    text: 'Hold this logging camp for 15 waves. Its timber and clay go to your towns, so the Gulch can make more bricks for Iron Ridge.',
+    text: 'Hold this outpost for 15 waves. Its timber and clay go to your towns, so the Gulch can make more bricks for Iron Ridge.',
     when: () => true, at: () => ({ plot: 'logcamp' }),
   },
   // Silver Falls and Sandy Bend
@@ -504,14 +504,14 @@ export const EXPLAINERS = [
   {
     id: 'sb-welcome', town: 'sandybend', now: 1, covers: ['welcome:sandybend'],
     title: 'Welcome to Sandy Bend',
-    text: 'Hold this camp for 15 waves. Its sand and quartz go to your towns.',
+    text: 'Hold this outpost for 15 waves. Its sand and quartz go to your towns.',
     when: () => true, at: () => ({ plot: 'sandwash' }),
   },
   // Tar Seep, the Mesa's outpost (M6b part 3)
   {
     id: 'ts-welcome', town: 'tarseep', now: 1, covers: ['welcome:tarseep'],
     title: 'Welcome to Tar Seep',
-    text: 'Hold this camp for 15 waves. Its Oil Well and Rubber Grove send crude oil and rubber to your towns.',
+    text: 'Hold this outpost for 15 waves. Its Oil Well and Rubber Grove send crude oil and rubber to your towns.',
     when: () => true, at: () => ({ plot: 'oilwell' }),
   },
 ];

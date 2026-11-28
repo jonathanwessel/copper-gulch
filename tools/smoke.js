@@ -1546,7 +1546,7 @@ async function run() {
         const read = () => Object.fromEntries([...document.querySelectorAll('.mapbadge')].filter(b => !b.hidden && CG.game.towns[b.dataset.site]).map(b => [b.dataset.site, { w: b.offsetWidth, h: b.offsetHeight, word: b.querySelector('.sword').textContent, mark: b.querySelector('.smark').dataset.mark, shown: !b.querySelector('.mstate').hidden }]));
         const a = read(); await new Promise(r => setTimeout(r, 2100)); const b = read(), out = [];
         for (const [id, x] of Object.entries(b)) {
-          if (!x.shown || !x.mark || !/^(Fighting|On hold|No towers|Retry soon|(Wave|Raid) in \d:\d\d)$/.test(x.word)) out.push(id + ' shows "' + x.word + '"');
+          if (!x.shown || !x.mark || !/^(Fighting|On hold|Waiting|Retry soon|(Wave|Raid) in \d:\d\d)$/.test(x.word)) out.push(id + ' shows "' + x.word + '"');
           if (CG.game.towns[id].won && !x.word.startsWith('Raid in') && x.word !== 'Fighting') out.push(id + ' is won but shows "' + x.word + '"');
           if (a[id] && (a[id].w !== x.w || a[id].h !== x.h) && a[id].word.split(' ')[0] === x.word.split(' ')[0]) out.push(id + ' changed size ' + a[id].w + 'x' + a[id].h + ' to ' + x.w + 'x' + x.h);
         }

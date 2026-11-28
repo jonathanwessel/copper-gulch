@@ -3,6 +3,15 @@
    Every release adds its entry here in the same commit. */
 export const NEWS = [
   {
+    v: '2026.11.27-9',
+    lines: [
+      'Cold Snap, the Frost Lens upgrade at level 20, hits harder.',
+      'On the map, a town card names the outpost that sends it goods.',
+      'A place with no towers waits for you. Its wave clock starts when you go there.',
+      'Outposts are called outposts everywhere, not camps.',
+    ],
+  },
+  {
     v: '2026.11.27-8',
     lines: [
       'When you save for a new place, the Goal shows your coins and has its own Hold waves button.',

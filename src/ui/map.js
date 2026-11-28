@@ -5,7 +5,7 @@ import { windowRates } from '../core/explain.js';
 import { TOWNS } from '../data/towns/index.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, aName } from '../data/buildings.js';
-import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou } from '../core/map.js';
+import { siteInfo, siteState, lockedRules, mapRoutes, makesOf, needsYou, outpostFeeds } from '../core/map.js';
 import { stateWord, stateMark, stateNeeds, stateBar, stateLines, markEl, setMark } from './state.js';
 import { foundTown } from '../core/empire.js';
 import { fmt, fmtLive, splitLive, vaultCount, rateShort, HITS_LEFT, darkGood } from './format.js';
@@ -52,6 +52,8 @@ export const vaultHits = t => { const v = t.vault || { hp: 0, max: 0 }; return S
 /* "a, b and c" */
 const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 const goodsLower = gs => list(gs.map(g => GOODS[g].name.toLowerCase()));
+/* A town card's line for an outpost that tops it up (outpostFeeds). */
+export const feedLine = (f, id) => shortOf(f.from) + ' sends ' + goodsLower(f.goods) + ' when ' + shortOf(id) + ' runs low.'; // names the town (fresh-eyes read of 2026.11.27-9: "this town" read as the outpost)
 /* What a place makes, in the same words on its card before and after it opens: its top goods, or every good it makes. */
 export const makesWords = id => TOWNS[id].makesText || goodsLower(makesOf(id));
 
@@ -321,10 +323,14 @@ export function mountMap(root, game, view, shell) {
       // (review of 2026.11.19-9: 100% here beside a sheet of hits, "under 1 a second" beside "under 1/s")
       kids.push(grid);
       kids.push(el('p', 'uses', whatIs(id) + makesWords(id) + '.')); // the same words as its card before it opened (review 2026-11-18)
+      // an outpost that tops this town up is named here before any goods have moved, once, in place of its route line
+      // (outpostFeeds, clarity fix 8z)
+      const feeds = outpostFeeds(game, id), fed = new Set(feeds.map(f => f.from));
       for (const l of mapRoutes(game)) {
         if (l.from === id) kids.push(el('p', 'uses', 'Sends ' + goodsLower(l.goods) + ' to ' + shortOf(l.to) + '.'));
-        if (l.to === id) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
+        if (l.to === id && !fed.has(l.from)) kids.push(el('p', 'uses', 'Gets ' + goodsLower(l.goods) + ' from ' + shortOf(l.from) + '.'));
       }
+      for (const f of feeds) kids.push(el('p', 'uses', feedLine(f, id)));
       if (info.alert === 'lost' || info.alert === 'retry' || info.alert === 'retrying') { /* its line leads the card */ }
       else if (info.alert === 'raided') kids.push(el('p', 'warn', 'Raiders got through to the ' + store.toLowerCase() + ' here while you were away.'));
       else if (info.alert === 'vault') kids.push(el('p', 'warn', 'The ' + store.toLowerCase() + ' is under half strength.'));

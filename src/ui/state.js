@@ -18,13 +18,13 @@ export function timeWords(secs) {
 const raiders = n => n + (n === 1 ? ' raider' : ' raiders');
 
 /* The label's word, at most 12 characters so it fits its fixed cell: Fighting, Wave in 0:24, On hold, Retry soon (Keep
-   trying the boss waits for Auto-towers), Raid in 1:56, No towers (review of 2026.11.20-18: "Raids 1:56" read as a
+   trying the boss waits for Auto-towers), Raid in 1:56, Waiting (review of 2026.11.20-18: "Raids 1:56" read as a
    score, and one "On hold" meant both "go there" and "it tries again by itself"). */
 export function stateWord(s) {
   if (!s) return '';
   if (s.state === 'fight') return 'Fighting';
   if (s.state === 'hold') return s.retry ? 'Retry soon' : 'On hold';
-  if (s.state === 'wait') return 'No towers';
+  if (s.state === 'wait') return 'Waiting'; // the card's "waits until you go there" in one word (fresh-eyes read of 2026.11.27-9: "No towers" beside it named another cause)
   return (s.state === 'raids' ? 'Raid in ' : 'Wave in ') + clock(s.timer); // a noun, like Raid in (clarity fix 8a: "Next in 0:43" named nothing)
 }
 /* The mark beside the word: swords for a fight, a clock for a countdown, a pause sign for a hold (red when the player
@@ -54,7 +54,9 @@ export function stateLines(s, { lost = false } = {}) {
   if (s.state === 'fight') out.push(s.won ? 'A raid is on now, ' + raiders(s.left) + ' left.' : 'Fighting wave ' + s.wave + ', ' + raiders(s.left) + ' left.');
   else if (s.state === 'next') out.push('Wave ' + s.wave + ' comes in ' + clock(s.timer) + '.'); // the label's clock, one format for one timer (clarity fix 8a)
   else if (s.state === 'raids') out.push('Next raid in ' + clock(s.timer) + '.');
-  else if (s.state === 'wait') out.push('Wave ' + s.wave + ' waits until you build a tower here.');
+  // a town away with no tower: its clock waits until the player goes there, then counts down as in play (waitsAway;
+  // clarity fix 8z: "until you build a tower" was untrue, since the clock runs once the town is in play)
+  else if (s.state === 'wait') out.push('Wave ' + s.wave + ' waits until you go there.');
   else if (s.state === 'hold' && !lost) out.push('Wave ' + s.wave + ' is on hold. Tap Play, then tap Resume waves.'); // the card has Play, the town has Resume waves (clarity fix 8a)
   return out;
 }

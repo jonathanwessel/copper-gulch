@@ -128,10 +128,13 @@ export const FORKS = {
        Blizzard (range) chills a much longer stretch of road, with softer hits. It wants a pad where the road bends
          round it, and it spreads Deep Freeze or Brittle Ice over every tower that reaches that stretch.
        Cold Snap (slow) slows raiders much more, {boss} too, over a short reach with softer hits. It wants other towers
-         close by, which get far longer to shoot at each raider. Its slow is capped at SLOW_MOST. */
+         close by, which get far longer to shoot at each raider. Its slow is capped at SLOW_MOST.
+     Cold Snap's hits went from .5 to .65 in 2026.11.27-9: with the active player's Frost Lenses kept off the vault end,
+     the Falls has fewer lenses for it to stand out among, and runs of the waves (tools/fork-runs.js) gave it 9 and 1 of
+     38 Falls pads on seeds 1 and 2; at .65 they give it 14 and 4, and the Ridge 8 and 13 of 36. */
   frost: {
     a: { name: 'Blizzard', about: 'Reaches much farther. Softer hits.', range: 1.5, dmg: .55 },
-    b: { name: 'Cold Snap', about: 'Slows raiders much more. Softer hits.', slow: 1.4, range: .8, dmg: .5 },
+    b: { name: 'Cold Snap', about: 'Slows raiders much more. Softer hits.', slow: 1.4, range: .8, dmg: .65 },
   },
 };
 /* The most a slow takes off a raider's speed (Cold Snap). */

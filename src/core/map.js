@@ -141,6 +141,17 @@ export function siteState(game, id) {
 /* The outposts that make a good (an outpost's goods go to the towns that use them). */
 const outpostsMaking = (game, g) => Object.values(game.towns).filter(o => isOutpost(o) && makesOf(o.id).includes(g)).map(o => o.id);
 
+/* The open outposts that top a town up (src/core/economy.js, feed): [{ from, goods }] for each outpost that makes a
+   good this town's buildings use, whether or not any has moved yet, in the order the towns open. A town's map card names
+   them (clarity fix 8z: the Mesa's card named no line for Tar Seep's crude oil and rubber until a workshop ran low).
+   An outpost has none. */
+export function outpostFeeds(game, id) {
+  const t = game.towns[id];
+  if (!t || isOutpost(t)) return [];
+  const uses = new Set(); for (const b of Object.keys(TOWNS[id].board.plots)) for (const g of Object.keys((BUILDINGS[b] && BUILDINGS[b].inputs) || {})) uses.add(g);
+  return TOWN_ORDER.filter(o => o !== id && isOutpost(game.towns[o])).map(o => ({ from: o, goods: makesOf(o).filter(g => uses.has(g)) })).filter(x => x.goods.length);
+}
+
 /* Links that have carried goods: town to town by route (to.shipped) and outpost to town (to.drawn).
    [{ key: 'from>to', from, to, goods: [good], total }] sorted by key. */
 export function mapRoutes(game) {
